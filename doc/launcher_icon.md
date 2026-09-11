@@ -28,7 +28,6 @@ The panel also points out what would go wrong on a device or in review:
 
 - icon files on disk that nothing in the project points at, and references to
   images that don't exist,
-- an Android `minSdk` below 26 with no plain bitmap icon to fall back to,
 - a themed Android icon with no monochrome layer, which Android 13 and later
   then ignore,
 - iOS icons with an alpha channel, which App Store Connect rejects,

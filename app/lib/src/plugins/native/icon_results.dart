@@ -22,8 +22,6 @@ class IconInventoryResult implements PluginResult {
     this.flavor,
     this.flavors = const [],
     this.iconBundles = const [],
-    this.minSdk,
-    this.minSdkSource,
     this.roles = const [],
     this.findings = const [],
   });
@@ -46,12 +44,6 @@ class IconInventoryResult implements PluginResult {
   final String iosCatalog;
 
   final List<String> iconBundles;
-
-  /// Null when it could not be read, which is an answer rather than a failure:
-  /// the current Flutter template writes `minSdk = flutter.minSdkVersion`,
-  /// which is not a number until Gradle runs.
-  final int? minSdk;
-  final String? minSdkSource;
 
   final List<IconRoleEntry> roles;
   final List<IconFindingEntry> findings;

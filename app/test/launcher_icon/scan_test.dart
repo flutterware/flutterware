@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutterware/plugins.dart';
 import 'package:flutterware_app/src/launcher_icon/model/role.dart';
 import 'package:flutterware_app/src/launcher_icon/model/scan.dart';
-import 'package:flutterware_app/src/launcher_icon/model/wiring.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -326,20 +325,6 @@ ${monochrome == null ? '' : '  <monochrome android:drawable="$monochrome"/>'}
       );
     });
 
-    test('adaptive icons below API 26 with no bitmap fallback', () {
-      write('android/app/build.gradle.kts', 'minSdk = 21\n');
-      writeManifest();
-      writeAdaptive();
-      for (var name in ['ic_launcher_foreground', 'ic_launcher_background']) {
-        writePng('android/app/src/main/res/mipmap-hdpi/$name.png', 162);
-      }
-
-      expect(
-        scan().findings.map((f) => f.message),
-        contains(contains('devices below API 26')),
-      );
-    });
-
     test('stays quiet when the wiring could not be read', () {
       // No manifest and no adaptive XML: everything would look unreferenced,
       // and saying so about every file would be crying wolf.
@@ -347,47 +332,6 @@ ${monochrome == null ? '' : '  <monochrome android:drawable="$monochrome"/>'}
 
       expect(scan().findings, isEmpty);
       expect(scan().forRole(IconRole.androidLegacy)!.referenced, isNull);
-    });
-  });
-
-  group('minSdk', () {
-    test('reads a bare and an assigned form', () {
-      write('android/app/build.gradle', 'minSdkVersion 23\n');
-      expect(readMinSdk(root.path).$1, 23);
-
-      write('android/app/build.gradle.kts', 'minSdk = 27\n');
-      expect(readMinSdk(root.path).$1, 27);
-    });
-
-    test('a trailing comment does not join the digits', () {
-      // `icons_launcher` strips every non-digit from the line and reports 2421.
-      write('android/app/build.gradle.kts', 'minSdk = 24 // was 21\n');
-      expect(readMinSdk(root.path).$1, 24);
-    });
-
-    test('a commented-out line is skipped', () {
-      write('android/app/build.gradle.kts', '// minSdk = 19\nminSdk = 26\n');
-      expect(readMinSdk(root.path).$1, 26);
-    });
-
-    test(
-      'an unevaluated Gradle expression reads as unknown, not a default',
-      () {
-        // What the current Flutter template emits. A generator that guesses 21
-        // here states a fact it does not have.
-        write(
-          'android/app/build.gradle.kts',
-          'minSdk = flutter.minSdkVersion\n',
-        );
-        expect(readMinSdk(root.path).$1, isNull);
-      },
-    );
-
-    test('a missing local.properties does not throw', () {
-      // `icons_launcher` reads it with no existence check and dies on a clean
-      // checkout, where the file is gitignored and not yet generated.
-      write('android/app/build.gradle.kts', 'android {\n}\n');
-      expect(readMinSdk(root.path).$1, isNull);
     });
   });
 

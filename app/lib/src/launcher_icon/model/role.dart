@@ -187,7 +187,6 @@ enum IconRole {
     mask: IconMask.adaptive,
     safeFraction: adaptiveSafeFraction,
     since: 'Android 8 (API 26)',
-    minAndroidApi: 26,
     description:
         'The upper layer of an adaptive icon. Only the inner two thirds '
         'survives the launcher mask.',
@@ -199,7 +198,6 @@ enum IconRole {
     mask: IconMask.adaptive,
     safeFraction: adaptiveSafeFraction,
     since: 'Android 8 (API 26)',
-    minAndroidApi: 26,
     description:
         'The lower layer of an adaptive icon — an image, or a colour named in '
         'colors.xml.',
@@ -220,7 +218,6 @@ enum IconRole {
     mask: IconMask.adaptive,
     safeFraction: adaptiveSafeFraction,
     since: 'Android 13 (API 33)',
-    minAndroidApi: 33,
     description:
         'The monochrome layer. Android keeps its shape and throws away '
         'everything else, filling it with a colour taken from the wallpaper. '
@@ -233,7 +230,6 @@ enum IconRole {
     IconPlatform.android,
     treatment: IconTreatment.whiteSilhouette,
     since: 'Android 5 (API 21)',
-    minAndroidApi: 21,
     description:
         'Drawn in the status bar with all colour discarded — only the alpha '
         'channel survives, filled white.',
@@ -336,7 +332,6 @@ enum IconRole {
     this.mask = IconMask.none,
     this.safeFraction,
     this.since,
-    this.minAndroidApi,
   });
 
   /// What goes in an address — `?role=android.adaptive-foreground`.
@@ -360,10 +355,6 @@ enum IconRole {
   /// The OS version this role begins to mean anything at, for a caption. Null
   /// when it has always existed.
   final String? since;
-
-  /// The Android API level [since] refers to, for comparing against the
-  /// project's own `minSdk`. Null off Android.
-  final int? minAndroidApi;
 
   static IconRole? byId(String id) {
     for (var value in values) {

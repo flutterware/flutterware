@@ -1069,22 +1069,6 @@ List<IconFinding> _findings(IconScan scan, List<_Resource> resources) {
       }
     }
 
-    var adaptive = scan.forRole(IconRole.androidAdaptiveForeground);
-    var legacy = scan.forRole(IconRole.androidLegacy);
-    if (wiring.adaptiveReachesEveryone == false &&
-        (adaptive?.files.isNotEmpty ?? false) &&
-        (legacy?.files.isEmpty ?? true)) {
-      findings.add(
-        IconFinding(
-          Tone.warn,
-          'minSdk is ${wiring.minSdk}, so devices below API 26 fall back to the '
-          'bitmap launcher icon — and there is not one.',
-          role: IconRole.androidLegacy,
-        ),
-      );
-      explained.add(IconRole.androidLegacy);
-    }
-
     // Only meaningful once something was actually read: with an unreadable
     // manifest and no adaptive XML nothing is referenced, and saying so about
     // every file would be crying wolf.

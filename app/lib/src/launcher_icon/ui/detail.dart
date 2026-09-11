@@ -57,7 +57,8 @@ class IconDetail extends StatelessWidget {
   final List<({Tone tone, String message})> findings;
 
   /// The one line of project context that changes what this role means —
-  /// minSdk, usually. Named oddly because `context` is taken.
+  /// that a flavor inherits it, today. Named oddly because `context` is
+  /// taken.
   final String? context_;
 
   final AdaptiveMask adaptiveMask;
