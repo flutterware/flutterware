@@ -233,9 +233,25 @@ void main() {
     await screen.settle();
     await screen.shot('dependencies');
 
+    // The recorded splash: the scan runs in the page over files fetched
+    // from beside it, and the pictures it found come from the same place.
+    await screen.tap('Splash screen');
+    await screen.waitFor('Android 12+ · Light');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/splash/root/') &&
+            e.key.endsWith('.png') &&
+            e.value == 200,
+      ),
+      what: 'a recorded splash picture fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('splash');
+
     // A plugin with nothing recorded says so, rather than reaching for a
     // process or a disk.
-    await screen.tap('Splash screen');
+    await screen.tap('Assets');
     await screen.waitFor('Not in this recording');
     await screen.shot('not-recorded');
 

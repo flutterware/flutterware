@@ -16,6 +16,9 @@ import 'package:flutterware_app/src/launcher_icon/model/scan.dart';
 import 'package:flutterware_app/src/scenarios/axes.dart';
 import 'package:flutterware_app/src/scenarios/discovery.dart';
 import 'package:flutterware_app/src/scenarios/runner.dart';
+import 'package:flutterware_app/src/splash/model/files.dart';
+import 'package:flutterware_app/src/splash/model/fingerprint.dart';
+import 'package:flutterware_app/src/splash/model/scan.dart';
 import 'package:flutterware_app/src/translations/loader.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
 import 'package:image/image.dart' as img;
@@ -47,12 +50,13 @@ import 'stack_traffic.dart';
 /// confirm.
 ///
 /// `--only=launcher-icon`, `--only=scenarios`, `--only=server`,
-/// `--only=stack`, `--only=translations`, `--only=store` or
-/// `--only=dependencies` records one part. The launcher-icon, server and
-/// stack parts are byte-identical on every machine, which CI checks; the
-/// scenario, translations and store parts spawn the harness and keep its
-/// pixels, and the dependencies part asks pub.dev, none of which is, and
-/// those are recorded from one machine on purpose.
+/// `--only=stack`, `--only=translations`, `--only=store`,
+/// `--only=dependencies` or `--only=splash` records one part. The
+/// launcher-icon, server, stack and splash parts are byte-identical on every
+/// machine, which CI checks; the scenario, translations and store parts
+/// spawn the harness and keep its pixels, and the dependencies part asks
+/// pub.dev, none of which is, and those are recorded from one machine on
+/// purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
 /// this process, `tool/demo/server_traffic.dart` reports into it the way a
@@ -73,11 +77,12 @@ Future<void> main(List<String> arguments) async {
         'translations',
         'store',
         'dependencies',
+        'splash',
       }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
           '[--only=launcher-icon|scenarios|server|stack|translations|store'
-          '|dependencies]',
+          '|dependencies|splash]',
         );
         exit(64);
       }
@@ -112,6 +117,8 @@ Future<void> main(List<String> arguments) async {
       await _recordStore(project: project, out: out, appRoot: appRoot),
     if (only == null || only == 'dependencies')
       await _recordDependencies(project: project, out: out),
+    if (only == null || only == 'splash')
+      _recordSplash(project: project, out: out),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '
@@ -543,6 +550,74 @@ Future<String> _recordDependencies({
   return 'a resolution of ${packages.length} packages '
       '(${resolved.directs.length} direct, $withPubDev on pub.dev), '
       '${(file.lengthSync() / 1024).toStringAsFixed(0)} KB';
+}
+
+/// What the splash scan reads, as it read it.
+///
+/// The real scan, run over the disk through a [RecordingSplashFiles] that
+/// remembers every path it touched: afterwards the recording holds exactly
+/// those files, at their own relative paths, and the listing of every
+/// directory it walked. The fingerprint is run too, since the core takes it
+/// after every scan and it stats a few more paths. Times are pinned — a
+/// checkout gives every file the same time anyway, and a recording that
+/// changes with the checkout is one CI cannot check.
+String _recordSplash({required String project, required String out}) {
+  const packagePath = '.';
+  var dir = Directory(p.join(out, 'splash'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+
+  var files = RecordingSplashFiles();
+  var scan = scanSplash(
+    packageRoot: project,
+    packagePath: packagePath,
+    files: files,
+  );
+  splashFingerprint(packageRoot: project, scan: scan, files: files);
+
+  String relative(String path) =>
+      p.relative(path, from: project).replaceAll(r'\', '/');
+
+  var index = <String, Object?>{};
+  var bytes = 0;
+  for (var path in files.files.toList()..sort()) {
+    if (!p.isWithin(project, path)) continue;
+    var rel = relative(path);
+    var target = File(p.join(out, recordedSplashFilePath(packagePath, rel)))
+      ..parent.createSync(recursive: true);
+    File(path).copySync(target.path);
+    bytes += target.lengthSync();
+    index[rel] = {
+      'size': target.lengthSync(),
+      // The config before its output, so the scan reads the output as
+      // current rather than stale — which is what a fresh checkout says too.
+      'modified':
+          (rel == 'pubspec.yaml' || rel.startsWith('flutter_native_splash')
+                  ? pinnedClockOrigin.subtract(const Duration(hours: 1))
+                  : pinnedClockOrigin)
+              .toIso8601String(),
+    };
+  }
+  var directories = <String, Object?>{};
+  for (var entry in files.directories.entries) {
+    if (!p.isWithin(project, entry.key) && !p.equals(project, entry.key)) {
+      continue;
+    }
+    directories[relative(entry.key)] = switch (entry.value) {
+      null => null,
+      var entries => [
+        for (var e in entries)
+          if (p.isWithin(project, e)) relative(e),
+      ]..sort(),
+    };
+  }
+  File(p.join(out, recordedSplashIndexPath(packagePath)))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({'files': index, 'directories': directories})}\n',
+    );
+  return 'a splash scan of ${scan.configs.length} configs, '
+      '${index.length} files, ${directories.length} directories, '
+      '${(bytes / 1024).toStringAsFixed(0)} KB';
 }
 
 /// [text] with every absolute path under [project] spelled under the

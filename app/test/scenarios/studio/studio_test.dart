@@ -5,6 +5,7 @@ import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware_app/src/demo/recorded_project.dart';
 import 'package:flutterware_app/src/demo/recording.dart';
 import 'package:flutterware_app/src/shell/shell_view.dart';
+import 'package:flutterware_app/src/splash/ui/variant_tile.dart';
 import 'package:path/path.dart' as p;
 
 /// The studio, driven by its own harness, over the recording
@@ -30,7 +31,20 @@ void main() {
     await s.pumpWidget(ShellApp(shell), shot: Shot('Home'));
     await s.tap('Launcher icon', shot: Shot('Launcher icons'));
     await s.tap('Themed icon', shot: Shot('The themed icon'));
-    await s.tap('Splash screen', shot: Shot('Not recorded'));
+    await s.tap('Assets', shot: Shot('Not recorded'));
+  });
+
+  /// The splash panel over the recorded files: every surface in both themes,
+  /// read back from what the generator wrote, then one cell opened. The
+  /// scan is the live one, run over files the recording holds in memory.
+  scenario('Splash screen of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Splash screen', shot: Shot('Every surface'));
+    // The picture is the tap target, not its caption: the third tile is
+    // Android 12+ in the light theme.
+    await s.tap(find.byType(SplashScreenBox).at(2), shot: Shot('A cell'));
   });
 
   /// The dependencies panel over the recorded resolution: what the demo app

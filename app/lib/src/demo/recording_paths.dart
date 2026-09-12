@@ -92,6 +92,20 @@ String recordedDependenciesPath(String packagePath) =>
 /// `rootPath` reads, and the key its recorded facts are filed under.
 const recordedDependencyRoot = '$recordedProjectRoot/packages';
 
+/// What the splash scan read of one package: every file it opened, with its
+/// size and time, under `files`, and every directory it listed with what it
+/// saw there under `directories` — both keyed by package-relative path, a
+/// directory seen but never listed holding null. The files' bytes sit at
+/// [recordedSplashFilePath].
+String recordedSplashIndexPath(String packagePath) =>
+    'splash/${recordedPackageSlug(packagePath)}.files.json';
+
+/// Where the copy of one file the splash scan read goes: under the
+/// package's slug at its own relative path, so the tree under the recording
+/// is the tree the scan walked.
+String recordedSplashFilePath(String packagePath, String packageRelative) =>
+    'splash/${recordedPackageSlug(packagePath)}/$packageRelative';
+
 String recordedScenarioScanPath(String packagePath) =>
     'scenarios/${recordedPackageSlug(packagePath)}.scan.json';
 

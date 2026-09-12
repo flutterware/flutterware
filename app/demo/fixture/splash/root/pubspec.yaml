@@ -1,0 +1,37 @@
+name: brewline
+description: A small coffee-shop app, wired up with flutterware — clone it and run one command.
+publish_to: none
+# A member of the flutterware workspace while it is developed here, so that
+# the checkout above is the `flutterware` it resolves. `tool/publish_example.dart`
+# drops this line on the way out: a clone has no workspace to belong to.
+resolution: workspace
+version: 1.0.0
+
+environment:
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
+
+dependencies:
+  collection: ^1.19.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutterware: ^0.6.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  # Writes the splash screen into the platform folders from
+  # flutter_native_splash.yaml.
+  flutter_native_splash: ^2.4.0
+  flutter_test:
+    sdk: flutter
+  # tool/brand_icons.dart resizes the icon art into the platforms' icon files.
+  image: ^4.0.0
+  path: ^1.9.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/i18n/
+    - assets/store/

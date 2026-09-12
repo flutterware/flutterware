@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:flutterware/plugins.dart';
 import 'package:path/path.dart' as p;
 
 import '../../session/job.dart';
 import '../../splash/model/color.dart';
+import '../../splash/model/files.dart';
 import '../../splash/model/fingerprint.dart';
 import '../../splash/model/generated.dart';
 import '../../splash/model/scan.dart';
@@ -42,7 +44,12 @@ class SplashCore extends PluginCore {
   SplashCore(
     super.host, {
     this.pollInterval = const Duration(milliseconds: 750),
+    this.files = const LiveSplashFiles(),
   });
+
+  /// Where the scan reads from — the disk unless a recording is standing in
+  /// for one.
+  final SplashFiles files;
 
   /// How often a retained package's files are re-checked against the scan on
   /// screen. [Duration.zero] disables polling, which is what a test that drives
@@ -57,10 +64,14 @@ class SplashCore extends PluginCore {
   ];
 
   late final _cache = ScanCache<String, SplashScan>(
-    scan: (path) async => scanSplash(
-      packageRoot: host.workspace.packageFor(path).absolutePath,
-      packagePath: path,
-    ),
+    scan: (path) async {
+      await files.ready();
+      return scanSplash(
+        packageRoot: host.workspace.packageFor(path).absolutePath,
+        packagePath: path,
+        files: files,
+      );
+    },
     onChanged: notifyChanged,
     onSettled: _stamp,
   );
@@ -83,8 +94,11 @@ class SplashCore extends PluginCore {
     _fingerprints[path] = splashFingerprint(
       packageRoot: host.workspace.packageFor(path).absolutePath,
       scan: _cache[path],
+      files: files,
     );
-    _scannedAt[path] = DateTime.now();
+    // Through `package:clock`, so a scenario of this panel — the studio's
+    // own, over a recording — reads the same time every day it runs.
+    _scannedAt[path] = clock.now();
   }
 
   /// The scan for [path], or null when nothing has looked at it yet.
@@ -178,7 +192,11 @@ class SplashCore extends PluginCore {
       for (var path in _cache.settledKeys) {
         if (_cache.isScanning(path)) continue;
         var root = host.workspace.packageFor(path).absolutePath;
-        var current = splashFingerprint(packageRoot: root, scan: _cache[path]);
+        var current = splashFingerprint(
+          packageRoot: root,
+          scan: _cache[path],
+          files: files,
+        );
         if (current == _fingerprints[path]) continue;
         await _cache.reload(path);
       }

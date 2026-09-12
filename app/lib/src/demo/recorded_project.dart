@@ -6,7 +6,7 @@
 /// — the worktree list git would report, the manifest `tool/flutterware.dart`
 /// would produce, the facts the explorer would probe — and every plugin's core
 /// is either the live core over recorded readers (launcher icon, scenarios,
-/// server, dev stack, translations, store, dependencies) or a quiet
+/// server, dev stack, translations, store, dependencies, splash) or a quiet
 /// [RecordedCore] whose panel says so. Nothing below runs a process, opens a
 /// socket or walks a directory; the one filesystem touch left, the facts
 /// store, points at a path that is not there and is built to shrug.
@@ -35,6 +35,7 @@ import '../plugins/native/icon_plugin.dart';
 import '../plugins/native/previews_plugin.dart';
 import '../plugins/native/scenarios_plugin.dart';
 import '../plugins/native/server_plugin.dart';
+import '../plugins/native/splash_plugin.dart';
 import '../plugins/native/store_plugin.dart';
 import '../plugins/native/translations_plugin.dart';
 import '../previews/discovery.dart' show ScanResult;
@@ -58,6 +59,7 @@ import 'recorded_config.dart';
 import 'recorded_dependencies.dart';
 import 'recorded_scenarios.dart';
 import 'recorded_server.dart';
+import 'recorded_splash.dart';
 import 'recorded_stack.dart';
 import 'recorded_store.dart';
 import 'recorded_translations.dart';
@@ -257,6 +259,12 @@ PluginCoreFactory _recordedCore(
     host,
     source: RecordedDependencySource(recording),
   ),
+  // No polling: nothing under a recording moves, and the poll would stat it.
+  splashPluginId => (host) => SplashCore(
+    host,
+    files: RecordedSplashFiles(recording),
+    pollInterval: Duration.zero,
+  ),
   // Previews is not recorded: its entries are compiled into this program
   // and the scan is the table of them.
   uiCatalogPluginId when previews != null => (host) => PreviewsCore(
@@ -297,6 +305,9 @@ NativePluginFactory _recordedPanel(
     (core) => StorePlugin(core, image: recordedStoreImage(recording)),
   ),
   dependenciesPluginId => panelFor<DependenciesCore>(DependenciesPlugin.new),
+  splashPluginId => panelFor<SplashCore>(
+    (core) => SplashPlugin(core, image: recordedSplashImage(recording)),
+  ),
   uiCatalogPluginId when previews != null => panelFor<PreviewsCore>((core) {
     var inline = InlinePreviewsGuest(previews);
     return PreviewsPlugin(

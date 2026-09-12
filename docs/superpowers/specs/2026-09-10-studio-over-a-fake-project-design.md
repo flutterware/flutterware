@@ -944,6 +944,39 @@ the SDK's executable — a platform read — before asking a source that
 spawns nothing. Both are now off the path. And `formatAge` read the wall
 clock, the third panel to; it reads `clock.now()`.
 
+### The splash slice (2026-09-12): the files are the seam, and the scan is the tool's
+
+The splash scan had no JSON and twenty classes it would have needed it
+for — the config, its resolution with a source per key, the images'
+facts, the generated artifacts, the recompositions, the findings. So the
+seam went one level down: a `SplashFiles` interface with the seven reads
+the scan makes — exists, is-directory, list, text, bytes, the first bytes
+of a PNG, a stat — and the scan, the artifact walk, the recompositions
+and the fingerprint take one, the disk by default. Nothing about what
+the scan computes changed, and every one of its 127 tests runs unchanged
+over the live files. `SplashCore(files:)` awaits the files' `ready()`
+before a scan and hands them to the fingerprint; `SplashPlugin(image:)`
+is the door for the pictures, through an inherited widget the layer three
+widgets down reads.
+
+**What the recording holds.** The recorder runs the real scan over the
+disk through a `RecordingSplashFiles` that remembers every path it read
+and every directory it listed — and nothing more, since a file the scan
+only saw in a listing and skipped by name is not part of its answer.
+Eighty-five files under their own relative paths and fifty-two listings;
+the times are pinned, the config an hour before its output. The recorded
+files fetch themselves into memory on `ready()` and are then a memory
+filesystem the same scan walks. Byte-identical on every machine, so CI
+re-records it beside the icon, server and stack parts.
+
+**What it bought.** The page shows the panel's whole matrix — Android
+and Android 12 in both themes read back from the generated files, the
+web pair read back from `index.html`, iOS predicted — and a cell opened
+to its inspector; the studio's own scenario does the same. The scan
+stamped its time with the wall clock, the fourth panel to; it reads
+`clock.now()`. And the analyzer had to be told the copied `pubspec.yaml`
+is a fixture, not a package.
+
 ## What to do next
 
 0. ~~The launcher-icon slice.~~ Built; see above.

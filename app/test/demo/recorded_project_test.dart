@@ -57,7 +57,7 @@ void main() {
     await tester.pumpWidget(ShellApp(shell));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Splash screen'));
+    await tester.tap(find.text('Assets'));
     await tester.pumpAndSettle();
 
     expect(find.text('Not in this recording'), findsOneWidget);

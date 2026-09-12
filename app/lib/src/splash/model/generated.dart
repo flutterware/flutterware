@@ -14,11 +14,11 @@
 /// time it changed.
 library;
 
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import 'files.dart';
 import 'surface.dart';
 
 /// Which layer of the splash a generated file is.
@@ -129,22 +129,14 @@ String? _bucket(String? density) {
 /// there are dozens of them, and this runs on the UI isolate every time the
 /// fingerprint moves. A valid PNG always puts IHDR first: 8-byte signature,
 /// 4-byte length, `IHDR`, then two big-endian 32-bit values.
-(int, int)? readPngHeaderSize(File file) {
-  RandomAccessFile? handle;
-  try {
-    handle = file.openSync();
-    var bytes = handle.readSync(24);
-    if (bytes.length < 24) return null;
-    for (var i = 0; i < 8; i++) {
-      if (bytes[i] != _pngSignature[i]) return null;
-    }
-    var data = ByteData.sublistView(bytes);
-    return (data.getUint32(16), data.getUint32(20));
-  } on FileSystemException {
-    return null;
-  } finally {
-    handle?.closeSync();
+(int, int)? readPngHeaderSize(SplashFiles files, String path) {
+  var bytes = files.readHead(path, 24);
+  if (bytes == null || bytes.length < 24) return null;
+  for (var i = 0; i < 8; i++) {
+    if (bytes[i] != _pngSignature[i]) return null;
   }
+  var data = ByteData.sublistView(bytes);
+  return (data.getUint32(16), data.getUint32(20));
 }
 
 const _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
@@ -176,27 +168,33 @@ String iosFlavorName(String? flavor) => flavor == null || flavor.isEmpty
 ///
 /// Returns an empty list when nothing has been generated, which is a real and
 /// common state — it is what "run `generate` first" is based on.
-List<SplashArtifact> findSplashArtifacts(String packageRoot, {String? flavor}) {
+List<SplashArtifact> findSplashArtifacts(
+  String packageRoot, {
+  String? flavor,
+  SplashFiles files = const LiveSplashFiles(),
+}) {
   var found = <SplashArtifact>[];
 
   void add(
-    File file,
+    String file,
     SplashSurface surface,
     SplashTheme theme,
     String? density,
     SplashArtifactRole role,
   ) {
-    var size = readPngHeaderSize(file);
+    var size = readPngHeaderSize(files, file);
     found.add(
       SplashArtifact(
-        path: p.relative(file.path, from: packageRoot),
+        path: p.relative(file, from: packageRoot),
         surface: surface,
         theme: theme,
         role: role,
         density: density,
         pixelWidth: size?.$1,
         pixelHeight: size?.$2,
-        modified: file.statSync().modified,
+        modified:
+            files.stat(file)?.modified ??
+            DateTime.fromMillisecondsSinceEpoch(0),
       ),
     );
   }
@@ -205,10 +203,11 @@ List<SplashArtifact> findSplashArtifacts(String packageRoot, {String? flavor}) {
   // One `splash.png` per density folder, plus `android12splash.png` for the
   // Android 12 path and `branding.png` beside them. `-night` in the folder name
   // is what makes a resource the dark one.
-  var res = Directory(p.join(packageRoot, androidResFolder(flavor)));
-  if (res.existsSync()) {
-    for (var entry in res.listSync().whereType<Directory>()) {
-      var folder = p.basename(entry.path);
+  var res = p.join(packageRoot, androidResFolder(flavor));
+  if (files.isDirectory(res)) {
+    for (var entry in files.list(res)) {
+      if (!files.isDirectory(entry)) continue;
+      var folder = p.basename(entry);
       if (!folder.startsWith('drawable')) continue;
       var theme = folder.contains('night')
           ? SplashTheme.dark
@@ -216,8 +215,9 @@ List<SplashArtifact> findSplashArtifacts(String packageRoot, {String? flavor}) {
       var density = folder
           .replaceFirst('drawable-', '')
           .replaceFirst('night-', '');
-      for (var file in entry.listSync().whereType<File>()) {
-        var name = p.basename(file.path);
+      for (var file in files.list(entry)) {
+        if (files.isDirectory(file)) continue;
+        var name = p.basename(file);
         // `background.png` matters as much as the rest: it is the *colour*,
         // rendered to a bitmap, and it is the bottom layer of
         // `launch_background.xml`. Skipping it made the browser show a splash
@@ -266,17 +266,17 @@ List<SplashArtifact> findSplashArtifacts(String packageRoot, {String? flavor}) {
   // as the flavor's own.
   var iosAssets = p.join(packageRoot, 'ios', 'Runner', 'Assets.xcassets');
   var suffix = iosFlavorName(flavor);
-  var iosGenerated = Directory(
+  var iosGenerated = files.isDirectory(
     p.join(iosAssets, 'LaunchBackground$suffix.imageset'),
-  ).existsSync();
+  );
 
   for (var set in ['LaunchImage', 'BrandingImage', 'LaunchBackground']) {
     if (!iosGenerated) break;
-    var dir = Directory(p.join(iosAssets, '$set$suffix.imageset'));
-    if (!dir.existsSync()) continue;
-    for (var file in dir.listSync().whereType<File>()) {
-      if (p.extension(file.path) != '.png') continue;
-      var name = p.basenameWithoutExtension(file.path);
+    var dir = p.join(iosAssets, '$set$suffix.imageset');
+    if (!files.isDirectory(dir)) continue;
+    for (var file in files.list(dir)) {
+      if (files.isDirectory(file) || p.extension(file) != '.png') continue;
+      var name = p.basenameWithoutExtension(file);
       var density = switch (name) {
         _ when name.endsWith('@3x') => '@3x',
         _ when name.endsWith('@2x') => '@2x',
@@ -295,11 +295,11 @@ List<SplashArtifact> findSplashArtifacts(String packageRoot, {String? flavor}) {
   }
 
   // ---- Web --------------------------------------------------------------
-  var web = Directory(p.join(packageRoot, 'web', 'splash', 'img'));
-  if (web.existsSync()) {
-    for (var file in web.listSync().whereType<File>()) {
-      if (p.extension(file.path) != '.png') continue;
-      var name = p.basenameWithoutExtension(file.path);
+  var web = p.join(packageRoot, 'web', 'splash', 'img');
+  if (files.isDirectory(web)) {
+    for (var file in files.list(web)) {
+      if (files.isDirectory(file) || p.extension(file) != '.png') continue;
+      var name = p.basenameWithoutExtension(file);
       var theme = name.contains('dark') ? SplashTheme.dark : SplashTheme.light;
       var density = RegExp(r'(\dx)$').firstMatch(name)?.group(1);
       var role = switch (name) {
@@ -324,11 +324,11 @@ List<SplashArtifact> findSplashArtifacts(String packageRoot, {String? flavor}) {
 bool splashIsStale({
   required String configPath,
   required List<SplashArtifact> artifacts,
+  SplashFiles files = const LiveSplashFiles(),
 }) {
   if (artifacts.isEmpty) return false;
-  var config = File(configPath);
-  if (!config.existsSync()) return false;
-  var configTime = config.statSync().modified;
+  var configTime = files.stat(configPath)?.modified;
+  if (configTime == null) return false;
   var newest = artifacts
       .map((a) => a.modified)
       .reduce((a, b) => a.isAfter(b) ? a : b);
