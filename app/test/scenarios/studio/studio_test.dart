@@ -30,7 +30,19 @@ void main() {
     await s.pumpWidget(ShellApp(shell), shot: Shot('Home'));
     await s.tap('Launcher icon', shot: Shot('Launcher icons'));
     await s.tap('Themed icon', shot: Shot('The themed icon'));
-    await s.tap('Dependencies', shot: Shot('Not recorded'));
+    await s.tap('Splash screen', shot: Shot('Not recorded'));
+  });
+
+  /// The dependencies panel over the recorded resolution: what the demo app
+  /// declares and what that pulls in, one opened to what pub.dev says, its
+  /// changelog and what it weighs. Nothing runs `pub deps`, walks the pub
+  /// cache or asks pub.dev — the recording is all three.
+  scenario('Dependencies of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Dependencies', shot: Shot('The resolution'));
+    await s.tap('flutter_native_splash', shot: Shot('A package'));
   });
 
   /// The Server panel over the recorded ring: the orders server's requests,

@@ -61,6 +61,22 @@ class PackageImport {
   /// the web as never referenced.
   final String? condition;
 
+  Map<String, Object?> toJson() => {
+    'path': path,
+    'uri': uri,
+    'scope': scope.name,
+    if (isExport) 'export': true,
+    'condition': ?condition,
+  };
+
+  static PackageImport fromJson(Map<String, Object?> json) => PackageImport(
+    path: json['path']! as String,
+    uri: json['uri']! as String,
+    scope: ImportScope.values.asNameMap()[json['scope']] ?? ImportScope.other,
+    isExport: json['export'] == true,
+    condition: json['condition'] as String?,
+  );
+
   @override
   String toString() =>
       condition == null ? '$path → $uri' : '$path → $uri if ($condition)';
@@ -78,6 +94,14 @@ class PackageAssetReference {
 
   final bool isFont;
 
+  Map<String, Object?> toJson() => {'path': path, if (isFont) 'font': true};
+
+  static PackageAssetReference fromJson(Map<String, Object?> json) =>
+      PackageAssetReference(
+        path: json['path']! as String,
+        isFont: json['font'] == true,
+      );
+
   @override
   String toString() => path;
 }
@@ -90,6 +114,38 @@ class PackageImports {
 
   /// Asset and font paths reaching into another package, by package name.
   final Map<String, List<PackageAssetReference>> assetsByPackage;
+
+  Map<String, Object?> toJson() => {
+    'imports': {
+      for (var entry in byPackage.entries)
+        entry.key: [for (var import in entry.value) import.toJson()],
+    },
+    'assets': {
+      for (var entry in assetsByPackage.entries)
+        entry.key: [for (var asset in entry.value) asset.toJson()],
+    },
+  };
+
+  static PackageImports fromJson(Map<String, Object?> json) => PackageImports(
+    {
+      for (var entry
+          in (json['imports'] as Map<String, Object?>? ?? const {}).entries)
+        entry.key: [
+          for (var import in entry.value as List? ?? const [])
+            PackageImport.fromJson((import as Map).cast<String, Object?>()),
+        ],
+    },
+    assetsByPackage: {
+      for (var entry
+          in (json['assets'] as Map<String, Object?>? ?? const {}).entries)
+        entry.key: [
+          for (var asset in entry.value as List? ?? const [])
+            PackageAssetReference.fromJson(
+              (asset as Map).cast<String, Object?>(),
+            ),
+        ],
+    },
+  );
 
   List<PackageImport> operator [](String packageName) =>
       byPackage[packageName] ?? const [];

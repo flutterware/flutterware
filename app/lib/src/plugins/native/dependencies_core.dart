@@ -7,6 +7,7 @@ import 'package:flutterware/plugins.dart' hide Dependencies;
 import '../../dependencies/model/package_origin.dart';
 import '../../dependencies/model/pub_deps_store.dart';
 import '../../dependencies/model/service.dart';
+import '../../dependencies/model/source.dart';
 import '../../utils/async_value.dart';
 import '../plugin_core.dart';
 import 'dependencies_address.dart';
@@ -31,7 +32,19 @@ const _pluginDescription =
 /// [track], which the panel calls on mount and `fw` calls for the duration of
 /// a request.
 class DependenciesCore extends PluginCore {
-  DependenciesCore(super.host);
+  DependenciesCore(super.host, {DependencySource? source})
+    : source = source ?? LiveDependencySource(pubDepsStore: PubDepsStore());
+
+  /// Where every service this core builds reads from — the project and
+  /// pub.dev, unless a recording is standing in for them.
+  ///
+  /// One for all of them, and the live one carries one [PubDepsStore], which
+  /// is the reason `fw status` is no longer dominated by this plugin. `pub
+  /// deps` reports the whole resolution wherever it runs, so the three
+  /// declared packages of this repo were three identical ~0.6s subprocesses;
+  /// the store makes them one, and caches it on disk against the lockfile so
+  /// a cold `fw` pays nothing either.
+  final DependencySource source;
 
   final _tracked = <String, StreamSubscription<Snapshot<Dependencies>>>{};
 
@@ -39,14 +52,6 @@ class DependenciesCore extends PluginCore {
   /// here rather than by the workspace: a service belongs to the plugin that
   /// knows what it is for.
   final _services = <String, DependenciesService>{};
-
-  /// Shared by every service this core builds, and the reason `fw status` is
-  /// no longer dominated by this plugin. `pub deps` reports the whole
-  /// resolution wherever it runs, so the three declared packages of this repo
-  /// were three identical ~0.6s subprocesses; the store makes them one, and
-  /// caches it on disk against the lockfile so a cold `fw` pays nothing
-  /// either.
-  final _pubDeps = PubDepsStore();
 
   /// Declared packages, filtered to those the workspace knows about.
   late final List<String> packages = [
@@ -56,10 +61,7 @@ class DependenciesCore extends PluginCore {
 
   DependenciesService serviceFor(String path) => _services.putIfAbsent(
     path,
-    () => DependenciesService(
-      host.workspace.packageFor(path),
-      pubDepsStore: _pubDeps,
-    ),
+    () => DependenciesService(host.workspace.packageFor(path), source: source),
   );
 
   /// Whether [path]'s service has been built yet — the laziness rule, made

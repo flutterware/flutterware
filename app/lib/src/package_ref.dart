@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'context.dart';
 import 'utils/flutter_sdk.dart';
 
@@ -23,7 +25,11 @@ class PackageRef {
   final Directory directory;
   final FlutterSdkPath flutterSdkPath;
 
-  String get absolutePath => directory.absolute.path;
+  /// Absolute already is absolute: `Directory.absolute` asks the platform
+  /// for the working directory, and a recorded project's root is spelled in
+  /// full on a platform that has none.
+  String get absolutePath =>
+      p.isAbsolute(directory.path) ? directory.path : directory.absolute.path;
 
   @override
   String toString() => 'PackageRef($absolutePath)';

@@ -6,8 +6,8 @@
 /// — the worktree list git would report, the manifest `tool/flutterware.dart`
 /// would produce, the facts the explorer would probe — and every plugin's core
 /// is either the live core over recorded readers (launcher icon, scenarios,
-/// server, dev stack, translations, store) or a quiet [RecordedCore] whose
-/// panel says so. Nothing below runs a process, opens a
+/// server, dev stack, translations, store, dependencies) or a quiet
+/// [RecordedCore] whose panel says so. Nothing below runs a process, opens a
 /// socket or walks a directory; the one filesystem touch left, the facts
 /// store, points at a path that is not there and is built to shrug.
 ///
@@ -28,6 +28,7 @@ import 'package:flutterware/src/log_client.dart';
 
 import '../context.dart';
 import '../plugins/manifest_loader.dart';
+import '../plugins/native/dependencies_plugin.dart';
 import '../plugins/native/dev_stack_core.dart';
 import '../plugins/native/dev_stack_plugin.dart';
 import '../plugins/native/icon_plugin.dart';
@@ -54,6 +55,7 @@ import '../worktrees/providers/forge.dart';
 import '../worktrees/providers/git.dart';
 import '../worktrees/watchers.dart';
 import 'recorded_config.dart';
+import 'recorded_dependencies.dart';
 import 'recorded_scenarios.dart';
 import 'recorded_server.dart';
 import 'recorded_stack.dart';
@@ -251,6 +253,10 @@ PluginCoreFactory _recordedCore(
     host,
     source: RecordedStoreSource(recording),
   ),
+  dependenciesPluginId => (host) => DependenciesCore(
+    host,
+    source: RecordedDependencySource(recording),
+  ),
   // Previews is not recorded: its entries are compiled into this program
   // and the scan is the table of them.
   uiCatalogPluginId when previews != null => (host) => PreviewsCore(
@@ -290,6 +296,7 @@ NativePluginFactory _recordedPanel(
   storePluginId => panelFor<StoreCore>(
     (core) => StorePlugin(core, image: recordedStoreImage(recording)),
   ),
+  dependenciesPluginId => panelFor<DependenciesCore>(DependenciesPlugin.new),
   uiCatalogPluginId when previews != null => panelFor<PreviewsCore>((core) {
     var inline = InlinePreviewsGuest(previews);
     return PreviewsPlugin(

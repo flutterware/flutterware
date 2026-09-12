@@ -7,6 +7,10 @@ import 'package:flutterware/plugins.dart' show FilePerLocaleCatalog;
 import 'package:flutterware/server.dart';
 import 'package:flutterware/translations.dart' show translationExportFile;
 import 'package:flutterware_app/src/demo/recorded_config.dart';
+import 'package:flutterware_app/src/dependencies/model/pub_deps.dart';
+import 'package:flutterware_app/src/dependencies/model/pubspec_lock.dart';
+import 'package:flutterware_app/src/dependencies/model/service.dart';
+import 'package:flutterware_app/src/dependencies/model/source.dart';
 import 'package:flutterware_app/src/demo/recording_paths.dart';
 import 'package:flutterware_app/src/launcher_icon/model/scan.dart';
 import 'package:flutterware_app/src/scenarios/axes.dart';
@@ -15,7 +19,9 @@ import 'package:flutterware_app/src/scenarios/runner.dart';
 import 'package:flutterware_app/src/translations/loader.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
 import 'package:image/image.dart' as img;
+import 'package:package_config/package_config.dart';
 import 'package:path/path.dart' as p;
+import 'package:pubspec_parse/pubspec_parse.dart' show Pubspec;
 import 'package:yaml/yaml.dart';
 
 import 'server_traffic.dart';
@@ -41,11 +47,12 @@ import 'stack_traffic.dart';
 /// confirm.
 ///
 /// `--only=launcher-icon`, `--only=scenarios`, `--only=server`,
-/// `--only=stack`, `--only=translations` or `--only=store` records one part.
-/// The launcher-icon, server and stack parts are byte-identical on every
-/// machine, which CI checks; the scenario, translations and store parts spawn
-/// the harness and keep its pixels, which are not, and are recorded from one
-/// machine on purpose.
+/// `--only=stack`, `--only=translations`, `--only=store` or
+/// `--only=dependencies` records one part. The launcher-icon, server and
+/// stack parts are byte-identical on every machine, which CI checks; the
+/// scenario, translations and store parts spawn the harness and keep its
+/// pixels, and the dependencies part asks pub.dev, none of which is, and
+/// those are recorded from one machine on purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
 /// this process, `tool/demo/server_traffic.dart` reports into it the way a
@@ -65,10 +72,12 @@ Future<void> main(List<String> arguments) async {
         'stack',
         'translations',
         'store',
+        'dependencies',
       }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
-          '[--only=launcher-icon|scenarios|server|stack|translations|store]',
+          '[--only=launcher-icon|scenarios|server|stack|translations|store'
+          '|dependencies]',
         );
         exit(64);
       }
@@ -101,6 +110,8 @@ Future<void> main(List<String> arguments) async {
       await _recordTranslations(project: project, out: out, appRoot: appRoot),
     if (only == null || only == 'store')
       await _recordStore(project: project, out: out, appRoot: appRoot),
+    if (only == null || only == 'dependencies')
+      await _recordDependencies(project: project, out: out),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '
@@ -415,6 +426,123 @@ Future<String> _recordStore({
   return 'a store export of ${sets.length} sets, '
       '$copied images at 1/$recordedStoreShotDivisor, '
       '${(bytes / 1024).toStringAsFixed(0)} KB';
+}
+
+/// Every read the dependencies plugin makes, made once here and kept.
+///
+/// The resolution's inputs — the pubspec, the lockfile, `pub deps --json` —
+/// are kept as the tools wrote them, so the recording is parsed by the same
+/// parsers the panel parses a project with. The package config is rewritten
+/// so every package sits under [recordedDependencyRoot] by its name, and what
+/// the live source computes from the pub cache for each package — its
+/// pubspec, readme and changelog, line count, size — is filed under that
+/// root, with what pub.dev said about it. The scores table is cut to the
+/// packages present: whole, it is 25 MB.
+///
+/// The project is a workspace member here, so its resolution is the
+/// workspace's — wider than a clone's, and scoped back to what the project
+/// reaches by the same walk the panel does.
+Future<String> _recordDependencies({
+  required String project,
+  required String out,
+}) async {
+  const packagePath = '.';
+  var dir = Directory(p.join(out, 'dependencies'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+  var sdk = await FlutterSdkPath.findSdk();
+  if (sdk == null) {
+    stderr.writeln("Run this through a Flutter SDK's dart: fvm dart run …");
+    exit(1);
+  }
+
+  var live = LiveDependencySource();
+  var pubspecText = await live.pubspecText(project);
+  var pubDepsJson = await PubDeps.loadJson(
+    flutterExecutable: sdk.flutter,
+    directory: project,
+  );
+  var lockFile = PubspecLock.findFile(project);
+  var lockText = lockFile?.readAsStringSync();
+  var packageConfig = await findPackageConfig(Directory(project));
+  if (packageConfig == null) {
+    throw StateError('No package config above $project — run pub get.');
+  }
+
+  // The walk the panel does, over the live source, so what is kept is
+  // exactly the set of packages the panel will ask about.
+  var resolved = Dependencies.resolve(
+    pubspec: Pubspec.parse(pubspecText),
+    pubDeps: PubDeps.parse(pubDepsJson),
+    lock: lockText == null ? null : PubspecLock.parse(lockText),
+    packageConfig: packageConfig,
+    readPubspec: live.dependencyPubspec,
+    source: live,
+  );
+
+  var packages = <String, Object?>{};
+  var withPubDev = 0;
+  for (var dependency in resolved.dependencies) {
+    var root = dependency.rootPath;
+    if (root == null) continue;
+    var recordedRoot = '$recordedDependencyRoot/${dependency.name}';
+    var documents = <String, String>{};
+    for (var candidates in const [
+      ['README.md', 'readme.md', 'README'],
+      ['CHANGELOG.md', 'changelog.md', 'CHANGELOG'],
+    ]) {
+      if (await live.document(root, candidates) case var found?) {
+        documents[found.name] = found.text;
+      }
+    }
+    var pubDev = await live.pubDev(dependency.name);
+    if (pubDev != null) withPubDev++;
+    packages[recordedRoot] = {
+      'name': dependency.name,
+      'pubspec': File(p.join(root, 'pubspec.yaml')).readAsStringSync(),
+      'documents': documents,
+      'cloc': (await live.cloc(root)).toJson(),
+      'size': (await live.size(root)).toJson(),
+      'pubDev': pubDev?.toJson(),
+    };
+  }
+
+  // The config, re-rooted: only the packages the walk kept, each at the
+  // directory the recording files it under.
+  var config = {
+    'configVersion': 2,
+    'packages': [
+      for (var dependency in resolved.dependencies)
+        if (dependency.rootPath != null)
+          {
+            'name': dependency.name,
+            'rootUri': 'file://$recordedDependencyRoot/${dependency.name}/',
+            'packageUri': 'lib/',
+            'languageVersion': ?packageConfig[dependency.name]?.languageVersion
+                ?.toString(),
+          },
+    ],
+  };
+
+  var scores = await live.pubScores();
+  var names = {for (var dependency in resolved.dependencies) dependency.name};
+  var scoresJson = {
+    'packages': {
+      for (var name in names)
+        if (scores[name] case var score?) name: score.toJson(),
+    },
+  };
+
+  var imports = await live.packageImports(project);
+  live.dispose();
+
+  var file = File(p.join(out, recordedDependenciesPath(packagePath)))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({'pubspec': pubspecText, 'lock': lockText, 'pubDeps': pubDepsJson, 'packageConfig': config, 'packages': packages, 'pubScores': scoresJson, 'imports': imports.toJson()})}\n',
+    );
+  return 'a resolution of ${packages.length} packages '
+      '(${resolved.directs.length} direct, $withPubDev on pub.dev), '
+      '${(file.lengthSync() / 1024).toStringAsFixed(0)} KB';
 }
 
 /// [text] with every absolute path under [project] spelled under the

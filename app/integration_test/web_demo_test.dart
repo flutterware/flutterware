@@ -226,9 +226,16 @@ void main() {
     await screen.shot('previews');
     await screen.waitFor('Cappuccino');
 
+    // The recorded resolution: one file holds every read the panel makes,
+    // fetched on its first look.
+    await screen.tap('Dependencies');
+    await screen.waitFor('flutter_native_splash');
+    await screen.settle();
+    await screen.shot('dependencies');
+
     // A plugin with nothing recorded says so, rather than reaching for a
     // process or a disk.
-    await screen.tap('Dependencies');
+    await screen.tap('Splash screen');
     await screen.waitFor('Not in this recording');
     await screen.shot('not-recorded');
 

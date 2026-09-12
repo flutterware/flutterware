@@ -78,6 +78,20 @@ String recordedStorePath(String packagePath) =>
 String recordedStoreRootDir(String packagePath) =>
     'store/${recordedPackageSlug(packagePath)}';
 
+/// One package's dependencies, everything the plugin reads in one file: the
+/// pubspec and lockfile texts, `pub deps --json` verbatim, the package config
+/// with every root spelled under [recordedDependencyRoot], and per package
+/// its pubspec, readme, changelog, line count, size and pub.dev entry; the
+/// pub.dev scores table cut to the packages present, and the package's own
+/// imports.
+String recordedDependenciesPath(String packagePath) =>
+    'dependencies/${recordedPackageSlug(packagePath)}.dependencies.json';
+
+/// Where a recorded resolution's packages pretend to be: one directory per
+/// package name, flat, under the recorded project. What a dependency's
+/// `rootPath` reads, and the key its recorded facts are filed under.
+const recordedDependencyRoot = '$recordedProjectRoot/packages';
+
 String recordedScenarioScanPath(String packagePath) =>
     'scenarios/${recordedPackageSlug(packagePath)}.scan.json';
 

@@ -909,6 +909,41 @@ panel's lookup still matched from the store on. And `ageOf`, which the
 panel dates the export with, read the wall clock; it reads `clock.now()`
 now, for the reason the translations slice gave.
 
+### The dependencies slice (2026-09-12): eleven reads, one source
+
+The widest plugin so far. The service composes the picture from the
+project's pubspec, its lockfile, `pub deps --json`, the package config,
+each dependency's pubspec, readme and changelog off the pub cache, its
+line count and size walked off the same cache, the pub.dev scores table
+and pub.dev itself — eleven reads through `dart:io`, `dart:isolate` and
+`package:http`. All of them now go through a `DependencySource`;
+`LiveDependencySource` carries the loaders the service used to hold and
+the `PubDepsStore` the core shared across its packages, so the plugin on
+a project is what it was. Three models that had no JSON gained it — the
+line count, the size, the imports — because a recording is what the live
+source computed, written down.
+
+**What the recording holds.** One file: the pubspec, lockfile and `pub
+deps` output as the tools wrote them, parsed by the same parsers; the
+package config rewritten so every package sits under
+`/recording/packages/<name>`, which is the key the per-package facts are
+filed under; pub.dev's answer per package; the scores table cut from
+25 MB to the packages present; the project's own imports. The recorder
+runs the live source over the demo app and keeps what it computed —
+including the walk the panel does to scope the workspace's resolution to
+the one member, so the set kept is the set the panel asks about. 1.2 MB,
+sixty packages. Not deterministic: pub.dev moves.
+
+**Two things the page taught.** A loader's `Error` is rethrown, not
+folded into the snapshot — that is the async value's policy, and right —
+so the first `UnsupportedError` on the load path left the rail on
+*loading…* forever with the page's console the only witness. There were
+two: `PackageRef.absolutePath` asked the platform for the working
+directory to absolutise a path that already was, and the service named
+the SDK's executable — a platform read — before asking a source that
+spawns nothing. Both are now off the path. And `formatAge` read the wall
+clock, the third panel to; it reads `clock.now()`.
+
 ## What to do next
 
 0. ~~The launcher-icon slice.~~ Built; see above.
