@@ -5,9 +5,9 @@
 /// Everything the shell would learn from the machine is answered here instead
 /// — the worktree list git would report, the manifest `tool/flutterware.dart`
 /// would produce, the facts the explorer would probe — and every plugin's core
-/// is either the live core over recorded readers (launcher icon, scenarios,
-/// server, dev stack, translations, store, dependencies, splash) or a quiet
-/// [RecordedCore] whose panel says so. Nothing below runs a process, opens a
+/// is the live core over recorded readers (launcher icon, scenarios, server,
+/// dev stack, translations, store, dependencies, splash), or over the preview
+/// entries compiled into the host. Nothing below runs a process, opens a
 /// socket or walks a directory; the one filesystem touch left, the facts
 /// store, points at a path that is not there and is built to shrug.
 ///
@@ -68,15 +68,13 @@ import 'recording.dart';
 /// What the recorded project's `tool/flutterware.dart` would declare.
 ///
 /// Written with the same classes a project writes its config with, so the
-/// recording's rail is a rail a real config could produce. The launcher icon
-/// and the scenarios have a recording behind them; the rest are declared so
-/// the rail reads as a project rather than as two plugins, and their panels
-/// say what they are.
+/// recording's rail is a rail a real config could produce. Every plugin here
+/// has a recording behind it — a plugin with nothing to show over one, like
+/// Assets, is left out rather than declared with a panel that apologises.
 PluginManifest recordedManifest() {
   const root = Pkg('.');
   var fw = FlutterwareConfig();
   fw.use(Dependencies(packages: const [DependenciesPackage(root)]));
-  fw.use(Assets(packages: const [AssetsPackage(root)]));
   // A phone app: its previews open on a phone, as the root manifest says.
   fw.use(
     Previews(packages: const [PreviewsPackage(root, device: Devices.iphone16)]),
@@ -225,7 +223,8 @@ Future<ProcessResult> _recordedGit(
 }
 
 /// The live core over the recording, for a plugin with one behind it; a
-/// quiet [RecordedCore] for the rest.
+/// quiet [RecordedCore] for the one case left without — previews, in a host
+/// that compiled no entries in.
 PluginCoreFactory _recordedCore(
   String pluginId,
   Recording recording,
@@ -279,7 +278,7 @@ PluginCoreFactory _recordedCore(
 };
 
 /// The live panel, reading its pictures from the recording; [NotRecordedPlugin]
-/// for a plugin with nothing behind it.
+/// for previews in a host that compiled no entries in.
 NativePluginFactory _recordedPanel(
   String pluginId,
   Recording recording,
@@ -345,7 +344,9 @@ class RecordedManifestLoader implements ManifestLoader {
   Duration get timeout => Duration.zero;
 }
 
-/// A plugin the recording declares but has nothing recorded for.
+/// A plugin the recording declares but has nothing recorded for — previews,
+/// when the host compiled no entries in (a widget test; the studio's own
+/// scenarios).
 ///
 /// Quiet, with a row per declared package so the rail shows the project's
 /// shape. [NotRecordedPlugin] is its panel.

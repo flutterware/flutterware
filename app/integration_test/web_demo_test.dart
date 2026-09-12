@@ -249,12 +249,6 @@ void main() {
     await screen.settle();
     await screen.shot('splash');
 
-    // A plugin with nothing recorded says so, rather than reaching for a
-    // process or a disk.
-    await screen.tap('Assets');
-    await screen.waitFor('Not in this recording');
-    await screen.shot('not-recorded');
-
     expect(errors, isEmpty, reason: errors.join('\n'));
   });
 

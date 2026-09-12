@@ -31,7 +31,6 @@ void main() {
     await s.pumpWidget(ShellApp(shell), shot: Shot('Home'));
     await s.tap('Launcher icon', shot: Shot('Launcher icons'));
     await s.tap('Themed icon', shot: Shot('The themed icon'));
-    await s.tap('Assets', shot: Shot('Not recorded'));
   });
 
   /// The splash panel over the recorded files: every surface in both themes,

@@ -46,7 +46,7 @@ void main() {
     expect(find.textContaining('Could not read'), findsNothing);
   });
 
-  testWidgets('a plugin with nothing recorded says so', (tester) async {
+  testWidgets('previews with no entries compiled in say so', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -57,7 +57,7 @@ void main() {
     await tester.pumpWidget(ShellApp(shell));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Assets'));
+    await tester.tap(find.text('Previews'));
     await tester.pumpAndSettle();
 
     expect(find.text('Not in this recording'), findsOneWidget);

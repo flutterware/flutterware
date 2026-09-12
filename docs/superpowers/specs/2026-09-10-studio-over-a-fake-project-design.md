@@ -432,8 +432,10 @@ above is now answered on fact:
   `ShellController` over canned git, an in-process manifest written with the
   same `FlutterwareConfig` classes a project uses, inert facts probes, empty
   watch streams, a quiet `RecordedCore` and a `NotRecordedPlugin` panel for
-  the five plugins with nothing recorded. `test/demo/recorded_project_test.dart`
-  opens it end to end.
+  the five plugins with nothing recorded — down to none by 2026-09-12, when
+  the last of them, Assets, was dropped from the demo manifest rather than
+  recorded; the panel survives for previews in a host with no entries
+  compiled in. `test/demo/recorded_project_test.dart` opens it end to end.
 - **Whole-panel catalog entries.** Three in `launcher_icon_panel.dart`,
   photographed through `previews screenshot` under `flutter_tester` with the
   recording read from assets — light, dark, and the kiosk flavor showing
