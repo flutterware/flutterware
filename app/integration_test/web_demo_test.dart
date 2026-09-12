@@ -147,6 +147,22 @@ void main() {
     await screen.settle();
     await screen.shot('dev-stack');
 
+    // The recorded translations: the catalogs and the export come from the
+    // recording, and so does every picture of a key in place.
+    await screen.tap('Translations');
+    await screen.waitFor('placeOrder');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/translations/root/shots/') &&
+            e.key.endsWith('.png') &&
+            e.value == 200,
+      ),
+      what: 'a recorded translation shot fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('translations');
+
     // The second recorded panel: a scenario run, its frames fetched the same
     // way. Opening a scenario "runs" it, which over a recording is a read.
     await screen.tap('Scenarios');

@@ -52,6 +52,20 @@ String recordedServerPath(String packagePath, String name) =>
 String recordedStackPath(String packagePath) =>
     'stack/${recordedPackageSlug(packagePath)}.stack.json';
 
+/// One package's translation catalogs, as its declared globs read them:
+/// `{"globs": {"assets/i18n/*.json": {"assets/i18n/en.json": "…"}}}`. The
+/// files' text, not a copy of the files — a recording cannot walk a glob, so
+/// it keeps the walk's answer.
+String recordedTranslationCatalogsPath(String packagePath) =>
+    'translations/${recordedPackageSlug(packagePath)}.catalogs.json';
+
+/// One package's translation export, verbatim: `keys.json` and the `shots/`
+/// tree beside it, exactly as `fw run translations export` wrote them. The
+/// panel resolves every shot under this directory, so it is also what the
+/// recorded source answers for the export's directory.
+String recordedTranslationExportDir(String packagePath) =>
+    'translations/${recordedPackageSlug(packagePath)}';
+
 String recordedScenarioScanPath(String packagePath) =>
     'scenarios/${recordedPackageSlug(packagePath)}.scan.json';
 

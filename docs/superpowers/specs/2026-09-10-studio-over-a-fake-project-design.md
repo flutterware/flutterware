@@ -840,6 +840,44 @@ and there is no disk. One trap for the scenario: `FwActionButton` reads
 `Done` for 1.4s after a success, and under fake time that is forever until
 the walk waits it out.
 
+### The translations slice (2026-09-12): three reads, one source
+
+The plugin reads three things and nothing else: the catalog files, the last
+export's `keys.json`, and the pictures that export names. `TranslationsCore`
+did the first two itself through `dart:io` and the panel did the third,
+opening a `File` in four places. All four now go through a
+`TranslationSource` on the core — `catalogsUnder`, `exportDirectoryIn`,
+`readExport`, `readShot` — which `LiveTranslationSource` answers from the
+package's directory exactly as before. The panel puts the source's
+`readShot` in the tree once (`_Shots`, an inherited widget, re-provided
+inside the full-screen dialog because a dialog is built above the panel)
+and the shared frame decoder reads through it, so a picture is a path and a
+reader rather than a file.
+
+**What the recording holds.** `record.dart --only=translations` runs the
+live catalog reader over each declared glob and keeps its answer per glob —
+a recording cannot walk a glob, so it keeps the walk's result — and then
+runs the real action, `fw run translations export`, over the demo app by
+the CLI, and copies the export verbatim: `keys.json` and the `shots/` tree.
+The recorded source names that directory as the export's own, so the panel
+joins shot paths under it exactly as it does on disk and what it builds is
+a recording path. The declared catalogs live in `recorded_config.dart`,
+pure Dart, because the recorder and the recorded manifest both need them
+and neither can import the other's world.
+
+**Not deterministic, by nature.** The export's pictures are `flutter_tester`
+frames, which differ across platforms, so this part joins the scenarios
+part outside CI's re-record check. On one machine it re-records
+byte-identical.
+
+**What it bought.** The page and the studio's own scenario show the panel
+with every key's English, its French, its picture in place — the demo app's
+two catalogs, thirty keys, twenty photographed — then a key opened to its
+frame, the switch to French, and the filter to the two keys French still
+lacks. One fix fell out: the panel dated the export with `DateTime.now()`,
+which no scenario can pin, so the studio's shot would have read a day older
+every day; it reads `clock.now()` now.
+
 ## What to do next
 
 0. ~~The launcher-icon slice.~~ Built; see above.

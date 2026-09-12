@@ -56,6 +56,22 @@ void main() {
     );
   });
 
+  /// The translations panel over the recorded catalogs and export: every key
+  /// with its English and its picture in place, one opened to its frame, the
+  /// switch to French, and the filter to what French still lacks. The
+  /// pictures are the export's own shots, read from the recording.
+  scenario('Translations of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Translations', shot: Shot('The keys'));
+    await s.tap('placeOrder', shot: Shot('A key in place'));
+    // The first `fr`: the language switch in the filter row, before the open
+    // key's own French row.
+    await s.tap(const Target.nth('fr', 0), shot: Shot('In French'));
+    await s.tap('Missing in fr', shot: Shot('What French still lacks'));
+  });
+
   /// The dev stack panel over the recorded script: the stack up, its logs,
   /// then torn down and brought back — each control answered by what the
   /// script printed for it, and the probe reporting the state that follows.

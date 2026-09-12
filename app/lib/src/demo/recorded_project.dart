@@ -5,8 +5,9 @@
 /// Everything the shell would learn from the machine is answered here instead
 /// — the worktree list git would report, the manifest `tool/flutterware.dart`
 /// would produce, the facts the explorer would probe — and every plugin's core
-/// is either the live core over recorded readers (launcher icon, scenarios)
-/// or a quiet [RecordedCore] whose panel says so. Nothing below runs a process, opens a
+/// is either the live core over recorded readers (launcher icon, scenarios,
+/// server, dev stack, translations) or a quiet [RecordedCore] whose panel says
+/// so. Nothing below runs a process, opens a
 /// socket or walks a directory; the one filesystem touch left, the facts
 /// store, points at a path that is not there and is built to shrug.
 ///
@@ -33,6 +34,7 @@ import '../plugins/native/icon_plugin.dart';
 import '../plugins/native/previews_plugin.dart';
 import '../plugins/native/scenarios_plugin.dart';
 import '../plugins/native/server_plugin.dart';
+import '../plugins/native/translations_plugin.dart';
 import '../previews/discovery.dart' show ScanResult;
 import '../previews/inline_guest.dart';
 import '../plugins/native_plugin.dart';
@@ -50,9 +52,11 @@ import '../worktrees/providers/agent.dart';
 import '../worktrees/providers/forge.dart';
 import '../worktrees/providers/git.dart';
 import '../worktrees/watchers.dart';
+import 'recorded_config.dart';
 import 'recorded_scenarios.dart';
 import 'recorded_server.dart';
 import 'recorded_stack.dart';
+import 'recorded_translations.dart';
 import 'recording.dart';
 
 /// What the recorded project's `tool/flutterware.dart` would declare.
@@ -74,6 +78,16 @@ PluginManifest recordedManifest() {
   fw.use(Scenarios(packages: const [ScenariosPackage(root)]));
   fw.use(LauncherIcon(packages: const [LauncherIconPackage(root)]));
   fw.use(NativeSplash(packages: const [NativeSplashPackage(root)]));
+  // The words, as the demo app declares them — see `recorded_config.dart`
+  // for why the list lives apart — and an export the recorder ran over its
+  // whole suite; see `recorded_translations.dart`.
+  fw.use(
+    Translations(
+      packages: const [
+        TranslationsPackage(root, catalogs: recordedTranslationCatalogs),
+      ],
+    ),
+  );
   // The orders server, as its ring was recorded — see `recorded_server.dart`.
   fw.use(ServerInspection());
   // The stack around it, as its script's answers were recorded — see
@@ -209,6 +223,10 @@ PluginCoreFactory _recordedCore(
   devStackPluginId => (host) => DevStackCore(
     host,
   )..runProcess = RecordedStack(recording).run,
+  translationsPluginId => (host) => TranslationsCore(
+    host,
+    source: RecordedTranslationSource(recording),
+  ),
   // Previews is not recorded: its entries are compiled into this program
   // and the scan is the table of them.
   uiCatalogPluginId when previews != null => (host) => PreviewsCore(
@@ -244,6 +262,7 @@ NativePluginFactory _recordedPanel(
   // The live panel: the recorded source underneath answers every read.
   serverPluginId => panelFor<ServerCore>(ServerPlugin.new),
   devStackPluginId => panelFor<DevStackCore>(DevStackPlugin.new),
+  translationsPluginId => panelFor<TranslationsCore>(TranslationsPlugin.new),
   uiCatalogPluginId when previews != null => panelFor<PreviewsCore>((core) {
     var inline = InlinePreviewsGuest(previews);
     return PreviewsPlugin(

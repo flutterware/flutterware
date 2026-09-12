@@ -3,12 +3,16 @@ import 'dart:io';
 
 // ignore: implementation_imports
 import 'package:flutterware/src/clock.dart';
+import 'package:flutterware/plugins.dart' show FilePerLocaleCatalog;
 import 'package:flutterware/server.dart';
+import 'package:flutterware/translations.dart' show translationExportFile;
+import 'package:flutterware_app/src/demo/recorded_config.dart';
 import 'package:flutterware_app/src/demo/recording_paths.dart';
 import 'package:flutterware_app/src/launcher_icon/model/scan.dart';
 import 'package:flutterware_app/src/scenarios/axes.dart';
 import 'package:flutterware_app/src/scenarios/discovery.dart';
 import 'package:flutterware_app/src/scenarios/runner.dart';
+import 'package:flutterware_app/src/translations/loader.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
 import 'package:path/path.dart' as p;
 
@@ -34,10 +38,12 @@ import 'stack_traffic.dart';
 /// recorded project's workspace to one package nothing on disk has to
 /// confirm.
 ///
-/// `--only=launcher-icon`, `--only=scenarios`, `--only=server` or
-/// `--only=stack` records one part. The launcher-icon, server and stack parts
-/// are byte-identical on every machine, which CI checks; the scenario part spawns the harness and keeps
-/// its pixels, which are not, and is recorded from one machine on purpose.
+/// `--only=launcher-icon`, `--only=scenarios`, `--only=server`,
+/// `--only=stack` or `--only=translations` records one part. The
+/// launcher-icon, server and stack parts are byte-identical on every machine,
+/// which CI checks; the scenario and translations parts spawn the harness and
+/// keep its pixels, which are not, and are recorded from one machine on
+/// purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
 /// this process, `tool/demo/server_traffic.dart` reports into it the way a
@@ -55,10 +61,11 @@ Future<void> main(List<String> arguments) async {
         'scenarios',
         'server',
         'stack',
+        'translations',
       }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
-          '[--only=launcher-icon|scenarios|server|stack]',
+          '[--only=launcher-icon|scenarios|server|stack|translations]',
         );
         exit(64);
       }
@@ -87,6 +94,8 @@ Future<void> main(List<String> arguments) async {
       ),
     if (only == null || only == 'server') await _recordServer(out: out),
     if (only == null || only == 'stack') _recordStack(out: out),
+    if (only == null || only == 'translations')
+      await _recordTranslations(project: project, out: out, appRoot: appRoot),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '
@@ -232,6 +241,73 @@ Future<String> _recordScenarios({
       '${scan.scenarios.length} kept, '
       '${recordedScenarioFiles.length} files run ($scenarios scenarios, '
       '$steps steps), $copied artifacts, '
+      '${(bytes / 1024).toStringAsFixed(0)} KB';
+}
+
+/// The catalogs as their globs read them, and an export of the whole suite.
+///
+/// The catalogs go through the live reader — the same walk the panel does,
+/// kept as its answer per glob, since a recording cannot walk one. The
+/// export is the real action, `fw run translations export`, run over the
+/// project by the CLI the way a script would run it, and its output kept
+/// verbatim: the panel resolves every shot under the export's directory,
+/// and the recording's copy is that directory.
+Future<String> _recordTranslations({
+  required String project,
+  required String out,
+  required String appRoot,
+}) async {
+  const packagePath = '.';
+  var dir = Directory(p.join(out, 'translations'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+
+  var read = catalogFilesUnder(project);
+  var globs = <String, Map<String, String>>{};
+  for (var catalog in recordedTranslationCatalogs) {
+    var glob = (catalog as FilePerLocaleCatalog).files;
+    globs[glob] = await read(glob);
+  }
+  File(p.join(out, recordedTranslationCatalogsPath(packagePath)))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({'globs': globs})}\n',
+    );
+
+  var exported = await Process.run(Platform.resolvedExecutable, [
+    'run',
+    p.join(appRoot, 'bin', 'fw.dart'),
+    'run',
+    'translations',
+    'export',
+    '--package=$packagePath',
+  ], workingDirectory: project);
+  if (exported.exitCode != 0) {
+    stderr.writeln(exported.stdout);
+    stderr.writeln(exported.stderr);
+    throw StateError('translations export failed (${exported.exitCode})');
+  }
+  var export = p.join(project, 'build', 'translations');
+  var into = p.join(out, recordedTranslationExportDir(packagePath));
+  var copied = 0;
+  var bytes = 0;
+  for (var entity in Directory(export).listSync(recursive: true)) {
+    if (entity is! File) continue;
+    var relative = p.relative(entity.path, from: export);
+    // The page beside the index is for a browser opened on the export; the
+    // panel reads the index and the shots.
+    if (relative == 'index.html') continue;
+    var target = File(p.join(into, relative))
+      ..parent.createSync(recursive: true);
+    entity.copySync(target.path);
+    copied++;
+    bytes += target.lengthSync();
+  }
+  var index = jsonDecode(
+    File(p.join(into, translationExportFile)).readAsStringSync(),
+  ) as Map;
+  var files = globs.values.fold(0, (sum, found) => sum + found.length);
+  return '${globs.length} translation catalogs ($files files), an export of '
+      '${(index['keys'] as List).length} keys, $copied files, '
       '${(bytes / 1024).toStringAsFixed(0)} KB';
 }
 
