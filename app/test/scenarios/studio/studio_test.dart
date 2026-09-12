@@ -56,6 +56,24 @@ void main() {
     );
   });
 
+  /// The dev stack panel over the recorded script: the stack up, its logs,
+  /// then torn down and brought back — each control answered by what the
+  /// script printed for it, and the probe reporting the state that follows.
+  scenario('Dev stack of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Orders server', shot: Shot('The stack, up'));
+    // The first `Run` is the logs command; the console below fills with
+    // what the script printed.
+    await s.tap(const Target.nth('Run', 0), shot: Shot('Its logs'));
+    await s.tap('Tear down', shot: Shot('Torn down'));
+    // The button says `Done` for a second and a half after it succeeded;
+    // waiting it out is what a person does before pressing it again.
+    await s.wait(const Duration(seconds: 2));
+    await s.tap('Bring up', shot: Shot('Back up'));
+  });
+
   /// A scenario of the scenarios panel: the recorded run of the demo app's
   /// coffee shop, drawn by the studio, photographed by the harness. Opening a
   /// scenario runs it, and over a recording that run is a read — which is

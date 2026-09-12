@@ -47,6 +47,11 @@ String recordedServerIndexPath(String packagePath) =>
 String recordedServerPath(String packagePath, String name) =>
     'server/${recordedPackageSlug(packagePath)}.$name.json';
 
+/// The dev stack's script, as the recorder answered for it: what each
+/// command printed, in each state the stack can be in.
+String recordedStackPath(String packagePath) =>
+    'stack/${recordedPackageSlug(packagePath)}.stack.json';
+
 String recordedScenarioScanPath(String packagePath) =>
     'scenarios/${recordedPackageSlug(packagePath)}.scan.json';
 

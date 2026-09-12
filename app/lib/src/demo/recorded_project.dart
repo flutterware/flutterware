@@ -27,6 +27,8 @@ import 'package:flutterware/src/log_client.dart';
 
 import '../context.dart';
 import '../plugins/manifest_loader.dart';
+import '../plugins/native/dev_stack_core.dart';
+import '../plugins/native/dev_stack_plugin.dart';
 import '../plugins/native/icon_plugin.dart';
 import '../plugins/native/previews_plugin.dart';
 import '../plugins/native/scenarios_plugin.dart';
@@ -47,11 +49,10 @@ import '../worktrees/facts_store.dart';
 import '../worktrees/providers/agent.dart';
 import '../worktrees/providers/forge.dart';
 import '../worktrees/providers/git.dart';
-import '../worktrees/providers/stack.dart';
 import '../worktrees/watchers.dart';
-import '../plugins/native/dev_stack_results.dart';
 import 'recorded_scenarios.dart';
 import 'recorded_server.dart';
+import 'recorded_stack.dart';
 import 'recording.dart';
 
 /// What the recorded project's `tool/flutterware.dart` would declare.
@@ -75,6 +76,37 @@ PluginManifest recordedManifest() {
   fw.use(NativeSplash(packages: const [NativeSplashPackage(root)]));
   // The orders server, as its ring was recorded — see `recorded_server.dart`.
   fw.use(ServerInspection());
+  // The stack around it, as its script's answers were recorded — see
+  // `recorded_stack.dart`. Commands rather than scripts: a script is checked
+  // for on disk before it runs, and there is no disk.
+  fw.use(
+    DevStack.background(
+      label: 'Orders server',
+      probe: Probe.json(
+        StackRun.command(['dart', 'tool/stack.dart', 'status', '--json']),
+      ),
+      start: StackRun.command(['dart', 'tool/stack.dart', 'up']),
+      stop: StackRun.command(['dart', 'tool/stack.dart', 'down']),
+      poll: const Duration(seconds: 15),
+      commands: [
+        StackCommand(
+          'logs',
+          'Logs',
+          StackRun.command(['dart', 'tool/stack.dart', 'logs']),
+          description: 'The last 40 lines the server logged.',
+        ),
+        StackCommand(
+          'hit',
+          'Send a request',
+          StackRun.command(['dart', 'tool/stack.dart', 'hit']),
+          argument: 'path',
+          description:
+              'Requests a path — /menu, /slow, /error — so the Server panel '
+              'has traffic to show. Defaults to /menu.',
+        ),
+      ],
+    ),
+  );
   return fw.toManifest();
 }
 
@@ -120,7 +152,7 @@ ShellController recordedShell({
         git: GitProbe(runProcess: _recordedGit),
         agent: const _NoAgents(),
         forge: const _NoForge(),
-        stack: const _NoStacks(),
+        stack: RecordedStacks(RecordedStack(recording)),
       ),
       settle: context.settle,
     ),
@@ -174,6 +206,9 @@ PluginCoreFactory _recordedCore(
     host,
     source: RecordedServerSource(recording),
   ),
+  devStackPluginId => (host) => DevStackCore(
+    host,
+  )..runProcess = RecordedStack(recording).run,
   // Previews is not recorded: its entries are compiled into this program
   // and the scan is the table of them.
   uiCatalogPluginId when previews != null => (host) => PreviewsCore(
@@ -208,6 +243,7 @@ NativePluginFactory _recordedPanel(
   ),
   // The live panel: the recorded source underneath answers every read.
   serverPluginId => panelFor<ServerCore>(ServerPlugin.new),
+  devStackPluginId => panelFor<DevStackCore>(DevStackPlugin.new),
   uiCatalogPluginId when previews != null => panelFor<PreviewsCore>((core) {
     var inline = InlinePreviewsGuest(previews);
     return PreviewsPlugin(
@@ -290,11 +326,4 @@ class _NoForge implements ForgeProbe {
   @override
   Future<ForgeReport> probe(String repoRoot) async =>
       const ForgeReport.unavailable('This is a recording.');
-}
-
-class _NoStacks implements StackProbe {
-  const _NoStacks();
-
-  @override
-  Future<StackReading?> probe(String worktreePath) async => null;
 }

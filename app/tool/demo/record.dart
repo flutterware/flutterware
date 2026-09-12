@@ -13,6 +13,7 @@ import 'package:flutterware_app/src/utils/flutter_sdk.dart';
 import 'package:path/path.dart' as p;
 
 import 'server_traffic.dart';
+import 'stack_traffic.dart';
 
 /// Writes the recording the studio's demos open: `app/demo/fixture/`.
 ///
@@ -33,9 +34,9 @@ import 'server_traffic.dart';
 /// recorded project's workspace to one package nothing on disk has to
 /// confirm.
 ///
-/// `--only=launcher-icon`, `--only=scenarios` or `--only=server` records one
-/// part. The launcher-icon and server parts are byte-identical on every
-/// machine, which CI checks; the scenario part spawns the harness and keeps
+/// `--only=launcher-icon`, `--only=scenarios`, `--only=server` or
+/// `--only=stack` records one part. The launcher-icon, server and stack parts
+/// are byte-identical on every machine, which CI checks; the scenario part spawns the harness and keeps
 /// its pixels, which are not, and is recorded from one machine on purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
@@ -49,10 +50,15 @@ Future<void> main(List<String> arguments) async {
   for (var argument in arguments) {
     if (argument.startsWith('--only=')) {
       only = argument.substring('--only='.length);
-      if (!const {'launcher-icon', 'scenarios', 'server'}.contains(only)) {
+      if (!const {
+        'launcher-icon',
+        'scenarios',
+        'server',
+        'stack',
+      }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
-          '[--only=launcher-icon|scenarios|server]',
+          '[--only=launcher-icon|scenarios|server|stack]',
         );
         exit(64);
       }
@@ -80,6 +86,7 @@ Future<void> main(List<String> arguments) async {
         scratch: p.join(appRoot, 'build', 'demo_record'),
       ),
     if (only == null || only == 'server') await _recordServer(out: out),
+    if (only == null || only == 'stack') _recordStack(out: out),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '
@@ -415,4 +422,21 @@ Future<String> _recordServer({required String out}) async {
       if (d.existsSync()) d.deleteSync(recursive: true);
     }
   }
+}
+
+/// The dev stack's script, as answers: what it prints for each verb, in
+/// each state. No script runs — `tool/demo/stack_traffic.dart` is the
+/// output a run would have left, and the core reads it through the same
+/// parser it reads a spawned script with.
+String _recordStack({required String out}) {
+  const packagePath = '.';
+  var dir = Directory(p.join(out, 'stack'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+  var answers = recordedStackAnswers();
+  File(p.join(out, recordedStackPath(packagePath)))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({'state': 'up', 'answers': answers})}\n',
+    );
+  return '1 stack: ${answers.length} answers';
 }

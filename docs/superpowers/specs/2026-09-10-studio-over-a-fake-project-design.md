@@ -826,8 +826,19 @@ request list, waterfall, SQL tab, details — and the studio's own scenario
 walks it: a request opened to its queries, then the listing the panel
 badges as an N+1. The demo's clonable app has no such server; the traffic
 is fake data by design, and the timeline script is what a real server in
-brewline would replace. The dev stack panel is the same pattern, smaller,
-and not done.
+brewline would replace.
+
+**The dev stack, the same afternoon.** Its core already took the process
+runner as a value — the catalog scripts five stacks on one screen that way
+— so the recording is one more runner: `tool/demo/stack_traffic.dart` is
+what the stack script prints for each verb, in each state, and
+`RecordedStack` hands it back while `up` and `down` move the state the
+probe then reports. The panel's controls therefore do what they say over
+the recording. The declaration uses `StackRun.command` rather than
+`StackRun.script`, because a script is checked for on disk before it runs
+and there is no disk. One trap for the scenario: `FwActionButton` reads
+`Done` for 1.4s after a success, and under fake time that is forever until
+the walk waits it out.
 
 ## What to do next
 

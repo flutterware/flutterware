@@ -141,6 +141,12 @@ void main() {
     await screen.settle();
     await screen.shot('server');
 
+    // The recorded stack: the probe's answer comes from the recording too.
+    await screen.tap('Orders server');
+    await screen.waitFor('Tear down');
+    await screen.settle();
+    await screen.shot('dev-stack');
+
     // The second recorded panel: a scenario run, its frames fetched the same
     // way. Opening a scenario "runs" it, which over a recording is a read.
     await screen.tap('Scenarios');
