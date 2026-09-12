@@ -38,6 +38,15 @@ String recordedIconFilePath(String packagePath, String packageRelativePath) =>
     '${packageRelativePath.replaceAll('/', '-')}';
 
 /// The syntactic scan of one package's scenarios.
+/// The servers a recording holds, by name, and one file per server: its
+/// handle, its hello, its whole ring, the details behind each event and the
+/// answers to the commands the panel can send.
+String recordedServerIndexPath(String packagePath) =>
+    'server/${recordedPackageSlug(packagePath)}.servers.json';
+
+String recordedServerPath(String packagePath, String name) =>
+    'server/${recordedPackageSlug(packagePath)}.$name.json';
+
 String recordedScenarioScanPath(String packagePath) =>
     'scenarios/${recordedPackageSlug(packagePath)}.scan.json';
 

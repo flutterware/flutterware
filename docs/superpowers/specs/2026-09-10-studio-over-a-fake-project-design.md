@@ -792,6 +792,43 @@ nine of fourteen. The three whose subject is a running process are where a
 recording stops being a demo and starts being a lie, and the panel that says
 so is the right answer there.
 
+### The server slice (2026-09-12): the source was the seam, and no server
+
+The table above put the Server plugin with the live processes, not worth
+recording. That was half right: a *run* cannot be recorded without lying,
+because its subject moves. A server's subject, as the panel sees it, is a
+ring of events it received once — and a ring received is a ring that can be
+written down.
+
+**The seam.** `ServerCore` did two things itself: scan the run dir for
+handles, attach over a unix socket. Both now go through a `ServerSource`,
+and what an attachment hands back is a `ServerAttachment` interface with the
+seven members the core and the panel read. `LiveServerSource` is the run
+dir and the socket, unchanged in behaviour; `RecordedServerSource` is one
+file per server — handle, hello, the ring, the details behind each event,
+the answers to the SQL commands — and an attachment that is a completed
+replay which never closes. Nothing above the seam changed; the panel is the
+panel.
+
+**No server was recorded.** `record.dart --only=server` starts the real
+`ServerInspector` in-process, `tool/demo/server_traffic.dart` reports the
+coffee shop's afternoon into it through the same calls a server's adapters
+make — a zone per request, `http` with lazy details, `sql` and `log` under
+it, a `cache` channel the panel has never heard of, an `info` — and the
+recorder attaches over the real protocol and keeps what came back. The
+shapes are the wire's; a format change breaks the recording at the right
+time. Times are re-rooted to the pinned clock and spaced evenly, the
+identity is the recorded project's, so re-recording is byte-identical and
+CI checks it beside the icon part.
+
+**What it bought.** The page shows the Server panel with a full timeline —
+request list, waterfall, SQL tab, details — and the studio's own scenario
+walks it: a request opened to its queries, then the listing the panel
+badges as an N+1. The demo's clonable app has no such server; the traffic
+is fake data by design, and the timeline script is what a real server in
+brewline would replace. The dev stack panel is the same pattern, smaller,
+and not done.
+
 ## What to do next
 
 0. ~~The launcher-icon slice.~~ Built; see above.

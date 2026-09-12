@@ -33,6 +33,29 @@ void main() {
     await s.tap('Dependencies', shot: Shot('Not recorded'));
   });
 
+  /// The Server panel over the recorded ring: the orders server's requests,
+  /// one opened to its waterfall and its queries, and the listing whose
+  /// queries the panel badges as an N+1. Nothing attaches to anything — the
+  /// recording is the attachment.
+  scenario('Server of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Server', shot: Shot('The requests'));
+    await s.tap(
+      const Target.containing('/orders/BL-1042'),
+      shot: Shot('A request'),
+    );
+    // The second `SQL`: the dock has one for the whole server, the open
+    // request another for its own queries.
+    await s.tap(const Target.nth('SQL', 1), shot: Shot('Its queries'));
+    // The list stays beside the open request, so the next one is a tap away.
+    await s.tap(
+      const Target.containing('/orders?today=1'),
+      shot: Shot('The listing that asks once per row'),
+    );
+  });
+
   /// A scenario of the scenarios panel: the recorded run of the demo app's
   /// coffee shop, drawn by the studio, photographed by the harness. Opening a
   /// scenario runs it, and over a recording that run is a read — which is

@@ -30,6 +30,7 @@ import '../plugins/manifest_loader.dart';
 import '../plugins/native/icon_plugin.dart';
 import '../plugins/native/previews_plugin.dart';
 import '../plugins/native/scenarios_plugin.dart';
+import '../plugins/native/server_plugin.dart';
 import '../previews/discovery.dart' show ScanResult;
 import '../previews/inline_guest.dart';
 import '../plugins/native_plugin.dart';
@@ -50,6 +51,7 @@ import '../worktrees/providers/stack.dart';
 import '../worktrees/watchers.dart';
 import '../plugins/native/dev_stack_results.dart';
 import 'recorded_scenarios.dart';
+import 'recorded_server.dart';
 import 'recording.dart';
 
 /// What the recorded project's `tool/flutterware.dart` would declare.
@@ -71,6 +73,8 @@ PluginManifest recordedManifest() {
   fw.use(Scenarios(packages: const [ScenariosPackage(root)]));
   fw.use(LauncherIcon(packages: const [LauncherIconPackage(root)]));
   fw.use(NativeSplash(packages: const [NativeSplashPackage(root)]));
+  // The orders server, as its ring was recorded — see `recorded_server.dart`.
+  fw.use(ServerInspection());
   return fw.toManifest();
 }
 
@@ -166,6 +170,10 @@ PluginCoreFactory _recordedCore(
     scan: recordedScenarioScan(recording),
     runner: recordedScenarioRunner(recording),
   ),
+  serverPluginId => (host) => ServerCore(
+    host,
+    source: RecordedServerSource(recording),
+  ),
   // Previews is not recorded: its entries are compiled into this program
   // and the scan is the table of them.
   uiCatalogPluginId when previews != null => (host) => PreviewsCore(
@@ -198,6 +206,8 @@ NativePluginFactory _recordedPanel(
       appIcon: recordedScenarioAppIcon(recording),
     ),
   ),
+  // The live panel: the recorded source underneath answers every read.
+  serverPluginId => panelFor<ServerCore>(ServerPlugin.new),
   uiCatalogPluginId when previews != null => panelFor<PreviewsCore>((core) {
     var inline = InlinePreviewsGuest(previews);
     return PreviewsPlugin(

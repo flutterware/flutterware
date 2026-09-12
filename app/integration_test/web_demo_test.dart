@@ -128,6 +128,19 @@ void main() {
     await screen.settle();
     await screen.shot('themed-icon');
 
+    // The recorded server: the panel attaches to the ring the recording
+    // holds, and the request list is what it draws.
+    await screen.tap('Server');
+    await screen.waitFor('/orders/BL-1042');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) => e.key.contains('server/root.orders.json') && e.value == 200,
+      ),
+      what: 'the recorded ring fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('server');
+
     // The second recorded panel: a scenario run, its frames fetched the same
     // way. Opening a scenario "runs" it, which over a recording is a read.
     await screen.tap('Scenarios');

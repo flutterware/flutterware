@@ -31,7 +31,13 @@ const _pluginDescription =
 /// ([track], called when the panel mounts) or inside an action, per the
 /// no-sockets rule in [PluginCore.computeAll].
 class ServerCore extends PluginCore {
-  ServerCore(super.host);
+  ServerCore(super.host, {ServerSource? source})
+    : source = source ?? const LiveServerSource();
+
+  /// Where handles and attachments come from: the run dir and a unix socket,
+  /// or a recording. Everything above it reads a [TrackedServer] and cannot
+  /// tell which.
+  final ServerSource source;
 
   /// Where discovery looks. A seam for tests, which point it at a temp dir
   /// instead of the developer's real run dir.
@@ -41,7 +47,7 @@ class ServerCore extends PluginCore {
   final _servers = <String, TrackedServer>{};
   var _scanned = false;
   var _tracking = false;
-  StreamSubscription<FileSystemEvent>? _dirWatch;
+  StreamSubscription<void>? _dirWatch;
   Timer? _rescanDebounce;
 
   /// Servers, newest first — what the panel draws.
@@ -72,22 +78,20 @@ class ServerCore extends PluginCore {
     if (_tracking || isDisposed) return;
     _tracking = true;
     _scan();
-    var runDir = Directory(runDirProvider());
-    _dirWatch = runDir.watch().listen((event) {
-      if (!event.path.contains('srv-')) return;
+    _dirWatch = source.watch()?.listen((_) {
       // Coalesce bursts: a restart is a delete + two creates.
       _rescanDebounce?.cancel();
       _rescanDebounce = Timer(const Duration(milliseconds: 100), _scan);
     });
   }
 
-  void _scan() {
+  void _scan() => unawaited(_scanAsync());
+
+  Future<void> _scanAsync() async {
+    if (isDisposed) return;
+    var handles = await source.scan(underRoot: host.worktree.path);
     if (isDisposed) return;
     _scanned = true;
-    var handles = scanServerHandles(
-      runDirProvider(),
-      underRoot: host.worktree.path,
-    );
     var seen = <String>{};
     for (var handle in handles) {
       var key = '${handle.name}-${handle.pid}';
@@ -114,7 +118,7 @@ class ServerCore extends PluginCore {
     tracked.attaching = true;
     unawaited(() async {
       var handleDeleted = false;
-      var client = await attachToServer(
+      var client = await source.attach(
         tracked.handle,
         onFailure: (_, {required bool deleted}) => handleDeleted = deleted,
       );
@@ -372,7 +376,7 @@ class ServerCore extends PluginCore {
   /// the reply says how many went without: an unreported truncation reads as
   /// "there was nothing there".
   static Future<Map<String, Object?>> _page(
-    ServerAttachClient client,
+    ServerAttachment client,
     List<ServerEvent> matched, {
     required int? last,
     required bool details,
@@ -428,12 +432,9 @@ class ServerCore extends PluginCore {
   /// [shape] reduce it, leave. What all three read actions share.
   Future<Object?> _collect(
     String? name,
-    Future<Map<String, Object?>> Function(ServerAttachClient client) shape,
+    Future<Map<String, Object?>> Function(ServerAttachment client) shape,
   ) async {
-    var handles = scanServerHandles(
-      runDirProvider(),
-      underRoot: host.worktree.path,
-    );
+    var handles = await source.scan(underRoot: host.worktree.path);
     if (name != null) {
       handles = [
         for (var handle in handles)
@@ -455,7 +456,7 @@ class ServerCore extends PluginCore {
     // list — an agent reading it debugged the wrong thing.
     var failures = <String>[];
     for (var handle in handles) {
-      var client = await attachToServer(
+      var client = await source.attach(
         handle,
         onFailure: (error, {required bool deleted}) {
           failures.add(
@@ -543,7 +544,7 @@ class ServerCore extends PluginCore {
     };
   }
 
-  static Future<void> _replayed(ServerAttachClient client) async {
+  static Future<void> _replayed(ServerAttachment client) async {
     var deadline = DateTime.now().add(const Duration(seconds: 2));
     while (!client.replayComplete && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -709,7 +710,7 @@ class TrackedServer {
   /// when it learns its base URL, and the identity key (`name-pid`) is
   /// what stays fixed.
   ServerHandle handle;
-  ServerAttachClient? client;
+  ServerAttachment? client;
   StreamSubscription<ServerEvent>? _eventSubscription;
   var attaching = false;
   var stopped = false;
@@ -732,9 +733,9 @@ class TrackedServer {
   ServerInfo get info => ServerInfo.fromEvents(_events);
 
   /// Takes ownership of a fresh attachment. Subscribes before draining
-  /// [ServerAttachClient.received] so nothing can slip between the two; the
+  /// [ServerAttachment.received] so nothing can slip between the two; the
   /// id check makes the overlap harmless.
-  void adopt(ServerAttachClient attached, {required void Function() onEvent}) {
+  void adopt(ServerAttachment attached, {required void Function() onEvent}) {
     client = attached;
     wasConnected = true;
     _eventSubscription = attached.events.listen((event) {
@@ -990,3 +991,96 @@ const _detailsParameter = ActionParameter(
 );
 
 PluginCore serverCoreFactory(PluginHost host) => ServerCore(host);
+
+/// Where a [ServerCore] finds servers and attaches to them.
+///
+/// The live one is the run dir and a unix socket. A recording is the other
+/// one: the same handles and the same events, read from files, so the core
+/// and the panel above it do not know which they are on — the launcher-icon
+/// plugin's `scan` seam, for servers.
+abstract class ServerSource {
+  /// The handles announced under [underRoot], newest first or not: the core
+  /// sorts.
+  Future<List<ServerHandle>> scan({required String underRoot});
+
+  /// Fires when the set of handles may have changed, or null when it cannot —
+  /// a recording never changes.
+  Stream<void>? watch();
+
+  /// Attaches, or returns null after telling [onFailure] whether the handle
+  /// turned out to be dead (and was removed) or merely slow.
+  Future<ServerAttachment?> attach(
+    ServerHandle handle, {
+    required void Function(Object error, {required bool deleted}) onFailure,
+  });
+}
+
+/// One attachment to one server: the hello, the ring, the live tail, and the
+/// two questions the panel asks back. [ServerAttachClient] wearing an
+/// interface, so a recording can stand where a socket does.
+abstract class ServerAttachment {
+  ServerHello get hello;
+  List<ServerEvent> get received;
+  Stream<ServerEvent> get events;
+  bool get replayComplete;
+  Future<void> get done;
+  Future<Map<String, Object?>> request(
+    String channel,
+    String method, [
+    Map<String, Object?> params = const {},
+  ]);
+  Future<Map<String, Object?>?> details(int eventId);
+  Future<void> close();
+}
+
+/// The run dir and the socket, as before this seam existed.
+class LiveServerSource implements ServerSource {
+  const LiveServerSource();
+
+  @override
+  Future<List<ServerHandle>> scan({required String underRoot}) async =>
+      scanServerHandles(ServerCore.runDirProvider(), underRoot: underRoot);
+
+  @override
+  Stream<void>? watch() =>
+      Directory(ServerCore.runDirProvider())
+          .watch()
+          .where((event) => event.path.contains('srv-'));
+
+  @override
+  Future<ServerAttachment?> attach(
+    ServerHandle handle, {
+    required void Function(Object error, {required bool deleted}) onFailure,
+  }) async {
+    var client = await attachToServer(handle, onFailure: onFailure);
+    return client == null ? null : _LiveAttachment(client);
+  }
+}
+
+class _LiveAttachment implements ServerAttachment {
+  _LiveAttachment(this._client);
+
+  final ServerAttachClient _client;
+
+  @override
+  ServerHello get hello => _client.hello;
+  @override
+  List<ServerEvent> get received => _client.received;
+  @override
+  Stream<ServerEvent> get events => _client.events;
+  @override
+  bool get replayComplete => _client.replayComplete;
+  @override
+  Future<void> get done => _client.done;
+  @override
+  Future<Map<String, Object?>> request(
+    String channel,
+    String method, [
+    Map<String, Object?> params = const {},
+  ]) => _client.request(channel, method, params);
+  @override
+  Future<Map<String, Object?>?> details(int eventId) =>
+      _client.details(eventId);
+  @override
+  Future<void> close() => _client.close();
+}
