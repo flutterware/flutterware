@@ -34,7 +34,12 @@ const _pluginDescription =
 /// Holds to the two rules every core holds to: the constructor allocates
 /// nothing, and [report] only formats what a previous call caused to load.
 class StoreCore extends PluginCore {
-  StoreCore(super.host);
+  StoreCore(super.host, {StoreSource? source})
+    : source = source ?? const LiveStoreSource();
+
+  /// Where the pubspec, the export root and the manifest are read from — the
+  /// package's directory unless a recording is standing in for one.
+  final StoreSource source;
 
   /// Declared apps, filtered to those whose package the workspace knows
   /// about, so a typo cannot make the plugin run in a directory that is not
@@ -65,16 +70,7 @@ class StoreCore extends PluginCore {
 
   final _names = <String, String>{};
 
-  Map? _pubspecOf(StoreShotsApp app) {
-    var file = File(p.join(_rootOf(app), 'pubspec.yaml'));
-    if (!file.existsSync()) return null;
-    try {
-      var yaml = loadYaml(file.readAsStringSync());
-      return yaml is Map ? yaml : null;
-    } on YamlException {
-      return null;
-    }
-  }
+  Map? _pubspecOf(StoreShotsApp app) => source.pubspecOf(_rootOf(app));
 
   /// One runner per package, and **on a build directory of its own**.
   ///
@@ -123,7 +119,7 @@ class StoreCore extends PluginCore {
   String rootOf(StoreShotsApp app) => switch (app.output) {
     var given? when given.isNotEmpty =>
       p.isAbsolute(given) ? given : p.join(_rootOf(app), given),
-    _ => p.join(_rootOf(app), 'build', 'flutterware', 'store'),
+    _ => source.defaultRootIn(_rootOf(app)),
   };
 
   /// What the last export left, per package — the panel's whole data source.
@@ -136,16 +132,19 @@ class StoreCore extends PluginCore {
   /// silently stale panel is the bug class this repo has paid for more than
   /// once.
   StoreShotsReport manifestOf(StoreShotsApp app) {
-    var file = _manifestFile(app);
-    var stamp = file.existsSync() ? file.lastModifiedSync() : null;
-    var cached = _manifests[nameOf(app)];
-    if (cached != null && cached.stamp == stamp) return cached.manifest;
-    var manifest = StoreShotsReport.readFile(file) ?? const StoreShotsReport();
-    _manifests[nameOf(app)] = (stamp: stamp, manifest: manifest);
-    return manifest;
+    var output = outputOf(app);
+    if (source.manifestOf(output) case var manifest?) return manifest;
+    // A source that has yet to read it — a recording fetched from a server —
+    // answers null: start the read once, and say so when it lands. The
+    // package's own directory never answers null.
+    _reads.putIfAbsent(
+      output,
+      () => source.readManifest(output).then((_) => notifyChanged()),
+    );
+    return const StoreShotsReport();
   }
 
-  final _manifests = <String, ({DateTime? stamp, StoreShotsReport manifest})>{};
+  final _reads = <String, Future<void>>{};
 
   /// The name and one line the stage puts beside a shot.
   ///
@@ -157,18 +156,18 @@ class StoreCore extends PluginCore {
   /// Read here rather than in the panel because a `build` may not touch the
   /// filesystem, and cached because a name does not change under a running
   /// studio in any way worth a read per frame.
-  ({String name, String subtitle}) identityOf(StoreShotsApp app) =>
-      _identities.putIfAbsent(nameOf(app), () {
-        var yaml = _pubspecOf(app);
-        if (yaml == null) return (name: nameOf(app), subtitle: '');
-        var raw = '${yaml['name'] ?? nameOf(app)}'.replaceAll('_', ' ');
-        return (
-          name: raw.isEmpty
-              ? nameOf(app)
-              : raw[0].toUpperCase() + raw.substring(1),
-          subtitle: '${yaml['description'] ?? ''}',
-        );
-      });
+  ({String name, String subtitle}) identityOf(StoreShotsApp app) {
+    if (_identities[nameOf(app)] case var known?) return known;
+    var yaml = _pubspecOf(app);
+    // Not cached: a source that has yet to read the pubspec answers null now
+    // and the real thing once the manifest read beside it lands.
+    if (yaml == null) return (name: nameOf(app), subtitle: '');
+    var raw = '${yaml['name'] ?? nameOf(app)}'.replaceAll('_', ' ');
+    return _identities[nameOf(app)] = (
+      name: raw.isEmpty ? nameOf(app) : raw[0].toUpperCase() + raw.substring(1),
+      subtitle: '${yaml['description'] ?? ''}',
+    );
+  }
 
   final _identities = <String, ({String name, String subtitle})>{};
 
@@ -184,9 +183,6 @@ class StoreCore extends PluginCore {
     _progress = progress;
     notifyChanged();
   }
-
-  File _manifestFile(StoreShotsApp app) =>
-      File(p.join(outputOf(app), internalDirectory, StoreShotsReport.fileName));
 
   @override
   PluginReport get report => PluginReport(
@@ -1076,4 +1072,81 @@ class _CapturedSet {
   final Map<String, ({String? status, String? nav})> overlay;
 
   final int failed;
+}
+
+/// Where the store plugin reads from: the package's pubspec, where its export
+/// tree sits by default, and the manifest that export left.
+///
+/// [LiveStoreSource] is the package's directory, which is the plugin as it
+/// always was. The recorded project hands the core a source that answers from
+/// a recording instead — see `demo/recorded_store.dart` — and the panel draws
+/// the same cards over it. The pictures are the panel's business, not the
+/// core's: `StorePlugin(image: …)` is the door for those.
+abstract class StoreSource {
+  const StoreSource();
+
+  /// The package's `pubspec.yaml`, parsed — or null when there is none, or
+  /// when the source has yet to read it.
+  Map? pubspecOf(String packageRoot);
+
+  /// Where an app's tree goes when the declaration names no `output:`.
+  String defaultRootIn(String packageRoot);
+
+  /// The manifest under [output] as it stands: empty when nothing was ever
+  /// exported, and **null only when the source has yet to read it** — then
+  /// [readManifest] fetches it and this answers from then on.
+  StoreShotsReport? manifestOf(String output);
+
+  /// Reads the manifest under [output]. Idempotent.
+  Future<StoreShotsReport> readManifest(String output);
+}
+
+/// The package's directory on disk.
+class LiveStoreSource extends StoreSource {
+  const LiveStoreSource();
+
+  /// What the last export left, per output — the panel's whole data source.
+  ///
+  /// Cached against the file's **mtime**, not against this process's own
+  /// writes. The panel is not the only thing that exports: `fw run store
+  /// export` in a terminal beside the open studio is the ordinary case, and a
+  /// cache keyed on our own actions would leave that panel showing yesterday's
+  /// listing with no way to tell. A `stat` per rebuild is microseconds; a
+  /// silently stale panel is the bug class this repo has paid for more than
+  /// once.
+  static final _manifests =
+      <String, ({DateTime? stamp, StoreShotsReport manifest})>{};
+
+  @override
+  Map? pubspecOf(String packageRoot) {
+    var file = File(p.join(packageRoot, 'pubspec.yaml'));
+    if (!file.existsSync()) return null;
+    try {
+      var yaml = loadYaml(file.readAsStringSync());
+      return yaml is Map ? yaml : null;
+    } on YamlException {
+      return null;
+    }
+  }
+
+  @override
+  String defaultRootIn(String packageRoot) =>
+      p.join(packageRoot, 'build', 'flutterware', 'store');
+
+  @override
+  StoreShotsReport manifestOf(String output) {
+    var file = File(
+      p.join(output, StoreShotsReport.directory, StoreShotsReport.fileName),
+    );
+    var stamp = file.existsSync() ? file.lastModifiedSync() : null;
+    var cached = _manifests[output];
+    if (cached != null && cached.stamp == stamp) return cached.manifest;
+    var manifest = StoreShotsReport.readFile(file) ?? const StoreShotsReport();
+    _manifests[output] = (stamp: stamp, manifest: manifest);
+    return manifest;
+  }
+
+  @override
+  Future<StoreShotsReport> readManifest(String output) async =>
+      manifestOf(output);
 }

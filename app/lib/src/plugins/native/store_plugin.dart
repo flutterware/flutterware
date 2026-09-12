@@ -24,6 +24,10 @@ import 'store_results.dart';
 
 export 'store_core.dart' show StoreCore, storePluginId;
 
+/// An image provider for a path an export's manifest names —
+/// `StorePlugin(image: …)`.
+typedef StoreImage = ImageProvider Function(String path);
+
 /// The listing, as it was last exported.
 ///
 /// **Two truths, and they come from different places.** The *structure* — which
@@ -41,7 +45,13 @@ export 'store_core.dart' show StoreCore, storePluginId;
 /// and one that says *not yet exported* — and the declaration alone already
 /// says everything else on the card.
 class StorePlugin extends NativePlugin<StoreCore> {
-  StorePlugin(super.core);
+  StorePlugin(super.core, {StoreImage? image}) : image = image ?? _fileImage;
+
+  /// The picture at a path the manifest names — a file of the export tree,
+  /// unless a recording is standing in for one.
+  final StoreImage image;
+
+  static ImageProvider _fileImage(String path) => FileImage(File(path));
 
   @override
   Widget buildPanel(BuildContext context) => _StorePanel(this);
@@ -141,7 +151,9 @@ class _StorePanelState extends State<_StorePanel> {
     var (app, target, listing, set) = found;
     showStoreShot(
       context,
-      files: [for (var image in set.images) File(set.pathOf(image))],
+      shots: [
+        for (var image in set.images) widget.plugin.image(set.pathOf(image)),
+      ],
       titles: [
         for (var image in set.images) storeTitleOf(app.layout, target, image),
       ],
@@ -159,7 +171,9 @@ class _StorePanelState extends State<_StorePanel> {
     var (app, target, listing, set) = found;
     showStoreListing(
       context,
-      files: [for (var image in set.images) File(set.pathOf(image))],
+      shots: [
+        for (var image in set.images) widget.plugin.image(set.pathOf(image)),
+      ],
       aspect: target.canvas.width / target.canvas.height,
       appName: _core.identityOf(app).name,
       subtitle: _core.identityOf(app).subtitle,
@@ -191,10 +205,15 @@ class _StorePanelState extends State<_StorePanel> {
   }
 
   /// The declared target and its listing, from a manifest key.
+  ///
+  /// A key is `app/store/class/appLocale` since the manifest's second
+  /// version, and the app's segment is matched too: matched from the store
+  /// on, no key ever matched, and both viewers opened nothing.
   (StoreTarget, Listing)? _targetFor(StoreShotsApp app, String key) {
+    var name = _core.nameOf(app);
     for (var listing in app.listings) {
       for (var target in listing.targets) {
-        if (key.startsWith('${target.store}/${target.id}/')) {
+        if (key.startsWith('$name/${target.store}/${target.id}/')) {
           return (target, listing);
         }
       }
@@ -310,6 +329,7 @@ class _StorePanelState extends State<_StorePanel> {
                     appName: _core.nameOf(app),
                     listing: listing,
                     manifest: manifests[_core.nameOf(app)]!,
+                    image: widget.plugin.image,
                     locale: locale,
                     working: progress?.app == _core.nameOf(app)
                         ? progress?.key
@@ -399,6 +419,7 @@ class _ListingBlock extends StatelessWidget {
     required this.appName,
     required this.listing,
     required this.manifest,
+    required this.image,
     required this.locale,
     required this.working,
     required this.onShot,
@@ -410,6 +431,7 @@ class _ListingBlock extends StatelessWidget {
 
   final Listing listing;
   final StoreShotsReport manifest;
+  final StoreImage image;
   final String? locale;
 
   /// A shot was clicked — the app, the set's key, and its 0-based position.
@@ -437,6 +459,7 @@ class _ListingBlock extends StatelessWidget {
             child: _SetCard(
               listing: listing,
               target: target,
+              image: image,
               set: locale == null
                   ? null
                   : manifest['$appName/${target.store}/${target.id}/$locale'],
@@ -479,6 +502,7 @@ class _SetCard extends StatelessWidget {
   const _SetCard({
     required this.listing,
     required this.target,
+    required this.image,
     required this.set,
     required this.storeLocale,
     required this.working,
@@ -488,6 +512,7 @@ class _SetCard extends StatelessWidget {
 
   final Listing listing;
   final StoreTarget target;
+  final StoreImage image;
   final StoreShotsSet? set;
   final String? storeLocale;
   final ValueChanged<int> onShot;
@@ -502,7 +527,7 @@ class _SetCard extends StatelessWidget {
     var images = set?.images ?? const <String>[];
     var shots = [
       for (var image in images)
-        StoreShotImage(name: image, image: FileImage(File(set!.pathOf(image)))),
+        StoreShotImage(name: image, image: this.image(set!.pathOf(image))),
     ];
     return StoreCardShell(
       children: [

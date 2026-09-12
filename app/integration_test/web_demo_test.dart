@@ -163,6 +163,22 @@ void main() {
     await screen.settle();
     await screen.shot('translations');
 
+    // The recorded store export: the manifest is fetched on the panel's first
+    // look and every card's thumbnails come from beside the page.
+    await screen.tap('Store');
+    await screen.waitFor('Preview listing');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/store/root/') &&
+            e.key.endsWith('.png') &&
+            e.value == 200,
+      ),
+      what: 'a recorded store screenshot fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('store');
+
     // The second recorded panel: a scenario run, its frames fetched the same
     // way. Opening a scenario "runs" it, which over a recording is a read.
     await screen.tap('Scenarios');

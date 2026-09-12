@@ -1,0 +1,65 @@
+{
+  "pubspec": {
+    "name": "brewline",
+    "description": "A small coffee-shop app, wired up with flutterware — clone it and run one command."
+  },
+  "manifest": {
+    "version": 2,
+    "sets": [
+      {
+        "app": "brewline",
+        "store": "app-store",
+        "class": "iphone-6-9",
+        "appLocale": "en",
+        "storeLocale": "en-US",
+        "output": "store/root/brewline",
+        "directory": "ios/en-US",
+        "images": [
+          "iphone-6-9-01-welcome.png",
+          "iphone-6-9-02-menu.png",
+          "iphone-6-9-03-cart-small.png",
+          "iphone-6-9-04-order-placed.png",
+          "iphone-6-9-05-cart-large.png",
+          "iphone-6-9-06-order-placed.png",
+          "iphone-6-9-07-cart.png",
+          "iphone-6-9-08-cart.png",
+          "iphone-6-9-09-order-placed.png",
+          "iphone-6-9-10-empty-cart.png",
+          "iphone-6-9-11-back-at-the-menu.png",
+          "iphone-6-9-12-welcome.png",
+          "iphone-6-9-13-menu.png",
+          "iphone-6-9-14-cart.png",
+          "iphone-6-9-15-order-placed.png"
+        ],
+        "exportedAt": "2026-01-01T09:41:00.000"
+      },
+      {
+        "app": "brewline",
+        "store": "app-store",
+        "class": "iphone-6-9",
+        "appLocale": "fr",
+        "storeLocale": "fr-FR",
+        "output": "store/root/brewline",
+        "directory": "ios/fr-FR",
+        "images": [
+          "iphone-6-9-01-welcome.png",
+          "iphone-6-9-02-menu.png",
+          "iphone-6-9-03-cart-small.png",
+          "iphone-6-9-04-order-placed.png",
+          "iphone-6-9-05-cart-large.png",
+          "iphone-6-9-06-order-placed.png",
+          "iphone-6-9-07-cart.png",
+          "iphone-6-9-08-cart.png",
+          "iphone-6-9-09-order-placed.png",
+          "iphone-6-9-10-empty-cart.png",
+          "iphone-6-9-11-back-at-the-menu.png",
+          "iphone-6-9-12-welcome.png",
+          "iphone-6-9-13-menu.png",
+          "iphone-6-9-14-cart.png",
+          "iphone-6-9-15-order-placed.png"
+        ],
+        "exportedAt": "2026-01-01T09:41:00.000"
+      }
+    ]
+  }
+}

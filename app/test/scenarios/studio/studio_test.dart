@@ -72,6 +72,22 @@ void main() {
     await s.tap('Missing in fr', shot: Shot('What French still lacks'));
   });
 
+  /// The store panel over the recorded export: a card per display class with
+  /// its shots, the first of one class opened at the store's size, then the
+  /// listing previewed as a store would show it, then the French set. The
+  /// pictures are the export's own, read from the recording.
+  scenario('Store screenshots of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Store', shot: Shot('The listing'));
+    await s.tap(
+      const Target.nth('Preview listing', 0),
+      shot: Shot('Previewed'),
+    );
+    await s.tap(const Target.tooltip('Close'), shot: Shot('Back'));
+  });
+
   /// The dev stack panel over the recorded script: the stack up, its logs,
   /// then torn down and brought back — each control answered by what the
   /// script printed for it, and the probe reporting the state that follows.

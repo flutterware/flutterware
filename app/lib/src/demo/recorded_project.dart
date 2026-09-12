@@ -6,8 +6,8 @@
 /// — the worktree list git would report, the manifest `tool/flutterware.dart`
 /// would produce, the facts the explorer would probe — and every plugin's core
 /// is either the live core over recorded readers (launcher icon, scenarios,
-/// server, dev stack, translations) or a quiet [RecordedCore] whose panel says
-/// so. Nothing below runs a process, opens a
+/// server, dev stack, translations, store) or a quiet [RecordedCore] whose
+/// panel says so. Nothing below runs a process, opens a
 /// socket or walks a directory; the one filesystem touch left, the facts
 /// store, points at a path that is not there and is built to shrug.
 ///
@@ -34,6 +34,7 @@ import '../plugins/native/icon_plugin.dart';
 import '../plugins/native/previews_plugin.dart';
 import '../plugins/native/scenarios_plugin.dart';
 import '../plugins/native/server_plugin.dart';
+import '../plugins/native/store_plugin.dart';
 import '../plugins/native/translations_plugin.dart';
 import '../previews/discovery.dart' show ScanResult;
 import '../previews/inline_guest.dart';
@@ -56,6 +57,7 @@ import 'recorded_config.dart';
 import 'recorded_scenarios.dart';
 import 'recorded_server.dart';
 import 'recorded_stack.dart';
+import 'recorded_store.dart';
 import 'recorded_translations.dart';
 import 'recording.dart';
 
@@ -85,6 +87,24 @@ PluginManifest recordedManifest() {
     Translations(
       packages: const [
         TranslationsPackage(root, catalogs: recordedTranslationCatalogs),
+      ],
+    ),
+  );
+  // The store listing, as the demo app declares it, over an export the
+  // recorder ran — see `recorded_store.dart`. Named, because the name is the
+  // tree's own segment and the recording has no pubspec to read it from.
+  fw.use(
+    StoreShots(
+      apps: [
+        StoreShotsApp(
+          root,
+          name: 'brewline',
+          file: 'test/scenarios/mobile/shop_test.dart',
+          frame: 'lib/store_frame.dart',
+          listings: [
+            Listing.appStore(locales: const {'en': 'en-US', 'fr': 'fr-FR'}),
+          ],
+        ),
       ],
     ),
   );
@@ -227,6 +247,10 @@ PluginCoreFactory _recordedCore(
     host,
     source: RecordedTranslationSource(recording),
   ),
+  storePluginId => (host) => StoreCore(
+    host,
+    source: RecordedStoreSource(recording),
+  ),
   // Previews is not recorded: its entries are compiled into this program
   // and the scan is the table of them.
   uiCatalogPluginId when previews != null => (host) => PreviewsCore(
@@ -263,6 +287,9 @@ NativePluginFactory _recordedPanel(
   serverPluginId => panelFor<ServerCore>(ServerPlugin.new),
   devStackPluginId => panelFor<DevStackCore>(DevStackPlugin.new),
   translationsPluginId => panelFor<TranslationsCore>(TranslationsPlugin.new),
+  storePluginId => panelFor<StoreCore>(
+    (core) => StorePlugin(core, image: recordedStoreImage(recording)),
+  ),
   uiCatalogPluginId when previews != null => panelFor<PreviewsCore>((core) {
     var inline = InlinePreviewsGuest(previews);
     return PreviewsPlugin(

@@ -14,7 +14,9 @@ import 'package:flutterware_app/src/scenarios/discovery.dart';
 import 'package:flutterware_app/src/scenarios/runner.dart';
 import 'package:flutterware_app/src/translations/loader.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
 import 'server_traffic.dart';
 import 'stack_traffic.dart';
@@ -39,11 +41,11 @@ import 'stack_traffic.dart';
 /// confirm.
 ///
 /// `--only=launcher-icon`, `--only=scenarios`, `--only=server`,
-/// `--only=stack` or `--only=translations` records one part. The
-/// launcher-icon, server and stack parts are byte-identical on every machine,
-/// which CI checks; the scenario and translations parts spawn the harness and
-/// keep its pixels, which are not, and are recorded from one machine on
-/// purpose.
+/// `--only=stack`, `--only=translations` or `--only=store` records one part.
+/// The launcher-icon, server and stack parts are byte-identical on every
+/// machine, which CI checks; the scenario, translations and store parts spawn
+/// the harness and keep its pixels, which are not, and are recorded from one
+/// machine on purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
 /// this process, `tool/demo/server_traffic.dart` reports into it the way a
@@ -62,10 +64,11 @@ Future<void> main(List<String> arguments) async {
         'server',
         'stack',
         'translations',
+        'store',
       }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
-          '[--only=launcher-icon|scenarios|server|stack|translations]',
+          '[--only=launcher-icon|scenarios|server|stack|translations|store]',
         );
         exit(64);
       }
@@ -96,6 +99,8 @@ Future<void> main(List<String> arguments) async {
     if (only == null || only == 'stack') _recordStack(out: out),
     if (only == null || only == 'translations')
       await _recordTranslations(project: project, out: out, appRoot: appRoot),
+    if (only == null || only == 'store')
+      await _recordStore(project: project, out: out, appRoot: appRoot),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '
@@ -308,6 +313,107 @@ Future<String> _recordTranslations({
   var files = globs.values.fold(0, (sum, found) => sum + found.length);
   return '${globs.length} translation catalogs ($files files), an export of '
       '${(index['keys'] as List).length} keys, $copied files, '
+      '${(bytes / 1024).toStringAsFixed(0)} KB';
+}
+
+/// How much smaller than the store's canvas a recorded screenshot is kept.
+///
+/// The one place a recording is not the tool's bytes. A store canvas is
+/// 1320×2868 or 2048×2732 pixels, and the demo app's listing exported whole is
+/// 42 MB of PNG — a fixture git would carry forever for a panel whose cards
+/// are thumbnails and whose viewer fits a phone into a window. A third along
+/// each side, the iPhone sets are 2.6 MB, still larger than anything the page
+/// draws them at, and the manifest keeps the canvas the store will receive,
+/// which is what the panel prints. Pixel-for-pixel fidelity at a store's own
+/// size is what `fw run store export` is for.
+const recordedStoreShotDivisor = 3;
+
+/// The display class the recording keeps. The declaration has two, and the
+/// iPad's sets are the larger half of an export the fixture cannot carry
+/// whole; narrowed by the action's own `--class`, the manifest holds the
+/// iPhone sets and the panel draws the iPad cards as it draws any set that
+/// has not been exported yet — which is a state worth a picture too.
+const recordedStoreClass = 'iphone-6-9';
+
+/// The store export, as the real action wrote it — and the pictures smaller.
+///
+/// `fw run store export` is run over the project by the CLI, the way a script
+/// would run it, so the tree is what the panel reads on any project. What is
+/// kept is the manifest with every set's `output` spelled under the recording
+/// and its time pinned, the pubspec's name and description beside it, and
+/// each set's images at [recordedStoreShotDivisor] — `unframed/` is not read
+/// by the panel and is left behind.
+Future<String> _recordStore({
+  required String project,
+  required String out,
+  required String appRoot,
+}) async {
+  const packagePath = '.';
+  var dir = Directory(p.join(out, 'store'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+
+  var exported = await Process.run(Platform.resolvedExecutable, [
+    'run',
+    p.join(appRoot, 'bin', 'fw.dart'),
+    'run',
+    'store',
+    'export',
+    '--class=$recordedStoreClass',
+  ], workingDirectory: project);
+  if (exported.exitCode != 0) {
+    stderr.writeln(exported.stdout);
+    stderr.writeln(exported.stderr);
+    throw StateError('store export failed (${exported.exitCode})');
+  }
+
+  var pubspec =
+      loadYaml(File(p.join(project, 'pubspec.yaml')).readAsStringSync()) as Map;
+  var name = '${pubspec['name']}';
+  var storeRoot = p.join(project, 'build', 'flutterware', 'store');
+  var manifest = jsonDecode(
+    File(p.join(storeRoot, name, '.store', 'manifest.json')).readAsStringSync(),
+  ) as Map<String, Object?>;
+
+  var recordedRoot = recordedStoreRootDir(packagePath);
+  var copied = 0;
+  var bytes = 0;
+  var sets = manifest['sets']! as List;
+  for (var entry in sets) {
+    var set = (entry as Map).cast<String, Object?>();
+    var output = set['output']! as String;
+    var directory = set['directory']! as String;
+    var relativeOutput = p.relative(output, from: storeRoot);
+    var recordedOutput =
+        '$recordedRoot/${relativeOutput.replaceAll(r'\', '/')}';
+    set['output'] = recordedOutput;
+    // A recording carries no clock — see `_recordLauncherIcons`.
+    set['exportedAt'] = pinnedClockOrigin.toIso8601String();
+    for (var image in set['images']! as List) {
+      var source = File(p.join(output, directory, '$image'));
+      var target = File(p.join(out, recordedOutput, directory, '$image'))
+        ..parent.createSync(recursive: true);
+      var decoded = img.decodePng(source.readAsBytesSync())!;
+      var smaller = img.copyResize(
+        decoded,
+        width: decoded.width ~/ recordedStoreShotDivisor,
+        height: decoded.height ~/ recordedStoreShotDivisor,
+        interpolation: img.Interpolation.average,
+      );
+      target.writeAsBytesSync(img.encodePng(smaller, level: 9));
+      copied++;
+      bytes += target.lengthSync();
+    }
+  }
+  File(p.join(out, recordedStorePath(packagePath)))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({
+        'pubspec': {'name': name, 'description': '${pubspec['description'] ?? ''}'},
+        'manifest': manifest,
+      })}\n',
+    );
+  return 'a store export of ${sets.length} sets, '
+      '$copied images at 1/$recordedStoreShotDivisor, '
       '${(bytes / 1024).toStringAsFixed(0)} KB';
 }
 

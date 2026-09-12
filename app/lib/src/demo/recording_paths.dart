@@ -66,6 +66,18 @@ String recordedTranslationCatalogsPath(String packagePath) =>
 String recordedTranslationExportDir(String packagePath) =>
     'translations/${recordedPackageSlug(packagePath)}';
 
+/// One package's store export as the panel reads it: the pubspec's name and
+/// description, and the manifest — `{"pubspec": {…}, "manifest": {…}}` —
+/// with every set's `output` spelled under [recordedStoreRootDir].
+String recordedStorePath(String packagePath) =>
+    'store/${recordedPackageSlug(packagePath)}.store.json';
+
+/// Where a recorded export's trees sit: an app's tree is under it by the
+/// app's name, exactly as under `build/flutterware/store`, so the manifest's
+/// paths resolve under the recording the way they resolve on disk.
+String recordedStoreRootDir(String packagePath) =>
+    'store/${recordedPackageSlug(packagePath)}';
+
 String recordedScenarioScanPath(String packagePath) =>
     'scenarios/${recordedPackageSlug(packagePath)}.scan.json';
 

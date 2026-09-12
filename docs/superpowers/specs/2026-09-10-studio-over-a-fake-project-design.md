@@ -878,6 +878,37 @@ lacks. One fix fell out: the panel dated the export with `DateTime.now()`,
 which no scenario can pin, so the studio's shot would have read a day older
 every day; it reads `clock.now()` now.
 
+### The store slice (2026-09-12): a manifest read once, and pictures a third the size
+
+The store core read three things from disk — the package's pubspec for
+its name and one line, the export's manifest by mtime on every rebuild,
+and nothing else; the panel opened the images as files in three places
+and the viewers took `File`s. The core now takes a `StoreSource` —
+`pubspecOf`, `defaultRootIn`, `manifestOf`, `readManifest` — and the panel
+a `StorePlugin(image:)` door; the viewers take image providers. The
+manifest is the one read that could not stay synchronous over a
+recording fetched from a server, so `manifestOf` may answer null for
+*not read yet*, the core starts the read once and notifies when it lands,
+and the live source never answers null.
+
+**The fixture cannot carry the export.** The demo app's listing exported
+whole is 42 MB of PNG — four sets, sixty shots at a store's own canvas —
+and the whole recording was five. So this part bends the rule that a
+recording is the tool's bytes, in two declared ways: the export is
+narrowed by the action's own `--class` to the iPhone sets, and the
+recorder keeps each shot at a third of its canvas through `package:image`,
+while the manifest keeps the canvas the store receives. 2.7 MB. The iPad
+cards draw as any set that has not been exported yet, which is a state
+the panel has and the page now shows. Not deterministic across machines,
+so it joins the scenario and translations parts outside CI's check.
+
+**Two bugs fell out.** Both viewers — a shot at the store's size, the
+listing on its stage — opened nothing on a live project: the manifest's
+second version put the app's name at the head of a set's key and the
+panel's lookup still matched from the store on. And `ageOf`, which the
+panel dates the export with, read the wall clock; it reads `clock.now()`
+now, for the reason the translations slice gave.
+
 ## What to do next
 
 0. ~~The launcher-icon slice.~~ Built; see above.
