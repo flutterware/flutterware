@@ -14,6 +14,7 @@ import '../shot_store.dart';
 import 'channel_signature.dart';
 import 'index_filter.dart';
 import 'merged_tree.dart';
+import 'not_in_comparison.dart';
 import 'step_page.dart';
 import 'shot_image.dart';
 import 'stage.dart';
@@ -72,6 +73,38 @@ class ScenariosTab extends StatefulWidget {
 
 bool _noneWithheld(ComparedState state) => false;
 
+/// `<scenario id>` or `<scenario id>/<step path>`, split where one of
+/// [scenarios] ends — or null when the address names none of them.
+///
+/// Where it splits cannot be worked out from the string: a scenario is named
+/// by whoever wrote it, and `scenario('Contacts & collaboration / Create
+/// group')` is a name with a separator in it. Splitting at the first `/` after
+/// the `#` cut that name in half, and the half-a-name matched no scenario — so
+/// the tab fell through to its own fallback, which happened to be the right
+/// flow, and every step id parsed out of the tail matched nothing. The canvas
+/// drew, the steps looked live, and tapping one selected an address that
+/// resolved back to the same canvas: a whole page that did nothing.
+///
+/// So the boundary is matched against the ids there actually are rather than
+/// guessed at a character, which also frees a step to carry a `/` in its name.
+/// Longest wins: a file holding both `X` and `X/Y` would otherwise read the
+/// second as the first with a step called `Y`.
+(String scenario, String? step)? splitScenarioAddress(
+  String address,
+  Iterable<String> scenarios,
+) {
+  String? id;
+  for (var candidate in scenarios) {
+    if (address != candidate && !address.startsWith('$candidate/')) continue;
+    if (id == null || candidate.length > id.length) id = candidate;
+  }
+  if (id == null) return null;
+  return (
+    id,
+    address.length == id.length ? null : address.substring(id.length + 1),
+  );
+}
+
 class _ScenariosTabState extends State<ScenariosTab> {
   late final _shots = ShotPair(widget.store);
   // The default answers both first questions at once: side by side shows what
@@ -117,43 +150,46 @@ class _ScenariosTabState extends State<ScenariosTab> {
     if (mounted) _load();
   }
 
-  /// The address is `<scenario id>/<step path>`, and where it splits cannot be
-  /// worked out from the string: a scenario is named by whoever wrote it, and
-  /// `scenario('Contacts & collaboration / Create group')` is a name with a
-  /// separator in it. Splitting at the first `/` after the `#` cut that name in
-  /// half, and the half-a-name matched no scenario — so `_scenario` fell
-  /// through to its own fallback, which happened to be the right flow, and
-  /// every step id parsed out of the tail matched nothing. The canvas drew, the
-  /// steps looked live, and tapping one selected an address that resolved back
-  /// to the same canvas: a whole page that did nothing.
-  ///
-  /// So the boundary is matched against the ids there actually are rather than
-  /// guessed at a character, which also frees a step to carry a `/` in its
-  /// name.
   (String? scenario, String? step) get _address {
     var selected = widget.selected;
     if (selected == null) return (null, null);
-    String? id;
-    for (var known in widget.half.scenarios) {
-      var candidate = known.scenario;
-      if (selected != candidate && !selected.startsWith('$candidate/')) {
-        continue;
-      }
-      // Longest wins: a file holding both `X` and `X/Y` would otherwise read
-      // the second as the first with a step called `Y`.
-      if (id == null || candidate.length > id.length) id = candidate;
-    }
-    if (id == null) return (selected, null);
-    return (
-      id,
-      selected.length == id.length ? null : selected.substring(id.length + 1),
+    return splitScenarioAddress(
+          selected,
+          widget.half.scenarios.map((s) => s.scenario),
+        ) ??
+        (selected, null);
+  }
+
+  /// What the address names that this half does not have — the whole
+  /// selection, so it can be said back — or null when there is nothing
+  /// missing.
+  ///
+  /// Only once the half has everything it will get. While a run is still
+  /// landing rows, a flow the address names may simply not have arrived, and
+  /// the tab keeps drawing the flow most worth reading in the meantime.
+  String? get _missing {
+    var selected = widget.selected;
+    if (selected == null || widget.half.isBusy) return null;
+    var (named, step) = _address;
+    var scenario = widget.half.scenarios.firstWhereOrNull(
+      (s) => s.scenario == named,
     );
+    if (scenario == null) return selected;
+    if (step != null && scenario.items.every((item) => item.id != step)) {
+      return selected;
+    }
+    return null;
   }
 
   ScenarioComparison? get _scenario {
     var scenarios = widget.half.scenarios;
     if (scenarios.isEmpty) return null;
     var named = _address.$1;
+    // A flow the address names and this half does not have is said, not
+    // swapped for another — see [_missing].
+    if (_missing != null && scenarios.every((s) => s.scenario != named)) {
+      return null;
+    }
     return scenarios.firstWhere(
       (s) => s.scenario == named,
       // Worst first, so this opens on the flow most likely to be a mistake.
@@ -203,6 +239,7 @@ class _ScenariosTabState extends State<ScenariosTab> {
     var colors = context.colors;
     var scenario = _scenario;
     var step = _step;
+    var missing = _missing;
 
     // **Pushed over the flow, not squeezed under it.** A phone frame is
     // portrait; a band along the bottom is landscape and short, so two of them
@@ -219,6 +256,18 @@ class _ScenariosTabState extends State<ScenariosTab> {
         onBack: () => widget.onSelect(scenario.scenario),
         framesWithheld: widget.framesWithheld(scenario.state),
         onRule: widget.half.toggleRule,
+      );
+    }
+
+    // A step the flow does not have: the page the link meant to push, saying
+    // so, with the flow one tap away as it is from any step.
+    if (missing != null && scenario != null) {
+      return NotInComparison(
+        address: missing,
+        action: TextButton(
+          onPressed: () => widget.onSelect(scenario.scenario),
+          child: const Text('Back to the flow'),
+        ),
       );
     }
 
@@ -284,7 +333,9 @@ class _ScenariosTabState extends State<ScenariosTab> {
                 ),
               ],
             ),
-          ),
+          )
+        else if (missing != null)
+          Expanded(child: NotInComparison(address: missing)),
       ],
     );
 
