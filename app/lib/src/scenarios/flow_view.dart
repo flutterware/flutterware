@@ -6,6 +6,7 @@ import '../previews/devices.dart';
 import '../plugins/native/scenarios_results.dart';
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
+import '../ui/zoom_buttons.dart';
 import '../ui/zoomable_canvas.dart';
 import '../utils/graphite.dart';
 import 'artifacts.dart';
@@ -255,7 +256,7 @@ class _ScenarioFlowViewState extends State<ScenarioFlowView> {
         Positioned(
           right: FwSpacing.md,
           bottom: FwSpacing.md,
-          child: _ZoomButtons(
+          child: ZoomButtons(
             value: _scale,
             onScale: (factor) => widget.transform.value = widget.transform.value
                 .scaledByDouble(factor, factor, factor, 1),
@@ -462,45 +463,6 @@ class _StepNodeState extends State<_StepNode>
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// dev_studio's zoom control, on the tokens.
-class _ZoomButtons extends StatelessWidget {
-  const _ZoomButtons({required this.value, required this.onScale});
-
-  final double value;
-  final void Function(double factor) onScale;
-
-  @override
-  Widget build(BuildContext context) {
-    var colors = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.bg,
-        borderRadius: BorderRadius.circular(context.radii.radius),
-        border: Border.all(color: colors.line),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: FwSpacing.xs),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _button(context, Icons.zoom_out, () => onScale(0.9)),
-          Text('${(value * 100).round()}%', style: context.type.caption),
-          _button(context, Icons.zoom_in, () => onScale(1.1)),
-        ],
-      ),
-    );
-  }
-
-  Widget _button(BuildContext context, IconData icon, VoidCallback onTap) {
-    return Tappable(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(FwSpacing.sm),
-        child: Icon(icon, size: FwIconSize.lg, color: context.colors.mut),
       ),
     );
   }

@@ -95,40 +95,73 @@ void main() {
   /// Pan is per flow. The canvas is unconstrained, so a place scrolled to
   /// in a long flow is blank canvas in a short one — the tree drawn off behind
   /// you, which reads as a flow that failed to draw.
-  testWidgets('another flow gets the canvas back at the origin', (
-    tester,
-  ) async {
-    var scenarios = [
-      const ScenarioComparison(
-        scenario: 'test/cart_test.dart#cart',
-        state: ComparedState.changed,
-        items: [ComparedItem(id: 'Cart', state: ComparedState.changed)],
-        branches: [],
-      ),
-      const ScenarioComparison(
-        scenario: 'test/login_test.dart#login',
-        state: ComparedState.changed,
-        items: [ComparedItem(id: 'Login', state: ComparedState.changed)],
-        branches: [],
-      ),
-    ];
-    await pump(tester, scenarios, selected: 'test/cart_test.dart#cart');
-
-    var viewer = tester.widget<InteractiveViewer>(
-      find.byType(InteractiveViewer),
+  testWidgets('another flow opens as if it were the first', (tester) async {
+    var cart = const ScenarioComparison(
+      scenario: 'test/cart_test.dart#cart',
+      state: ComparedState.changed,
+      items: [ComparedItem(id: 'Cart', state: ComparedState.changed)],
+      branches: [],
     );
-    viewer.transformationController!.value = Matrix4.identity()
+    var login = const ScenarioComparison(
+      scenario: 'test/login_test.dart#login',
+      state: ComparedState.changed,
+      items: [ComparedItem(id: 'Login', state: ComparedState.changed)],
+      branches: [],
+    );
+    Matrix4 canvas() => tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!
+        .value;
+
+    // How the login flow opens on its own.
+    await pump(tester, [login], selected: login.scenario);
+    var fresh = canvas().clone();
+    expect(fresh, isNot(Matrix4.identity()), reason: 'it is placed, not left');
+
+    await pump(tester, [cart, login], selected: cart.scenario);
+    tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!
+        .value = Matrix4.identity()
       ..translateByDouble(-900.0, -600.0, 0, 1);
     await tester.pump();
 
-    await pump(tester, scenarios, selected: 'test/login_test.dart#login');
+    await pump(tester, [cart, login], selected: login.scenario);
 
+    expect(canvas(), fresh);
+  });
+
+  // It opened at 100% in the pane's corner: the first frame clipped against
+  // the list, the flow off the right edge, and nothing saying it would zoom.
+  testWidgets('the flow opens inset and fitted, and fits on request', (
+    tester,
+  ) async {
+    await pump(tester, [
+      ScenarioComparison(
+        scenario: 'test/cart_test.dart#cart',
+        state: ComparedState.changed,
+        items: [
+          for (var n = 0; n < 12; n++)
+            ComparedItem(id: 'Step $n', state: ComparedState.changed),
+        ],
+        branches: const [],
+      ),
+    ], selected: 'test/cart_test.dart#cart');
+    Matrix4 canvas() => tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!
+        .value;
+
+    var opened = canvas();
+    expect(opened.getTranslation().x, greaterThan(0));
+    expect(find.byKey(mergedTreeZoomKey), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Fit to view'));
+    await tester.pump();
     expect(
-      tester
-          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
-          .transformationController!
-          .value,
-      Matrix4.identity(),
+      canvas().getMaxScaleOnAxis(),
+      lessThan(opened.getMaxScaleOnAxis()),
+      reason: 'twelve steps are wider than the pane',
     );
   });
 

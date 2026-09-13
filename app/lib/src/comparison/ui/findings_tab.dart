@@ -55,6 +55,10 @@ class FindingsTab extends StatelessWidget {
   /// argument.
   static const framedRows = 20;
 
+  /// How wide a row gets: a name, its verdict and two thumbnails, near
+  /// enough to read as one line.
+  static const rowMaxWidth = 1040.0;
+
   @override
   Widget build(BuildContext context) {
     var colors = context.colors;
@@ -69,17 +73,30 @@ class FindingsTab extends StatelessWidget {
                 'have everything that was compared.',
       );
     }
+    // **A row is read left to right, so it has a width.** Stretched across a
+    // wide window the name sat at one edge and its verdict and pictures at the
+    // other, a thousand pixels of nothing between what a row is and what
+    // happened to it. The list still scrolls from the window's edge.
+    Widget capped(Widget child) => Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: rowMaxWidth),
+        child: child,
+      ),
+    );
     return ListView.separated(
       key: findingsTabKey,
       padding: const EdgeInsets.symmetric(vertical: FwSpacing.sm),
       itemCount: findings.length,
       separatorBuilder: (context, index) =>
-          Divider(height: 1, color: colors.line),
-      itemBuilder: (context, at) => _FindingRow(
-        finding: findings[at],
-        store: store,
-        framed: at < framedRows,
-        onOpen: onOpen,
+          capped(Divider(height: 1, color: colors.line)),
+      itemBuilder: (context, at) => capped(
+        _FindingRow(
+          finding: findings[at],
+          store: store,
+          framed: at < framedRows,
+          onOpen: onOpen,
+        ),
       ),
     );
   }

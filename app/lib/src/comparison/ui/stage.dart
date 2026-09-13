@@ -177,7 +177,7 @@ class _Body extends StatelessWidget {
     // frames and says where to look.
     StageMode.sideBySide => _Pair(base: base, head: head, diff: diff),
     StageMode.slider => _Framed(
-      label: 'base · head',
+      label: 'drag the line to compare',
       child: _Stacked(
         base: base,
         head: head,
@@ -189,7 +189,7 @@ class _Body extends StatelessWidget {
       ),
     ),
     StageMode.onion => _Framed(
-      label: 'base under head',
+      label: 'head over base',
       child: _Stacked(
         base: base,
         head: head,
@@ -197,9 +197,20 @@ class _Body extends StatelessWidget {
         // Under the frame and no wider than it: a blend has no boundary to
         // point at, but a control that spans a pane the picture does not still
         // reads as belonging to something else.
+        //
+        // Each end says which frame it is: a bare slider under two frames
+        // left the reader to find out by dragging which way was which.
         blendSlider: (width) => SizedBox(
           width: width,
-          child: Slider(value: blend, onChanged: onBlend),
+          child: Row(
+            children: [
+              const _EndLabel('base'),
+              Expanded(
+                child: Slider(value: blend, onChanged: onBlend),
+              ),
+              const _EndLabel('head'),
+            ],
+          ),
         ),
       ),
     ),
@@ -380,6 +391,18 @@ class _Stacked extends StatelessWidget {
                             width: 2,
                             child: ColoredBox(color: colors.accent),
                           ),
+                          // Which side is which, on the frame: the head is
+                          // drawn left of the line and the base right of it.
+                          const Positioned(
+                            left: FwSpacing.xs,
+                            top: FwSpacing.xs,
+                            child: _SideTag('head'),
+                          ),
+                          const Positioned(
+                            right: FwSpacing.xs,
+                            top: FwSpacing.xs,
+                            child: _SideTag('base'),
+                          ),
                           Positioned(
                             left: box.width * clip! - 7,
                             top: box.height / 2 - 7,
@@ -400,13 +423,66 @@ class _Stacked extends StatelessWidget {
                 ),
               ),
               if (blendSlider case var slider?)
-                SizedBox(height: _sliderHeight, child: slider(box.width)),
+                SizedBox(
+                  height: _sliderHeight,
+                  // As wide as the frame, but never narrower than a slider
+                  // with a word at each end can be used at: a phone frame is a
+                  // hundred-odd pixels, and the track between its labels was a
+                  // stub.
+                  child: slider(
+                    box.width < _sliderMinWidth
+                        ? _sliderMinWidth.clamp(0, constraints.maxWidth)
+                        : box.width,
+                  ),
+                ),
             ],
           ),
         );
       },
     );
   }
+}
+
+/// Which frame a side of the slider shows, on the frame itself.
+class _SideTag extends StatelessWidget {
+  const _SideTag(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.bg.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(context.radii.radiusSmall),
+        border: Border.all(color: colors.line),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: FwSpacing.xs,
+          vertical: 1,
+        ),
+        child: Text(
+          label,
+          style: context.type.micro.copyWith(color: colors.mut),
+        ),
+      ),
+    );
+  }
+}
+
+/// Which frame an end of the onion slider takes you to.
+class _EndLabel extends StatelessWidget {
+  const _EndLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: context.type.micro.copyWith(color: context.colors.mut),
+  );
 }
 
 class _LeftFraction extends CustomClipper<Rect> {
@@ -813,6 +889,9 @@ class _EnlargedStageState extends State<_EnlargedStage> {
 
 /// How much height the onion control takes off the picture.
 const _sliderHeight = 40.0;
+
+/// The narrowest the onion control is drawn, whatever the frame's width.
+const _sliderMinWidth = 260.0;
 
 /// How much height a frame's label takes over it, side by side.
 const _labelHeight = 18.0;

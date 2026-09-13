@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutterware/comparison_report.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
+import '../../ui/zoom_buttons.dart';
 import '../../ui/zoomable_canvas.dart';
 import '../../utils/graphite.dart';
 import '../shot_store.dart';
@@ -28,7 +30,7 @@ Key stepNodeKey(String id) => ValueKey('comparison.step.$id');
 /// steps hang off it. A new `split` branch is one decision in the source;
 /// drawing its four steps as four nodes describes that decision four times and
 /// buries whatever else the run found.
-class MergedTree extends StatelessWidget {
+class MergedTree extends StatefulWidget {
   const MergedTree({
     super.key,
     required this.scenario,
@@ -43,7 +45,8 @@ class MergedTree extends StatelessWidget {
 
   /// The canvas's pan and zoom, owned by the tab: it has to survive a pushed
   /// step and be *reset* when another flow is picked, and only the tab knows
-  /// which of the two just happened.
+  /// which of the two just happened. Reset means back to identity, which this
+  /// reads as "open the flow afresh" — see [_MergedTreeState._opening].
   final TransformationController transform;
 
   /// The step id the address names, or null.
@@ -51,46 +54,228 @@ class MergedTree extends StatelessWidget {
   final ValueChanged<String> onSelect;
 
   @override
+  State<MergedTree> createState() => _MergedTreeState();
+}
+
+class _MergedTreeState extends State<MergedTree> {
+  /// The graph's own size, measured once it is laid out, and the pane it is
+  /// drawn in. Both are needed to know what fits.
+  Size? _content;
+  Size? _pane;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.transform.addListener(_onTransform);
+  }
+
+  @override
+  void didUpdateWidget(MergedTree old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.transform, widget.transform)) {
+      old.transform.removeListener(_onTransform);
+      widget.transform.addListener(_onTransform);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.transform.removeListener(_onTransform);
+    super.dispose();
+  }
+
+  /// Not a rebuild: the graph is the whole canvas, and a pan moves the
+  /// transform every frame. The zoom readout listens for itself.
+  void _onTransform() => _openIfFresh();
+
+  void _onContent(Size size) {
+    if (size == _content) return;
+    _content = size;
+    _openIfFresh();
+  }
+
+  /// A canvas still at identity has not been opened: a new flow, or this one
+  /// for the first time. One the reader has moved — or that was opened before a
+  /// step was pushed over it — is left exactly where it is.
+  void _openIfFresh() {
+    if (widget.transform.value != Matrix4.identity()) return;
+    var opening = _opening();
+    if (opening == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.transform.value == Matrix4.identity()) {
+        widget.transform.value = opening;
+      }
+    });
+  }
+
+  /// **The flow as tall as the pane, and inset from its edge.** It opened at
+  /// 100% at the pane's very corner, so the first frame sat clipped against
+  /// the list beside it and the rest of the flow ran off the right with nothing
+  /// saying it could be zoomed. Fitted to the height rather than to the whole:
+  /// a long flow fitted to the width shrinks its frames past reading, and
+  /// panning sideways along one row is what a flow is for.
+  Matrix4? _opening() {
+    var (content, pane) = (_content, _pane);
+    if (content == null || pane == null || content.height <= 0) return null;
+    var scale = ((pane.height - 2 * _inset) / content.height).clamp(
+      _minScale,
+      1.0,
+    );
+    return _placed(scale, dx: _inset, content: content, pane: pane);
+  }
+
+  /// Everything in view, centred.
+  void _fit() {
+    var (content, pane) = (_content, _pane);
+    if (content == null || pane == null) return;
+    if (content.width <= 0 || content.height <= 0) return;
+    var scale = [
+      (pane.width - 2 * _inset) / content.width,
+      (pane.height - 2 * _inset) / content.height,
+      1.0,
+    ].reduce((a, b) => a < b ? a : b).clamp(_minScale, 1.0);
+    widget.transform.value = _placed(
+      scale,
+      dx: ((pane.width - content.width * scale) / 2).clamp(_inset, pane.width),
+      content: content,
+      pane: pane,
+    );
+  }
+
+  static Matrix4 _placed(
+    double scale, {
+    required double dx,
+    required Size content,
+    required Size pane,
+  }) {
+    var dy = ((pane.height - content.height * scale) / 2).clamp(
+      _inset,
+      pane.height,
+    );
+    return Matrix4.identity()
+      ..translateByDouble(dx, dy, 0, 1)
+      ..scaleByDouble(scale, scale, scale, 1);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    var scenario = widget.scenario;
     var graph = _MergedGraph.of(scenario);
     if (graph.nodes.isEmpty) return const SizedBox.shrink();
     var nodeWidth = _nodeWidthFor(scenario);
+    var colors = context.colors;
 
-    // **The scenarios panel's own flow, with a comparison on it.** That panel
-    // draws a run as a horizontal graph of device-framed shots, and a reader
-    // who has learned to read one flow should not have to learn a second shape
-    // to read two — so this is the same `DirectGraph`, the same orientation and
-    // the same pan-and-zoom, with the nodes carrying a verdict.
-    return DirectGraph(
-      key: mergedTreeKey,
-      list: graph.nodes,
-      cellSize: Size(nodeWidth + _gap, _thumbHeight + _captionHeight),
-      cellPadding: _gap,
-      contactEdgesDistance: 0,
-      tipLength: 14,
-      orientation: MatrixOrientation.horizontal,
-      interactiveBuilder: (context, child) => ZoomableCanvas(
-        transformationController: transform,
-        maxScale: 1.5,
-        minScale: 0.2,
-        boundaryMargin: const EdgeInsets.all(2000),
-        child: child,
-      ),
-      builder: (context, node) {
-        var cell = graph.cells[node.id]!;
-        return switch (cell) {
-          _StepCell(:var item) => _StepNode(
-            width: nodeWidth,
-            item: item,
-            frames: scenario.frames[item.id],
-            store: store,
-            selected: item.id == selected,
-            onTap: () => onSelect(item.id),
-          ),
-          _BranchCell(:var branch) => _OneSidedBranch(branch, width: nodeWidth),
-        };
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _pane = constraints.biggest;
+        return Stack(
+          children: [
+            Positioned.fill(
+              // **The scenarios panel's own flow, with a comparison on it.**
+              // That panel draws a run as a horizontal graph of device-framed
+              // shots, and a reader who has learned to read one flow should not
+              // have to learn a second shape to read two — so this is the same
+              // `DirectGraph`, the same orientation and the same pan-and-zoom,
+              // with the nodes carrying a verdict.
+              child: DirectGraph(
+                key: mergedTreeKey,
+                list: graph.nodes,
+                cellSize: Size(nodeWidth + _gap, _thumbHeight + _captionHeight),
+                cellPadding: _gap,
+                contactEdgesDistance: 0,
+                tipLength: 14,
+                orientation: MatrixOrientation.horizontal,
+                // The panel's line colour, not the painter's default black: an
+                // arrow says only *then*, and drawn in ink it was the heaviest
+                // thing on a canvas of pictures.
+                paintBuilder: (edge) => Paint()
+                  ..color = colors.mut3
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 2,
+                interactiveBuilder: (context, child) => ZoomableCanvas(
+                  transformationController: widget.transform,
+                  maxScale: 1.5,
+                  minScale: _minScale,
+                  boundaryMargin: const EdgeInsets.all(2000),
+                  child: _Measured(onSize: _onContent, child: child),
+                ),
+                builder: (context, node) {
+                  var cell = graph.cells[node.id]!;
+                  return switch (cell) {
+                    _StepCell(:var item) => _StepNode(
+                      width: nodeWidth,
+                      item: item,
+                      frames: scenario.frames[item.id],
+                      store: widget.store,
+                      selected: item.id == widget.selected,
+                      onTap: () => widget.onSelect(item.id),
+                    ),
+                    _BranchCell(:var branch) => _OneSidedBranch(
+                      branch,
+                      width: nodeWidth,
+                    ),
+                  };
+                },
+              ),
+            ),
+            Positioned(
+              right: FwSpacing.md,
+              bottom: FwSpacing.md,
+              child: ListenableBuilder(
+                listenable: widget.transform,
+                builder: (context, _) => ZoomButtons(
+                  key: mergedTreeZoomKey,
+                  value: widget.transform.value.getMaxScaleOnAxis(),
+                  onScale: (factor) => widget.transform.value = widget
+                      .transform
+                      .value
+                      .scaledByDouble(factor, factor, factor, 1),
+                  onFit: _fit,
+                ),
+              ),
+            ),
+          ],
+        );
       },
     );
+  }
+}
+
+const mergedTreeZoomKey = Key('comparison.merged-tree.zoom');
+
+/// How far the flow stands off the pane's edges when it is placed.
+const _inset = FwSpacing.xl;
+
+const _minScale = 0.2;
+
+/// Reports its child's laid-out size, after the frame that laid it out.
+class _Measured extends SingleChildRenderObjectWidget {
+  const _Measured({required this.onSize, super.child});
+
+  final ValueChanged<Size> onSize;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMeasured(onSize);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderMeasured renderObject) =>
+      renderObject.onSize = onSize;
+}
+
+class _RenderMeasured extends RenderProxyBox {
+  _RenderMeasured(this.onSize);
+
+  ValueChanged<Size> onSize;
+  Size? _reported;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (size == _reported) return;
+    _reported = size;
+    var measured = size;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onSize(measured));
   }
 }
 

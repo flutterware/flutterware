@@ -92,13 +92,7 @@ String comparisonPageTitle(ComparisonIndex index) {
   ]) {
     if (isComparedFinding(state)) counts[state] = (counts[state] ?? 0) + 1;
   }
-  var gap = verdictGapOf(
-    previewsNote: index.previewsHalf.note,
-    scenariosNote: index.scenariosHalf?.note,
-    previewStates: index.previewItems.map((item) => item.state),
-    scenarioStates: index.scenarios.map((scenario) => scenario.state),
-    narrowed: index.narrowed,
-  );
+  var gap = index.verdictGap;
   var verdict = counts.isNotEmpty
       ? [
           for (var entry

@@ -369,6 +369,23 @@ void main() {
     expect(find.text('changed at Menu, Order placed'), findsOneWidget);
   });
 
+  // Stretched across a wide window, a row's name and its verdict were a
+  // thousand pixels apart.
+  testWidgets('a row keeps its width on a wide window', (tester) async {
+    tester.view.physicalSize = const Size(2400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(
+      tester,
+      previews: [entry('demo/card.dart#card', ComparedState.changed)],
+    );
+
+    expect(
+      tester.getSize(find.byKey(findingRowKey('demo/card.dart#card'))).width,
+      lessThanOrEqualTo(FindingsTab.rowMaxWidth),
+    );
+  });
+
   test('past three steps, the rest are counted', () {
     expect(changedAt(['a']), 'changed at a');
     expect(
