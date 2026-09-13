@@ -40,8 +40,8 @@ void main() {
 
   tearDown(() => temp.deleteSync(recursive: true));
 
-  // The page is read once, from a link. The service worker Flutter is retiring
-  // made every visit wait on it and then fall back after four seconds.
+  // The page is read once, from a link. The caching worker Flutter is retiring
+  // held the page back until it had fetched the page's files and activated.
   test('the viewer is built with no service worker', () async {
     var arguments = <String>[];
     var compile = exporter.debugCompile!;

@@ -30,11 +30,12 @@
   `shopConfirmation`. A flow's row says which of its steps changed, and a
   step's page names its flow and walks to the steps either side.
 
-- **An exported page opens in about a second, and says what it is.** The
-  comparison and scenario pages registered Flutter's retiring service worker
-  and waited on it, falling back to a plain script after four seconds, blank
-  all the while. They load without one now, show a loading line until the
-  first frame, carry a description that fits them rather than the web demo's,
+- **An exported page loads without a service worker, and says what it is.**
+  The comparison and scenario pages registered Flutter's retiring caching
+  worker and loaded nothing until it had fetched the page's files and
+  activated — on a local server, long enough to hit the template's
+  four-second fallback on every load. They load through `flutter_bootstrap.js`
+  now, show a loading line until the first frame, carry a description that fits them rather than the web demo's,
   and name the tab after the verdict — `7 changed — fe642dc against
   origin/master`. Semantics are on, so a screen reader can read them.
 

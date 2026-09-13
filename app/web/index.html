@@ -69,9 +69,11 @@
     });
   </script>
   <!--
-    Flutter's own loader, with no service worker: the one this page used to
-    register made every visit wait on it and fall back to a plain script tag
-    after four seconds, and kept a stale build cached besides.
+    Flutter's own loader, with no service worker. The template this replaces
+    registered one — a caching worker, since the bundle was built with one —
+    and loaded nothing until it activated, which meant after the worker had
+    fetched the page's files. Served from a local server, every load ran into
+    the template's four-second fallback instead.
   -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
