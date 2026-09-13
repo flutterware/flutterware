@@ -24,6 +24,12 @@
   constraints (deepest first), then an offset, then a size its parent forced,
   then constraints. The same lines, in `fw compare`, MCP and `index.json`.
 
+- **A compared preview carries its name.** `index.json` rows for previews now
+  have the `label` their `@Preview(name:)` declares, as scenario steps already
+  did, and the comparison page titles rows by it — `Order placed` rather than
+  `shopConfirmation`. A flow's row says which of its steps changed, and a
+  step's page names its flow and walks to the steps either side.
+
 ## 0.6.0
 
 Development tooling for Flutter projects: a desktop app, a command line and an

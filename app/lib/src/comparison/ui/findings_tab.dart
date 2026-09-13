@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import '../../ui/empty_state.dart';
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
+import '../../utils/string/plural.dart';
 import '../shot_store.dart';
 import 'channel_signature.dart';
+import 'compared_name.dart';
 import 'shot_image.dart';
 import 'stage.dart';
 import 'state_chip.dart';
@@ -119,9 +121,14 @@ class _FindingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     var colors = context.colors;
     var face = _face;
-    var hash = finding.id.indexOf('#');
-    var name = hash < 0 ? finding.id : finding.id.substring(hash + 1);
-    var file = hash < 0 ? '' : finding.id.substring(0, hash);
+    var (:name, :file) = comparedName(
+      finding.id,
+      label: finding.preview?.label,
+    );
+    var changedSteps = [
+      for (var step in finding.scenario?.items ?? const <ComparedItem>[])
+        if (isComparedFinding(step.state)) step.label ?? step.id,
+    ];
 
     return Tappable(
       key: findingRowKey(finding.id),
@@ -158,6 +165,17 @@ class _FindingRow extends StatelessWidget {
                     style: context.type.micro.copyWith(color: colors.mut),
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // Which steps, the way the comment says it: a flow's verdict
+                  // is a roll-up, and the row was the one place on the page
+                  // that could not name what inside it changed.
+                  if (changedSteps.isNotEmpty) ...[
+                    const Gap(FwSpacing.xs),
+                    Text(
+                      changedAt(changedSteps),
+                      style: context.type.caption.copyWith(color: colors.ink2),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   if (finding.note case var note?) ...[
                     const Gap(FwSpacing.xs),
                     Text(
@@ -188,6 +206,17 @@ class _FindingRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// `changed at Menu, Order placed` — the first three, then how many more.
+@visibleForTesting
+String changedAt(List<String> steps) {
+  const shown = 3;
+  var named = steps.take(shown).join(', ');
+  var more = steps.length - shown;
+  return more > 0
+      ? 'changed at $named and ${counted(more, 'other step')}'
+      : 'changed at $named';
 }
 
 /// Base beside head — the mosaic's cell, in the page, with the change boxed.

@@ -320,6 +320,63 @@ void main() {
     expect(store.widths, containsAll([(140 * 390 / 844 * 2).ceil(), 420]));
   });
 
+  // The id is a file and a function; a reader knows the preview by the name
+  // the panel shows, and a flow by which of its steps moved.
+  testWidgets('a row is named, and a flow says where it changed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme,
+        home: Scaffold(
+          body: FindingsTab(
+            index: const ComparisonIndex(
+              base: 'abc123',
+              against: 'origin/master',
+              previewItems: [
+                ComparedItem(
+                  id: 'demo/shop.dart#shopConfirmation',
+                  state: ComparedState.changed,
+                  label: 'Order placed',
+                ),
+              ],
+              scenarios: [
+                ScenarioComparison(
+                  scenario: 'test/shop_test.dart#Order a cappuccino',
+                  state: ComparedState.changed,
+                  branches: [],
+                  items: [
+                    ComparedItem(id: 'Welcome', state: ComparedState.same),
+                    ComparedItem(id: 'Menu', state: ComparedState.changed),
+                    ComparedItem(
+                      id: 'Order placed',
+                      state: ComparedState.changed,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            store: _NoShots(),
+            onOpen: (tab, id) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Order placed'), findsOneWidget);
+    expect(find.text('shopConfirmation'), findsNothing);
+    expect(find.text('changed at Menu, Order placed'), findsOneWidget);
+  });
+
+  test('past three steps, the rest are counted', () {
+    expect(changedAt(['a']), 'changed at a');
+    expect(
+      changedAt(['a', 'b', 'c', 'd', 'e']),
+      'changed at a, b, c and 2 other steps',
+    );
+  });
+
   group('nothing worth attention', () {
     testWidgets('says so', (tester) async {
       await pump(

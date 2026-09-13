@@ -19,6 +19,7 @@ void main() {
     WidgetTester tester,
     List<ScenarioComparison> scenarios, {
     String? selected,
+    ValueChanged<String>? onSelect,
   }) async {
     var half = ComparisonHalf(
       ComparisonHalfKind.scenarios,
@@ -36,7 +37,7 @@ void main() {
             store: _NoShots(),
             settle: settle,
             selected: selected,
-            onSelect: (_) {},
+            onSelect: onSelect ?? (_) {},
             header: const Text('THE VERDICT'),
           ),
         ),
@@ -163,6 +164,52 @@ void main() {
           .value,
       panned,
     );
+  });
+
+  // A page reading only `Menu` could be a step of any flow; and reading the
+  // next step meant going back to the canvas to find it.
+  testWidgets('a step says where it is, and walks to its neighbours', (
+    tester,
+  ) async {
+    var picked = <String>[];
+    var scenarios = [
+      const ScenarioComparison(
+        scenario: 'test/cart_test.dart#Checkout',
+        state: ComparedState.changed,
+        items: [
+          ComparedItem(id: 'Cart', state: ComparedState.same),
+          ComparedItem(id: 'Pay', state: ComparedState.changed),
+          ComparedItem(id: 'Done', state: ComparedState.same),
+        ],
+        branches: [],
+      ),
+    ];
+
+    await pump(
+      tester,
+      scenarios,
+      selected: 'test/cart_test.dart#Checkout/Pay',
+      onSelect: picked.add,
+    );
+    expect(find.text('Step 2 of 3 · Checkout'), findsOneWidget);
+
+    await tester.tap(find.byKey(stepPreviousKey));
+    await tester.tap(find.byKey(stepNextKey));
+    expect(picked, [
+      'test/cart_test.dart#Checkout/Cart',
+      'test/cart_test.dart#Checkout/Done',
+    ]);
+
+    // At the end of the flow there is no next.
+    picked.clear();
+    await pump(
+      tester,
+      scenarios,
+      selected: 'test/cart_test.dart#Checkout/Done',
+      onSelect: picked.add,
+    );
+    await tester.tap(find.byKey(stepNextKey), warnIfMissed: false);
+    expect(picked, isEmpty);
   });
 
   // A scenario is named by whoever wrote it, and a name with a `/` in it —

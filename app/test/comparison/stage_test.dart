@@ -207,7 +207,7 @@ void main() {
       ),
     );
 
-    expect(find.text('0.38% moved, 1 region'), findsOneWidget);
+    expect(find.text('0.38% of pixels differ · 1 region'), findsOneWidget);
   });
 
   // A timer left running behind another mode rebuilds the pane twice a second

@@ -210,7 +210,9 @@ class _Body extends StatelessWidget {
     StageMode.pixels => _Framed(
       label: diff == null
           ? 'head'
-          : '${(diff!.fraction * 100).toStringAsFixed(2)}% moved, '
+          // "Differ", not "moved": the count is of pixels whose colour is not
+          // the same, and a replaced icon moves nothing.
+          : '${(diff!.fraction * 100).toStringAsFixed(2)}% of pixels differ · '
                 '${diff!.clusters.length} region'
                 '${diff!.clusters.length == 1 ? '' : 's'}',
       child: _Clusters(head: head, diff: diff),

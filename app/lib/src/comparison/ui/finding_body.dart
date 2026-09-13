@@ -5,6 +5,7 @@ import '../../ui/tappable.dart';
 import '../rules.dart';
 import '../../ui/theme.dart';
 import 'channel_lines.dart';
+import 'compared_name.dart';
 import 'shot_image.dart';
 import 'stage.dart';
 
@@ -118,7 +119,7 @@ class FindingBody extends StatelessWidget {
         diff: diff,
         onEnlarge: () => showEnlargedStage(
           context,
-          title: item.label ?? item.id,
+          title: comparedName(item.id, label: item.label).name,
           shots: shots,
           mode: mode,
           onMode: onMode,

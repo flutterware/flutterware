@@ -437,7 +437,13 @@ class _Header extends StatelessWidget {
           children: [
             for (var tab in tabs)
               _TabButton(
-                label: tab,
+                // The address keeps the ids; the reader gets words.
+                label: switch (tab) {
+                  'findings' => 'Findings',
+                  'previews' => 'Previews',
+                  'scenarios' => 'Scenarios',
+                  _ => tab,
+                },
                 selected: tab == selected,
                 onTap: () => onSelect(tab),
               ),

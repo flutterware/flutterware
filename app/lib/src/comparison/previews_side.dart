@@ -96,8 +96,20 @@ class PreviewsSide implements ComparisonSide {
 
   @override
   Future<List<String>> entries(String checkout) async => [
-    for (var entry in _scan(checkout).entries) entry.id,
+    for (var entry in _listed(checkout).entries) entry.id,
   ];
+
+  @override
+  Future<Map<String, String>> names(String checkout) async => {
+    for (var entry in _listed(checkout).entries) entry.id: entry.name,
+  };
+
+  /// One scan per checkout for the listing and the names, which are asked
+  /// back to back. [render] scans afresh: it is where a checkout that moved
+  /// under the comparison has to be noticed.
+  ScanResult _listed(String checkout) =>
+      _listings[checkout] ??= _scan(checkout);
+  final _listings = <String, ScanResult>{};
 
   ScanResult _scan(String checkout) => CatalogScanner(
     projectRoot: _packageRootIn(checkout),
