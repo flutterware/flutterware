@@ -12,6 +12,7 @@ import '../shot_store.dart';
 import 'finding_body.dart';
 import 'channel_signature.dart';
 import 'index_filter.dart';
+import 'not_in_comparison.dart';
 import 'shot_image.dart';
 import 'stage.dart';
 import 'state_chip.dart';
@@ -107,9 +108,21 @@ class _PreviewsTabState extends State<PreviewsTab> {
     if (mounted) setState(() {});
   }
 
+  /// The row the address names when this half does not have it, or null.
+  ///
+  /// Only once the half has everything it will get: while a run is landing
+  /// rows, a named row may simply not have arrived yet, and the stage keeps
+  /// drawing the first finding in the meantime.
+  String? get _missing {
+    var selected = widget.selected;
+    if (selected == null || widget.half.isBusy) return null;
+    return widget.half.rows.any((row) => row.id == selected) ? null : selected;
+  }
+
   ComparedItem? get _current {
     var rows = widget.half.rows;
-    if (rows.isEmpty) return null;
+    // Said, not swapped for the first finding — see [NotInComparison].
+    if (rows.isEmpty || _missing != null) return null;
     // **The first finding, not the first row.** A list ranked worst-first opens
     // on the thing most likely to be a mistake, which is the whole reason it is
     // ranked.
@@ -168,7 +181,10 @@ class _PreviewsTabState extends State<PreviewsTab> {
         ),
         Expanded(
           child: current == null
-              ? const SizedBox.shrink()
+              ? switch (_missing) {
+                  var missing? => NotInComparison(address: missing),
+                  null => const SizedBox.shrink(),
+                }
               : _Detail(
                   item: current,
                   shots: _shots,

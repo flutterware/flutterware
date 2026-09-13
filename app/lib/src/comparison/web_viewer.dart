@@ -13,6 +13,7 @@ import '../utils/url_fragment.dart';
 import 'comparison_controller.dart';
 import 'shot_store_http.dart';
 import 'ui/findings_tab.dart';
+import 'ui/not_in_comparison.dart';
 import 'ui/previews_tab.dart';
 import 'ui/scenarios_tab.dart';
 import 'ui/state_chip.dart';
@@ -31,7 +32,12 @@ import '../ui/loading_state.dart';
 /// bundle is data-free, built once, and copied beside whatever `index.json`
 /// an export just wrote.
 class ComparisonWebViewer extends StatefulWidget {
-  const ComparisonWebViewer({super.key, required this.base, this.raw});
+  const ComparisonWebViewer({
+    super.key,
+    required this.base,
+    this.raw,
+    this.history = const ViewerHistory(),
+  });
 
   /// What every frame path is resolved against — the page's own URL, so a
   /// page moved to another host or a subdirectory still finds its own files.
@@ -41,8 +47,33 @@ class ComparisonWebViewer extends StatefulWidget {
   /// what this page is. Null makes the viewer fetch it itself.
   final String? raw;
 
+  /// The browser's history. A test hands in its own to see what the page
+  /// would push.
+  final ViewerHistory history;
+
   @override
   State<ComparisonWebViewer> createState() => _ComparisonWebViewerState();
+}
+
+/// The page's history, as the viewer moves through it — `url_fragment.dart`
+/// behind a type a test can replace.
+class ViewerHistory {
+  const ViewerHistory();
+
+  /// Rewrites the entry the page is on.
+  void replace(String fragment) => writeUrlFragment(fragment);
+
+  /// A new entry, remembering the one it was pushed from.
+  void push(String fragment, {required String from}) =>
+      pushUrlFragment(fragment, from: from);
+
+  /// What the current entry was pushed from, when this page pushed it.
+  String? get pushedFrom => urlFragmentPushedFrom;
+
+  void back() => urlHistoryBack();
+
+  /// The fragment each time the browser changes it itself.
+  Stream<String> get changes => urlFragmentChanges;
 }
 
 /// `previews/demo%2Fcard.dart%23card` → the tab and the decoded selection, or
@@ -103,9 +134,7 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
     // The place the link named. From [ComparisonWebViewer.base] rather than a
     // live read, which is also what lets a test hand a fragment in.
     _goTo(widget.base.fragment);
-    _fragment = urlFragmentChanges.listen(
-      (fragment) => setState(() => _goTo(fragment)),
-    );
+    _fragment = widget.history.changes.listen(_arrive);
     if (widget.raw case var raw?) {
       _apply(raw);
     } else {
@@ -121,10 +150,63 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
     }
   }
 
-  /// Writes where the page is into its own URL, so the address bar is always
-  /// a link to what is on screen. Decoded — the shim spells the escapes.
-  void _writeAddress() =>
-      writeUrlFragment(_selected == null ? _tab : '$_tab/${_selected!}');
+  /// Where the page is, as its URL spells it. Decoded — the shim spells the
+  /// escapes.
+  String get _address => _selected == null ? _tab : '$_tab/${_selected!}';
+
+  /// The browser moved — back, forward, or an edited address. Something that
+  /// is not an address on this page is replaced by where the page still is,
+  /// so the bar never shows a place the page is not drawing.
+  void _arrive(String fragment) {
+    var addressed = parseViewerFragment(fragment) != null;
+    setState(() => _goTo(fragment));
+    if (!addressed) widget.history.replace(_address);
+  }
+
+  /// Moves the page to [tab] and [selected], and decides what that costs the
+  /// back button.
+  ///
+  /// **Deeper is an entry; sideways is not.** Another tab, a finding opened
+  /// from the list, a step pushed over its flow: each is a place the reader
+  /// went *into*, and back should come out of it. Another row in the same list
+  /// replaces the entry the page is on, because thirty row clicks must not
+  /// become thirty presses of the back button — the reason the page only ever
+  /// replaced until back started leaving it altogether.
+  ///
+  /// **Up out of a step goes back** when this page pushed that step from the
+  /// flow it is returning to. Replacing instead would leave the flow in the
+  /// history twice, and the next press of back would seem to do nothing.
+  void _move(String tab, String? selected) {
+    if (tab == _tab && selected == _selected) return;
+    var from = _address;
+    var fromTab = _tab;
+    var wasStep = _stepOf(_tab, _selected);
+    var isStep = _stepOf(tab, selected);
+    setState(() {
+      _tab = tab;
+      _selected = selected;
+    });
+    var to = _address;
+    if (tab != fromTab || (isStep && !wasStep)) {
+      widget.history.push(to, from: from);
+    } else if (wasStep && !isStep && widget.history.pushedFrom == to) {
+      widget.history.back();
+    } else {
+      widget.history.replace(to);
+    }
+  }
+
+  /// Whether [selected] on [tab] names a step rather than a flow — split
+  /// against the flows there are, the way the scenarios tab splits it.
+  bool _stepOf(String tab, String? selected) {
+    if (tab != 'scenarios' || selected == null) return false;
+    var scenarios = _index?.scenarios ?? const [];
+    var split = splitScenarioAddress(
+      selected,
+      scenarios.map((scenario) => scenario.scenario),
+    );
+    return split?.$2 != null;
+  }
 
   Future<void> _load() async {
     String? raw;
@@ -170,25 +252,24 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
       if (!_addressed) {
         _tab = index.findings.isNotEmpty
             ? 'findings'
-            : (index.previewItems.isEmpty && index.scenarios.isNotEmpty
-                  ? 'scenarios'
-                  : 'previews');
+            : index.previewItems.isNotEmpty
+            ? 'previews'
+            : index.scenarios.isNotEmpty
+            ? 'scenarios'
+            : 'findings';
+        // Written, so the address bar is a link to the tab the page chose.
+        // Only here: an address that named a place is left naming it, drawn
+        // or not.
+        widget.history.replace(_address);
       }
     } catch (error) {
       _error = 'index.json could not be read:\n$error';
     }
   }
 
-  void _select(String tab) => setState(() {
-    if (_tab != tab) _selected = null;
-    _tab = tab;
-    _writeAddress();
-  });
+  void _select(String tab) => _move(tab, tab == _tab ? _selected : null);
 
-  void _selectRow(String id) => setState(() {
-    _selected = id;
-    _writeAddress();
-  });
+  void _selectRow(String id) => _move(_tab, id);
 
   @override
   Widget build(BuildContext context) {
@@ -238,17 +319,12 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
         message: 'This comparison produced no rows on either half.',
       );
     }
-    var tab = tabs.contains(_tab) ? _tab : tabs.first;
+    // A tab this comparison does not have — `#scenarios/…` on a page that
+    // compared previews only — is a miss like any other, not the first tab.
+    if (!tabs.contains(_tab)) return NotInComparison(address: _address);
+    var tab = _tab;
     if (tab == 'findings') {
-      return FindingsTab(
-        index: index,
-        store: _store,
-        onOpen: (tab, id) => setState(() {
-          _tab = tab;
-          _selected = id;
-          _writeAddress();
-        }),
-      );
+      return FindingsTab(index: index, store: _store, onOpen: _move);
     }
     if (tab == 'scenarios' && index.scenarios.isEmpty) {
       return EmptyState(
