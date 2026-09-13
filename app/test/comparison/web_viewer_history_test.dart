@@ -102,7 +102,7 @@ void main() {
     testWidgets('another tab is an entry', (tester) async {
       await open(tester, fragment: 'previews/demo/card.dart#card');
 
-      await tester.tap(find.text('scenarios'));
+      await tester.tap(find.text('Scenarios'));
       await tester.pumpAndSettle();
 
       expect(history.log, ['push scenarios from previews/demo/card.dart#card']);

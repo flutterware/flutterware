@@ -24,6 +24,15 @@ abstract interface class ComparisonSide {
   /// Every entry id this checkout declares.
   Future<List<String>> entries(String checkout);
 
+  /// What a person calls each entry of this checkout — the name it was
+  /// declared under, `Order placed` for `demo/shop.dart#shopConfirmation` —
+  /// for the ones that have one.
+  ///
+  /// Carried on the row as its label, because the id is the file and the
+  /// function, and a reader of the page or the comment knows the preview by
+  /// the name the panel shows.
+  Future<Map<String, String>> names(String checkout);
+
   /// The package the entries live in, relative to a checkout root — where the
   /// pubspec declaring the assets and the lockfile recording the resolution
   /// sit, which is what [pixelInputsOf] reads.
@@ -211,7 +220,12 @@ class ComparisonPlan {
     this.onlyOnHead = const [],
     this.onlyOnBase = const [],
     this.because = const {},
+    this.names = const {},
   });
+
+  /// Entry id → its declared name, the head's where both sides have one — see
+  /// [ComparisonSide.names].
+  final Map<String, String> names;
 
   /// Rows whose **verdict** needed no picture: added, removed, skipped.
   ///
@@ -445,6 +459,9 @@ class ComparisonRunner {
       );
     }
     return ComparisonPlan(
+      // The base's first so the head's win: a renamed preview is called what
+      // this branch calls it, and a removed one keeps the name it had.
+      names: {...await side.names(baseRoot), ...await side.names(headRoot)},
       settled: settled,
       toRender: decided.toRender,
       keys: decided.keys,
@@ -474,6 +491,11 @@ class ComparisonRunner {
 
     var items = <String, ComparedItem>{};
     void report(ComparedItem item) {
+      // Named here, the one door every row leaves through, rather than at the
+      // half-dozen places a row is built.
+      if (item.label == null) {
+        if (plan.names[item.id] case var name?) item = _named(item, name);
+      }
       items[item.id] = item;
       onItem?.call(item);
     }
@@ -626,6 +648,19 @@ class ComparisonRunner {
       because: plan.because,
     );
   }
+
+  static ComparedItem _named(ComparedItem item, String name) => ComparedItem(
+    id: item.id,
+    state: item.state,
+    label: name,
+    pixels: item.pixels,
+    tree: item.tree,
+    texts: item.texts,
+    events: item.events,
+    note: item.note,
+    shots: item.shots,
+    package: item.package,
+  );
 
   ComparedItem _compare(String id, ({String base, String head}) key) {
     var baseMeta = cache.meta(key.base)!;

@@ -260,6 +260,140 @@ void main() {
     expect(store.widths, everyElement(isNotNull));
   });
 
+  // An 84×64 cell drew a phone screen thirty pixels wide. The cell takes the
+  // frame's shape, from what the report knows before anything decodes.
+  testWidgets("a cell takes its frame's shape, and decodes at twice it", (
+    tester,
+  ) async {
+    var store = _RecordingShots();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme,
+        home: Scaffold(
+          body: FindingsTab(
+            index: const ComparisonIndex(
+              base: 'abc123',
+              against: 'origin/master',
+              previewItems: [
+                ComparedItem(
+                  id: 'demo/wide.dart#wide',
+                  state: ComparedState.changed,
+                  shots: (base: 'b', head: 'h'),
+                  pixels: PixelChannel(
+                    PixelDiff(
+                      width: 900,
+                      height: 600,
+                      changedPixels: 10,
+                      comparedPixels: 540000,
+                      sizeChanged: false,
+                      clusters: [],
+                    ),
+                  ),
+                ),
+              ],
+              scenarios: [
+                ScenarioComparison(
+                  scenario: 'test/phone_test.dart#Phone',
+                  state: ComparedState.changed,
+                  branches: [],
+                  items: [
+                    ComparedItem(id: 'Menu', state: ComparedState.changed),
+                  ],
+                  frames: {
+                    'Menu': (
+                      base: FrameRef(path: 'menu.png', width: 390, height: 844),
+                      head: null,
+                    ),
+                  },
+                ),
+              ],
+            ),
+            store: store,
+            onOpen: (tab, id) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 140 tall: the phone as narrow as its shape, the laptop as wide.
+    expect(store.widths, containsAll([(140 * 390 / 844 * 2).ceil(), 420]));
+  });
+
+  // The id is a file and a function; a reader knows the preview by the name
+  // the panel shows, and a flow by which of its steps moved.
+  testWidgets('a row is named, and a flow says where it changed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme,
+        home: Scaffold(
+          body: FindingsTab(
+            index: const ComparisonIndex(
+              base: 'abc123',
+              against: 'origin/master',
+              previewItems: [
+                ComparedItem(
+                  id: 'demo/shop.dart#shopConfirmation',
+                  state: ComparedState.changed,
+                  label: 'Order placed',
+                ),
+              ],
+              scenarios: [
+                ScenarioComparison(
+                  scenario: 'test/shop_test.dart#Order a cappuccino',
+                  state: ComparedState.changed,
+                  branches: [],
+                  items: [
+                    ComparedItem(id: 'Welcome', state: ComparedState.same),
+                    ComparedItem(id: 'Menu', state: ComparedState.changed),
+                    ComparedItem(
+                      id: 'Order placed',
+                      state: ComparedState.changed,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            store: _NoShots(),
+            onOpen: (tab, id) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Order placed'), findsOneWidget);
+    expect(find.text('shopConfirmation'), findsNothing);
+    expect(find.text('changed at Menu, Order placed'), findsOneWidget);
+  });
+
+  // Stretched across a wide window, a row's name and its verdict were a
+  // thousand pixels apart.
+  testWidgets('a row keeps its width on a wide window', (tester) async {
+    tester.view.physicalSize = const Size(2400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(
+      tester,
+      previews: [entry('demo/card.dart#card', ComparedState.changed)],
+    );
+
+    expect(
+      tester.getSize(find.byKey(findingRowKey('demo/card.dart#card'))).width,
+      lessThanOrEqualTo(FindingsTab.rowMaxWidth),
+    );
+  });
+
+  test('past three steps, the rest are counted', () {
+    expect(changedAt(['a']), 'changed at a');
+    expect(
+      changedAt(['a', 'b', 'c', 'd', 'e']),
+      'changed at a, b, c and 2 other steps',
+    );
+  });
+
   group('nothing worth attention', () {
     testWidgets('says so', (tester) async {
       await pump(

@@ -28,6 +28,7 @@ import 'package:flutterware_app/src/splash/model/fingerprint.dart';
 import 'package:flutterware_app/src/splash/model/scan.dart';
 import 'package:flutterware_app/src/translations/loader.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
+import 'package:flutterware_app/src/utils/run_git.dart';
 import 'package:flutterware_app/src/worktrees/providers/git.dart';
 import 'package:image/image.dart' as img;
 import 'package:package_config/package_config.dart';
@@ -129,7 +130,7 @@ Future<void> main(List<String> arguments) async {
     if (only == null || only == 'dependencies')
       await _recordDependencies(project: project, out: out),
     if (only == null || only == 'splash')
-      _recordSplash(project: project, out: out),
+      await _recordSplash(project: project, out: out),
     if (only == null || only == 'changes')
       await _recordChanges(project: project, out: out, appRoot: appRoot),
     if (only == null || only == 'comparison')
@@ -576,8 +577,12 @@ Future<String> _recordDependencies({
 /// after every scan and it stats a few more paths. Times are pinned — a
 /// checkout gives every file the same time anyway, and a recording that
 /// changes with the checkout is one CI cannot check.
-String _recordSplash({required String project, required String out}) {
+Future<String> _recordSplash({
+  required String project,
+  required String out,
+}) async {
   const packagePath = '.';
+  var inClone = await _clonedPaths(project);
   var dir = Directory(p.join(out, 'splash'));
   if (dir.existsSync()) dir.deleteSync(recursive: true);
 
@@ -617,11 +622,18 @@ String _recordSplash({required String project, required String out}) {
     if (!p.isWithin(project, entry.key) && !p.equals(project, entry.key)) {
       continue;
     }
-    directories[relative(entry.key)] = switch (entry.value) {
+    // **What a clone has, not what this checkout has.** The scan lists the
+    // package root, and a checkout that has been built or resolved holds
+    // `build/`, `.dart_tool/` and `.flutter-plugins-dependencies` beside the
+    // sources — which a fresh CI checkout does not, so the recording CI made
+    // never matched the one committed from a working copy.
+    var key = relative(entry.key);
+    if (!inClone(key)) continue;
+    directories[key] = switch (entry.value) {
       null => null,
       var entries => [
         for (var e in entries)
-          if (p.isWithin(project, e)) relative(e),
+          if (p.isWithin(project, e) && inClone(relative(e))) relative(e),
       ]..sort(),
     };
   }
@@ -633,6 +645,32 @@ String _recordSplash({required String project, required String out}) {
   return 'a splash scan of ${scan.configs.length} configs, '
       '${index.length} files, ${directories.length} directories, '
       '${(bytes / 1024).toStringAsFixed(0)} KB';
+}
+
+/// Whether a path relative to [project] is in a clone of it: a tracked file,
+/// a directory holding one, or the package root itself.
+Future<bool Function(String relative)> _clonedPaths(String project) async {
+  var listed = await runGit(
+    ['ls-files', '-z'],
+    workingDirectory: project,
+    stdoutEncoding: utf8,
+  );
+  if (listed.exitCode != 0) {
+    throw StateError('git ls-files failed in $project:\n${listed.stderr}');
+  }
+  var paths = <String>{'.'};
+  for (var file in '${listed.stdout}'.split('\u0000')) {
+    if (file.isEmpty) continue;
+    paths.add(file);
+    for (
+      var dir = p.posix.dirname(file);
+      dir != '.';
+      dir = p.posix.dirname(dir)
+    ) {
+      if (!paths.add(dir)) break;
+    }
+  }
+  return paths.contains;
 }
 
 /// [text] with every absolute path under [project] spelled under the

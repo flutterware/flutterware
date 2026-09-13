@@ -40,6 +40,28 @@ void main() {
 
   tearDown(() => temp.deleteSync(recursive: true));
 
+  // The page is read once, from a link. The caching worker Flutter is retiring
+  // held the page back until it had fetched the page's files and activated.
+  test('the viewer is built with no service worker', () async {
+    var arguments = <String>[];
+    var compile = exporter.debugCompile!;
+    exporter.debugCompile = (given) {
+      arguments.addAll(given);
+      return compile(given);
+    };
+
+    await exporter.export(
+      index: {
+        'previews': {'items': <Object?>[]},
+      },
+      cache: cache,
+      against: 'origin/master',
+      output: p.join(temp.path, 'out'),
+    );
+
+    expect(arguments, contains('--pwa-strategy=none'));
+  });
+
   void file(String key, int value, {int width = 4, int height = 4}) {
     cache.write(
       key,

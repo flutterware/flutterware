@@ -335,6 +335,60 @@ void main() {
     expect(deltas.last.kind, TreeDeltaKind.shifted);
   });
 
+  // The walk meets a resize root first, so it used to report the widgets
+  // carried along — the containers, and the neighbour squeezed to make room —
+  // before the leaf that grew, and a report capped at fifty lines could leave
+  // the leaf out altogether.
+  test('the resize that started it leads, what it carried follows', () {
+    InspectNode screen({required double price}) => node(
+      'Column',
+      width: 300 + price,
+      children: [
+        node(
+          'Row',
+          width: 300 + price,
+          children: [
+            InspectNode(
+              id: '',
+              type: 'Expanded',
+              createdByLocalProject: true,
+              layout: InspectLayout(
+                x: 0,
+                y: 0,
+                width: 300 - price,
+                height: 10,
+                isRepaintBoundary: false,
+                constraints: InspectConstraints(
+                  minWidth: 300 - price,
+                  maxWidth: 300 - price,
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                ),
+              ),
+            ),
+            node('Text', description: 'Text("4.20 €")', width: price),
+          ],
+        ),
+      ],
+    );
+
+    var deltas = TreeDiff.of(screen(price: 30), screen(price: 40)).deltas;
+    var changed = [
+      for (var delta in deltas)
+        if (delta.kind == TreeDeltaKind.changed) delta,
+    ];
+    String line(TreeDelta delta) =>
+        '${delta.path.split(' › ').last} ${delta.property}';
+
+    expect(changed.map(line).first, 'Text("4.20 €") size');
+    expect(changed.map(line).skip(1).takeWhile((l) => l.endsWith('size')), [
+      'Row size',
+      'Column size',
+      'Expanded size',
+    ], reason: 'the containers it grew, then the neighbour it squeezed');
+    expect(changed.map(line).last, 'Expanded constraints');
+  });
+
   test('a node that moved on its own is a change, not a shift', () {
     var base = node('Column', children: [node('Icon', x: 0)]);
     var head = node('Column', children: [node('Icon', x: 12)]);

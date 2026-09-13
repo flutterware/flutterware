@@ -12,6 +12,7 @@ import '../comparison_controller.dart';
 import '../rules.dart';
 import '../shot_store.dart';
 import 'channel_signature.dart';
+import 'compared_name.dart';
 import 'index_filter.dart';
 import 'merged_tree.dart';
 import 'not_in_comparison.dart';
@@ -248,7 +249,15 @@ class _ScenariosTabState extends State<ScenariosTab> {
     // a step as a full page with a back arrow — and the flow stays one tap
     // away, in the address as well as on screen.
     if (step != null && scenario != null) {
+      var steps = scenario.items;
+      var at = steps.indexOf(step);
       return StepPage(
+        flow: scenario.scenario,
+        position: (index: at, count: steps.length),
+        onPrevious: at > 0 ? () => _select(step: steps[at - 1].id) : null,
+        onNext: at < steps.length - 1
+            ? () => _select(step: steps[at + 1].id)
+            : null,
         item: step,
         shots: _shots,
         mode: _mode,
@@ -650,9 +659,7 @@ class _Header extends StatelessWidget {
     ),
     child: Row(
       children: [
-        Expanded(
-          child: Text(scenario.scenario, style: context.type.bodyStrong),
-        ),
+        Expanded(child: ComparedTitle(scenario.scenario)),
         StateChip(scenario.state),
       ],
     ),

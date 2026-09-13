@@ -15,6 +15,30 @@
   so it loads them first with
   `await tester.runAsync(() => precacheSceneShaders(scene));`.
 
+- **A comparison's tree changes lead with the one that started it.** A layout
+  change reports every widget it carried along, and the list used to open on
+  the containers and the neighbours squeezed to make room — root first, the
+  order the walk met them — so a report capped at fifty lines could leave out
+  the widget that actually grew. Within a finding, the changes now read from
+  the cause outwards: what a widget is, then a size change under unchanged
+  constraints (deepest first), then an offset, then a size its parent forced,
+  then constraints. The same lines, in `fw compare`, MCP and `index.json`.
+
+- **A compared preview carries its name.** `index.json` rows for previews now
+  have the `label` their `@Preview(name:)` declares, as scenario steps already
+  did, and the comparison page titles rows by it — `Order placed` rather than
+  `shopConfirmation`. A flow's row says which of its steps changed, and a
+  step's page names its flow and walks to the steps either side.
+
+- **An exported page loads without a service worker, and says what it is.**
+  The comparison and scenario pages registered Flutter's retiring caching
+  worker and loaded nothing until it had fetched the page's files and
+  activated — on a local server, long enough to hit the template's
+  four-second fallback on every load. They load through `flutter_bootstrap.js`
+  now, show a loading line until the first frame, carry a description that fits them rather than the web demo's,
+  and name the tab after the verdict — `7 changed — fe642dc against
+  origin/master`. Semantics are on, so a screen reader can read them.
+
 ## 0.6.0
 
 Development tooling for Flutter projects: a desktop app, a command line and an

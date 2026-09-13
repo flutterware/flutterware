@@ -5,6 +5,7 @@ import '../../ui/tappable.dart';
 import '../rules.dart';
 import '../../ui/theme.dart';
 import 'channel_lines.dart';
+import 'compared_name.dart';
 import 'shot_image.dart';
 import 'stage.dart';
 
@@ -110,22 +111,61 @@ class FindingBody extends StatelessWidget {
     }
 
     if (pixelsMoved || oneSided) {
+      var diff = item.pixels?.diff;
+      var stage = ComparisonStage(
+        shots: shots,
+        mode: mode,
+        onMode: onMode,
+        diff: diff,
+        onEnlarge: () => showEnlargedStage(
+          context,
+          title: comparedName(item.id, label: item.label).name,
+          shots: shots,
+          mode: mode,
+          onMode: onMode,
+          diff: diff,
+        ),
+      );
+      if (!hasChannels) return Expanded(child: stage);
       return Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 5,
-              child: ComparisonStage(
-                shots: shots,
-                mode: mode,
-                onMode: onMode,
-                diff: item.pixels?.diff,
-              ),
-            ),
-            if (hasChannels)
-              Expanded(flex: 2, child: ChannelLines(item, onRule: onRule)),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // **The frames decide where the channels go.** Portrait frames are
+            // bound by the pane's height, so every row the channels take from
+            // under them shrinks the picture — and they leave most of a wide
+            // pane's width empty either side. Beside them, the channels cost
+            // the pictures nothing. Landscape frames are the other way round:
+            // bound by width, and happy to give up height.
+            var shot = shots.head ?? shots.base;
+            var beside =
+                shot != null &&
+                shot.aspect < 1 &&
+                constraints.maxWidth >= _besideFrom;
+            if (beside) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: stage),
+                  SizedBox(
+                    width: _channelsWidth,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(left: BorderSide(color: colors.line)),
+                      ),
+                      child: ChannelLines(item, onRule: onRule, ruled: false),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 5, child: stage),
+                Expanded(flex: 2, child: ChannelLines(item, onRule: onRule)),
+              ],
+            );
+          },
         ),
       );
     }
@@ -179,6 +219,14 @@ class _IdenticalFrames extends StatefulWidget {
 }
 
 const _thumbHeight = 96.0;
+
+/// How wide a pane has to be before the channels move beside portrait frames:
+/// the column, and a stage that still has room for two phones side by side.
+const _besideFrom = 900.0;
+
+/// The channels' column, beside the stage. Wide enough that a `size  52×52 →
+/// 60×60` line does not wrap, narrow enough that it is not the pane.
+const _channelsWidth = 380.0;
 
 class _IdenticalFramesState extends State<_IdenticalFrames> {
   var _open = false;

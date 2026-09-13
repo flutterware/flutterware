@@ -58,6 +58,21 @@ void main() {
   ComparedItem itemFor(ComparisonResult result, String id) =>
       result.items.firstWhere((item) => item.id == id);
 
+  // The id is the file and the function; the page and the comment are read by
+  // people who know the preview by the name the panel shows.
+  test('a row carries the name its entry was declared under', () async {
+    side.declared['*'] = ['demo/shop.dart#shopMenu', 'demo/shop.dart#plain'];
+    side.named['demo/shop.dart#shopMenu'] = 'Menu';
+
+    var result = await compare(
+      base: checkout('base', {'demo/shop.dart': '1'}),
+      head: checkout('head', {'demo/shop.dart': '2'}),
+    );
+
+    expect(itemFor(result, 'demo/shop.dart#shopMenu').label, 'Menu');
+    expect(itemFor(result, 'demo/shop.dart#plain').label, isNull);
+  });
+
   // What a tab says before you click it. An estimate that had to render to
   // know would be the work rather than an estimate of it.
   group('the plan costs only hashing', () {
@@ -728,6 +743,12 @@ class _FakeSide implements ComparisonSide {
   @override
   Future<List<String>> entries(String checkout) async =>
       declared[checkout] ?? declared['*'] ?? const [];
+
+  /// Entry id → its declared name, for both sides.
+  final named = <String, String>{};
+
+  @override
+  Future<Map<String, String>> names(String checkout) async => named;
 
   @override
   Future<Map<String, String>> render({

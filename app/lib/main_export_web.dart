@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutterware/comparison_report.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:http/http.dart' as http;
 
@@ -30,8 +33,17 @@ void main() {
   // *is* its fragment, kept by the comparison viewer, so the engine is told
   // to leave the URL alone.
   setUrlStrategy(null);
+  WidgetsFlutterBinding.ensureInitialized();
+  // Semantics from the first frame. Without them the page is one canvas: a
+  // screen reader finds nothing in it, and neither does anything else that
+  // reads a page — the tab name is the only text a browser knows it holds.
+  _semantics = SemanticsBinding.instance.ensureSemantics();
   runApp(ExportViewerApp(base: Uri.base));
 }
+
+/// Held for the life of the page; disposing it would turn semantics back off.
+// ignore: unused_element
+SemanticsHandle? _semantics;
 
 class ExportViewerApp extends StatefulWidget {
   const ExportViewerApp({super.key, required this.base});
@@ -63,7 +75,11 @@ class _ExportViewerAppState extends State<ExportViewerApp> {
     if (await _fetch('index.json') case var raw?) {
       if (!mounted) return;
       setState(() {
-        _title = 'Comparison';
+        _title = _titleOr('Comparison', () {
+          return comparisonPageTitle(
+            ComparisonIndex.fromJson((jsonDecode(raw) as Map).cast()),
+          );
+        });
         _viewer = ComparisonWebViewer(base: widget.base, raw: raw);
       });
       return;
@@ -71,7 +87,10 @@ class _ExportViewerAppState extends State<ExportViewerApp> {
     if (await _fetch(scenarioWebReportFile) case var raw?) {
       if (!mounted) return;
       setState(() {
-        _title = 'Scenarios';
+        _title = _titleOr('Scenarios', () {
+          return ScenarioWebReport.fromJson((jsonDecode(raw) as Map).cast())
+              .title;
+        });
         _viewer = ScenarioWebViewer(base: widget.base, raw: raw);
       });
       return;
@@ -84,6 +103,16 @@ class _ExportViewerAppState extends State<ExportViewerApp> {
           'HTTP — opening index.html from the filesystem leaves the browser '
           'unable to fetch anything beside it.';
     });
+  }
+
+  /// The tab's name out of the file, or [fallback] when the file will not
+  /// read — in which case the viewer is about to say so on the page.
+  static String _titleOr(String fallback, String Function() read) {
+    try {
+      return read();
+    } catch (_) {
+      return fallback;
+    }
   }
 
   /// The file's body, or null when it is not there.

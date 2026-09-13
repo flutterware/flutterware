@@ -11,6 +11,7 @@ import '../rules.dart';
 import '../shot_store.dart';
 import 'finding_body.dart';
 import 'channel_signature.dart';
+import 'compared_name.dart';
 import 'index_filter.dart';
 import 'not_in_comparison.dart';
 import 'shot_image.dart';
@@ -408,9 +409,7 @@ class _IndexRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var colors = context.colors;
-    var hash = item.id.indexOf('#');
-    var name = hash < 0 ? item.id : item.id.substring(hash + 1);
-    var file = hash < 0 ? '' : item.id.substring(0, hash);
+    var (:name, :file) = comparedName(item.id, label: item.label);
 
     return Tappable(
       key: previewRowKey(item.id),
@@ -508,7 +507,7 @@ class _Detail extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Expanded(child: Text(item.id, style: context.type.bodyStrong)),
+              Expanded(child: ComparedTitle(item.id, label: item.label)),
               StateChip(item.state),
             ],
           ),

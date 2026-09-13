@@ -137,7 +137,28 @@ void main() {
     await tester.tap(find.byKey(stageModeKey(StageMode.onion)));
     await tester.pump();
 
-    expect(find.text('base under head'), findsOneWidget);
+    expect(find.text('head over base'), findsOneWidget);
+  });
+
+  // A bare slider under two frames left the reader to find out by dragging
+  // which side was which.
+  testWidgets('the slider and the onion say which frame is where', (
+    tester,
+  ) async {
+    var shots = await pair(tester);
+
+    await pumpStage(tester, shots, mode: StageMode.slider);
+    expect(find.text('head'), findsOneWidget);
+    expect(find.text('base'), findsOneWidget);
+
+    await pumpStage(tester, shots, mode: StageMode.onion);
+    expect(find.text('base'), findsOneWidget);
+    expect(find.text('head'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(Slider)).width,
+      greaterThan(100),
+      reason: 'a frame eight pixels wide still gets a usable track',
+    );
   });
 
   // Sliding against nothing is a control that does something and means
@@ -207,7 +228,7 @@ void main() {
       ),
     );
 
-    expect(find.text('0.38% moved, 1 region'), findsOneWidget);
+    expect(find.text('0.38% of pixels differ · 1 region'), findsOneWidget);
   });
 
   // A timer left running behind another mode rebuilds the pane twice a second
