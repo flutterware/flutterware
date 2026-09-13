@@ -15,6 +15,7 @@ import '../utils/run_git.dart';
 import '../worktrees/providers/git.dart';
 import 'change_set.dart';
 import 'changes_config_cache.dart';
+import 'changes_files.dart';
 import 'patch_index.dart';
 import 'ranking.dart';
 
@@ -48,9 +49,15 @@ typedef GitRunner = Future<GitOutput> Function(
 
 /// Reads one worktree's delta.
 class ChangesProbe {
-  ChangesProbe({GitRunner? runGit}) : _run = runGit ?? _defaultRunner;
+  ChangesProbe({GitRunner? runGit, this.files = const LiveChangesFiles()})
+    : _run = runGit ?? _defaultRunner;
 
   final GitRunner _run;
+
+  /// The working tree, for the one thing here that is not a git call: the
+  /// stat that stamps an untracked file. The disk unless a recording says
+  /// otherwise.
+  final ChangesFiles files;
 
   /// Neutralises the user's git configuration, because every one of these can
   /// otherwise change what we parse:
@@ -356,19 +363,15 @@ class ChangesProbe {
   /// rather than failing the probe: the next read will not list it at all, and
   /// a delta that refuses to load because a scratch file was deleted mid-probe
   /// would be a worse program.
-  static Future<UntrackedEntry> _stamp(
+  Future<UntrackedEntry> _stamp(
     String worktreePath,
     UntrackedEntry entry,
   ) async {
-    try {
-      var stat = await File('$worktreePath/${entry.path}').stat();
-      if (stat.type == FileSystemEntityType.notFound) return entry;
-      return entry.withStamp(
-        untrackedStamp(size: stat.size, modified: stat.modified),
-      );
-    } on FileSystemException {
-      return entry;
-    }
+    var stat = await files.stat('$worktreePath/${entry.path}');
+    if (stat == null) return entry;
+    return entry.withStamp(
+      untrackedStamp(size: stat.size, modified: stat.modified),
+    );
   }
 
   static Future<GitOutput> _defaultRunner(

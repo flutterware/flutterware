@@ -1,0 +1,35 @@
+{
+  "state": "up",
+  "answers": {
+    "status@up": {
+      "exitCode": 0,
+      "stdout": "{\"state\":\"up\",\"detail\":\"localhost:8090\",\"services\":[{\"name\":\"http\",\"port\":8090,\"state\":\"up\"}]}\n",
+      "stderr": ""
+    },
+    "status@down": {
+      "exitCode": 0,
+      "stdout": "{\"state\":\"down\",\"detail\":\"nothing listening on :8090\"}\n",
+      "stderr": ""
+    },
+    "up": {
+      "exitCode": 0,
+      "stdout": "Orders server up on http://localhost:8090 (pid 4242).\n",
+      "stderr": ""
+    },
+    "down": {
+      "exitCode": 0,
+      "stdout": "Orders server stopped (pid 4242).\n",
+      "stderr": ""
+    },
+    "logs": {
+      "exitCode": 0,
+      "stdout": "[INFO] brewline: listening on http://localhost:8090\n[FINE] brewline.menu: menu served, 5 drinks\n[INFO] brewline.orders: order BL-1038 placed, 2 drinks, ready in 5 min\n[FINE] brewline.menu: menu served, 5 drinks\n[INFO] brewline.orders: order BL-1039 placed, 1 drink, ready in 4 min\n[INFO] brewline.orders: order BL-1040 placed, 1 drink, ready in 4 min\n[FINE] brewline.menu: menu served, 5 drinks\n[INFO] brewline.orders: order BL-1041 placed, 3 drinks, ready in 6 min\n[FINE] brewline.menu: menu served, 5 drinks\n[INFO] brewline.orders: order BL-1042 placed, 1 drink, ready in 4 min\n[WARNING] brewline.orders: listing 5 orders took 41ms\n[WARNING] brewline.reports: daily report took 1.5s; no index on placed_at\n[SEVERE] brewline.orders: order refused: unknown drink espresso\n[FINE] brewline.menu: menu served, 5 drinks\n",
+      "stderr": ""
+    },
+    "hit": {
+      "exitCode": 0,
+      "stdout": "200 http://localhost:8090/menu\n{\"drinks\":[{\"id\":\"cappuccino\",\"name\":\"Cappuccino\",\"price\":4.2},{\"id\":\"flat-white\",\"name\":\"Flat white\",\"price\":4.6},{\"id\":\"matcha\",\"name\":\"Matcha latte\",\"price\":5.1},{\"id\":\"chai\",\"name\":\"Chai latte\",\"price\":4.8},{\"id\":\"cold-brew\",\"name\":\"Cold brew\",\"price\":3.9}]}\n",
+      "stderr": ""
+    }
+  }
+}

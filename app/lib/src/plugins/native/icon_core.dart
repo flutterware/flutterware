@@ -297,15 +297,6 @@ class LauncherIconCore extends PluginCore {
   /// The facts that decide what the tables above actually mean.
   List<ViewNode> _contextNodes(IconScan scan) => [
     ViewSection('Project', [
-      if (scan.android != null)
-        ViewField(
-          'minSdk',
-          scan.android!.minSdk == null
-              ? 'unknown — not a literal in ${scan.android!.minSdkSource ?? 'build.gradle'}'
-              : '${scan.android!.minSdk}'
-                    '${scan.android!.minSdkSource == null ? '' : ' (${scan.android!.minSdkSource})'}',
-          tone: scan.android!.minSdk == null ? Tone.warn : Tone.neutral,
-        ),
       if (scan.ios != IosCatalog.none)
         ViewField('iOS icons', switch (scan.ios) {
           IosCatalog.appIconSet => 'AppIcon.appiconset',
@@ -447,8 +438,6 @@ class LauncherIconCore extends PluginCore {
       ],
       iosCatalog: scan.ios.name,
       iconBundles: scan.iconBundles,
-      minSdk: scan.android?.minSdk,
-      minSdkSource: scan.android?.minSdkSource,
       roles: [
         for (var role in scan.roles)
           if (role.isNotEmpty)

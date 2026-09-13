@@ -25,6 +25,11 @@ class HttpShotStore implements ShotStore {
 
   @override
   Future<Shot?> byKey(String key, {int? width}) async {
+    // A key the export did not rewrite — an added entry's base side, a
+    // removed one's head — names a frame the page does not carry. Not
+    // fetched: the 404 would be console noise for a row that rightly says
+    // there is no picture.
+    if (!key.endsWith('.png')) return null;
     var bytes = await _fetch(key);
     return bytes == null ? null : decodeEncodedShot(bytes, targetWidth: width);
   }

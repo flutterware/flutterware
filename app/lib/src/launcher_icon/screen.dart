@@ -187,7 +187,7 @@ class _LauncherIconScreenState extends State<LauncherIconScreen> {
           (image: widget.image(file), size: file.width, density: file.density),
       ],
       findings: _findingsFor(scan, role.role),
-      context_: _contextLine(scan, role.role),
+      context_: _inheritedLine(scan.forRole(role.role)),
       adaptiveMask: _adaptiveMask,
       onMask: (mask) => setState(() => _mask = mask),
       showSafeZone: _safeZone,
@@ -207,32 +207,6 @@ class _LauncherIconScreenState extends State<LauncherIconScreen> {
       role == IconRole.androidAdaptiveForeground
       ? scan.forRole(IconRole.androidAdaptiveBackground)
       : null;
-
-  /// The one line of project context that changes what a role means.
-  String? _contextLine(IconScan scan, IconRole role) {
-    var inherited = _inheritedLine(scan.forRole(role));
-    var android = scan.android;
-    if (android == null || role.platform != IconPlatform.android) {
-      return inherited;
-    }
-    var minApi = role.minAndroidApi;
-    if (minApi == null) return inherited;
-
-    String? with_(String line) => inherited == null ? line : '$inherited $line';
-
-    if (android.minSdk == null) {
-      return with_(
-        'minSdk could not be read, so how much of your install base sees '
-        'this is unknown.',
-      );
-    }
-    return with_(
-      android.minSdk! >= minApi
-          ? 'minSdk is ${android.minSdk}, so every device you ship to sees this.'
-          : 'minSdk is ${android.minSdk}, below API $minApi — devices under '
-                'that fall back to the bitmap launcher icon.',
-    );
-  }
 
   /// Said out loud when the flavor overrides none of this role's files: what
   /// ships under it is the unflavored art, and a pane that drew it without
@@ -411,7 +385,6 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     var type = context.type;
     var colors = context.colors;
-    var android = scan.android;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,8 +393,8 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             // The package path is the one thing here that has no bound — a
-            // nested example package is as long as its directories. It yields
-            // first, so the count and the minSdk beside it stay whole.
+            // nested package is as long as its directories. It yields first,
+            // so the count beside it stays whole.
             Flexible(
               child: Text(
                 scan.packagePath == '.' ? 'root' : scan.packagePath,
@@ -435,16 +408,6 @@ class _Header extends StatelessWidget {
               style: type.caption.copyWith(color: colors.mut),
             ),
             const Spacer(),
-            if (android != null)
-              Text(
-                android.minSdk == null
-                    ? 'minSdk unknown'
-                    : 'minSdk ${android.minSdk}',
-                style: type.caption.copyWith(
-                  color: android.minSdk == null ? colors.amber : colors.mut,
-                ),
-              ),
-            const Gap(FwSpacing.lg),
             // The files are written by something outside this process — a
             // generator in another terminal, a designer dropping a PNG in — so
             // there has to be a way to look again without reopening the panel.

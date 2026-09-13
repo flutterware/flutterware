@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../address/address_scope.dart';
 import '../../splash/model/surface.dart';
 import '../../splash/screen.dart';
+import '../../splash/ui/splash_render.dart'
+    show SplashImage, SplashImages, fileSplashImage;
 import '../native_plugin.dart';
 import 'splash_address.dart';
 import 'splash_core.dart';
@@ -18,10 +20,15 @@ export 'splash_core.dart' show SplashCore, splashPluginId;
 /// reach the same answers. This class exists because `buildPanel` returns a
 /// `Widget`.
 class SplashPlugin extends NativePlugin<SplashCore> {
-  SplashPlugin(super.core);
+  SplashPlugin(super.core, {this.image = fileSplashImage});
+
+  /// The picture at a path the scan found — a file on disk, unless a
+  /// recording is standing in for one.
+  final SplashImage image;
 
   @override
-  Widget buildPanel(BuildContext context) => _SplashPanel(this);
+  Widget buildPanel(BuildContext context) =>
+      SplashImages(image: image, child: _SplashPanel(this));
 }
 
 /// Owns the subscription: mounting starts the scan, and only the package the

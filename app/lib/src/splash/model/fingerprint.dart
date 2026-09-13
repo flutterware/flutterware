@@ -22,11 +22,10 @@
 /// reload beside it, which is permanent rather than a fallback.
 library;
 
-import 'dart:io';
-
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import 'files.dart';
 import 'generated.dart';
 import 'scan.dart';
 
@@ -41,23 +40,21 @@ import 'scan.dart';
 /// [scan] is null before the first scan, or after one that threw. The config
 /// candidates are still checked in that case, so a project whose config is
 /// fixed or added recovers on the next poll.
-String splashFingerprint({required String packageRoot, SplashScan? scan}) {
+String splashFingerprint({
+  required String packageRoot,
+  SplashScan? scan,
+  SplashFiles files = const LiveSplashFiles(),
+}) {
   var entries = <String>[];
-
   void stat(String absolute) {
-    var type = FileSystemEntity.typeSync(absolute);
-    if (type == FileSystemEntityType.notFound) {
+    var s = files.stat(absolute);
+    if (s == null) {
       // Recorded rather than skipped: a config file being deleted has to read as
       // a change, not as one fewer line in the digest.
       entries.add('$absolute|-');
       return;
     }
-    try {
-      var s = FileStat.statSync(absolute);
-      entries.add('$absolute|${s.modified.microsecondsSinceEpoch}|${s.size}');
-    } on FileSystemException {
-      entries.add('$absolute|?');
-    }
+    entries.add('$absolute|${s.modified.microsecondsSinceEpoch}|${s.size}');
   }
 
   // The two fixed candidates, whether or not either exists — this is what makes
@@ -65,19 +62,14 @@ String splashFingerprint({required String packageRoot, SplashScan? scan}) {
   // nobody notices until the next restart.
   stat(p.join(packageRoot, 'flutter_native_splash.yaml'));
   stat(p.join(packageRoot, 'pubspec.yaml'));
-
   // Flavor files, which are discovered rather than named, so the listing itself
   // is part of the answer.
-  var root = Directory(packageRoot);
-  if (root.existsSync()) {
-    try {
-      for (var entity in root.listSync().whereType<File>()) {
-        if (splashFlavorFilePattern.hasMatch(p.basename(entity.path))) {
-          stat(entity.path);
-        }
+  if (files.isDirectory(packageRoot)) {
+    for (var entity in files.list(packageRoot)) {
+      if (files.isDirectory(entity)) continue;
+      if (splashFlavorFilePattern.hasMatch(p.basename(entity))) {
+        stat(entity);
       }
-    } on FileSystemException {
-      entries.add('$packageRoot|?');
     }
   }
 

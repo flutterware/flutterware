@@ -15,8 +15,6 @@ Map<String, dynamic> _$IconInventoryResultToJson(
   'flavors': instance.flavors.map((e) => e.toJson()).toList(),
   'iosCatalog': instance.iosCatalog,
   'iconBundles': instance.iconBundles,
-  'minSdk': ?instance.minSdk,
-  'minSdkSource': ?instance.minSdkSource,
   'roles': instance.roles.map((e) => e.toJson()).toList(),
   'findings': instance.findings.map((e) => e.toJson()).toList(),
 };

@@ -128,6 +128,57 @@ void main() {
     await screen.settle();
     await screen.shot('themed-icon');
 
+    // The recorded server: the panel attaches to the ring the recording
+    // holds, and the request list is what it draws.
+    await screen.tap('Server');
+    await screen.waitFor('/orders/BL-1042');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) => e.key.contains('server/root.orders.json') && e.value == 200,
+      ),
+      what: 'the recorded ring fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('server');
+
+    // The recorded stack: the probe's answer comes from the recording too.
+    await screen.tap('Orders server');
+    await screen.waitFor('Tear down');
+    await screen.settle();
+    await screen.shot('dev-stack');
+
+    // The recorded translations: the catalogs and the export come from the
+    // recording, and so does every picture of a key in place.
+    await screen.tap('Translations');
+    await screen.waitFor('placeOrder');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/translations/root/shots/') &&
+            e.key.endsWith('.png') &&
+            e.value == 200,
+      ),
+      what: 'a recorded translation shot fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('translations');
+
+    // The recorded store export: the manifest is fetched on the panel's first
+    // look and every card's thumbnails come from beside the page.
+    await screen.tap('Store');
+    await screen.waitFor('Preview listing');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/store/root/') &&
+            e.key.endsWith('.png') &&
+            e.value == 200,
+      ),
+      what: 'a recorded store screenshot fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('store');
+
     // The second recorded panel: a scenario run, its frames fetched the same
     // way. Opening a scenario "runs" it, which over a recording is a read.
     await screen.tap('Scenarios');
@@ -175,11 +226,77 @@ void main() {
     await screen.shot('previews');
     await screen.waitFor('Cappuccino');
 
-    // A plugin with nothing recorded says so, rather than reaching for a
-    // process or a disk.
+    // The recorded resolution: one file holds every read the panel makes,
+    // fetched on its first look.
     await screen.tap('Dependencies');
-    await screen.waitFor('Not in this recording');
-    await screen.shot('not-recorded');
+    await screen.waitFor('flutter_native_splash');
+    await screen.settle();
+    await screen.shot('dependencies');
+
+    // The recorded splash: the scan runs in the page over files fetched
+    // from beside it, and the pictures it found come from the same place.
+    await screen.tap('Splash screen');
+    await screen.waitFor('Android 12+ · Light');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/splash/root/') &&
+            e.key.endsWith('.png') &&
+            e.value == 200,
+      ),
+      what: 'a recorded splash picture fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('splash');
+
+    // The changes screen over the recorded checkout: the index from the
+    // tape's patch, then an image whose base side is a blob in the tape and
+    // whose other side is a copied file.
+    await screen.tap('Changes');
+    await screen.waitFor('shop_app.dart');
+    await screen.settle();
+    await screen.shot('changes');
+    await screen.tap('All');
+    await screen.waitFor('loyalty.dart');
+    await screen.tap('splash');
+    await screen.waitFor('branding.png');
+    await screen.tap('branding.png');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/changes/root/') &&
+            e.key.endsWith('branding.png') &&
+            e.value == 200,
+      ),
+      what: 'the recorded image fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('changes-image');
+
+    // The comparison strip: a run the recorder kept, its pictures fetched
+    // from beside the page — a preview's two sides, then a scenario's steps.
+    await screen.tap('previews');
+    await screen.waitFor('shopMenu');
+    await screen.tap('shopMenu');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) => e.key.contains('/comparison/shots/') && e.value == 200,
+      ),
+      what: 'a recorded preview shot fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('comparison-previews');
+    await screen.tap('scenarios');
+    await screen.waitFor('Order a cappuccino');
+    await screen.tap('Order a cappuccino');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) => e.key.contains('/comparison/frames/') && e.value == 200,
+      ),
+      what: 'a recorded scenario frame fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('comparison-scenarios');
 
     expect(errors, isEmpty, reason: errors.join('\n'));
   });

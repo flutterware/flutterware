@@ -23,8 +23,6 @@ Map<String, dynamic> _$AdaptiveXmlToJson(AdaptiveXml instance) =>
 
 AndroidWiring _$AndroidWiringFromJson(Map<String, dynamic> json) =>
     AndroidWiring(
-      minSdk: (json['minSdk'] as num?)?.toInt(),
-      minSdkSource: json['minSdkSource'] as String?,
       manifestIcon: json['manifestIcon'] as String?,
       manifestRoundIcon: json['manifestRoundIcon'] as String?,
       launcher: json['launcher'] == null
@@ -38,8 +36,6 @@ AndroidWiring _$AndroidWiringFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$AndroidWiringToJson(AndroidWiring instance) =>
     <String, dynamic>{
-      'minSdk': ?instance.minSdk,
-      'minSdkSource': ?instance.minSdkSource,
       'manifestIcon': ?instance.manifestIcon,
       'manifestRoundIcon': ?instance.manifestRoundIcon,
       'launcher': ?instance.launcher?.toJson(),

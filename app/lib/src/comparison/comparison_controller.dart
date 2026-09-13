@@ -10,6 +10,7 @@ import 'last_run.dart';
 import 'rules.dart';
 import 'runner.dart';
 import 'shot_cache.dart';
+import 'shot_store.dart';
 
 /// Which half of a comparison, where both are spelled the same way.
 enum ComparisonHalfKind {
@@ -281,6 +282,10 @@ abstract interface class ComparisonEnvironment {
   /// Exposed because a verdict is not a picture: `ComparedItem.shots` names two
   /// keys, and something has to be able to open them.
   ShotCache get shots;
+
+  /// Where the tabs read the pictures [shots] filed — the cache, on a
+  /// machine that rendered them; a recording, where nothing rendered.
+  ShotStore get shotStore;
 
   /// The half's last finished run, if one was kept.
   Future<LastComparison?> lastRun(ComparisonHalfKind kind);

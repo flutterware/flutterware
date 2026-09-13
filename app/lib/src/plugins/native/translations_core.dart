@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutterware/plugins.dart';
 import 'package:flutterware/translations.dart';
@@ -44,7 +45,12 @@ const _pluginDescription =
 /// produces the screens is behind the `export` action, where a caller chose it
 /// by name.
 class TranslationsCore extends PluginCore {
-  TranslationsCore(super.host);
+  TranslationsCore(super.host, {TranslationSource? source})
+    : source = source ?? const LiveTranslationSource();
+
+  /// Where the catalogs, the export and its pictures are read from — the
+  /// package's directory unless a recording is standing in for one.
+  final TranslationSource source;
 
   /// Declared packages, filtered to those the workspace knows about, so a typo
   /// cannot make the plugin scan a directory that is not there.
@@ -139,9 +145,8 @@ class TranslationsCore extends PluginCore {
   );
 
   /// Where an export for [path] is looked for.
-  String exportDirectoryFor(String path) => TranslationExporter.defaultOutputIn(
-    host.workspace.packageFor(path).directory.path,
-  );
+  String exportDirectoryFor(String path) =>
+      source.exportDirectoryIn(host.workspace.packageFor(path).directory.path);
 
   /// Every locale any of [path]'s catalogs has a file for, sorted.
   ///
@@ -174,7 +179,7 @@ class TranslationsCore extends PluginCore {
     var root = host.workspace.packageFor(path).directory.path;
     var catalogs = await loadCatalogs(
       declaredFor(path),
-      read: catalogFilesUnder(root),
+      read: source.catalogsUnder(root),
     );
     await _loadExport(path);
     return catalogs;
@@ -187,18 +192,11 @@ class TranslationsCore extends PluginCore {
   /// with it. The table is useful with no export at all, which is the whole
   /// reason the panel does not wait for one.
   Future<void> _loadExport(String path) async {
-    var directory = exportDirectoryFor(path);
-    var file = File(p.join(directory, translationExportFile));
     ({TranslationExport export, DateTime at})? read;
-    if (file.existsSync()) {
-      try {
-        read = (
-          export: await TranslationExport.read(directory),
-          at: file.statSync().modified,
-        );
-      } catch (_) {
-        read = null;
-      }
+    try {
+      read = await source.readExport(exportDirectoryFor(path));
+    } catch (_) {
+      read = null;
     }
     if (read == null) {
       _exports.remove(path);
@@ -993,3 +991,68 @@ class TranslationsCore extends PluginCore {
 const exportActionId = 'export';
 
 PluginCore translationsCoreFactory(PluginHost host) => TranslationsCore(host);
+
+/// Where the translations plugin reads from: the catalog files, the last
+/// export and the pictures it names.
+///
+/// [LiveTranslationSource] is the package's own directory, which is the plugin
+/// as it always was. The recorded project hands the core a source that answers
+/// from a recording instead — see `demo/recorded_translations.dart` — and
+/// nothing above this line knows the difference, which is what lets the live
+/// panel run where there is no filesystem.
+abstract class TranslationSource {
+  const TranslationSource();
+
+  /// The reader `loadCatalogs` walks a package's declared globs with.
+  CatalogReader catalogsUnder(String packageRoot);
+
+  /// Where the export for the package at [packageRoot] sits. Every shot the
+  /// export names is resolved under it, by the panel, through [readShot].
+  String exportDirectoryIn(String packageRoot);
+
+  /// The export in [directory], and when it was written — null when there is
+  /// none. May throw for one that is there but unreadable; the caller treats
+  /// that as none.
+  Future<({TranslationExport export, DateTime at})?> readExport(
+    String directory,
+  );
+
+  /// The bytes of a picture the export names, at the path the panel built
+  /// under [exportDirectoryIn] — or null when it is gone.
+  Future<Uint8List?> readShot(String path);
+}
+
+/// The package's directory on disk.
+class LiveTranslationSource extends TranslationSource {
+  const LiveTranslationSource();
+
+  @override
+  CatalogReader catalogsUnder(String packageRoot) =>
+      catalogFilesUnder(packageRoot);
+
+  @override
+  String exportDirectoryIn(String packageRoot) =>
+      TranslationExporter.defaultOutputIn(packageRoot);
+
+  @override
+  Future<({TranslationExport export, DateTime at})?> readExport(
+    String directory,
+  ) async {
+    var file = File(p.join(directory, translationExportFile));
+    if (!file.existsSync()) return null;
+    // Off the file's own timestamp, deliberately: the format carries no time
+    // of its own so that two exports of an unchanged suite stay
+    // byte-identical, and the filesystem already knows this.
+    return (
+      export: await TranslationExport.read(directory),
+      at: file.statSync().modified,
+    );
+  }
+
+  @override
+  Future<Uint8List?> readShot(String path) async {
+    var file = File(path);
+    if (!file.existsSync()) return null;
+    return file.readAsBytes();
+  }
+}

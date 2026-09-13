@@ -39,13 +39,11 @@
 /// tile rather than leaving it to be inferred.
 library;
 
-import 'dart:io';
-
-import 'package:html/dom.dart' as html;
 import 'package:html/parser.dart' as html show parse;
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
+import 'files.dart';
 import 'color.dart';
 import 'composition.dart';
 import 'generated.dart';
@@ -68,15 +66,16 @@ SplashComposition? recomposeSplash({
   required SplashTheme theme,
   required List<SplashArtifact> artifacts,
   String? flavor,
+  SplashFiles files = const LiveSplashFiles(),
 }) {
   if (surface == SplashSurface.web) {
-    return _recomposeWeb(packageRoot, theme, artifacts);
+    return _recomposeWeb(files, packageRoot, theme, artifacts);
   }
   if (surface != SplashSurface.android && surface != SplashSurface.android12) {
     return null;
   }
   var res = p.join(packageRoot, androidResFolder(flavor));
-  if (!Directory(res).existsSync()) return null;
+  if (!files.isDirectory(res)) return null;
 
   // **`launch_background.xml` is not evidence that anything was generated.**
   // `flutter create` writes one — `<item android:drawable="@android:color/white" />`
@@ -101,19 +100,21 @@ SplashComposition? recomposeSplash({
   if (!ran) return null;
 
   return surface == SplashSurface.android12
-      ? _recomposeAndroid12(packageRoot, res, theme, artifacts)
-      : _recomposeLegacy(packageRoot, res, theme, artifacts);
+      ? _recomposeAndroid12(files, packageRoot, res, theme, artifacts)
+      : _recomposeLegacy(files, packageRoot, res, theme, artifacts);
 }
 
 // ---- Legacy ---------------------------------------------------------------
 
 SplashComposition? _recomposeLegacy(
+  SplashFiles files,
   String packageRoot,
   String res,
   SplashTheme theme,
   List<SplashArtifact> artifacts,
 ) {
   var document = _readQualified(
+    files,
     res,
     theme,
     'drawable',
@@ -206,13 +207,14 @@ String? _brandingModeFrom(String? gravity) {
 // ---- Android 12 -----------------------------------------------------------
 
 SplashComposition? _recomposeAndroid12(
+  SplashFiles files,
   String packageRoot,
   String res,
   SplashTheme theme,
   List<SplashArtifact> artifacts,
 ) {
   // `values-v31` and `values-night-v31`, the theme Android 12 and later read.
-  var document = _readQualified(res, theme, 'values-v31', 'styles.xml');
+  var document = _readQualified(files, res, theme, 'values-v31', 'styles.xml');
   if (document == null) return null;
 
   var items = <String, String>{};
@@ -326,19 +328,14 @@ double? _dp(int? pixels, String? density) {
 /// placement is a class name. iOS stays predicted — a storyboard is constraints,
 /// which is a layout engine rather than a recipe.
 SplashComposition? _recomposeWeb(
+  SplashFiles files,
   String packageRoot,
   SplashTheme theme,
   List<SplashArtifact> artifacts,
 ) {
-  var index = File(p.join(packageRoot, 'web', 'index.html'));
-  if (!index.existsSync()) return null;
-
-  html.Document document;
-  try {
-    document = html.parse(index.readAsStringSync());
-  } on FileSystemException {
-    return null;
-  }
+  var index = files.readString(p.join(packageRoot, 'web', 'index.html'));
+  if (index == null) return null;
+  var document = html.parse(index);
 
   // The marker, and it is as unconditional here as `background.png` is on
   // Android: `_createSplashCss` always appends this element, and the only other
@@ -557,6 +554,7 @@ String? _cssDarkBlock(String css) {
 /// The qualifier goes directly after the resource type, before any others:
 /// `drawable` → `drawable-night`, `values-v31` → `values-night-v31`.
 XmlDocument? _readQualified(
+  SplashFiles files,
   String res,
   SplashTheme theme,
   String base,
@@ -567,10 +565,10 @@ XmlDocument? _readQualified(
     var night = cut < 0
         ? '$base-night'
         : '${base.substring(0, cut)}-night${base.substring(cut)}';
-    var dark = _readXml(File(p.join(res, night, file)));
+    var dark = _readXml(files, p.join(res, night, file));
     if (dark != null) return dark;
   }
-  return _readXml(File(p.join(res, base, file)));
+  return _readXml(files, p.join(res, base, file));
 }
 
 /// The densest generated file for a role, so the recomposed picture is drawn
@@ -617,13 +615,12 @@ SplashArtifact? _bestArtifact(
 ///
 /// A malformed `styles.xml` is somebody's hand-edit in progress, not a reason
 /// for the panel to throw.
-XmlDocument? _readXml(File file) {
-  if (!file.existsSync()) return null;
+XmlDocument? _readXml(SplashFiles files, String path) {
+  var text = files.readString(path);
+  if (text == null) return null;
   try {
-    return XmlDocument.parse(file.readAsStringSync());
+    return XmlDocument.parse(text);
   } on XmlException {
-    return null;
-  } on FileSystemException {
     return null;
   }
 }

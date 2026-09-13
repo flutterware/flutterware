@@ -2,9 +2,9 @@
 ///
 /// This is the half that makes the viewer more than a file browser. A PNG in
 /// `mipmap-xxhdpi/` proves nothing: whether Android ever draws it depends on
-/// `mipmap-anydpi-v26/ic_launcher.xml`, on `android:icon` in the manifest, and
-/// on the project's `minSdk`. Reading those three answers "is this file dead?",
-/// which nothing else in the toolchain will tell you.
+/// `mipmap-anydpi-v26/ic_launcher.xml` and on `android:icon` in the manifest.
+/// Reading those two answers "is this file dead?", which nothing else in the
+/// toolchain will tell you.
 ///
 /// These are reads of the project, not of a generator's config. Nothing here
 /// opens `icons_launcher.yaml` or `flutter_launcher_icons.yaml` — the whole
@@ -67,8 +67,6 @@ class AdaptiveXml {
 @JsonSerializable(explicitToJson: true, includeIfNull: false)
 class AndroidWiring {
   const AndroidWiring({
-    this.minSdk,
-    this.minSdkSource,
     this.manifestIcon,
     this.manifestRoundIcon,
     this.launcher,
@@ -80,13 +78,6 @@ class AndroidWiring {
       _$AndroidWiringFromJson(json);
 
   Map<String, Object?> toJson() => _$AndroidWiringToJson(this);
-
-  /// Null when it could not be determined, which is a legitimate answer rather
-  /// than a failure. See [readMinSdk].
-  final int? minSdk;
-
-  /// Which file [minSdk] came from, so a surprising number is traceable.
-  final String? minSdkSource;
 
   /// `android:icon` and `android:roundIcon` from `<application>` — not from any
   /// `<activity>` that overrides them, which is a different icon for a
@@ -100,14 +91,6 @@ class AndroidWiring {
   /// `ic_launcher_background` from `values/colors.xml`, when the adaptive
   /// background is a colour rather than an image.
   final String? backgroundColor;
-
-  /// Whether adaptive icons reach the project's whole install base.
-  ///
-  /// Null when [minSdk] is unknown — three-valued on purpose, so the panel can
-  /// say "unknown" rather than guess in either direction.
-  bool? get adaptiveReachesEveryone => minSdk == null ? null : minSdk! >= 26;
-
-  bool? get themedIconsReachEveryone => minSdk == null ? null : minSdk! >= 33;
 
   /// Every resource name the OS is told to reach, from any of the three
   /// sources. What a file has to appear in to be something other than dead.
@@ -182,13 +165,10 @@ AndroidWiring readAndroidWiring({
   required List<String> resFolders,
   required String manifestPath,
 }) {
-  var (minSdk, minSdkSource) = readMinSdk(packageRoot);
   var application = _parse(File(manifestPath))?.rootElement
       .getElement('application');
 
   return AndroidWiring(
-    minSdk: minSdk,
-    minSdkSource: minSdkSource,
     manifestIcon: application?.getAttribute('android:icon'),
     manifestRoundIcon: application?.getAttribute('android:roundIcon'),
     launcher: _readAdaptive(packageRoot, resFolders, 'ic_launcher.xml'),
@@ -199,55 +179,6 @@ AndroidWiring readAndroidWiring({
     ),
     backgroundColor: _readBackgroundColor(resFolders),
   );
-}
-
-/// The project's `minSdk`, and the file it came from.
-///
-/// Written here rather than reused from a generator because the generators get
-/// it wrong in ways that matter. `icons_launcher` strips every non-digit from
-/// the matching line, so `minSdk = 24 // was 21` yields 2421; and its last
-/// fallback reads `android/local.properties` with no existence check, throwing
-/// an uncaught `FileSystemException` on a clean checkout where that gitignored
-/// file has not been generated yet.
-///
-/// This strips comments before matching, and returns null rather than a default
-/// when the value is a Gradle expression it cannot evaluate — `minSdk =
-/// flutter.minSdkVersion`, which is what the current Flutter template emits.
-/// Null is honest; 21 would be a guess that reads as a fact.
-(int?, String?) readMinSdk(String packageRoot) {
-  for (var relative in [
-    p.join('android', 'app', 'build.gradle.kts'),
-    p.join('android', 'app', 'build.gradle'),
-  ]) {
-    var file = File(p.join(packageRoot, relative));
-    if (!file.existsSync()) continue;
-
-    List<String> lines;
-    try {
-      lines = file.readAsLinesSync();
-    } catch (_) {
-      continue;
-    }
-
-    for (var line in lines) {
-      var match = _minSdkPattern.firstMatch(_stripLineComment(line));
-      if (match != null) return (int.tryParse(match.group(1)!), relative);
-    }
-  }
-  return (null, null);
-}
-
-/// `minSdk 24`, `minSdk = 24`, `minSdkVersion 24`. A non-numeric value — a
-/// Gradle property reference — deliberately does not match.
-final _minSdkPattern = RegExp(r'\bminSdk(?:Version)?\s*=?\s*(\d+)\b');
-
-/// Everything before an unquoted `//`.
-///
-/// Naive about `//` inside a string literal, which does not occur in the two
-/// lines this is ever pointed at.
-String _stripLineComment(String line) {
-  var index = line.indexOf('//');
-  return index < 0 ? line : line.substring(0, index);
 }
 
 AdaptiveXml? _readAdaptive(

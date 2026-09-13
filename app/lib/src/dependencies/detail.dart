@@ -1,10 +1,8 @@
-import 'dart:io';
-
+import 'package:clock/clock.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart' as p;
 import 'package:pub_scores/pub_scores.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -796,21 +794,18 @@ class _DocumentSectionState extends State<_DocumentSection> {
   }
 
   Future<_Document> _load() async {
-    var root = widget.dependency.rootPath;
-    if (root == null) {
+    if (widget.dependency.rootPath == null) {
       return const _Document.missing('the package is not on disk');
     }
-    for (var candidate in widget.candidates) {
-      var file = File(p.join(root, candidate));
-      if (file.existsSync()) {
-        try {
-          return _Document(candidate, await file.readAsString());
-        } catch (error) {
-          return _Document.missing('$candidate could not be read: $error');
-        }
+    try {
+      var found = await widget.dependency.document(widget.candidates);
+      if (found == null) {
+        return _Document.missing('looked for ${widget.candidates.join(', ')}');
       }
+      return _Document(found.name, found.text);
+    } catch (error) {
+      return _Document.missing('could not be read: $error');
     }
-    return _Document.missing('looked for ${widget.candidates.join(', ')}');
   }
 
   @override
@@ -1137,7 +1132,9 @@ class _LinkButton extends StatelessWidget {
 /// "3 days ago", "2 years ago" — coarse on purpose; nobody needs the hour a
 /// package was published.
 String formatAge(DateTime date) {
-  var days = DateTime.now().difference(date).inDays;
+  // Through `package:clock`, so a scenario of this page — the studio's own,
+  // over a recording — reads the same age every day it runs.
+  var days = clock.now().difference(date).inDays;
   if (days <= 0) return 'today';
   if (days == 1) return 'yesterday';
   if (days < 30) return '$days days ago';

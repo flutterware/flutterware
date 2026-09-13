@@ -432,8 +432,10 @@ above is now answered on fact:
   `ShellController` over canned git, an in-process manifest written with the
   same `FlutterwareConfig` classes a project uses, inert facts probes, empty
   watch streams, a quiet `RecordedCore` and a `NotRecordedPlugin` panel for
-  the five plugins with nothing recorded. `test/demo/recorded_project_test.dart`
-  opens it end to end.
+  the five plugins with nothing recorded — down to none by 2026-09-12, when
+  the last of them, Assets, was dropped from the demo manifest rather than
+  recorded; the panel survives for previews in a host with no entries
+  compiled in. `test/demo/recorded_project_test.dart` opens it end to end.
 - **Whole-panel catalog entries.** Three in `launcher_icon_panel.dart`,
   photographed through `previews screenshot` under `flutter_tester` with the
   recording read from assets — light, dark, and the kiosk flavor showing
@@ -791,6 +793,279 @@ So: mostly yes for the plugins whose subject is the project on disk, which is
 nine of fourteen. The three whose subject is a running process are where a
 recording stops being a demo and starts being a lie, and the panel that says
 so is the right answer there.
+
+### The server slice (2026-09-12): the source was the seam, and no server
+
+The table above put the Server plugin with the live processes, not worth
+recording. That was half right: a *run* cannot be recorded without lying,
+because its subject moves. A server's subject, as the panel sees it, is a
+ring of events it received once — and a ring received is a ring that can be
+written down.
+
+**The seam.** `ServerCore` did two things itself: scan the run dir for
+handles, attach over a unix socket. Both now go through a `ServerSource`,
+and what an attachment hands back is a `ServerAttachment` interface with the
+seven members the core and the panel read. `LiveServerSource` is the run
+dir and the socket, unchanged in behaviour; `RecordedServerSource` is one
+file per server — handle, hello, the ring, the details behind each event,
+the answers to the SQL commands — and an attachment that is a completed
+replay which never closes. Nothing above the seam changed; the panel is the
+panel.
+
+**No server was recorded.** `record.dart --only=server` starts the real
+`ServerInspector` in-process, `tool/demo/server_traffic.dart` reports the
+coffee shop's afternoon into it through the same calls a server's adapters
+make — a zone per request, `http` with lazy details, `sql` and `log` under
+it, a `cache` channel the panel has never heard of, an `info` — and the
+recorder attaches over the real protocol and keeps what came back. The
+shapes are the wire's; a format change breaks the recording at the right
+time. Times are re-rooted to the pinned clock and spaced evenly, the
+identity is the recorded project's, so re-recording is byte-identical and
+CI checks it beside the icon part.
+
+**What it bought.** The page shows the Server panel with a full timeline —
+request list, waterfall, SQL tab, details — and the studio's own scenario
+walks it: a request opened to its queries, then the listing the panel
+badges as an N+1. The demo's clonable app has no such server; the traffic
+is fake data by design, and the timeline script is what a real server in
+brewline would replace.
+
+**The dev stack, the same afternoon.** Its core already took the process
+runner as a value — the catalog scripts five stacks on one screen that way
+— so the recording is one more runner: `tool/demo/stack_traffic.dart` is
+what the stack script prints for each verb, in each state, and
+`RecordedStack` hands it back while `up` and `down` move the state the
+probe then reports. The panel's controls therefore do what they say over
+the recording. The declaration uses `StackRun.command` rather than
+`StackRun.script`, because a script is checked for on disk before it runs
+and there is no disk. One trap for the scenario: `FwActionButton` reads
+`Done` for 1.4s after a success, and under fake time that is forever until
+the walk waits it out.
+
+### The translations slice (2026-09-12): three reads, one source
+
+The plugin reads three things and nothing else: the catalog files, the last
+export's `keys.json`, and the pictures that export names. `TranslationsCore`
+did the first two itself through `dart:io` and the panel did the third,
+opening a `File` in four places. All four now go through a
+`TranslationSource` on the core — `catalogsUnder`, `exportDirectoryIn`,
+`readExport`, `readShot` — which `LiveTranslationSource` answers from the
+package's directory exactly as before. The panel puts the source's
+`readShot` in the tree once (`_Shots`, an inherited widget, re-provided
+inside the full-screen dialog because a dialog is built above the panel)
+and the shared frame decoder reads through it, so a picture is a path and a
+reader rather than a file.
+
+**What the recording holds.** `record.dart --only=translations` runs the
+live catalog reader over each declared glob and keeps its answer per glob —
+a recording cannot walk a glob, so it keeps the walk's result — and then
+runs the real action, `fw run translations export`, over the demo app by
+the CLI, and copies the export verbatim: `keys.json` and the `shots/` tree.
+The recorded source names that directory as the export's own, so the panel
+joins shot paths under it exactly as it does on disk and what it builds is
+a recording path. The declared catalogs live in `recorded_config.dart`,
+pure Dart, because the recorder and the recorded manifest both need them
+and neither can import the other's world.
+
+**Not deterministic, by nature.** The export's pictures are `flutter_tester`
+frames, which differ across platforms, so this part joins the scenarios
+part outside CI's re-record check. On one machine it re-records
+byte-identical.
+
+**What it bought.** The page and the studio's own scenario show the panel
+with every key's English, its French, its picture in place — the demo app's
+two catalogs, thirty keys, twenty photographed — then a key opened to its
+frame, the switch to French, and the filter to the two keys French still
+lacks. One fix fell out: the panel dated the export with `DateTime.now()`,
+which no scenario can pin, so the studio's shot would have read a day older
+every day; it reads `clock.now()` now.
+
+### The store slice (2026-09-12): a manifest read once, and pictures a third the size
+
+The store core read three things from disk — the package's pubspec for
+its name and one line, the export's manifest by mtime on every rebuild,
+and nothing else; the panel opened the images as files in three places
+and the viewers took `File`s. The core now takes a `StoreSource` —
+`pubspecOf`, `defaultRootIn`, `manifestOf`, `readManifest` — and the panel
+a `StorePlugin(image:)` door; the viewers take image providers. The
+manifest is the one read that could not stay synchronous over a
+recording fetched from a server, so `manifestOf` may answer null for
+*not read yet*, the core starts the read once and notifies when it lands,
+and the live source never answers null.
+
+**The fixture cannot carry the export.** The demo app's listing exported
+whole is 42 MB of PNG — four sets, sixty shots at a store's own canvas —
+and the whole recording was five. So this part bends the rule that a
+recording is the tool's bytes, in two declared ways: the export is
+narrowed by the action's own `--class` to the iPhone sets, and the
+recorder keeps each shot at a third of its canvas through `package:image`,
+while the manifest keeps the canvas the store receives. 2.7 MB. The iPad
+cards draw as any set that has not been exported yet, which is a state
+the panel has and the page now shows. Not deterministic across machines,
+so it joins the scenario and translations parts outside CI's check.
+
+**Two bugs fell out.** Both viewers — a shot at the store's size, the
+listing on its stage — opened nothing on a live project: the manifest's
+second version put the app's name at the head of a set's key and the
+panel's lookup still matched from the store on. And `ageOf`, which the
+panel dates the export with, read the wall clock; it reads `clock.now()`
+now, for the reason the translations slice gave.
+
+### The dependencies slice (2026-09-12): eleven reads, one source
+
+The widest plugin so far. The service composes the picture from the
+project's pubspec, its lockfile, `pub deps --json`, the package config,
+each dependency's pubspec, readme and changelog off the pub cache, its
+line count and size walked off the same cache, the pub.dev scores table
+and pub.dev itself — eleven reads through `dart:io`, `dart:isolate` and
+`package:http`. All of them now go through a `DependencySource`;
+`LiveDependencySource` carries the loaders the service used to hold and
+the `PubDepsStore` the core shared across its packages, so the plugin on
+a project is what it was. Three models that had no JSON gained it — the
+line count, the size, the imports — because a recording is what the live
+source computed, written down.
+
+**What the recording holds.** One file: the pubspec, lockfile and `pub
+deps` output as the tools wrote them, parsed by the same parsers; the
+package config rewritten so every package sits under
+`/recording/packages/<name>`, which is the key the per-package facts are
+filed under; pub.dev's answer per package; the scores table cut from
+25 MB to the packages present; the project's own imports. The recorder
+runs the live source over the demo app and keeps what it computed —
+including the walk the panel does to scope the workspace's resolution to
+the one member, so the set kept is the set the panel asks about. 1.2 MB,
+sixty packages. Not deterministic: pub.dev moves.
+
+**Two things the page taught.** A loader's `Error` is rethrown, not
+folded into the snapshot — that is the async value's policy, and right —
+so the first `UnsupportedError` on the load path left the rail on
+*loading…* forever with the page's console the only witness. There were
+two: `PackageRef.absolutePath` asked the platform for the working
+directory to absolutise a path that already was, and the service named
+the SDK's executable — a platform read — before asking a source that
+spawns nothing. Both are now off the path. And `formatAge` read the wall
+clock, the third panel to; it reads `clock.now()`.
+
+### The splash slice (2026-09-12): the files are the seam, and the scan is the tool's
+
+The splash scan had no JSON and twenty classes it would have needed it
+for — the config, its resolution with a source per key, the images'
+facts, the generated artifacts, the recompositions, the findings. So the
+seam went one level down: a `SplashFiles` interface with the seven reads
+the scan makes — exists, is-directory, list, text, bytes, the first bytes
+of a PNG, a stat — and the scan, the artifact walk, the recompositions
+and the fingerprint take one, the disk by default. Nothing about what
+the scan computes changed, and every one of its 127 tests runs unchanged
+over the live files. `SplashCore(files:)` awaits the files' `ready()`
+before a scan and hands them to the fingerprint; `SplashPlugin(image:)`
+is the door for the pictures, through an inherited widget the layer three
+widgets down reads.
+
+**What the recording holds.** The recorder runs the real scan over the
+disk through a `RecordingSplashFiles` that remembers every path it read
+and every directory it listed — and nothing more, since a file the scan
+only saw in a listing and skipped by name is not part of its answer.
+Eighty-five files under their own relative paths and fifty-two listings;
+the times are pinned, the config an hour before its output. The recorded
+files fetch themselves into memory on `ready()` and are then a memory
+filesystem the same scan walks. Byte-identical on every machine, so CI
+re-records it beside the icon, server and stack parts.
+
+**What it bought.** The page shows the panel's whole matrix — Android
+and Android 12 in both themes read back from the generated files, the
+web pair read back from `index.html`, iOS predicted — and a cell opened
+to its inspector; the studio's own scenario does the same. The scan
+stamped its time with the wall clock, the fourth panel to; it reads
+`clock.now()`. And the analyzer had to be told the copied `pubspec.yaml`
+is a fixture, not a package.
+
+### The changes screen (2026-09-13)
+
+Not a plugin: a shell screen, three tabs under the comparison strip, and
+only the file diff is recordable — the previews and scenarios comparisons
+build and run the base checkout, which nothing but a real one can. On the
+web page it was a grey error box: the review log resolves its path under
+the home directory, which reads the platform.
+
+**The seams.** The probe already took a `GitRunner` and the screen already
+took a `load` and a `reviewStore` for its tests. What was missing: a
+`ChangesFiles` interface (a stat and a read — the stamp on an untracked
+file, the bytes behind an image or a rendered markdown file) on the probe
+and on `FileContentStore`; `ReviewStore` as an interface with the file log
+and a `MemoryReviewStore` behind it; a `contents:` door on the screen; and
+`ChangesSources` — the three together — as a field on `ShellController`,
+which the shell view hands to the screen. `ComparisonTabs(unavailable:)`
+is told up front that there is no base to build. Over a recording nothing
+is watched: no working tree, no review file.
+
+**The recording is a git tape.** `examples/brewline` is a directory of
+this repository, so its delta is this repository's. The recorder builds
+the repository it would be on its own — the tracked tree committed as
+`main` — and grows a feature branch on it by script
+(`app/tool/demo/changes_branch.dart`): a tidy-up commit with a rename and
+a deletion, a stamp-card feature with a new file, edits, a README
+paragraph and a recoloured image, its French copy, then an edit not
+committed and two things git has not been told about. Every state the
+screen draws is in it once. The real probe runs over that checkout through
+a runner that keeps every call, then the bodies a click would open are
+read the way the screen reads them, then the explorer's questions are
+asked in its own words — so the tab says `loyalty-stamps` and the overview
+says three ahead. Fourteen answers, three copied files, 6 KB of them.
+Identity, dates and every git setting that shapes output are pinned
+through the environment (`GIT_CONFIG_COUNT`, not `-c`, so the recorded
+arguments are the app's own), and it re-records byte-identical, so CI
+diffs it beside the icon, server, stack and splash parts.
+
+**What it bought.** The page and the studio's own scenario show the screen
+opening on what the project pins — the recorded manifest declares
+`fw.changes`, as brewline's own now does — then the whole tree, a new file
+with an uncommitted hunk on top, a diff, and an image with both sides: the
+base from a blob in the tape, now from the copied file. Notes taken on the
+page fold and resolve in memory and are gone with it. The read-at stamp
+was the fifth wall clock; it reads `clock.now()`.
+
+### The comparison strip (2026-09-13)
+
+The two halves the changes screen sits under — previews and scenarios
+compared against the base — build the base checkout and render both
+sides, which nothing but a real checkout can. What a run leaves is the
+published report: one index, every finding with its verdict and its
+pictures, and `fw compare --export` writes that beside a PNG per frame.
+The exported page already drew both tabs from it; the strip in the studio
+now can too.
+
+**The seam.** `ComparisonEnvironment` was an interface already. Two
+changes: it hands over the `ShotStore` its pictures are read through,
+where the strip used to build one from the file cache; and
+`ComparisonTabs(environmentFor:)` takes the environment from the shell's
+`ChangesSources.comparison` instead of opening the session's own.
+`RecordedComparisonEnvironment` restores each half from the index the way
+a kept run restores, serves pictures from the recording, and refuses
+`prepareBase` with a sentence — so *Compare again* explains itself rather
+than failing.
+
+**The recording.** `record.dart --only=comparison` builds the same scratch
+checkout `--only=changes` does — same shas, everything pinned — resolves
+it, and runs `fw compare --export --frames=all` in it under a home
+directory of its own beneath `build/`, so the base checkout and the shot
+cache land there rather than in `~/.flutterware`. The scratch checkout is
+standalone the way the published projection is: the workspace line
+dropped, a `.gitignore` for what a resolution leaves, and a
+`pubspec_overrides.yaml` reaching this flutterware **by a relative path**,
+so the tree holds nothing from the machine and the changes tape stays
+byte-identical. The base checkout resolves through the same file, which
+is why it is placed at the same depth as the head; the recorder asserts
+that before running. Twelve previews and nine scenarios, 59 pictures,
+1.8 MB, 53 s. Pixels, so recorded from one machine like the scenario,
+translations and store parts.
+
+**What it bought.** The strip over the recording reads *previews · 10*
+and *scenarios · 5*: one preview added, three removed with the panorama,
+six changed — the menu by pixels, the others by the tree the loyalty
+scope put above them — and five walks that moved on the menu step. The
+branch script gained a preview of the stamp card so the added verdict is
+in the set. The strip's "ago" was the sixth wall clock; it reads
+`clock.now()`.
 
 ## What to do next
 

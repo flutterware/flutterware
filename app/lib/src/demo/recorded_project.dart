@@ -5,8 +5,9 @@
 /// Everything the shell would learn from the machine is answered here instead
 /// — the worktree list git would report, the manifest `tool/flutterware.dart`
 /// would produce, the facts the explorer would probe — and every plugin's core
-/// is either the live core over recorded readers (launcher icon, scenarios)
-/// or a quiet [RecordedCore] whose panel says so. Nothing below runs a process, opens a
+/// is the live core over recorded readers (launcher icon, scenarios, server,
+/// dev stack, translations, store, dependencies, splash), or over the preview
+/// entries compiled into the host. Nothing below runs a process, opens a
 /// socket or walks a directory; the one filesystem touch left, the facts
 /// store, points at a path that is not there and is built to shrug.
 ///
@@ -27,9 +28,16 @@ import 'package:flutterware/src/log_client.dart';
 
 import '../context.dart';
 import '../plugins/manifest_loader.dart';
+import '../plugins/native/dependencies_plugin.dart';
+import '../plugins/native/dev_stack_core.dart';
+import '../plugins/native/dev_stack_plugin.dart';
 import '../plugins/native/icon_plugin.dart';
 import '../plugins/native/previews_plugin.dart';
 import '../plugins/native/scenarios_plugin.dart';
+import '../plugins/native/server_plugin.dart';
+import '../plugins/native/splash_plugin.dart';
+import '../plugins/native/store_plugin.dart';
+import '../plugins/native/translations_plugin.dart';
 import '../previews/discovery.dart' show ScanResult;
 import '../previews/inline_guest.dart';
 import '../plugins/native_plugin.dart';
@@ -46,24 +54,31 @@ import '../worktrees/facts_store.dart';
 import '../worktrees/providers/agent.dart';
 import '../worktrees/providers/forge.dart';
 import '../worktrees/providers/git.dart';
-import '../worktrees/providers/stack.dart';
 import '../worktrees/watchers.dart';
-import '../plugins/native/dev_stack_results.dart';
+import 'recorded_changes.dart';
+import 'recorded_config.dart';
+import 'recorded_dependencies.dart';
 import 'recorded_scenarios.dart';
+import 'recorded_server.dart';
+import 'recorded_splash.dart';
+import 'recorded_stack.dart';
+import 'recorded_store.dart';
+import 'recorded_translations.dart';
 import 'recording.dart';
 
 /// What the recorded project's `tool/flutterware.dart` would declare.
 ///
 /// Written with the same classes a project writes its config with, so the
-/// recording's rail is a rail a real config could produce. The launcher icon
-/// and the scenarios have a recording behind them; the rest are declared so
-/// the rail reads as a project rather than as two plugins, and their panels
-/// say what they are.
+/// recording's rail is a rail a real config could produce. Every plugin here
+/// has a recording behind it — a plugin with nothing to show over one, like
+/// Assets, is left out rather than declared with a panel that apologises.
 PluginManifest recordedManifest() {
   const root = Pkg('.');
   var fw = FlutterwareConfig();
+  // How the delta is ranked, as the demo app declares it — see
+  // `recorded_config.dart` for why the rules live apart.
+  fw.changes(recordedChangesConfig);
   fw.use(Dependencies(packages: const [DependenciesPackage(root)]));
-  fw.use(Assets(packages: const [AssetsPackage(root)]));
   // A phone app: its previews open on a phone, as the root manifest says.
   fw.use(
     Previews(packages: const [PreviewsPackage(root, device: Devices.iphone16)]),
@@ -71,6 +86,67 @@ PluginManifest recordedManifest() {
   fw.use(Scenarios(packages: const [ScenariosPackage(root)]));
   fw.use(LauncherIcon(packages: const [LauncherIconPackage(root)]));
   fw.use(NativeSplash(packages: const [NativeSplashPackage(root)]));
+  // The words, as the demo app declares them — see `recorded_config.dart`
+  // for why the list lives apart — and an export the recorder ran over its
+  // whole suite; see `recorded_translations.dart`.
+  fw.use(
+    Translations(
+      packages: const [
+        TranslationsPackage(root, catalogs: recordedTranslationCatalogs),
+      ],
+    ),
+  );
+  // The store listing, as the demo app declares it, over an export the
+  // recorder ran — see `recorded_store.dart`. Named, because the name is the
+  // tree's own segment and the recording has no pubspec to read it from.
+  fw.use(
+    StoreShots(
+      apps: [
+        StoreShotsApp(
+          root,
+          name: 'brewline',
+          file: 'test/scenarios/mobile/shop_test.dart',
+          frame: 'lib/store_frame.dart',
+          listings: [
+            Listing.appStore(locales: const {'en': 'en-US', 'fr': 'fr-FR'}),
+          ],
+        ),
+      ],
+    ),
+  );
+  // The orders server, as its ring was recorded — see `recorded_server.dart`.
+  fw.use(ServerInspection());
+  // The stack around it, as its script's answers were recorded — see
+  // `recorded_stack.dart`. Commands rather than scripts: a script is checked
+  // for on disk before it runs, and there is no disk.
+  fw.use(
+    DevStack.background(
+      label: 'Orders server',
+      probe: Probe.json(
+        StackRun.command(['dart', 'tool/stack.dart', 'status', '--json']),
+      ),
+      start: StackRun.command(['dart', 'tool/stack.dart', 'up']),
+      stop: StackRun.command(['dart', 'tool/stack.dart', 'down']),
+      poll: const Duration(seconds: 15),
+      commands: [
+        StackCommand(
+          'logs',
+          'Logs',
+          StackRun.command(['dart', 'tool/stack.dart', 'logs']),
+          description: 'The last 40 lines the server logged.',
+        ),
+        StackCommand(
+          'hit',
+          'Send a request',
+          StackRun.command(['dart', 'tool/stack.dart', 'hit']),
+          argument: 'path',
+          description:
+              'Requests a path — /menu, /slow, /error — so the Server panel '
+              'has traffic to show. Defaults to /menu.',
+        ),
+      ],
+    ),
+  );
   return fw.toManifest();
 }
 
@@ -93,6 +169,9 @@ ShellController recordedShell({
         appToolDirectory: Directory(recordedProjectRoot),
       );
   var declared = manifest ?? recordedManifest();
+  // One tape answers git for the worktree list, the explorer's facts and the
+  // changes screen: the recorder asked all three's questions of one checkout.
+  var git = RecordedGit(recording);
   return ShellController(
     appContext: context,
     flutterSdk: flutterSdk ?? FlutterSdkPath('$recordedProjectRoot/flutter'),
@@ -105,7 +184,8 @@ ShellController recordedShell({
         plugin.id: _recordedCore(plugin.id, recording, previews),
     }),
     manifestLoader: RecordedManifestLoader(declared),
-    discovery: WorktreeDiscovery(runProcess: _recordedGit),
+    discovery: WorktreeDiscovery(runProcess: git.runProcess),
+    changes: recordedChangesSources(recording, git: git),
     worktreeFacts: (root) => WorktreeFactsController(
       repoRoot: root,
       probe: WorktreeFactsProbe(
@@ -113,10 +193,10 @@ ShellController recordedShell({
         // A path that is not there: the store reads an empty cache from it and
         // swallows the write, which is the one filesystem touch left here.
         store: WorktreeFactsStore.open(root, at: File('$root/facts.json')),
-        git: GitProbe(runProcess: _recordedGit),
+        git: GitProbe(runProcess: git.runProcess),
         agent: const _NoAgents(),
         forge: const _NoForge(),
-        stack: const _NoStacks(),
+        stack: RecordedStacks(RecordedStack(recording)),
       ),
       settle: context.settle,
     ),
@@ -132,26 +212,9 @@ ShellController recordedShell({
   );
 }
 
-/// The one git answer a recording has: it is a repository with one worktree
-/// on `main`. Anything else git is asked fails, quietly.
-Future<ProcessResult> _recordedGit(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-}) async {
-  if (arguments.take(2).join(' ') == 'worktree list') {
-    return ProcessResult(
-      0,
-      0,
-      'worktree $recordedProjectRoot\nbranch refs/heads/main\n',
-      '',
-    );
-  }
-  return ProcessResult(0, 1, '', 'not available in a recording');
-}
-
 /// The live core over the recording, for a plugin with one behind it; a
-/// quiet [RecordedCore] for the rest.
+/// quiet [RecordedCore] for the one case left without — previews, in a host
+/// that compiled no entries in.
 PluginCoreFactory _recordedCore(
   String pluginId,
   Recording recording,
@@ -165,6 +228,31 @@ PluginCoreFactory _recordedCore(
     host,
     scan: recordedScenarioScan(recording),
     runner: recordedScenarioRunner(recording),
+  ),
+  serverPluginId => (host) => ServerCore(
+    host,
+    source: RecordedServerSource(recording),
+  ),
+  devStackPluginId => (host) => DevStackCore(
+    host,
+  )..runProcess = RecordedStack(recording).run,
+  translationsPluginId => (host) => TranslationsCore(
+    host,
+    source: RecordedTranslationSource(recording),
+  ),
+  storePluginId => (host) => StoreCore(
+    host,
+    source: RecordedStoreSource(recording),
+  ),
+  dependenciesPluginId => (host) => DependenciesCore(
+    host,
+    source: RecordedDependencySource(recording),
+  ),
+  // No polling: nothing under a recording moves, and the poll would stat it.
+  splashPluginId => (host) => SplashCore(
+    host,
+    files: RecordedSplashFiles(recording),
+    pollInterval: Duration.zero,
   ),
   // Previews is not recorded: its entries are compiled into this program
   // and the scan is the table of them.
@@ -180,7 +268,7 @@ PluginCoreFactory _recordedCore(
 };
 
 /// The live panel, reading its pictures from the recording; [NotRecordedPlugin]
-/// for a plugin with nothing behind it.
+/// for previews in a host that compiled no entries in.
 NativePluginFactory _recordedPanel(
   String pluginId,
   Recording recording,
@@ -197,6 +285,17 @@ NativePluginFactory _recordedPanel(
       artifacts: recording,
       appIcon: recordedScenarioAppIcon(recording),
     ),
+  ),
+  // The live panel: the recorded source underneath answers every read.
+  serverPluginId => panelFor<ServerCore>(ServerPlugin.new),
+  devStackPluginId => panelFor<DevStackCore>(DevStackPlugin.new),
+  translationsPluginId => panelFor<TranslationsCore>(TranslationsPlugin.new),
+  storePluginId => panelFor<StoreCore>(
+    (core) => StorePlugin(core, image: recordedStoreImage(recording)),
+  ),
+  dependenciesPluginId => panelFor<DependenciesCore>(DependenciesPlugin.new),
+  splashPluginId => panelFor<SplashCore>(
+    (core) => SplashPlugin(core, image: recordedSplashImage(recording)),
   ),
   uiCatalogPluginId when previews != null => panelFor<PreviewsCore>((core) {
     var inline = InlinePreviewsGuest(previews);
@@ -235,7 +334,9 @@ class RecordedManifestLoader implements ManifestLoader {
   Duration get timeout => Duration.zero;
 }
 
-/// A plugin the recording declares but has nothing recorded for.
+/// A plugin the recording declares but has nothing recorded for — previews,
+/// when the host compiled no entries in (a widget test; the studio's own
+/// scenarios).
 ///
 /// Quiet, with a row per declared package so the rail shows the project's
 /// shape. [NotRecordedPlugin] is its panel.
@@ -280,11 +381,4 @@ class _NoForge implements ForgeProbe {
   @override
   Future<ForgeReport> probe(String repoRoot) async =>
       const ForgeReport.unavailable('This is a recording.');
-}
-
-class _NoStacks implements StackProbe {
-  const _NoStacks();
-
-  @override
-  Future<StackReading?> probe(String worktreePath) async => null;
 }

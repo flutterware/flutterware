@@ -38,6 +38,74 @@ String recordedIconFilePath(String packagePath, String packageRelativePath) =>
     '${packageRelativePath.replaceAll('/', '-')}';
 
 /// The syntactic scan of one package's scenarios.
+/// The servers a recording holds, by name, and one file per server: its
+/// handle, its hello, its whole ring, the details behind each event and the
+/// answers to the commands the panel can send.
+String recordedServerIndexPath(String packagePath) =>
+    'server/${recordedPackageSlug(packagePath)}.servers.json';
+
+String recordedServerPath(String packagePath, String name) =>
+    'server/${recordedPackageSlug(packagePath)}.$name.json';
+
+/// The dev stack's script, as the recorder answered for it: what each
+/// command printed, in each state the stack can be in.
+String recordedStackPath(String packagePath) =>
+    'stack/${recordedPackageSlug(packagePath)}.stack.json';
+
+/// One package's translation catalogs, as its declared globs read them:
+/// `{"globs": {"assets/i18n/*.json": {"assets/i18n/en.json": "…"}}}`. The
+/// files' text, not a copy of the files — a recording cannot walk a glob, so
+/// it keeps the walk's answer.
+String recordedTranslationCatalogsPath(String packagePath) =>
+    'translations/${recordedPackageSlug(packagePath)}.catalogs.json';
+
+/// One package's translation export, verbatim: `keys.json` and the `shots/`
+/// tree beside it, exactly as `fw run translations export` wrote them. The
+/// panel resolves every shot under this directory, so it is also what the
+/// recorded source answers for the export's directory.
+String recordedTranslationExportDir(String packagePath) =>
+    'translations/${recordedPackageSlug(packagePath)}';
+
+/// One package's store export as the panel reads it: the pubspec's name and
+/// description, and the manifest — `{"pubspec": {…}, "manifest": {…}}` —
+/// with every set's `output` spelled under [recordedStoreRootDir].
+String recordedStorePath(String packagePath) =>
+    'store/${recordedPackageSlug(packagePath)}.store.json';
+
+/// Where a recorded export's trees sit: an app's tree is under it by the
+/// app's name, exactly as under `build/flutterware/store`, so the manifest's
+/// paths resolve under the recording the way they resolve on disk.
+String recordedStoreRootDir(String packagePath) =>
+    'store/${recordedPackageSlug(packagePath)}';
+
+/// One package's dependencies, everything the plugin reads in one file: the
+/// pubspec and lockfile texts, `pub deps --json` verbatim, the package config
+/// with every root spelled under [recordedDependencyRoot], and per package
+/// its pubspec, readme, changelog, line count, size and pub.dev entry; the
+/// pub.dev scores table cut to the packages present, and the package's own
+/// imports.
+String recordedDependenciesPath(String packagePath) =>
+    'dependencies/${recordedPackageSlug(packagePath)}.dependencies.json';
+
+/// Where a recorded resolution's packages pretend to be: one directory per
+/// package name, flat, under the recorded project. What a dependency's
+/// `rootPath` reads, and the key its recorded facts are filed under.
+const recordedDependencyRoot = '$recordedProjectRoot/packages';
+
+/// What the splash scan read of one package: every file it opened, with its
+/// size and time, under `files`, and every directory it listed with what it
+/// saw there under `directories` — both keyed by package-relative path, a
+/// directory seen but never listed holding null. The files' bytes sit at
+/// [recordedSplashFilePath].
+String recordedSplashIndexPath(String packagePath) =>
+    'splash/${recordedPackageSlug(packagePath)}.files.json';
+
+/// Where the copy of one file the splash scan read goes: under the
+/// package's slug at its own relative path, so the tree under the recording
+/// is the tree the scan walked.
+String recordedSplashFilePath(String packagePath, String packageRelative) =>
+    'splash/${recordedPackageSlug(packagePath)}/$packageRelative';
+
 String recordedScenarioScanPath(String packagePath) =>
     'scenarios/${recordedPackageSlug(packagePath)}.scan.json';
 
@@ -78,3 +146,33 @@ String recordedScenarioSlug(String scenario) => scenario
     .toLowerCase()
     .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
     .replaceAll(RegExp(r'^-|-$'), '');
+
+/// The git tape behind the changes screen: every call the probe and the
+/// explorer's facts made over the recorded checkout, keyed by its arguments,
+/// with where each answer's bytes sit. A text answer is a `.txt` beside it
+/// and a binary one — a blob — a `.bin`.
+const recordedGitTapePath = 'changes/git.json';
+
+/// What the changes screen read off the recorded working tree: each file's
+/// size and time, keyed by checkout-relative path. The bytes sit at
+/// [recordedChangesFilePath].
+const recordedChangesFilesIndexPath = 'changes/files.json';
+
+/// Where the copy of one working-tree file the changes screen read goes: at
+/// its own relative path, so the tree under the recording is the tree the
+/// screen read.
+String recordedChangesFilePath(String relative) => 'changes/root/$relative';
+
+/// How a call is filed in the git tape: its arguments, joined by a byte no
+/// argument carries. The recorder files with this; `RecordedGit` looks up
+/// with it.
+String gitTapeKey(List<String> arguments) => arguments.join('\u0000');
+
+/// The comparison the recorder ran over the recorded checkout, as `fw
+/// compare --export` writes it: the published index, with every frame it
+/// names rewritten to a PNG at [recordedComparisonFilePath].
+const recordedComparisonIndexPath = 'comparison/index.json';
+
+/// Where one of the comparison's pictures sits: at the relative path the
+/// export gave it, under the same directory as the index.
+String recordedComparisonFilePath(String relative) => 'comparison/$relative';

@@ -59,6 +59,23 @@ class ClocReport {
 
   ClocResult forLanguage(Lang lang) => languages[lang] ?? ClocResult.zero;
 
+  Map<String, Object?> toJson() => {
+    'global': global.toJson(),
+    'languages': {
+      for (var entry in languages.entries) entry.key.name: entry.value.toJson(),
+    },
+  };
+
+  static ClocReport fromJson(Map<String, Object?> json) => ClocReport(
+    ClocResult.fromJson(json['global'] as Map<String, Object?>? ?? const {}),
+    {
+      for (var entry
+          in (json['languages'] as Map<String, Object?>? ?? const {}).entries)
+        ?Lang.languages.where((lang) => lang.name == entry.key).firstOrNull:
+            ClocResult.fromJson(entry.value! as Map<String, Object?>),
+    },
+  );
+
   @override
   String toString() => 'ClocReport(global: $global, languages: $languages)';
 }
@@ -77,6 +94,20 @@ class ClocResult {
     required this.comments,
     required this.blanks,
   });
+
+  Map<String, Object?> toJson() => {
+    'files': files,
+    'lines': lines,
+    'comments': comments,
+    'blanks': blanks,
+  };
+
+  static ClocResult fromJson(Map<String, Object?> json) => ClocResult(
+    files: json['files'] as int? ?? 0,
+    lines: json['lines'] as int? ?? 0,
+    comments: json['comments'] as int? ?? 0,
+    blanks: json['blanks'] as int? ?? 0,
+  );
 
   ClocResult operator +(ClocResult other) {
     return ClocResult(

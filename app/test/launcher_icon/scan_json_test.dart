@@ -79,8 +79,6 @@ void main() {
       const IconFinding(Tone.info, 'Nothing references the round icon'),
     ],
     android: const AndroidWiring(
-      minSdk: 24,
-      minSdkSource: 'android/app/build.gradle.kts',
       manifestIcon: '@mipmap/ic_launcher',
       launcher: AdaptiveXml(
         path: 'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
@@ -126,7 +124,6 @@ void main() {
 
     expect(back.android!.launcher!.foreground, '@mipmap/ic_fg');
     expect(back.android!.launcher!.hasMonochrome, isFalse);
-    expect(back.android!.adaptiveReachesEveryone, isFalse);
     expect(back.ios, IosCatalog.both);
     expect(back.iconBundles, ['ios/Runner/Assets.xcassets/AppIcon.icon']);
   });

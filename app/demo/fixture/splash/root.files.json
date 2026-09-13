@@ -1,0 +1,561 @@
+{
+  "files": {
+    "android/app/src/main/res/drawable-hdpi-v31/android12branding.png": {
+      "size": 609,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-hdpi/android12splash.png": {
+      "size": 8700,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-hdpi/branding.png": {
+      "size": 609,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-hdpi/splash.png": {
+      "size": 9418,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-mdpi-v31/android12branding.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-mdpi/android12splash.png": {
+      "size": 5821,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-mdpi/branding.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-mdpi/splash.png": {
+      "size": 6389,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-hdpi-v31/android12branding.png": {
+      "size": 609,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-hdpi/android12splash.png": {
+      "size": 8700,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-hdpi/branding.png": {
+      "size": 609,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-hdpi/splash.png": {
+      "size": 9418,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-mdpi-v31/android12branding.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-mdpi/android12splash.png": {
+      "size": 5821,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-mdpi/branding.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-mdpi/splash.png": {
+      "size": 6389,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-v21/background.png": {
+      "size": 69,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xhdpi-v31/android12branding.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xhdpi/android12splash.png": {
+      "size": 7211,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xhdpi/branding.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xhdpi/splash.png": {
+      "size": 7556,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxhdpi-v31/android12branding.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxhdpi/android12splash.png": {
+      "size": 11366,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxhdpi/branding.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxhdpi/splash.png": {
+      "size": 11772,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxxhdpi-v31/android12branding.png": {
+      "size": 1814,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxxhdpi/android12splash.png": {
+      "size": 12498,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxxhdpi/branding.png": {
+      "size": 1814,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night-xxxhdpi/splash.png": {
+      "size": 12210,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night/background.png": {
+      "size": 69,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-night/launch_background.xml": {
+      "size": 442,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-v21/background.png": {
+      "size": 69,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xhdpi-v31/android12branding.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xhdpi/android12splash.png": {
+      "size": 7211,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xhdpi/branding.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xhdpi/splash.png": {
+      "size": 7556,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxhdpi-v31/android12branding.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxhdpi/android12splash.png": {
+      "size": 11366,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxhdpi/branding.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxhdpi/splash.png": {
+      "size": 11772,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxxhdpi-v31/android12branding.png": {
+      "size": 1814,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxxhdpi/android12splash.png": {
+      "size": 12498,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxxhdpi/branding.png": {
+      "size": 1814,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable-xxxhdpi/splash.png": {
+      "size": 12210,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable/background.png": {
+      "size": 69,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/drawable/launch_background.xml": {
+      "size": 442,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+      "size": 2122,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/values-night-v31/styles.xml": {
+      "size": 1320,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "android/app/src/main/res/values-v31/styles.xml": {
+      "size": 1321,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "assets/splash/android12_logo.png": {
+      "size": 10027,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "assets/splash/branding.png": {
+      "size": 2241,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "assets/splash/logo.png": {
+      "size": 10365,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "flutter_native_splash.yaml": {
+      "size": 985,
+      "modified": "2026-01-01T08:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImage.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImage@2x.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImage@3x.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImageDark.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImageDark@2x.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImageDark@3x.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchBackground.imageset/background.png": {
+      "size": 69,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchBackground.imageset/darkbackground.png": {
+      "size": 69,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png": {
+      "size": 6389,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png": {
+      "size": 7556,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png": {
+      "size": 11772,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImageDark.png": {
+      "size": 6389,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImageDark@2x.png": {
+      "size": 7556,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImageDark@3x.png": {
+      "size": 11772,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "pubspec.yaml": {
+      "size": 977,
+      "modified": "2026-01-01T08:41:00.000"
+    },
+    "web/index.html": {
+      "size": 3965,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-1x.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-2x.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-3x.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-4x.png": {
+      "size": 1814,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-dark-1x.png": {
+      "size": 502,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-dark-2x.png": {
+      "size": 762,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-dark-3x.png": {
+      "size": 1279,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/branding-dark-4x.png": {
+      "size": 1814,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/dark-1x.png": {
+      "size": 6389,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/dark-2x.png": {
+      "size": 7556,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/dark-3x.png": {
+      "size": 11772,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/dark-4x.png": {
+      "size": 12210,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/light-1x.png": {
+      "size": 6389,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/light-2x.png": {
+      "size": 7556,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/light-3x.png": {
+      "size": 11772,
+      "modified": "2026-01-01T09:41:00.000"
+    },
+    "web/splash/img/light-4x.png": {
+      "size": 12210,
+      "modified": "2026-01-01T09:41:00.000"
+    }
+  },
+  "directories": {
+    ".": [
+      ".dart_tool",
+      ".flutter-plugins-dependencies",
+      ".mcp.json",
+      "README.md",
+      "analysis_options.yaml",
+      "android",
+      "assets",
+      "build",
+      "demo",
+      "flutter_native_splash.yaml",
+      "ios",
+      "lib",
+      "macos",
+      "pubspec.yaml",
+      "test",
+      "tool",
+      "web"
+    ],
+    ".dart_tool": null,
+    "android": null,
+    "assets": null,
+    "build": null,
+    "demo": null,
+    "ios": null,
+    "lib": null,
+    "macos": null,
+    "test": null,
+    "tool": null,
+    "web": null,
+    "android/app/src/main/res": [
+      "android/app/src/main/res/drawable",
+      "android/app/src/main/res/drawable-hdpi",
+      "android/app/src/main/res/drawable-hdpi-v31",
+      "android/app/src/main/res/drawable-mdpi",
+      "android/app/src/main/res/drawable-mdpi-v31",
+      "android/app/src/main/res/drawable-night",
+      "android/app/src/main/res/drawable-night-hdpi",
+      "android/app/src/main/res/drawable-night-hdpi-v31",
+      "android/app/src/main/res/drawable-night-mdpi",
+      "android/app/src/main/res/drawable-night-mdpi-v31",
+      "android/app/src/main/res/drawable-night-v21",
+      "android/app/src/main/res/drawable-night-xhdpi",
+      "android/app/src/main/res/drawable-night-xhdpi-v31",
+      "android/app/src/main/res/drawable-night-xxhdpi",
+      "android/app/src/main/res/drawable-night-xxhdpi-v31",
+      "android/app/src/main/res/drawable-night-xxxhdpi",
+      "android/app/src/main/res/drawable-night-xxxhdpi-v31",
+      "android/app/src/main/res/drawable-v21",
+      "android/app/src/main/res/drawable-xhdpi",
+      "android/app/src/main/res/drawable-xhdpi-v31",
+      "android/app/src/main/res/drawable-xxhdpi",
+      "android/app/src/main/res/drawable-xxhdpi-v31",
+      "android/app/src/main/res/drawable-xxxhdpi",
+      "android/app/src/main/res/drawable-xxxhdpi-v31",
+      "android/app/src/main/res/mipmap-anydpi-v26",
+      "android/app/src/main/res/mipmap-hdpi",
+      "android/app/src/main/res/mipmap-mdpi",
+      "android/app/src/main/res/mipmap-xhdpi",
+      "android/app/src/main/res/mipmap-xxhdpi",
+      "android/app/src/main/res/mipmap-xxxhdpi",
+      "android/app/src/main/res/values",
+      "android/app/src/main/res/values-night",
+      "android/app/src/main/res/values-night-v31",
+      "android/app/src/main/res/values-v31"
+    ],
+    "android/app/src/main/res/drawable": [
+      "android/app/src/main/res/drawable/background.png",
+      "android/app/src/main/res/drawable/launch_background.xml"
+    ],
+    "android/app/src/main/res/drawable-hdpi": [
+      "android/app/src/main/res/drawable-hdpi/android12splash.png",
+      "android/app/src/main/res/drawable-hdpi/branding.png",
+      "android/app/src/main/res/drawable-hdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-hdpi-v31": [
+      "android/app/src/main/res/drawable-hdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-mdpi": [
+      "android/app/src/main/res/drawable-mdpi/android12splash.png",
+      "android/app/src/main/res/drawable-mdpi/branding.png",
+      "android/app/src/main/res/drawable-mdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-mdpi-v31": [
+      "android/app/src/main/res/drawable-mdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-night": [
+      "android/app/src/main/res/drawable-night/background.png",
+      "android/app/src/main/res/drawable-night/launch_background.xml"
+    ],
+    "android/app/src/main/res/drawable-night-hdpi": [
+      "android/app/src/main/res/drawable-night-hdpi/android12splash.png",
+      "android/app/src/main/res/drawable-night-hdpi/branding.png",
+      "android/app/src/main/res/drawable-night-hdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-night-hdpi-v31": [
+      "android/app/src/main/res/drawable-night-hdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-night-mdpi": [
+      "android/app/src/main/res/drawable-night-mdpi/android12splash.png",
+      "android/app/src/main/res/drawable-night-mdpi/branding.png",
+      "android/app/src/main/res/drawable-night-mdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-night-mdpi-v31": [
+      "android/app/src/main/res/drawable-night-mdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-night-v21": [
+      "android/app/src/main/res/drawable-night-v21/background.png",
+      "android/app/src/main/res/drawable-night-v21/launch_background.xml"
+    ],
+    "android/app/src/main/res/drawable-night-xhdpi": [
+      "android/app/src/main/res/drawable-night-xhdpi/android12splash.png",
+      "android/app/src/main/res/drawable-night-xhdpi/branding.png",
+      "android/app/src/main/res/drawable-night-xhdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-night-xhdpi-v31": [
+      "android/app/src/main/res/drawable-night-xhdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-night-xxhdpi": [
+      "android/app/src/main/res/drawable-night-xxhdpi/android12splash.png",
+      "android/app/src/main/res/drawable-night-xxhdpi/branding.png",
+      "android/app/src/main/res/drawable-night-xxhdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-night-xxhdpi-v31": [
+      "android/app/src/main/res/drawable-night-xxhdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-night-xxxhdpi": [
+      "android/app/src/main/res/drawable-night-xxxhdpi/android12splash.png",
+      "android/app/src/main/res/drawable-night-xxxhdpi/branding.png",
+      "android/app/src/main/res/drawable-night-xxxhdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-night-xxxhdpi-v31": [
+      "android/app/src/main/res/drawable-night-xxxhdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-v21": [
+      "android/app/src/main/res/drawable-v21/background.png",
+      "android/app/src/main/res/drawable-v21/launch_background.xml"
+    ],
+    "android/app/src/main/res/drawable-xhdpi": [
+      "android/app/src/main/res/drawable-xhdpi/android12splash.png",
+      "android/app/src/main/res/drawable-xhdpi/branding.png",
+      "android/app/src/main/res/drawable-xhdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-xhdpi-v31": [
+      "android/app/src/main/res/drawable-xhdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-xxhdpi": [
+      "android/app/src/main/res/drawable-xxhdpi/android12splash.png",
+      "android/app/src/main/res/drawable-xxhdpi/branding.png",
+      "android/app/src/main/res/drawable-xxhdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-xxhdpi-v31": [
+      "android/app/src/main/res/drawable-xxhdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/drawable-xxxhdpi": [
+      "android/app/src/main/res/drawable-xxxhdpi/android12splash.png",
+      "android/app/src/main/res/drawable-xxxhdpi/branding.png",
+      "android/app/src/main/res/drawable-xxxhdpi/splash.png"
+    ],
+    "android/app/src/main/res/drawable-xxxhdpi-v31": [
+      "android/app/src/main/res/drawable-xxxhdpi-v31/android12branding.png"
+    ],
+    "android/app/src/main/res/mipmap-anydpi-v26": null,
+    "android/app/src/main/res/mipmap-hdpi": null,
+    "android/app/src/main/res/mipmap-mdpi": null,
+    "android/app/src/main/res/mipmap-xhdpi": null,
+    "android/app/src/main/res/mipmap-xxhdpi": null,
+    "android/app/src/main/res/mipmap-xxxhdpi": null,
+    "android/app/src/main/res/values": null,
+    "android/app/src/main/res/values-night": null,
+    "android/app/src/main/res/values-night-v31": null,
+    "android/app/src/main/res/values-v31": null,
+    "ios/Runner/Assets.xcassets/LaunchBackground.imageset": [
+      "ios/Runner/Assets.xcassets/LaunchBackground.imageset/Contents.json",
+      "ios/Runner/Assets.xcassets/LaunchBackground.imageset/background.png",
+      "ios/Runner/Assets.xcassets/LaunchBackground.imageset/darkbackground.png"
+    ],
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset": [
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json",
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png",
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png",
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png",
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImageDark.png",
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImageDark@2x.png",
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImageDark@3x.png",
+      "ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md"
+    ],
+    "ios/Runner/Assets.xcassets/BrandingImage.imageset": [
+      "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImage.png",
+      "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImage@2x.png",
+      "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImage@3x.png",
+      "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImageDark.png",
+      "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImageDark@2x.png",
+      "ios/Runner/Assets.xcassets/BrandingImage.imageset/BrandingImageDark@3x.png",
+      "ios/Runner/Assets.xcassets/BrandingImage.imageset/Contents.json"
+    ],
+    "web/splash/img": [
+      "web/splash/img/branding-1x.png",
+      "web/splash/img/branding-2x.png",
+      "web/splash/img/branding-3x.png",
+      "web/splash/img/branding-4x.png",
+      "web/splash/img/branding-dark-1x.png",
+      "web/splash/img/branding-dark-2x.png",
+      "web/splash/img/branding-dark-3x.png",
+      "web/splash/img/branding-dark-4x.png",
+      "web/splash/img/dark-1x.png",
+      "web/splash/img/dark-2x.png",
+      "web/splash/img/dark-3x.png",
+      "web/splash/img/dark-4x.png",
+      "web/splash/img/light-1x.png",
+      "web/splash/img/light-2x.png",
+      "web/splash/img/light-3x.png",
+      "web/splash/img/light-4x.png"
+    ],
+    "ios/Runner/Assets.xcassets": null
+  }
+}

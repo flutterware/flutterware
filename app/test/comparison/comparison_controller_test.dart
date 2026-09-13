@@ -7,6 +7,8 @@ import 'package:flutterware_app/src/comparison/comparison_controller.dart';
 import 'package:flutterware_app/src/comparison/last_run.dart';
 import 'package:flutterware_app/src/comparison/runner.dart';
 import 'package:flutterware_app/src/comparison/shot_cache.dart';
+import 'package:flutterware_app/src/comparison/shot_store.dart';
+import 'package:flutterware_app/src/comparison/shot_store_io.dart';
 import 'package:test/test.dart';
 
 /// The sequencing: nothing runs on its own, one explicit Compare per half.
@@ -405,6 +407,9 @@ class _FakeEnvironment implements ComparisonEnvironment {
 
   @override
   final shots = ShotCache('/unused');
+
+  @override
+  ShotStore get shotStore => CacheShotStore(shots);
 
   String? baseError;
   String? previewsRunError;

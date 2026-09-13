@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware_app/src/changes/diff_view.dart';
 import 'package:flutterware_app/src/demo/recorded_project.dart';
 import 'package:flutterware_app/src/demo/recording.dart';
 import 'package:flutterware_app/src/launcher_icon/ui/plate.dart';
@@ -46,7 +47,7 @@ void main() {
     expect(find.textContaining('Could not read'), findsNothing);
   });
 
-  testWidgets('a plugin with nothing recorded says so', (tester) async {
+  testWidgets('previews with no entries compiled in say so', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -57,10 +58,83 @@ void main() {
     await tester.pumpWidget(ShellApp(shell));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Dependencies'));
+    await tester.tap(find.text('Previews'));
     await tester.pumpAndSettle();
 
     expect(find.text('Not in this recording'), findsOneWidget);
+  });
+
+  testWidgets('draws the recorded delta and its bodies', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var shell = recordedShell(recording: recording);
+    addTearDown(shell.dispose);
+    await shell.start(recordedProjectRoot);
+    await tester.pumpWidget(ShellApp(shell));
+    await tester.pumpAndSettle();
+
+    // The tab is the recorded branch, not `main`: the tape answers the
+    // worktree list too.
+    expect(find.text('loyalty-stamps'), findsWidgets);
+
+    await tester.tap(find.text('Changes'));
+    await tester.pumpAndSettle();
+
+    // Opens on what the project's rules pinned, ranked by the recorded
+    // config: the words, in both languages, and the app's shell.
+    expect(find.text('en.json'), findsOneWidget);
+    expect(find.text('fr.json'), findsOneWidget);
+    expect(find.text('shop_app.dart'), findsOneWidget);
+    expect(find.text('loyalty.dart'), findsNothing);
+
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+
+    // The delta, indexed from the recorded patch: the new file, the rename,
+    // the deletion, and the two entries git has not been told about.
+    // The screen and its preview, both new.
+    expect(find.text('loyalty.dart'), findsNWidgets(2));
+    expect(find.text('markdown_text.dart'), findsOneWidget);
+    expect(find.text('store_panorama.dart'), findsOneWidget);
+    expect(find.textContaining('docs/'), findsWidgets);
+    // The untracked test sits in a folder two deep, which starts folded.
+    await tester.tap(find.text('shop'));
+    await tester.pumpAndSettle();
+    expect(find.text('loyalty_test.dart'), findsOneWidget);
+    expect(find.textContaining('Reading'), findsNothing);
+    expect(find.textContaining('not in the recording'), findsNothing);
+
+    // A diff opens from the patch bytes: hunks, drawn.
+    await tester.tap(find.text('shop_app.dart'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HunkLineView), findsWidgets);
+
+    // The image's two sides: the base from the tape's blob, now from the
+    // copied file. Its folder is two deep and starts folded.
+    await tester.tap(find.text('splash'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('branding.png'));
+    await tester.pumpAndSettle();
+    expect(find.text('base'), findsOneWidget);
+    expect(find.text('now'), findsOneWidget);
+    expect(find.textContaining('Not readable'), findsNothing);
+    expect(find.textContaining('No longer on disk'), findsNothing);
+
+    // The strip above: the comparison the recorder ran, restored as a kept
+    // run — its verdicts, its rows — and a refusal, with the reason, when
+    // asked to run again.
+    await tester.tap(find.text('previews'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 added'), findsOneWidget);
+    expect(find.text('shopMenu'), findsOneWidget);
+    await tester.tap(find.text('scenarios'));
+    await tester.pumpAndSettle();
+    expect(find.text('Order a cappuccino'), findsOneWidget);
+    await tester.tap(find.text('Compare again'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('This is a recording'), findsOneWidget);
   });
 
   testWidgets('opens a recorded scenario and draws its run', (tester) async {

@@ -1,16 +1,10 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:isolate';
-
 import 'package:package_config/package_config.dart';
 import 'package:pubspec_parse/pubspec_parse.dart' show Pubspec;
-import 'package:path/path.dart' as p;
 import 'package:pub_scores/pub_scores.dart';
 
 import '../../package_ref.dart';
 import '../../utils/async_value.dart';
 import '../../utils/cloc/cloc.dart';
-import '../../utils/list_files.dart';
 import 'dependency_graph.dart';
 import 'package_imports.dart';
 import 'package_origin.dart';
@@ -18,18 +12,22 @@ import 'pub_deps.dart';
 import 'pub_deps_store.dart';
 import 'pub_dev_api.dart';
 import 'pubspec_lock.dart';
+import 'source.dart';
 
 class DependenciesService {
   final PackageRef package;
   late final dependencies = AsyncValue<Dependencies>(loader: _load);
-  late final pubScores = AsyncValue<PubScores>(loader: _loadPubScores);
+  late final pubScores = AsyncValue<PubScores>(loader: source.pubScores);
   late final packageImports = AsyncValue<PackageImports>(
-    loader: _loadPackageImports,
+    loader: () => source.packageImports(package.absolutePath),
   );
 
-  /// Injectable so tests can answer with a captured `pub deps --json` instead
-  /// of needing a resolved project and an SDK on the machine running them.
-  final RunProcess? runProcess;
+  /// Where every read goes — the project and pub.dev, unless a recording is
+  /// standing in for them. See [DependencySource].
+  final DependencySource source;
+
+  /// Whether [source] was built here, and so is disposed here.
+  final bool _ownsSource;
 
   /// pub.dev metadata, one [AsyncValue] per package, built on first look.
   ///
@@ -37,32 +35,30 @@ class DependenciesService {
   /// it: fetching for all 170 on the way into the list would be 170 requests
   /// nobody asked for.
   final _pubDev = <String, AsyncValue<PubDevPackage>>{};
-  late final PubDevApi _pubDevApi = pubDevApi ?? PubDevApi();
 
-  /// Injectable for the same reason as [runProcess] — so a test never reaches
-  /// the network.
-  final PubDevApi? pubDevApi;
-
-  /// Where the resolution comes from.
-  ///
-  /// Handed in by `DependenciesCore` so that every package it declares shares
-  /// one: `pub deps` answers about the whole resolution, so a service per
-  /// package asking separately is the same subprocess run once per member. A
-  /// service built on its own gets its own store, which still earns the disk
-  /// half of the cache.
-  final PubDepsStore pubDepsStore;
-
+  /// [source] is the door. The other three build a [LiveDependencySource]
+  /// for a caller that has none — a test answering with a captured `pub deps
+  /// --json`, or `DependenciesCore` sharing one [PubDepsStore] across the
+  /// packages it declares — and cannot be passed beside it.
   DependenciesService(
     this.package, {
-    this.runProcess,
-    this.pubDevApi,
+    DependencySource? source,
+    RunProcess? runProcess,
+    PubDevApi? pubDevApi,
     PubDepsStore? pubDepsStore,
   }) : assert(
-         pubDepsStore == null || runProcess == null,
-         'A shared store has its own runner; passing both would silently '
-         'ignore this one.',
+         source == null ||
+             (runProcess == null && pubDevApi == null && pubDepsStore == null),
+         'A source answers every read; the other parameters build one.',
        ),
-       pubDepsStore = pubDepsStore ?? PubDepsStore(runProcess: runProcess);
+       source =
+           source ??
+           LiveDependencySource(
+             runProcess: runProcess,
+             pubDevApi: pubDevApi,
+             pubDepsStore: pubDepsStore,
+           ),
+       _ownsSource = source == null;
 
   /// What pub.dev says about [name]. Starts the fetch on first subscription.
   ///
@@ -72,7 +68,7 @@ class DependenciesService {
     name,
     () => AsyncValue<PubDevPackage>(
       loader: () async {
-        var result = await _pubDevApi.fetch(name);
+        var result = await source.pubDev(name);
         if (result == null) throw const NotOnPubDev();
         return result;
       },
@@ -81,88 +77,26 @@ class DependenciesService {
 
   Future<Dependencies> _load() async {
     var path = package.absolutePath;
-    var pubspec = await _readPubspec(path);
+    var pubspec = Pubspec.parse(await source.pubspecText(path));
 
     // The three sources, each asked only what it alone knows: pub deps for the
     // resolution and the declared constraints, the lockfile for where each
     // package came from, the package config for where each one is on disk.
-    var pubDeps = await pubDepsStore.load(
-      flutterExecutable: package.flutterSdkPath.flutter,
-      directory: path,
+    var pubDeps = await source.pubDeps(
+      flutterSdk: package.flutterSdkPath,
+      packagePath: path,
     );
-    var lock = await PubspecLock.load(path);
-    var packageConfig = await findPackageConfig(package.directory);
+    var lock = await source.lock(path);
+    var packageConfig = await source.packageConfig(path);
 
     return Dependencies.resolve(
       pubspec: pubspec,
       pubDeps: pubDeps,
       lock: lock,
       packageConfig: packageConfig,
-      readPubspec: _readPubspecOrNull,
+      readPubspec: source.dependencyPubspec,
+      source: source,
     );
-  }
-
-  static Future<Pubspec> _readPubspec(String path) async {
-    var pubspecFile = File(p.join(path, 'pubspec.yaml'));
-    return Pubspec.parse(await pubspecFile.readAsString());
-  }
-
-  /// A dependency whose pubspec will not parse is not worth failing the whole
-  /// listing over — everything else about it still reads.
-  static Pubspec? _readPubspecOrNull(String path) {
-    try {
-      return Pubspec.parse(
-        File(p.join(path, 'pubspec.yaml')).readAsStringSync(),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<PubScores> _loadPubScores() async {
-    //TODO(xha): we should download a fresh copy of this file as it can change
-    // very frequently.
-    var appDirectory = Directory.current;
-    var appPackageConfig = await findPackageConfig(appDirectory);
-    if (appPackageConfig == null) {
-      throw Exception(
-        'Cannot resolve [package_config] of ${appDirectory.path}',
-      );
-    }
-    var pubScorePackage = appPackageConfig['pub_scores'];
-    if (pubScorePackage == null) {
-      throw Exception('Cannot find package [pub_scores]');
-    }
-
-    var dataPath = p.join(
-      pubScorePackage.root.toFilePath(),
-      'lib/data/all_packages.json',
-    );
-
-    return Isolate.run(() {
-      //TODO(xha): consider a lighter parsing as the file is big
-      var content = File(dataPath).readAsStringSync();
-      var json = jsonDecode(content) as Map<String, dynamic>;
-      return PubScores.fromJson(json);
-    });
-  }
-
-  Future<PackageImports> _loadPackageImports() async {
-    var path = package.absolutePath;
-    return Isolate.run(() {
-      return PackageImports.gather(
-        path,
-        // Its own ignore root: a dependency is a self-contained package, and
-        // whichever repository it happens to sit under — the pub cache below a
-        // home directory kept in git is the ordinary case — has no say in what
-        // it contains. Its own `.gitignore` still applies.
-        listFilesInDirectory(
-          path,
-          ignoreRoot: path,
-        ).where((f) => f.path.endsWith('.dart')),
-        flutterSection: _readPubspecOrNull(path)?.flutter,
-      );
-    });
   }
 
   void dispose() {
@@ -173,7 +107,9 @@ class DependenciesService {
       value.dispose();
     }
     _pubDev.clear();
-    _pubDevApi.dispose();
+    if (_ownsSource && source is LiveDependencySource) {
+      (source as LiveDependencySource).dispose();
+    }
   }
 }
 
@@ -260,14 +196,19 @@ class Dependencies implements Disposable {
   ///
   /// [readPubspec] is passed in rather than called directly so this stays
   /// testable against a fixture with no packages on disk.
+  ///
+  /// [source] is what each [Dependency] weighs and reads itself with; a
+  /// fixture that never asks for that leaves it to the live one.
   static Dependencies resolve({
     required Pubspec pubspec,
     required PubDeps pubDeps,
     required PubspecLock? lock,
     required PackageConfig? packageConfig,
     required Pubspec? Function(String path) readPubspec,
+    DependencySource? source,
   }) {
     var member = _member(pubspec.name, pubDeps);
+    source ??= LiveDependencySource();
 
     // Seeded with both, then following only regular dependencies: pub does not
     // resolve a dependency's dev_dependencies, so propagating them would invent
@@ -305,6 +246,7 @@ class Dependencies implements Disposable {
         constraint: member.dependencyConstraints[name],
         rootPath: root,
         pubspec: root == null ? null : readPubspec(root),
+        source: source,
       );
     }
 
@@ -376,9 +318,13 @@ class Dependency implements Disposable {
     required this.constraint,
     required this.rootPath,
     required this.pubspec,
+    required this.source,
   });
 
   late final Dependencies _parent;
+
+  /// What this package is weighed and read with.
+  final DependencySource source;
 
   final String name;
 
@@ -435,25 +381,21 @@ class Dependency implements Disposable {
   Future<ClocReport> _loadCloc() async {
     var path = rootPath;
     if (path == null) return ClocReport(ClocResult.zero, const {});
-    // Its own ignore root — see `_loadPackageImports`.
-    return Isolate.run(
-      () => countLinesOfCode(listFilesInDirectory(path, ignoreRoot: path)),
-    );
+    return source.cloc(path);
   }
 
   Future<SizeReport> _loadSize() async {
     var path = rootPath;
     if (path == null) return SizeReport(fileCount: 0, totalBytes: 0);
-    return Isolate.run(() {
-      var files = listFilesInDirectory(path, ignoreRoot: path);
-      var count = 0;
-      var size = 0;
-      for (var file in files) {
-        ++count;
-        size += file.lengthSync();
-      }
-      return SizeReport(fileCount: count, totalBytes: size);
-    });
+    return source.size(path);
+  }
+
+  /// The first of [candidates] in the package — a readme, a changelog — or
+  /// null when the package is not on disk or has none of them.
+  Future<({String name, String text})?> document(List<String> candidates) {
+    var path = rootPath;
+    if (path == null) return Future.value();
+    return source.document(path, candidates);
   }
 
   List<List<String>>? _dependencyPaths;
@@ -481,4 +423,11 @@ class SizeReport {
   final int totalBytes;
 
   SizeReport({required this.fileCount, required this.totalBytes});
+
+  Map<String, Object?> toJson() => {'files': fileCount, 'bytes': totalBytes};
+
+  static SizeReport fromJson(Map<String, Object?> json) => SizeReport(
+    fileCount: json['files'] as int? ?? 0,
+    totalBytes: json['bytes'] as int? ?? 0,
+  );
 }

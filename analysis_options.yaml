@@ -10,6 +10,10 @@ analyzer:
     # A fixture that must not compile: `app/integration_test/` asserts the
     # catalog quarantines it rather than failing the whole compile.
     - app/tool/catalog/demos/does_not_compile.dart
+    # The recording the studio's demos open: files a real project's tools
+    # read, copied verbatim — a `pubspec.yaml` among them, which is a
+    # fixture here and not a package.
+    - app/demo/fixture/**
     - android/**
     - ios/**
     - web/**

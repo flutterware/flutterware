@@ -19,7 +19,6 @@
 /// detail page raised — no back stack, no route grammar, no stale key.
 library;
 
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -33,7 +32,7 @@ import 'stage.dart';
 /// *Is this image right?* — the pixels a store will receive.
 Future<void> showStoreShot(
   BuildContext context, {
-  required List<File> files,
+  required List<ImageProvider> shots,
   required List<String> titles,
   required int index,
   required String setLabel,
@@ -43,7 +42,7 @@ Future<void> showStoreShot(
   context: context,
   barrierColor: Colors.black.withValues(alpha: 0.72),
   builder: (context) => _ShotViewer(
-    files: files,
+    shots: shots,
     titles: titles,
     initial: index,
     setLabel: setLabel,
@@ -55,7 +54,7 @@ Future<void> showStoreShot(
 /// *Does this set read?* — the whole listing, in order.
 Future<void> showStoreListing(
   BuildContext context, {
-  required List<File> files,
+  required List<ImageProvider> shots,
   required double aspect,
   required String appName,
   required String subtitle,
@@ -64,7 +63,7 @@ Future<void> showStoreListing(
   context: context,
   barrierColor: Colors.black.withValues(alpha: 0.72),
   builder: (context) => _ListingViewer(
-    files: files,
+    shots: shots,
     aspect: aspect,
     appName: appName,
     subtitle: subtitle,
@@ -74,7 +73,7 @@ Future<void> showStoreListing(
 
 class _ShotViewer extends StatefulWidget {
   const _ShotViewer({
-    required this.files,
+    required this.shots,
     required this.titles,
     required this.initial,
     required this.setLabel,
@@ -82,7 +81,7 @@ class _ShotViewer extends StatefulWidget {
     required this.height,
   });
 
-  final List<File> files;
+  final List<ImageProvider> shots;
   final List<String> titles;
   final int initial;
   final String setLabel;
@@ -98,7 +97,7 @@ class _ShotViewerState extends State<_ShotViewer> {
 
   void _move(int by) {
     var next = _index + by;
-    if (next < 0 || next >= widget.files.length) return;
+    if (next < 0 || next >= widget.shots.length) return;
     setState(() => _index = next);
   }
 
@@ -126,7 +125,7 @@ class _ShotViewerState extends State<_ShotViewer> {
   Widget build(BuildContext context) => _Shell(
     title: widget.titles[_index],
     subtitle:
-        '${widget.setLabel}  ·  shot ${_index + 1} of ${widget.files.length}'
+        '${widget.setLabel}  ·  shot ${_index + 1} of ${widget.shots.length}'
         '  ·  ${widget.width} × ${widget.height} px',
     onKey: _onKey,
     leading: _Step(
@@ -137,7 +136,7 @@ class _ShotViewerState extends State<_ShotViewer> {
     trailing: _Step(
       icon: Icons.chevron_right,
       tooltip: 'Next shot',
-      onPressed: _index == widget.files.length - 1 ? null : () => _move(1),
+      onPressed: _index == widget.shots.length - 1 ? null : () => _move(1),
     ),
     // **Sized explicitly, not fitted.** `ZoomableCanvas` runs its
     // `InteractiveViewer` with `constrained: false`, which is what lets you
@@ -169,8 +168,8 @@ class _ShotViewerState extends State<_ShotViewer> {
             width: constraints.maxWidth,
             height: constraints.maxHeight,
             child: Center(
-              child: Image.file(
-                widget.files[_index],
+              child: Image(
+                image: widget.shots[_index],
                 width: widget.width * scale,
                 height: widget.height * scale,
                 filterQuality: FilterQuality.medium,
@@ -199,14 +198,14 @@ class _ShotViewerState extends State<_ShotViewer> {
 
 class _ListingViewer extends StatefulWidget {
   const _ListingViewer({
-    required this.files,
+    required this.shots,
     required this.aspect,
     required this.appName,
     required this.subtitle,
     required this.setLabel,
   });
 
-  final List<File> files;
+  final List<ImageProvider> shots;
   final double aspect;
   final String appName;
   final String subtitle;
@@ -223,7 +222,7 @@ class _ListingViewerState extends State<_ListingViewer> {
   Widget build(BuildContext context) => _Shell(
     title: widget.setLabel,
     subtitle:
-        '${widget.files.length} shots, in the order a store will show them',
+        '${widget.shots.length} shots, in the order a store will show them',
     trailing: _PlacementChips(
       placement: _placement,
       onChanged: (value) => setState(() => _placement = value),
@@ -231,7 +230,7 @@ class _ListingViewerState extends State<_ListingViewer> {
     child: Center(
       child: SingleChildScrollView(
         child: StoreStage(
-          shots: [for (var file in widget.files) FileImage(file)],
+          shots: widget.shots,
           aspect: widget.aspect,
           appName: widget.appName,
           subtitle: widget.subtitle,

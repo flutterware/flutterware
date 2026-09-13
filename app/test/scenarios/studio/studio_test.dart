@@ -5,6 +5,7 @@ import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware_app/src/demo/recorded_project.dart';
 import 'package:flutterware_app/src/demo/recording.dart';
 import 'package:flutterware_app/src/shell/shell_view.dart';
+import 'package:flutterware_app/src/splash/ui/variant_tile.dart';
 import 'package:path/path.dart' as p;
 
 /// The studio, driven by its own harness, over the recording
@@ -30,7 +31,142 @@ void main() {
     await s.pumpWidget(ShellApp(shell), shot: Shot('Home'));
     await s.tap('Launcher icon', shot: Shot('Launcher icons'));
     await s.tap('Themed icon', shot: Shot('The themed icon'));
-    await s.tap('Dependencies', shot: Shot('Not recorded'));
+  });
+
+  /// The changes screen over the recorded checkout: a feature branch with
+  /// three commits and two files still on the desk. It opens on what the
+  /// project pins, because it declared rules; then the whole tree, a new
+  /// file, a diff, and an image with both of its sides. Folders two deep
+  /// start folded, so the image's is opened first.
+  scenario('Changes of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Changes', shot: Shot('What the project pins'));
+    await s.tap('All', shot: Shot('The whole delta'));
+    // Two files carry the name — the screen and its preview; the screen's
+    // is the one with an edit not committed yet.
+    await s.tap(
+      const Target.nth('loyalty.dart', 1),
+      shot: Shot('A new file, with an edit on top'),
+    );
+    await s.tap('shop_app.dart', shot: Shot('A diff'));
+    await s.tap('splash');
+    await s.tap('branding.png', shot: Shot('An image, both sides'));
+  });
+
+  /// The comparison of the recorded branch against main, kept from the run
+  /// the recorder made: the previews half with its verdicts and one entry
+  /// open on both sides, the scenarios half and one walk that moved, and
+  /// what pressing Compare again says over a recording.
+  scenario('Comparing a recorded branch', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Changes');
+    await s.tap('previews', shot: Shot('The previews half'));
+    await s.tap('shopMenu', shot: Shot('The menu, before and after'));
+    await s.tap('scenarios', shot: Shot('The scenarios half'));
+    await s.tap('Order a cappuccino', shot: Shot('A walk that moved'));
+    await s.tap('Compare again', shot: Shot('What a recording says to that'));
+  });
+
+  /// The splash panel over the recorded files: every surface in both themes,
+  /// read back from what the generator wrote, then one cell opened. The
+  /// scan is the live one, run over files the recording holds in memory.
+  scenario('Splash screen of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Splash screen', shot: Shot('Every surface'));
+    // The picture is the tap target, not its caption: the third tile is
+    // Android 12+ in the light theme.
+    await s.tap(find.byType(SplashScreenBox).at(2), shot: Shot('A cell'));
+  });
+
+  /// The dependencies panel over the recorded resolution: what the demo app
+  /// declares and what that pulls in, one opened to what pub.dev says, its
+  /// changelog and what it weighs. Nothing runs `pub deps`, walks the pub
+  /// cache or asks pub.dev — the recording is all three.
+  scenario('Dependencies of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Dependencies', shot: Shot('The resolution'));
+    await s.tap('flutter_native_splash', shot: Shot('A package'));
+  });
+
+  /// The Server panel over the recorded ring: the orders server's requests,
+  /// one opened to its waterfall and its queries, and the listing whose
+  /// queries the panel badges as an N+1. Nothing attaches to anything — the
+  /// recording is the attachment.
+  scenario('Server of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Server', shot: Shot('The requests'));
+    await s.tap(
+      const Target.containing('/orders/BL-1042'),
+      shot: Shot('A request'),
+    );
+    // The second `SQL`: the dock has one for the whole server, the open
+    // request another for its own queries.
+    await s.tap(const Target.nth('SQL', 1), shot: Shot('Its queries'));
+    // The list stays beside the open request, so the next one is a tap away.
+    await s.tap(
+      const Target.containing('/orders?today=1'),
+      shot: Shot('The listing that asks once per row'),
+    );
+  });
+
+  /// The translations panel over the recorded catalogs and export: every key
+  /// with its English and its picture in place, one opened to its frame, the
+  /// switch to French, and the filter to what French still lacks. The
+  /// pictures are the export's own shots, read from the recording.
+  scenario('Translations of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Translations', shot: Shot('The keys'));
+    await s.tap('placeOrder', shot: Shot('A key in place'));
+    // The first `fr`: the language switch in the filter row, before the open
+    // key's own French row.
+    await s.tap(const Target.nth('fr', 0), shot: Shot('In French'));
+    await s.tap('Missing in fr', shot: Shot('What French still lacks'));
+  });
+
+  /// The store panel over the recorded export: a card per display class with
+  /// its shots, the first of one class opened at the store's size, then the
+  /// listing previewed as a store would show it, then the French set. The
+  /// pictures are the export's own, read from the recording.
+  scenario('Store screenshots of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Store', shot: Shot('The listing'));
+    await s.tap(
+      const Target.nth('Preview listing', 0),
+      shot: Shot('Previewed'),
+    );
+    await s.tap(const Target.tooltip('Close'), shot: Shot('Back'));
+  });
+
+  /// The dev stack panel over the recorded script: the stack up, its logs,
+  /// then torn down and brought back — each control answered by what the
+  /// script printed for it, and the probe reporting the state that follows.
+  scenario('Dev stack of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Orders server', shot: Shot('The stack, up'));
+    // The first `Run` is the logs command; the console below fills with
+    // what the script printed.
+    await s.tap(const Target.nth('Run', 0), shot: Shot('Its logs'));
+    await s.tap('Tear down', shot: Shot('Torn down'));
+    // The button says `Done` for a second and a half after it succeeded;
+    // waiting it out is what a person does before pressing it again.
+    await s.wait(const Duration(seconds: 2));
+    await s.tap('Bring up', shot: Shot('Back up'));
   });
 
   /// A scenario of the scenarios panel: the recorded run of the demo app's

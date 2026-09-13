@@ -6,15 +6,16 @@
 /// the working tree. The **old** side is `git cat-file` against the revision
 /// the delta is measured from.
 ///
-/// Pure Dart apart from `dart:io`, so the kind detection and the cache policy
-/// are testable without pumping a widget.
+/// Pure Dart, so the kind detection and the cache policy are testable without
+/// pumping a widget. The disk is behind [ChangesFiles], so a recording can
+/// stand in for it.
 library;
 
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'changes_files.dart';
 import 'changes_probe.dart';
 
 /// What the right pane can draw for a file, decided by its extension.
@@ -94,11 +95,17 @@ final class FileTooLarge extends FileContent {
 /// so `ChangeSet.sameAnswerAs` rightly says the delta did not move, and only
 /// a stat notices the file did.
 class FileContentStore {
-  FileContentStore(this.worktreePath, {ChangesProbe? probe})
-    : _probe = probe ?? ChangesProbe();
+  FileContentStore(
+    this.worktreePath, {
+    ChangesProbe? probe,
+    this.files = const LiveChangesFiles(),
+  }) : _probe = probe ?? ChangesProbe();
 
   final String worktreePath;
   final ChangesProbe _probe;
+
+  /// The working tree — the new side of everything here.
+  final ChangesFiles files;
 
   /// Insertion-ordered, re-inserted on hit — an LRU of futures.
   ///
@@ -112,22 +119,15 @@ class FileContentStore {
   /// The working-tree side. Stat first: the refusal of a huge file must not
   /// cost reading it, and the stat is what keys the cache.
   Future<FileContent> onDisk(String path, {required int maxBytes}) async {
-    var file = File('$worktreePath/$path');
-    var stat = await file.stat();
-    if (stat.type == FileSystemEntityType.notFound) {
-      return const FileMissing();
-    }
+    var file = '$worktreePath/$path';
+    var stat = await files.stat(file);
+    if (stat == null) return const FileMissing();
     if (stat.size > maxBytes) return FileTooLarge(stat.size);
     return _remember(
       'disk:$path:${stat.modified.microsecondsSinceEpoch}:${stat.size}',
       () async {
-        try {
-          return FileBytes(await file.readAsBytes());
-        } on FileSystemException {
-          // Deleted between the stat and the read — the next refresh will
-          // say so; this load just must not throw into a widget.
-          return const FileMissing();
-        }
+        var bytes = await files.readBytes(file);
+        return bytes == null ? const FileMissing() : FileBytes(bytes);
       },
     );
   }

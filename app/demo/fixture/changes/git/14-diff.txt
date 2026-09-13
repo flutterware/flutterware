@@ -1,0 +1,14 @@
+8	0	README.md
+3	0	assets/i18n/en.json
+2	0	assets/i18n/fr.json
+-	-	assets/splash/branding.png
+8	0	demo/loyalty.dart
+0	141	demo/store_panorama.dart
+104	0	lib/shop/loyalty.dart
+0	0	lib/shop/{mini_markdown.dart => markdown_text.dart}
+30	14	lib/shop/shop_app.dart
+11	1	lib/shop/shop_screens.dart
+9	0	lib/shop/shop_strings.dart
+1	1	test/scenarios/desktop/flutter_test_config.dart
+1	1	test/scenarios/mobile/flutter_test_config.dart
+1	1	test/shop/translations_test.dart

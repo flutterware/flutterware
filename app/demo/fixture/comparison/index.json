@@ -1,0 +1,2774 @@
+{
+  "version": 1,
+  "base": "a3414d1109aad177f696aba03d91696835178c25",
+  "head": "/recording",
+  "headCommit": "e59b5a8a55cb0ffaf5b49f0010ed74eecd7c37a1",
+  "at": "2026-01-01T08:41:00.000",
+  "ms": 13508,
+  "counts": {
+    "added": 1,
+    "removed": 3,
+    "changed": 11,
+    "same": 6
+  },
+  "frames": "relative",
+  "previews": {
+    "rendered": 20,
+    "because": {
+      "7 files differ, including assets/i18n/en.json": 6,
+      "2 files differ, including assets/i18n/en.json": 2
+    },
+    "packages": [
+      "."
+    ],
+    "ms": 7803,
+    "counts": {
+      "added": 1,
+      "removed": 3,
+      "changed": 6,
+      "same": 2
+    },
+    "items": [
+      {
+        "id": "demo/loyalty.dart#shopLoyalty",
+        "state": "added",
+        "package": ".",
+        "shots": {
+          "base": "310fd326af9a7f10dd03b456dae0e5a5e0c93693",
+          "head": "shots/bb4aad96448b5d79abbd217c6dd502af286c4d19.png"
+        }
+      },
+      {
+        "id": "demo/store_panorama.dart#coffeeAppStore",
+        "state": "removed",
+        "package": ".",
+        "shots": {
+          "base": "shots/fc556174a8f85b2553d5bee75b89abaa09c6fc0d.png",
+          "head": "428dfa1d824d0a88929a6f96894bdbd41f07e525"
+        }
+      },
+      {
+        "id": "demo/store_panorama.dart#coffeeListing",
+        "state": "removed",
+        "package": ".",
+        "shots": {
+          "base": "shots/09eeed1b73f6cd8ebc50f86d05348c403c204dfb.png",
+          "head": "bac9db400a77aa1d1b0802b8ee8971abf2e32d51"
+        }
+      },
+      {
+        "id": "demo/store_panorama.dart#coffeeOne",
+        "state": "removed",
+        "package": ".",
+        "shots": {
+          "base": "shots/0d4afe4953031ee5e38423514dde48c8f2f21b5d.png",
+          "head": "40485f45301cdf724ff22cb2d8661d2f5ca1c915"
+        }
+      },
+      {
+        "id": "demo/shop.dart#shopBadges",
+        "state": "changed",
+        "package": ".",
+        "shots": {
+          "base": "shots/69e6763e389c1fe8b331ee28177d22a1304f1a63.png",
+          "head": "shots/6e11b6351ffea9bb14f50f28b482d5400c2684c3.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.0,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": []
+          },
+          "tree": {
+            "deltas": [
+              {
+                "kind": "added",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopBadges'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › LoyaltyScope",
+                "head": "LoyaltyScope"
+              },
+              {
+                "kind": "removed",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopBadges'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › CartScope",
+                "base": "CartScope"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "demo/shop.dart#shopCart",
+        "state": "changed",
+        "package": ".",
+        "shots": {
+          "base": "shots/11ad5d3ea8461c13eb25f591d1d32df73f6f38ad.png",
+          "head": "shots/6556d38ad8d35af848ebc139a3e1e5a58226a189.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.0,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": []
+          },
+          "tree": {
+            "deltas": [
+              {
+                "kind": "added",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopCart'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › LoyaltyScope",
+                "head": "LoyaltyScope"
+              },
+              {
+                "kind": "removed",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopCart'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › CartScope",
+                "base": "CartScope"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "demo/shop.dart#shopConfirmation",
+        "state": "changed",
+        "package": ".",
+        "shots": {
+          "base": "shots/d605fddc8e37513de8a92fc88166a2e545b309cd.png",
+          "head": "shots/477c85ad7004fa21d9435e06ca21341091923a09.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.0,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": []
+          },
+          "tree": {
+            "deltas": [
+              {
+                "kind": "added",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopConfirmation'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › LoyaltyScope",
+                "head": "LoyaltyScope"
+              },
+              {
+                "kind": "removed",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopConfirmation'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › CartScope",
+                "base": "CartScope"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "demo/shop.dart#shopDrink",
+        "state": "changed",
+        "package": ".",
+        "shots": {
+          "base": "shots/d1675159cd3155f8f474f8acd5ce09b70cba438b.png",
+          "head": "shots/ccc25789052f804c0e2ae52abec62a8241d0ca12.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.0,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": []
+          },
+          "tree": {
+            "deltas": [
+              {
+                "kind": "added",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopDrink'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › LoyaltyScope",
+                "head": "LoyaltyScope"
+              },
+              {
+                "kind": "removed",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopDrink'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › CartScope",
+                "base": "CartScope"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "demo/shop.dart#shopMenu",
+        "state": "changed",
+        "package": ".",
+        "shots": {
+          "base": "shots/9b08dedc6839e8f884f280d19e72f8e1816488f5.png",
+          "head": "shots/e8b70f628a7320540db9a2bd58b09242e10e1e59.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.00077,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": [
+              {
+                "x": 298,
+                "y": 76,
+                "width": 22,
+                "height": 21,
+                "pixels": 259
+              }
+            ]
+          },
+          "tree": {
+            "deltas": [
+              {
+                "kind": "added",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopMenu'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › LoyaltyScope",
+                "head": "LoyaltyScope"
+              },
+              {
+                "kind": "removed",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopMenu'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › CartScope",
+                "base": "CartScope"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "demo/shop.dart#shopWelcome",
+        "state": "changed",
+        "package": ".",
+        "shots": {
+          "base": "shots/383320a7995ae1132ed2e35a7ef6729ad3cb8e69.png",
+          "head": "shots/51eb883d02b5d7e48ce9316228992aab0ff7203c.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.0,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": []
+          },
+          "tree": {
+            "deltas": [
+              {
+                "kind": "added",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopWelcome'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › LoyaltyScope",
+                "head": "LoyaltyScope"
+              },
+              {
+                "kind": "removed",
+                "path": "KeyedSubtree-[<'demo/shop.dart#shopWelcome'>] › PreviewShell › ValueListenableBuilder<int> › ShopApp › MaterialApp › CartScope",
+                "base": "CartScope"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "demo/brand.dart#appIcon",
+        "state": "same",
+        "package": ".",
+        "shots": {
+          "base": "shots/cca438946c420efa58b3fee3f1b9f146345e0fbe.png",
+          "head": "shots/6ef8322045d8600ee8b55b40ad42ea1a55100265.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.0,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": []
+          },
+          "tree": {
+            "deltas": []
+          }
+        }
+      },
+      {
+        "id": "demo/brand.dart#appIconVariant",
+        "state": "same",
+        "package": ".",
+        "shots": {
+          "base": "shots/4743ef760ede891c7ee4558f9199f1187173c276.png",
+          "head": "shots/723172191a61ce2b0c7d33d56c4fa8af2f5567b9.png"
+        },
+        "channels": {
+          "pixels": {
+            "changed": 0.0,
+            "sizeChanged": false,
+            "width": 393,
+            "height": 852,
+            "clusters": []
+          },
+          "tree": {
+            "deltas": []
+          }
+        }
+      }
+    ]
+  },
+  "scenarios": {
+    "ran": 9,
+    "replayed": 18,
+    "skipped": 0,
+    "because": {
+      "8 files differ, including assets/i18n/en.json": 5,
+      "2 files differ, including assets/i18n/en.json": 2,
+      "5 files differ, including assets/i18n/en.json": 2
+    },
+    "packages": [
+      "."
+    ],
+    "ms": 5705,
+    "counts": {
+      "changed": 5,
+      "same": 4
+    },
+    "items": [
+      {
+        "id": "test/scenarios/desktop/shop_window_test.dart#Order a cold brew on a laptop",
+        "state": "changed",
+        "package": ".",
+        "steps": [
+          {
+            "id": "Welcome",
+            "state": "changed",
+            "label": "Welcome",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 1600,
+                "height": 900,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s0/792755f94da2a8f49aec72fb4ce73e69d7399224.png",
+                "width": 1600,
+                "height": 900
+              },
+              "head": {
+                "path": "frames/s0/792755f94da2a8f49aec72fb4ce73e69d7399224.png",
+                "width": 1600,
+                "height": 900
+              }
+            }
+          },
+          {
+            "id": "Menu",
+            "state": "changed",
+            "label": "Menu",
+            "channels": {
+              "pixels": {
+                "changed": 0.00018,
+                "sizeChanged": false,
+                "width": 1600,
+                "height": 900,
+                "clusters": [
+                  {
+                    "x": 1517,
+                    "y": 17,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s0/7fb77c74c8a97146f0b70950c92a379050fe3ab5.png",
+                "width": 1600,
+                "height": 900
+              },
+              "head": {
+                "path": "frames/s0/bee088544feba8c7c31f6551a9fbaf556c29da0a.png",
+                "width": 1600,
+                "height": 900
+              }
+            }
+          },
+          {
+            "id": "tap \"Cold brew\"",
+            "state": "changed",
+            "label": "tap \"Cold brew\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 1600,
+                "height": 900,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s0/10956a1be53e20c8a4f718502a37fbb0a960dff6.png",
+                "width": 1600,
+                "height": 900
+              },
+              "head": {
+                "path": "frames/s0/10956a1be53e20c8a4f718502a37fbb0a960dff6.png",
+                "width": 1600,
+                "height": 900
+              }
+            }
+          },
+          {
+            "id": "Cart",
+            "state": "changed",
+            "label": "Cart",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 1600,
+                "height": 900,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s0/89aa5f46a8e7af2bce6898e1d59cb7f9307938b9.png",
+                "width": 1600,
+                "height": 900
+              },
+              "head": {
+                "path": "frames/s0/89aa5f46a8e7af2bce6898e1d59cb7f9307938b9.png",
+                "width": 1600,
+                "height": 900
+              }
+            }
+          },
+          {
+            "id": "Order placed",
+            "state": "changed",
+            "label": "Order placed",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 1600,
+                "height": 900,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s0/f9bbc7223b13cd045007f50ea0257b196569fb73.png",
+                "width": 1600,
+                "height": 900
+              },
+              "head": {
+                "path": "frames/s0/f9bbc7223b13cd045007f50ea0257b196569fb73.png",
+                "width": 1600,
+                "height": 900
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mobile/brewline_reel_test.dart#Brewline in twenty seconds",
+        "state": "changed",
+        "package": ".",
+        "steps": [
+          {
+            "id": "pumpWidget ShopApp",
+            "state": "changed",
+            "label": "pumpWidget ShopApp",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.getStarted'",
+            "state": "changed",
+            "label": "tap key 'shop.getStarted'",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap \"Cappuccino\"",
+            "state": "changed",
+            "label": "tap \"Cappuccino\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.size.large'",
+            "state": "changed",
+            "label": "tap key 'shop.size.large'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.addToCart'",
+            "state": "changed",
+            "label": "tap key 'shop.addToCart'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "enterText key 'shop.cupName'",
+            "state": "changed",
+            "label": "enterText key 'shop.cupName'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.placeOrder'",
+            "state": "changed",
+            "label": "tap key 'shop.placeOrder'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mobile/keyboard_test.dart#Naming the cup",
+        "state": "changed",
+        "package": ".",
+        "steps": [
+          {
+            "id": "pumpWidget ShopApp",
+            "state": "changed",
+            "label": "pumpWidget ShopApp",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.getStarted'",
+            "state": "changed",
+            "label": "tap key 'shop.getStarted'",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap \"Cappuccino\"",
+            "state": "changed",
+            "label": "tap \"Cappuccino\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.size.small'",
+            "state": "changed",
+            "label": "tap key 'shop.size.small'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Cart",
+            "state": "changed",
+            "label": "Cart",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Typing the name",
+            "state": "changed",
+            "label": "Typing the name",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Ready to order",
+            "state": "changed",
+            "label": "Ready to order",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s2/86bd80299a30afadd4c3bd2b0d48b0cc99a341dd.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s2/86bd80299a30afadd4c3bd2b0d48b0cc99a341dd.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Order placed",
+            "state": "changed",
+            "label": "Order placed",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mobile/shop_test.dart#Around the shop",
+        "state": "changed",
+        "package": ".",
+        "steps": [
+          {
+            "id": "Welcome",
+            "state": "changed",
+            "label": "Welcome",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Menu",
+            "state": "changed",
+            "label": "Menu",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › tap \"Cappuccino\"",
+            "state": "changed",
+            "label": "tap \"Cappuccino\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › small cup › tap key 'shop.size.small'",
+            "state": "changed",
+            "label": "tap key 'shop.size.small'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › small cup › Cart · small",
+            "state": "changed",
+            "label": "Cart · small",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › small cup › enterText key 'shop.cupName'",
+            "state": "changed",
+            "label": "enterText key 'shop.cupName'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › small cup › Order placed",
+            "state": "changed",
+            "label": "Order placed",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › large cup › tap key 'shop.size.large'",
+            "state": "changed",
+            "label": "tap key 'shop.size.large'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › large cup › Cart · large",
+            "state": "changed",
+            "label": "Cart · large",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › large cup › enterText key 'shop.cupName'",
+            "state": "changed",
+            "label": "enterText key 'shop.cupName'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cappuccino › large cup › Order placed",
+            "state": "changed",
+            "label": "Order placed",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a flat white › tap \"Flat white\"",
+            "state": "changed",
+            "label": "tap \"Flat white\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a flat white › tap key 'shop.size.medium'",
+            "state": "changed",
+            "label": "tap key 'shop.size.medium'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a flat white › Cart",
+            "state": "changed",
+            "label": "Cart",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/63074756e21c3bcb23b9a8a89a4f189231b68e2f.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/63074756e21c3bcb23b9a8a89a4f189231b68e2f.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cold brew › tap \"Cold brew\"",
+            "state": "changed",
+            "label": "tap \"Cold brew\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/e7d85f1235793c3af862ea2d2d89c16ca795dcd2.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/e7d85f1235793c3af862ea2d2d89c16ca795dcd2.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cold brew › Cart",
+            "state": "changed",
+            "label": "Cart",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/b00c78e86be81922a7c4b4c3743aef7758e26b77.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/b00c78e86be81922a7c4b4c3743aef7758e26b77.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "a cold brew › Order placed",
+            "state": "changed",
+            "label": "Order placed",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/b4d3c4ea0b47fc2cf280e141acc247cb13008aec.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/b4d3c4ea0b47fc2cf280e141acc247cb13008aec.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "the empty cart › Empty cart",
+            "state": "changed",
+            "label": "Empty cart",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/a77e13d11127df09e8938ed169c8fd009e706640.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/a77e13d11127df09e8938ed169c8fd009e706640.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "the empty cart › Back at the menu",
+            "state": "changed",
+            "label": "Back at the menu",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mobile/shop_test.dart#Order a cappuccino",
+        "state": "changed",
+        "package": ".",
+        "steps": [
+          {
+            "id": "Welcome",
+            "state": "changed",
+            "label": "Welcome",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Menu",
+            "state": "changed",
+            "label": "Menu",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap \"Cappuccino\"",
+            "state": "changed",
+            "label": "tap \"Cappuccino\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.size.large'",
+            "state": "changed",
+            "label": "tap key 'shop.size.large'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Cart",
+            "state": "changed",
+            "label": "Cart",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "enterText key 'shop.cupName'",
+            "state": "changed",
+            "label": "enterText key 'shop.cupName'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Order placed",
+            "state": "changed",
+            "label": "Order placed",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/attachment_test.dart#Exports a receipt",
+        "state": "same",
+        "package": ".",
+        "steps": [
+          {
+            "id": "pumpWidget _ReceiptApp",
+            "state": "same",
+            "label": "pumpWidget _ReceiptApp",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 800,
+                "height": 600,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s5/a177a9786b7d772c4dafd3701de272fd849b8d10.png",
+                "width": 800,
+                "height": 600
+              },
+              "head": {
+                "path": "frames/s5/a177a9786b7d772c4dafd3701de272fd849b8d10.png",
+                "width": 800,
+                "height": 600
+              }
+            }
+          },
+          {
+            "id": "request",
+            "state": "same",
+            "label": "request",
+            "channels": {
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {}
+          },
+          {
+            "id": "Exported",
+            "state": "same",
+            "label": "Exported",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 800,
+                "height": 600,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s5/e277c32071c9bbb4ac0eda24f712752742fa5698.png",
+                "width": 800,
+                "height": 600
+              },
+              "head": {
+                "path": "frames/s5/e277c32071c9bbb4ac0eda24f712752742fa5698.png",
+                "width": 800,
+                "height": 600
+              }
+            }
+          },
+          {
+            "id": "receipt",
+            "state": "same",
+            "label": "receipt",
+            "channels": {
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {}
+          },
+          {
+            "id": "notification",
+            "state": "same",
+            "label": "notification",
+            "channels": {
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {}
+          },
+          {
+            "id": "summary",
+            "state": "same",
+            "label": "summary",
+            "channels": {
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {}
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mid_flight_test.dart#Confirming an order",
+        "state": "same",
+        "package": ".",
+        "steps": [
+          {
+            "id": "pumpWidget _OrderApp",
+            "state": "same",
+            "label": "pumpWidget _OrderApp",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 800,
+                "height": 600,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s6/a88648a43b5bb8e797fd4c194fe4b60dca8eccef.png",
+                "width": 800,
+                "height": 600
+              },
+              "head": {
+                "path": "frames/s6/a88648a43b5bb8e797fd4c194fe4b60dca8eccef.png",
+                "width": 800,
+                "height": 600
+              }
+            }
+          },
+          {
+            "id": "Confirming",
+            "state": "same",
+            "label": "Confirming",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 800,
+                "height": 600,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s6/0668445ce0a19254901bf7232fd2e42b831c04d4.png",
+                "width": 800,
+                "height": 600
+              },
+              "head": {
+                "path": "frames/s6/0668445ce0a19254901bf7232fd2e42b831c04d4.png",
+                "width": 800,
+                "height": 600
+              }
+            }
+          },
+          {
+            "id": "The barista confirms the order",
+            "state": "same",
+            "label": "The barista confirms the order",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 800,
+                "height": 600,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s6/b646b7f11b9f50d709ca6a69c868f869f419471a.png",
+                "width": 800,
+                "height": 600
+              },
+              "head": {
+                "path": "frames/s6/b646b7f11b9f50d709ca6a69c868f869f419471a.png",
+                "width": 800,
+                "height": 600
+              }
+            }
+          },
+          {
+            "id": "notification",
+            "state": "same",
+            "label": "notification",
+            "channels": {
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {}
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mobile/beans_test.dart#Find a bean in the list",
+        "state": "same",
+        "package": ".",
+        "steps": [
+          {
+            "id": "The catalogue",
+            "state": "same",
+            "label": "The catalogue",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s7/89eb4feaafb387fcbc11382484e5847c7f42ebbe.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s7/89eb4feaafb387fcbc11382484e5847c7f42ebbe.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "scrollTo \"Yirgacheffe\"",
+            "state": "same",
+            "label": "scrollTo \"Yirgacheffe\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s7/e88f6ef4ed3efab72bec77ac251a54548f752a5e.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s7/e88f6ef4ed3efab72bec77ac251a54548f752a5e.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "In the basket",
+            "state": "same",
+            "label": "In the basket",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s7/4654678eac65a153d1749ee77f5e0d5fbbeff897.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s7/4654678eac65a153d1749ee77f5e0d5fbbeff897.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mobile/keyboard_types_test.dart#Signing up on a phone",
+        "state": "same",
+        "package": ".",
+        "steps": [
+          {
+            "id": "pumpWidget _SignUp",
+            "state": "same",
+            "label": "pumpWidget _SignUp",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s8/bcc589280abc372354beb179366de01cc4d6fcd1.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s8/bcc589280abc372354beb179366de01cc4d6fcd1.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Name",
+            "state": "same",
+            "label": "Name",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s8/7dacd77352e07e94d8f3c79b677392ca50d6985a.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s8/7dacd77352e07e94d8f3c79b677392ca50d6985a.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Email",
+            "state": "same",
+            "label": "Email",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s8/799cb0ce16af71d1f756e96956f60b184ec4301e.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s8/799cb0ce16af71d1f756e96956f60b184ec4301e.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Website",
+            "state": "same",
+            "label": "Website",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s8/9267429851bbefb83894ca66ccb81fd1d6c6629e.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s8/9267429851bbefb83894ca66ccb81fd1d6c6629e.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Phone",
+            "state": "same",
+            "label": "Phone",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s8/40d40851316af6e6e72ce3f7401b5bd1d9209a01.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s8/40d40851316af6e6e72ce3f7401b5bd1d9209a01.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Ready to sign up",
+            "state": "same",
+            "label": "Ready to sign up",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s8/a4411665b326b78c2cf90886d81b88e090243a17.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s8/a4411665b326b78c2cf90886d81b88e090243a17.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Signed up",
+            "state": "same",
+            "label": "Signed up",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": []
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s8/656b49527106dc1c4df0b40dc68bb003bc3c5cb7.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s8/656b49527106dc1c4df0b40dc68bb003bc3c5cb7.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "against": "main"
+}

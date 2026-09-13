@@ -11,7 +11,6 @@
 /// closure to another isolate would exceed the work.
 library;
 
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
@@ -20,6 +19,7 @@ import 'package:yaml/yaml.dart';
 
 import 'composition.dart';
 import 'config.dart';
+import 'files.dart';
 import 'generated.dart';
 import 'image_facts.dart';
 import 'recompose.dart';
@@ -206,18 +206,23 @@ class SplashConfigScan {
 /// Scans [packageRoot], which must be absolute.
 ///
 /// [packagePath] is the workspace-relative path the result is labelled with.
+///
+/// [files] is where the reads go — the disk unless a recording is standing in
+/// for one; see `files.dart`.
 SplashScan scanSplash({
   required String packageRoot,
   required String packagePath,
+  SplashFiles files = const LiveSplashFiles(),
 }) {
-  var search = _findConfigs(packageRoot);
+  var search = _findConfigs(files, packageRoot);
   return SplashScan(
     packagePath: packagePath,
     configs: [
-      for (var config in search.configs) _scanConfig(packageRoot, config),
+      for (var config in search.configs)
+        _scanConfig(files, packageRoot, config),
     ],
     configErrors: search.errors,
-    hasDevDependency: _hasDevDependency(packageRoot),
+    hasDevDependency: _hasDevDependency(files, packageRoot),
   );
 }
 
@@ -237,15 +242,15 @@ SplashScan scanSplash({
 /// precedence — they are alternatives the generator reads only when asked with
 /// `--flavor` — so they are listed beside the default rather than in front of
 /// it.
-_ConfigSearch _findConfigs(String packageRoot) {
+_ConfigSearch _findConfigs(SplashFiles files, String packageRoot) {
   var found = <SplashConfig>[];
   var errors = <String>[];
 
-  /// The `flutter_native_splash:` section of [file], or null with a recorded
-  /// reason.
-  Map<String, Object?>? section(File file, {required bool required}) {
-    var raw = _readYamlMap(file);
-    var name = p.basename(file.path);
+  /// The `flutter_native_splash:` section of the file at [path], or null with
+  /// a recorded reason.
+  Map<String, Object?>? section(String path, {required bool required}) {
+    var raw = _readYamlMap(files, path);
+    var name = p.basename(path);
     if (raw == null) {
       if (required) errors.add('"$name" is empty or malformed.');
       return null;
@@ -263,8 +268,8 @@ _ConfigSearch _findConfigs(String packageRoot) {
     return value.cast<String, Object?>();
   }
 
-  var yaml = File(p.join(packageRoot, 'flutter_native_splash.yaml'));
-  if (yaml.existsSync()) {
+  var yaml = p.join(packageRoot, 'flutter_native_splash.yaml');
+  if (files.exists(yaml)) {
     var raw = section(yaml, required: true);
     if (raw != null) {
       found.add(
@@ -278,10 +283,7 @@ _ConfigSearch _findConfigs(String packageRoot) {
   } else {
     // No section in the pubspec is the ordinary state of a project that has not
     // set a splash up, so it is not an error.
-    var raw = section(
-      File(p.join(packageRoot, 'pubspec.yaml')),
-      required: false,
-    );
+    var raw = section(p.join(packageRoot, 'pubspec.yaml'), required: false);
     if (raw != null) {
       found.add(
         SplashConfig(
@@ -293,12 +295,10 @@ _ConfigSearch _findConfigs(String packageRoot) {
     }
   }
 
-  var dir = Directory(packageRoot);
-  if (dir.existsSync()) {
-    var files = dir.listSync().whereType<File>().toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
-    for (var file in files) {
-      var match = splashFlavorFilePattern.firstMatch(p.basename(file.path));
+  if (files.isDirectory(packageRoot)) {
+    for (var file in files.list(packageRoot)) {
+      if (files.isDirectory(file)) continue;
+      var match = splashFlavorFilePattern.firstMatch(p.basename(file));
       if (match == null) continue;
       var raw = section(file, required: true);
       if (raw == null) continue;
@@ -306,7 +306,7 @@ _ConfigSearch _findConfigs(String packageRoot) {
         SplashConfig(
           raw: raw,
           kind: SplashConfigKind.flavorFile,
-          path: p.basename(file.path),
+          path: p.basename(file),
           flavor: match.group(1),
         ),
       );
@@ -342,42 +342,53 @@ class _ConfigSearch {
 /// `android:icon` in the manifest is assumed to be `@mipmap/ic_launcher`, and an
 /// adaptive icon (`mipmap-anydpi-v26/ic_launcher.xml`, two layers composed and
 /// masked by the OS) is stood in for by the flat PNG beside it.
-SplashImageFacts? _findLauncherIcon(String packageRoot) {
-  var res = Directory(
-    p.join(packageRoot, 'android', 'app', 'src', 'main', 'res'),
-  );
-  if (!res.existsSync()) return null;
+SplashImageFacts? _findLauncherIcon(SplashFiles files, String packageRoot) {
+  var res = p.join(packageRoot, 'android', 'app', 'src', 'main', 'res');
+  if (!files.isDirectory(res)) return null;
 
   // Densest first, so the preview scales down rather than up.
   const densities = ['xxxhdpi', 'xxhdpi', 'xhdpi', 'hdpi', 'mdpi'];
   for (var density in densities) {
     for (var name in ['ic_launcher.png', 'ic_launcher_foreground.png']) {
-      var file = File(p.join(res.path, 'mipmap-$density', name));
-      if (file.existsSync()) {
-        return _measure(packageRoot, p.relative(file.path, from: packageRoot));
+      var file = p.join(res, 'mipmap-$density', name);
+      if (files.exists(file)) {
+        return _measure(
+          files,
+          packageRoot,
+          p.relative(file, from: packageRoot),
+        );
       }
     }
   }
   return null;
 }
 
-SplashConfigScan _scanConfig(String packageRoot, SplashConfig config) {
+SplashConfigScan _scanConfig(
+  SplashFiles files,
+  String packageRoot,
+  SplashConfig config,
+) {
   var images = <String, SplashImageFacts>{};
   for (var path in _referencedPaths(config)) {
-    images.putIfAbsent(path, () => _measure(packageRoot, path));
+    images.putIfAbsent(path, () => _measure(files, packageRoot, path));
   }
 
   // Keyed by its own path like any other, so `composeSplash` reaches it through
   // the same `facts` lookup and needs no second channel.
-  var launcherIcon = _findLauncherIcon(packageRoot);
+  var launcherIcon = _findLauncherIcon(files, packageRoot);
   if (launcherIcon != null) {
     images.putIfAbsent(launcherIcon.path, () => launcherIcon);
   }
 
-  var artifacts = findSplashArtifacts(packageRoot, flavor: config.flavor);
+  var artifacts = findSplashArtifacts(
+    packageRoot,
+    flavor: config.flavor,
+    files: files,
+  );
   var stale = splashIsStale(
     configPath: p.join(packageRoot, config.path),
     artifacts: artifacts,
+    files: files,
   );
 
   return SplashConfigScan(
@@ -395,12 +406,13 @@ SplashConfigScan _scanConfig(String packageRoot, SplashConfig config) {
             theme: theme,
             artifacts: artifacts,
             flavor: config.flavor,
+            files: files,
           ),
     },
     problems: validateSplash(
       config,
       facts: (path) => images[path],
-      hasDevDependency: _hasDevDependency(packageRoot),
+      hasDevDependency: _hasDevDependency(files, packageRoot),
       generatedIsStale: stale,
     ),
   );
@@ -436,22 +448,20 @@ Set<String> _referencedPaths(SplashConfig config) {
 /// 12 canvas" — decoding a 1152×1152 image to answer them would cost more than
 /// the whole rest of the scan. Anything else falls back to `package:image`,
 /// which the generator itself uses, so the formats agree by construction.
-SplashImageFacts _measure(String packageRoot, String path) {
-  var file = File(p.isAbsolute(path) ? path : p.join(packageRoot, path));
-  if (!file.existsSync()) return SplashImageFacts.missing(path);
+SplashImageFacts _measure(SplashFiles files, String packageRoot, String path) {
+  var file = p.isAbsolute(path) ? path : p.join(packageRoot, path);
+  if (!files.exists(file)) return SplashImageFacts.missing(path);
 
-  Uint8List bytes;
-  try {
-    bytes = file.readAsBytesSync();
-  } catch (_) {
-    return SplashImageFacts(path: path, exists: true, absolutePath: file.path);
+  var bytes = files.readBytes(file);
+  if (bytes == null) {
+    return SplashImageFacts(path: path, exists: true, absolutePath: file);
   }
 
   var size = _pngSize(bytes) ?? _decodedSize(bytes);
   return SplashImageFacts(
     path: path,
     exists: true,
-    absolutePath: file.path,
+    absolutePath: file,
     pixelWidth: size?.$1,
     pixelHeight: size?.$2,
     isPng: _isPng(bytes),
@@ -488,8 +498,8 @@ bool _isPng(Uint8List bytes) {
 }
 
 /// Whether the package can actually run the generator.
-bool _hasDevDependency(String packageRoot) {
-  var raw = _readYamlMap(File(p.join(packageRoot, 'pubspec.yaml')));
+bool _hasDevDependency(SplashFiles files, String packageRoot) {
+  var raw = _readYamlMap(files, p.join(packageRoot, 'pubspec.yaml'));
   if (raw == null) return false;
   for (var key in ['dev_dependencies', 'dependencies']) {
     var section = raw[key];
@@ -504,10 +514,11 @@ bool _hasDevDependency(String packageRoot) {
 /// a map. A malformed file is null rather than a throw: a config being edited is
 /// briefly unparseable, and the panel redrawing an error is better than the
 /// scan failing.
-Map<String, Object?>? _readYamlMap(File file) {
-  if (!file.existsSync()) return null;
+Map<String, Object?>? _readYamlMap(SplashFiles files, String path) {
+  var text = files.readString(path);
+  if (text == null) return null;
   try {
-    var plain = _plain(loadYaml(file.readAsStringSync()));
+    var plain = _plain(loadYaml(text));
     return plain is Map<String, Object?> ? plain : null;
   } catch (_) {
     return null;

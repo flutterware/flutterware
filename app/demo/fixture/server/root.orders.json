@@ -1,0 +1,710 @@
+{
+  "handle": {
+    "projectRoot": "/recording",
+    "name": "orders",
+    "socketPath": "/recording/.dart_tool/orders.sock",
+    "pid": 4242,
+    "startedAt": "2026-01-01T09:38:00.000",
+    "baseUrl": "http://localhost:8090",
+    "environment": "dev"
+  },
+  "hello": {
+    "name": "orders",
+    "pid": 4242,
+    "projectRoot": "/recording",
+    "startedAt": "2026-01-01T09:38:00.000",
+    "channels": [
+      "cache",
+      "http",
+      "info",
+      "log",
+      "sql"
+    ],
+    "eventCount": 33
+  },
+  "events": [
+    {
+      "id": 1,
+      "channel": "info",
+      "time": "2026-01-01T09:41:00.000",
+      "payload": {
+        "baseUrl": "http://localhost:8090",
+        "environment": "dev",
+        "links": [
+          {
+            "label": "Menu",
+            "url": "/menu",
+            "description": "what the shop sells"
+          },
+          {
+            "label": "Health",
+            "url": "/health",
+            "description": "liveness probe"
+          },
+          {
+            "label": "flutterware",
+            "url": "https://pub.dev/packages/flutterware"
+          }
+        ],
+        "connections": [
+          {
+            "kind": "postgres",
+            "dsn": "postgres://brewline:s3cret@localhost:5432/brewline",
+            "label": "main"
+          },
+          {
+            "kind": "redis",
+            "dsn": "redis://localhost:6379/0",
+            "label": "cache"
+          }
+        ],
+        "config": {
+          "Feature flags": {
+            "happyHour": true,
+            "newCheckout": false
+          },
+          "Limits": {
+            "rate": {
+              "perMinute": 600,
+              "burst": 50
+            },
+            "regions": [
+              "eu-west",
+              "us-east"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "channel": "http",
+      "time": "2026-01-01T09:41:00.350",
+      "rid": "req-1",
+      "payload": {
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "ms": 0.4
+      }
+    },
+    {
+      "id": 3,
+      "channel": "cache",
+      "time": "2026-01-01T09:41:00.700",
+      "rid": "req-2",
+      "payload": {
+        "op": "miss",
+        "key": "menu:v3"
+      }
+    },
+    {
+      "id": 4,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:01.050",
+      "rid": "req-2",
+      "payload": {
+        "query": "SELECT * FROM drinks WHERE available = ?",
+        "params": [
+          true
+        ],
+        "rows": 5,
+        "ms": 2.3
+      }
+    },
+    {
+      "id": 5,
+      "channel": "cache",
+      "time": "2026-01-01T09:41:01.400",
+      "rid": "req-2",
+      "payload": {
+        "op": "set",
+        "key": "menu:v3",
+        "ttl": 300
+      }
+    },
+    {
+      "id": 6,
+      "channel": "log",
+      "time": "2026-01-01T09:41:01.750",
+      "rid": "req-2",
+      "payload": {
+        "level": "FINE",
+        "logger": "brewline.menu",
+        "message": "menu served, 5 drinks"
+      }
+    },
+    {
+      "id": 7,
+      "channel": "http",
+      "time": "2026-01-01T09:41:02.100",
+      "rid": "req-2",
+      "payload": {
+        "method": "GET",
+        "path": "/menu",
+        "status": 200,
+        "ms": 6.1
+      }
+    },
+    {
+      "id": 8,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:02.450",
+      "rid": "req-3",
+      "payload": {
+        "query": "SELECT id, price FROM drinks WHERE id = ?",
+        "params": [
+          "cappuccino"
+        ],
+        "rows": 1,
+        "ms": 0.8
+      }
+    },
+    {
+      "id": 9,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:02.800",
+      "rid": "req-3",
+      "payload": {
+        "query": "INSERT INTO orders (id, customer_id, total, status) VALUES (?, ?, ?, ?)",
+        "params": [
+          "BL-1042",
+          7,
+          4.9,
+          "brewing"
+        ],
+        "rows": 1,
+        "ms": 3.4
+      }
+    },
+    {
+      "id": 10,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:03.150",
+      "rid": "req-3",
+      "payload": {
+        "query": "INSERT INTO order_items (order_id, drink_id, size) VALUES (?, ?, ?)",
+        "params": [
+          "BL-1042",
+          "cappuccino",
+          "large"
+        ],
+        "rows": 1,
+        "ms": 1.9
+      }
+    },
+    {
+      "id": 11,
+      "channel": "log",
+      "time": "2026-01-01T09:41:03.500",
+      "rid": "req-3",
+      "payload": {
+        "level": "INFO",
+        "logger": "brewline.orders",
+        "message": "order BL-1042 placed, 1 drink, ready in 4 min"
+      }
+    },
+    {
+      "id": 12,
+      "channel": "http",
+      "time": "2026-01-01T09:41:03.850",
+      "rid": "req-3",
+      "payload": {
+        "method": "POST",
+        "path": "/orders",
+        "status": 201,
+        "ms": 14.8
+      }
+    },
+    {
+      "id": 13,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:04.200",
+      "rid": "req-4",
+      "payload": {
+        "query": "SELECT * FROM orders WHERE id = ?",
+        "params": [
+          "BL-1042"
+        ],
+        "rows": 1,
+        "ms": 0.9
+      }
+    },
+    {
+      "id": 14,
+      "channel": "http",
+      "time": "2026-01-01T09:41:04.550",
+      "rid": "req-4",
+      "payload": {
+        "method": "GET",
+        "path": "/orders/BL-1042",
+        "status": 200,
+        "ms": 3.2
+      }
+    },
+    {
+      "id": 15,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:04.900",
+      "rid": "req-5",
+      "payload": {
+        "query": "SELECT * FROM orders WHERE placed_at >= ?",
+        "params": [
+          "2026-01-01"
+        ],
+        "rows": 5,
+        "ms": 2.7
+      }
+    },
+    {
+      "id": 16,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:05.250",
+      "rid": "req-5",
+      "payload": {
+        "query": "SELECT * FROM order_items WHERE order_id = ?",
+        "params": [
+          "BL-1038"
+        ],
+        "rows": 1,
+        "ms": 1.1
+      }
+    },
+    {
+      "id": 17,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:05.600",
+      "rid": "req-5",
+      "payload": {
+        "query": "SELECT * FROM order_items WHERE order_id = ?",
+        "params": [
+          "BL-1039"
+        ],
+        "rows": 1,
+        "ms": 1.3
+      }
+    },
+    {
+      "id": 18,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:05.950",
+      "rid": "req-5",
+      "payload": {
+        "query": "SELECT * FROM order_items WHERE order_id = ?",
+        "params": [
+          "BL-1040"
+        ],
+        "rows": 1,
+        "ms": 1.5
+      }
+    },
+    {
+      "id": 19,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:06.300",
+      "rid": "req-5",
+      "payload": {
+        "query": "SELECT * FROM order_items WHERE order_id = ?",
+        "params": [
+          "BL-1041"
+        ],
+        "rows": 1,
+        "ms": 1.7000000000000002
+      }
+    },
+    {
+      "id": 20,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:06.650",
+      "rid": "req-5",
+      "payload": {
+        "query": "SELECT * FROM order_items WHERE order_id = ?",
+        "params": [
+          "BL-1042"
+        ],
+        "rows": 1,
+        "ms": 1.9000000000000001
+      }
+    },
+    {
+      "id": 21,
+      "channel": "log",
+      "time": "2026-01-01T09:41:07.000",
+      "rid": "req-5",
+      "payload": {
+        "level": "WARNING",
+        "logger": "brewline.orders",
+        "message": "listing 5 orders took 41ms"
+      }
+    },
+    {
+      "id": 22,
+      "channel": "http",
+      "time": "2026-01-01T09:41:07.350",
+      "rid": "req-5",
+      "payload": {
+        "method": "GET",
+        "path": "/orders?today=1",
+        "status": 200,
+        "ms": 41.7
+      }
+    },
+    {
+      "id": 23,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:07.700",
+      "rid": "req-6",
+      "payload": {
+        "query": "SELECT * FROM orders WHERE customer_id = ?",
+        "params": [
+          7
+        ],
+        "rows": 2,
+        "ms": 1.6
+      }
+    },
+    {
+      "id": 24,
+      "channel": "http",
+      "time": "2026-01-01T09:41:08.050",
+      "rid": "req-6",
+      "payload": {
+        "method": "GET",
+        "path": "/customers/7/orders",
+        "status": 200,
+        "ms": 5.5
+      }
+    },
+    {
+      "id": 25,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:08.400",
+      "rid": "req-7",
+      "payload": {
+        "query": "SELECT COUNT(*), SUM(total) FROM orders WHERE placed_at >= ?",
+        "params": [
+          "2026-01-01"
+        ],
+        "rows": 1,
+        "ms": 1480.2
+      }
+    },
+    {
+      "id": 26,
+      "channel": "log",
+      "time": "2026-01-01T09:41:08.750",
+      "rid": "req-7",
+      "payload": {
+        "level": "WARNING",
+        "logger": "brewline.reports",
+        "message": "daily report took 1.5s; no index on placed_at"
+      }
+    },
+    {
+      "id": 27,
+      "channel": "http",
+      "time": "2026-01-01T09:41:09.100",
+      "rid": "req-7",
+      "payload": {
+        "method": "GET",
+        "path": "/reports/daily",
+        "status": 200,
+        "ms": 1512.0
+      }
+    },
+    {
+      "id": 28,
+      "channel": "sql",
+      "time": "2026-01-01T09:41:09.450",
+      "rid": "req-8",
+      "payload": {
+        "query": "SELECT id, price FROM drinks WHERE id = ?",
+        "params": [
+          "espresso"
+        ],
+        "rows": 0,
+        "ms": 0.7
+      }
+    },
+    {
+      "id": 29,
+      "channel": "log",
+      "time": "2026-01-01T09:41:09.800",
+      "rid": "req-8",
+      "payload": {
+        "level": "SEVERE",
+        "logger": "brewline.orders",
+        "message": "order refused: unknown drink espresso"
+      }
+    },
+    {
+      "id": 30,
+      "channel": "http",
+      "time": "2026-01-01T09:41:10.150",
+      "rid": "req-8",
+      "payload": {
+        "method": "POST",
+        "path": "/orders",
+        "status": 500,
+        "ms": 8.3
+      }
+    },
+    {
+      "id": 31,
+      "channel": "cache",
+      "time": "2026-01-01T09:41:10.500",
+      "rid": "req-9",
+      "payload": {
+        "op": "hit",
+        "key": "menu:v3"
+      }
+    },
+    {
+      "id": 32,
+      "channel": "http",
+      "time": "2026-01-01T09:41:10.850",
+      "rid": "req-9",
+      "payload": {
+        "method": "GET",
+        "path": "/menu",
+        "status": 200,
+        "ms": 0.9
+      }
+    },
+    {
+      "id": 33,
+      "channel": "http",
+      "time": "2026-01-01T09:41:11.200",
+      "rid": "req-10",
+      "payload": {
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "ms": 0.3
+      }
+    }
+  ],
+  "details": {
+    "2": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "responseBody": "ok\n"
+    },
+    "7": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "responseBody": "{\"drinks\":[{\"id\":\"cappuccino\",\"name\":\"Cappuccino\",\"price\":4.2},{\"id\":\"flat-white\",\"name\":\"Flat white\",\"price\":4.6},{\"id\":\"matcha\",\"name\":\"Matcha latte\",\"price\":5.1},{\"id\":\"chai\",\"name\":\"Chai latte\",\"price\":4.8},{\"id\":\"cold-brew\",\"name\":\"Cold brew\",\"price\":3.9}]}"
+    },
+    "12": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ],
+        "content-type": [
+          "application/json; charset=utf-8"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "requestBody": "{\"name\":\"Ada\",\"items\":[{\"drink\":\"cappuccino\",\"size\":\"large\"}]}",
+      "responseBody": "{\"id\":\"BL-1042\",\"name\":\"Ada\",\"total\":4.9,\"readyInMinutes\":4}"
+    },
+    "14": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "responseBody": "{\"id\":\"BL-1042\",\"name\":\"Ada\",\"total\":4.9,\"status\":\"brewing\"}"
+    },
+    "22": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "responseBody": "[{\"id\":\"BL-1038\"},{\"id\":\"BL-1039\"},{\"id\":\"BL-1040\"},{\"id\":\"BL-1041\"},{\"id\":\"BL-1042\"}]"
+    },
+    "24": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "responseBody": "[{\"id\":\"BL-1041\"},{\"id\":\"BL-1042\"}]"
+    },
+    "27": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "responseBody": "{\"orders\":42,\"revenue\":198.4}"
+    },
+    "30": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ],
+        "content-type": [
+          "application/json; charset=utf-8"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "requestBody": "{\"name\":\"Grace\",\"items\":[{\"drink\":\"espresso\",\"size\":\"small\"}]}",
+      "responseBody": "{\"error\":\"unknown drink espresso\"}"
+    },
+    "32": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      }
+    },
+    "33": {
+      "requestHeaders": {
+        "accept": [
+          "application/json"
+        ],
+        "user-agent": [
+          "Brewline/1.0 (iPhone; iOS 19)"
+        ]
+      },
+      "responseHeaders": {
+        "content-type": [
+          "application/json; charset=utf-8"
+        ],
+        "x-powered-by": [
+          "Dart with package:shelf"
+        ]
+      },
+      "responseBody": "ok\n"
+    }
+  },
+  "answers": {
+    "sql/explain": {
+      "plan": "SEARCH orders USING INDEX idx_orders_customer (customer_id=?)\n  (toy database, toy plan)",
+      "boundTo": [
+        7
+      ]
+    },
+    "sql/requery": {
+      "rows": [
+        {
+          "id": "BL-1041",
+          "customer_id": 7,
+          "total": 4.6,
+          "status": "ready"
+        },
+        {
+          "id": "BL-1042",
+          "customer_id": 7,
+          "total": 4.9,
+          "status": "brewing"
+        }
+      ]
+    }
+  }
+}

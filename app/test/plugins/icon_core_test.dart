@@ -189,21 +189,6 @@ void main() {
       expect(result.roles, isNotEmpty);
     });
 
-    test(
-      'carries the unknown minSdk through rather than defaulting it',
-      () async {
-        writeManifest();
-        write(
-          'android/app/build.gradle.kts',
-          'minSdk = flutter.minSdkVersion\n',
-        );
-        writePng('android/app/src/main/res/mipmap-hdpi/ic_launcher.png', 72);
-
-        var result = (await core().invoke('inventory'))! as IconInventoryResult;
-        expect(result.minSdk, isNull);
-      },
-    );
-
     test('reports the iOS catalog kind', () async {
       Directory(p.join(root.path, 'ios', 'Runner', 'AppIcon.icon'))
           .createSync(recursive: true);

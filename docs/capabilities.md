@@ -1798,8 +1798,6 @@ flavors: List<IconFlavorEntry>   # Every flavor the package has, and what declar
   sources: List<String>   # Some of `config`, `androidSourceSet`, `iosCatalog`.
 iosCatalog: String   # `none`, `appIconSet`, `iconComposer` or `both`.
 iconBundles: List<String>
-minSdk: int?   # Null when it could not be read, which is an answer rather than a failure: the current Flutter template writes `minSdk = flutter.minSdkVersion`, which is not a number until Gradle runs.
-minSdkSource: String?
 roles: List<IconRoleEntry>
   role: String   # The address vocabulary — `android.adaptive-foreground`.
   label: String

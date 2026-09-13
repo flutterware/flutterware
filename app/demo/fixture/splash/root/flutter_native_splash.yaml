@@ -1,0 +1,28 @@
+# The splash screen, generated into android/, ios/ and web/ by
+# `dart run flutter_native_splash:create`. The generated files are committed,
+# as they are in any app: the platforms read them, not this file.
+flutter_native_splash:
+  color: FFF3E0
+  image: assets/splash/logo.png
+  branding: assets/splash/branding.png
+  branding_mode: bottom
+  branding_bottom_padding: 24
+  branding_bottom_padding_ios: 34
+
+  color_dark: '101418'
+  image_dark: assets/splash/logo.png
+  branding_dark: assets/splash/branding.png
+
+  android_gravity: center
+  ios_content_mode: center
+  web_image_mode: center
+
+  # Android 12 draws its own splash and masks the image to a circle: the art
+  # is 1152×1152 with the cup inside the 768px circle that survives the mask.
+  android_12:
+    color: 'FFF3E0'
+    color_dark: '101418'
+    image: assets/splash/android12_logo.png
+    image_dark: assets/splash/android12_logo.png
+    branding: assets/splash/branding.png
+    branding_dark: assets/splash/branding.png

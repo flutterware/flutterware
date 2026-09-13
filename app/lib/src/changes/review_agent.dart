@@ -28,7 +28,7 @@ import 'review_store.dart';
 /// that notes exist at all and where they would be — which is the half of the
 /// report that cost a day, and it costs three keys to answer forever.
 Map<String, Object?> reviewStatusJson(String worktreePath) {
-  var store = ReviewStore.forWorktree(worktreePath);
+  var store = FileReviewStore.forWorktree(worktreePath);
   var state = store.read();
   return {
     'unresolved': state.unresolved.length,
@@ -47,7 +47,7 @@ Map<String, Object?> reviewListJson(
   String? base,
   bool all = false,
 }) {
-  var store = ReviewStore.forWorktree(worktreePath);
+  var store = FileReviewStore.forWorktree(worktreePath);
   var state = store.read();
   var comments = all
       ? [...state.unresolved, ...state.resolved]
@@ -83,7 +83,7 @@ Map<String, Object?> reviewResolveJson(
   String? message,
   bool resolve = true,
 }) {
-  var store = ReviewStore.forWorktree(worktreePath);
+  var store = FileReviewStore.forWorktree(worktreePath);
   var state = store.read();
   var comment = state.comments.where((c) => c.id == id).firstOrNull;
   if (comment == null) {

@@ -18,6 +18,30 @@ import '../model/surface.dart';
 ///
 /// That is what lets the same widget be mounted in the panel and in a headless
 /// guest handed the same JSON: two hosts, one renderer, nothing to drift.
+/// An image provider for a path the scan found a picture at —
+/// `SplashPlugin(image: …)`.
+typedef SplashImage = ImageProvider Function(String absolutePath);
+
+/// Where the pictures below are read from, put in the tree once by the panel
+/// so a layer three widgets down does not have to be handed it. Absent, the
+/// disk: a preview and a test draw the same widgets over real files.
+class SplashImages extends InheritedWidget {
+  const SplashImages({super.key, required this.image, required super.child});
+
+  final SplashImage image;
+
+  static SplashImage of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SplashImages>()?.image ??
+      fileSplashImage;
+
+  @override
+  bool updateShouldNotify(SplashImages old) => old.image != image;
+}
+
+/// The default: a file on disk.
+ImageProvider fileSplashImage(String absolutePath) =>
+    FileImage(File(absolutePath));
+
 class SplashRender extends StatelessWidget {
   const SplashRender(
     this.composition, {
@@ -128,8 +152,8 @@ class _Layer extends StatelessWidget {
     if (layer.missing) return _MissingLayer(layer);
 
     var alignment = Alignment(layer.alignment.x, layer.alignment.y);
-    var image = Image.file(
-      File(layer.absolutePath!),
+    var image = Image(
+      image: SplashImages.of(context)(layer.absolutePath!),
       fit: BoxFit.fill,
       filterQuality: FilterQuality.medium,
       // A file that vanishes between the scan and the paint is a race, not a
@@ -248,8 +272,8 @@ class _Android12Icon extends StatelessWidget {
               clipper: _IconMask(fraction),
               child: image.missing
                   ? _MissingLayer(image)
-                  : Image.file(
-                      File(image.absolutePath!),
+                  : Image(
+                      image: SplashImages.of(context)(image.absolutePath!),
                       fit: BoxFit.contain,
                       filterQuality: FilterQuality.medium,
                       errorBuilder: (context, _, _) => const SizedBox.shrink(),

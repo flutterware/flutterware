@@ -2312,17 +2312,6 @@ final resultShapes = <String, ResultShape>{
       },
       <String, Object?>{'name': 'iconBundles', 'type': 'List<String>'},
       <String, Object?>{
-        'name': 'minSdk',
-        'type': 'int',
-        'optional': true,
-        'doc': 'Null when it could not be read, which is an answer rather than a failure: the current Flutter template writes `minSdk = flutter.minSdkVersion`, which is not a number until Gradle runs.',
-      },
-      <String, Object?>{
-        'name': 'minSdkSource',
-        'type': 'String',
-        'optional': true,
-      },
-      <String, Object?>{
         'name': 'roles',
         'type': 'List<IconRoleEntry>',
         'shape': <String, Object?>{

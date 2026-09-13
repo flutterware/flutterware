@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutterware/translations.dart';
 import 'package:path/path.dart' as p;
@@ -40,7 +41,25 @@ class TranslationsPlugin extends NativePlugin<TranslationsCore> {
   TranslationsPlugin(super.core);
 
   @override
-  Widget buildPanel(BuildContext context) => _TranslationsPanel(this);
+  Widget buildPanel(BuildContext context) =>
+      _Shots(read: core.source.readShot, child: _TranslationsPanel(this));
+}
+
+/// Where the pictures below are read from — the core's source, put in the
+/// tree once so a cell three widgets down does not have to be handed it.
+///
+/// Re-provided inside [_FullScreenShot]'s dialog, which is built above the
+/// panel: a dialog's context sees the app, not the panel that opened it.
+class _Shots extends InheritedWidget {
+  const _Shots({required this.read, required super.child});
+
+  final Future<Uint8List?> Function(String path) read;
+
+  static _Shots of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_Shots>()!;
+
+  @override
+  bool updateShouldNotify(_Shots old) => old.read != read;
 }
 
 /// The height every control in the filter row shares — the field, the language
@@ -1298,9 +1317,7 @@ class _InPlace extends StatelessWidget {
         height: 30,
         decoration: BoxDecoration(border: Border.all(color: colors.line)),
         child: CropView(
-          file: File(
-            p.join(directory, shot.image.replaceAll('/', p.separator)),
-          ),
+          path: p.join(directory, shot.image.replaceAll('/', p.separator)),
           rect: shot.rect!,
           // A little air around the words, so the crop reads as a place on a
           // screen rather than as a ransom note.
@@ -1401,11 +1418,9 @@ class _Detail extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _Openable(
-                        file: File(
-                          p.join(
-                            directory,
-                            clipped.image.replaceAll('/', p.separator),
-                          ),
+                        path: p.join(
+                          directory,
+                          clipped.image.replaceAll('/', p.separator),
                         ),
                         rect: clipped.rect,
                         title:
@@ -1435,9 +1450,7 @@ class _Detail extends StatelessWidget {
             )
           else ...[
             _Openable(
-              file: File(
-                p.join(directory, shot.image.replaceAll('/', p.separator)),
-              ),
+              path: p.join(directory, shot.image.replaceAll('/', p.separator)),
               rect: shot.rect,
               title: '${row.id} · ${shot.scenario} · ${shot.step}',
               maxHeight: 420,
@@ -1462,11 +1475,9 @@ class _Detail extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _Openable(
-                            file: File(
-                              p.join(
-                                directory,
-                                it.image.replaceAll('/', p.separator),
-                              ),
+                            path: p.join(
+                              directory,
+                              it.image.replaceAll('/', p.separator),
                             ),
                             rect: it.rect,
                             title: '${row.id} · ${it.scenario} · ${it.step}',
@@ -1545,13 +1556,13 @@ class _LocaleLine extends StatelessWidget {
 /// A framed shot that opens full size when tapped.
 class _Openable extends StatelessWidget {
   const _Openable({
-    required this.file,
+    required this.path,
     required this.title,
     required this.maxHeight,
     this.rect,
   });
 
-  final File file;
+  final String path;
   final String title;
   final double maxHeight;
   final ExportedRect? rect;
@@ -1561,8 +1572,8 @@ class _Openable extends StatelessWidget {
     message: 'Open full size',
     child: Tappable(
       onTap: () =>
-          _FullScreenShot.show(context, file: file, title: title, rect: rect),
-      child: _Framed(file: file, rect: rect, maxHeight: maxHeight),
+          _FullScreenShot.show(context, path: path, title: title, rect: rect),
+      child: _Framed(path: path, rect: rect, maxHeight: maxHeight),
     ),
   );
 }
@@ -1574,24 +1585,31 @@ class _Openable extends StatelessWidget {
 /// at 150 points wide is a guess. One tap is the difference between believing
 /// the box and reading the screen.
 class _FullScreenShot extends StatelessWidget {
-  const _FullScreenShot({required this.file, required this.title, this.rect});
+  const _FullScreenShot({required this.path, required this.title, this.rect});
 
-  final File file;
+  final String path;
   final String title;
   final ExportedRect? rect;
 
   static void show(
     BuildContext context, {
-    required File file,
+    required String path,
     required String title,
     ExportedRect? rect,
-  }) => unawaited(
-    showDialog<void>(
-      context: context,
-      builder: (context) =>
-          _FullScreenShot(file: file, title: title, rect: rect),
-    ),
-  );
+  }) {
+    // Read here, where the panel's [_Shots] is in scope: the dialog's own
+    // context is not under it.
+    var shots = _Shots.of(context);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => _Shots(
+          read: shots.read,
+          child: _FullScreenShot(path: path, title: title, rect: rect),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1627,7 +1645,7 @@ class _FullScreenShot extends StatelessWidget {
             const SizedBox(height: FwSpacing.lg),
             Flexible(
               child: Center(
-                child: _Framed(file: file, rect: rect, maxHeight: 4000),
+                child: _Framed(path: path, rect: rect, maxHeight: 4000),
               ),
             ),
           ],
@@ -1642,15 +1660,15 @@ class _FullScreenShot extends StatelessWidget {
 /// The frame is untouched and the box is geometry — the same arrangement the
 /// exported page uses, and the same numbers a translation service is handed.
 class _Framed extends StatelessWidget {
-  const _Framed({required this.file, this.rect, required this.maxHeight});
+  const _Framed({required this.path, this.rect, required this.maxHeight});
 
-  final File file;
+  final String path;
   final ExportedRect? rect;
   final double maxHeight;
 
   @override
   Widget build(BuildContext context) => _DecodedImage(
-    file: file,
+    path: path,
     builder: (context, image) {
       var width = image.width.toDouble();
       var height = image.height.toDouble();
@@ -1702,12 +1720,14 @@ class _Framed extends StatelessWidget {
 class CropView extends StatelessWidget {
   const CropView({
     super.key,
-    required this.file,
+    required this.path,
     required this.rect,
     this.padding = 0,
   });
 
-  final File file;
+  /// The frame, as the panel built it under the export's directory — what
+  /// [_Shots] reads.
+  final String path;
   final ExportedRect rect;
 
   /// Image pixels of context kept around [rect] before fitting.
@@ -1715,7 +1735,7 @@ class CropView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _DecodedImage(
-    file: file,
+    path: path,
     builder: (context, image) => CustomPaint(
       painter: _CropPainter(image: image, rect: rect, padding: padding),
       child: const SizedBox.expand(),
@@ -1771,7 +1791,7 @@ class _CropPainter extends CustomPainter {
       old.image != image || old.rect != rect || old.padding != padding;
 }
 
-/// Decodes [file] once per path and hands the result to [builder].
+/// Decodes the frame at [path] once and hands the result to [builder].
 ///
 /// Cached across the whole panel because **frames are shared**: several keys
 /// sit on one screen, and decoding a phone-sized PNG per row is the difference
@@ -1779,9 +1799,9 @@ class _CropPainter extends CustomPainter {
 /// is handed over in the same frame it is asked for, so scrolling back up does
 /// not flash grey.
 class _DecodedImage extends StatefulWidget {
-  const _DecodedImage({required this.file, required this.builder});
+  const _DecodedImage({required this.path, required this.builder});
 
-  final File file;
+  final String path;
   final Widget Function(BuildContext context, ui.Image image) builder;
 
   @override
@@ -1798,39 +1818,45 @@ class _DecodedImageState extends State<_DecodedImage> {
   ui.Image? _image;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _resolve();
   }
 
   @override
   void didUpdateWidget(covariant _DecodedImage old) {
     super.didUpdateWidget(old);
-    if (old.file.path != widget.file.path) {
+    if (old.path != widget.path) {
       _image = null;
       _resolve();
     }
   }
 
   void _resolve() {
-    var path = widget.file.path;
+    // Dependencies change more often than the picture does.
+    if (_image != null) return;
+    var path = widget.path;
     if (_decoded[path] case var ready?) {
       _image = ready;
       return;
     }
+    var read = _Shots.of(context).read;
     unawaited(
-      (_pending[path] ??= _decode(path)).then((image) {
+      (_pending[path] ??= _decode(read, path)).then((image) {
         if (!mounted || image == null) return;
         setState(() => _image = image);
       }),
     );
   }
 
-  static Future<ui.Image?> _decode(String path) async {
+  static Future<ui.Image?> _decode(
+    Future<Uint8List?> Function(String path) read,
+    String path,
+  ) async {
     try {
-      var file = File(path);
-      if (!file.existsSync()) return null;
-      var image = await decodeImageFromList(await file.readAsBytes());
+      var bytes = await read(path);
+      if (bytes == null) return null;
+      var image = await decodeImageFromList(bytes);
       _decoded[path] = image;
       return image;
     } catch (_) {
@@ -1854,7 +1880,9 @@ class _DecodedImageState extends State<_DecodedImage> {
 }
 
 String _ago(DateTime at) {
-  var delta = DateTime.now().difference(at);
+  // Through `package:clock`, so a scenario of this panel — the studio's own,
+  // over a recording — reads the same age every day it runs.
+  var delta = clock.now().difference(at);
   if (delta.inMinutes < 1) return 'just now';
   if (delta.inMinutes < 60) return '${delta.inMinutes} min ago';
   if (delta.inHours < 24) {
