@@ -1,11 +1,11 @@
 {
-    "name": "app",
-    "short_name": "app",
+    "name": "flutterware",
+    "short_name": "flutterware",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0c1826",
     "theme_color": "#1e3350",
-    "description": "A new Flutter project.",
+    "description": "The flutterware studio in a browser, over a recording of a demo coffee-shop app: its previews, scenarios and comparisons, read-only.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
