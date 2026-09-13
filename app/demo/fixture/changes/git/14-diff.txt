@@ -2,6 +2,7 @@
 3	0	assets/i18n/en.json
 2	0	assets/i18n/fr.json
 -	-	assets/splash/branding.png
+8	0	demo/loyalty.dart
 0	141	demo/store_panorama.dart
 104	0	lib/shop/loyalty.dart
 0	0	lib/shop/{mini_markdown.dart => markdown_text.dart}

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutterware/comparison_report.dart';
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 
 import '../../capture/settle.dart';
@@ -10,9 +11,9 @@ import '../../ui/menu.dart';
 import '../../ui/popover.dart';
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
+import '../../plugins/worktree_session.dart';
 import '../comparison_controller.dart';
 import '../session_environment.dart';
-import '../shot_store_io.dart';
 import 'previews_tab.dart';
 import 'verdict.dart';
 import 'scenarios_tab.dart';
@@ -72,16 +73,17 @@ class ComparisonTabs extends StatefulWidget {
     required this.shell,
     required this.worktree,
     required this.files,
-    this.unavailable,
+    this.environmentFor,
   });
 
   final ShellController shell;
   final Worktree worktree;
 
-  /// Why there is no comparison to offer, known before anything is asked —
-  /// a recording, which has no checkout to build a base of. Null means to
-  /// find out from the session and git, which is the normal case.
-  final String? unavailable;
+  /// Where the comparison comes from, instead of the session's checkout and
+  /// git: the studio's recordings, which hold a comparison already run. Null
+  /// answers "no comparison"; the default opens the session's own.
+  final Future<ComparisonEnvironment?> Function(WorktreeSession session)?
+  environmentFor;
 
   /// The file diff, built only when its tab is showing.
   ///
@@ -122,16 +124,11 @@ class _ComparisonTabsState extends State<ComparisonTabs>
     // pinned that answer forever, on the very worktree the window was
     // launched in.
     widget.shell.addListener(_onShell);
-    if (widget.unavailable case var reason?) {
-      _unavailable = reason;
-      _loading = false;
-      return;
-    }
     unawaited(_open());
   }
 
   void _onShell() {
-    if (!mounted || widget.unavailable != null) return;
+    if (!mounted) return;
     if (_controller != null) {
       // The address moves the tab — and nothing else: a pasted link, the back
       // button and a drive `navigate` land on a tab that shows its kept
@@ -192,20 +189,22 @@ class _ComparisonTabsState extends State<ComparisonTabs>
       if (mounted) setState(() => _loading = false);
       return;
     }
-    var environment = await SessionComparisonEnvironment.open(
-      session: session,
-      flutterSdk: widget.shell.flutterSdk,
-      appToolDirectory: widget.shell.appContext.appToolDirectory.path,
-      // **The project's own answer, not a second one** — unless the human
-      // picked a base from the strip, which outranks both. The file diff
-      // resolves its base as `fw.changes(base:)` first and inference after; a
-      // comparison that only ever inferred would compare against `master` on
-      // a screen whose other tab says `develop`, and the design's
-      // one-definition rule exists precisely to stop that.
-      baseRef:
-          _baseOverride ??
-          widget.shell.manifestFor(widget.worktree)?.changes?.base,
-    );
+    var environment = widget.environmentFor != null
+        ? await widget.environmentFor!(session)
+        : await SessionComparisonEnvironment.open(
+            session: session,
+            flutterSdk: widget.shell.flutterSdk,
+            appToolDirectory: widget.shell.appContext.appToolDirectory.path,
+            // **The project's own answer, not a second one** — unless the human
+            // picked a base from the strip, which outranks both. The file diff
+            // resolves its base as `fw.changes(base:)` first and inference after; a
+            // comparison that only ever inferred would compare against `master` on
+            // a screen whose other tab says `develop`, and the design's
+            // one-definition rule exists precisely to stop that.
+            baseRef:
+                _baseOverride ??
+                widget.shell.manifestFor(widget.worktree)?.changes?.base,
+          );
     if (!mounted) return;
     setState(() {
       _loading = false;
@@ -740,7 +739,7 @@ class _HalfView extends StatelessWidget {
   Widget _rows(BuildContext context) => switch (half.kind) {
     ComparisonHalfKind.previews => PreviewsTab(
       half: half,
-      store: CacheShotStore(controller.environment.shots),
+      store: controller.environment.shotStore,
       settle: settle,
       selected: selected,
       onSelect: onSelect,
@@ -748,7 +747,7 @@ class _HalfView extends StatelessWidget {
     ),
     ComparisonHalfKind.scenarios => ScenariosTab(
       half: half,
-      store: CacheShotStore(controller.environment.shots),
+      store: controller.environment.shotStore,
       settle: settle,
       selected: selected,
       onSelect: onSelect,
@@ -1042,7 +1041,7 @@ class _ReceiptStrip extends StatelessWidget {
 }
 
 String _ago(DateTime then) {
-  var d = DateTime.now().difference(then);
+  var d = clock.now().difference(then);
   if (d.inSeconds < 60) return 'just now';
   if (d.inMinutes < 60) return '${d.inMinutes}m ago';
   if (d.inHours < 24) return '${d.inHours}h ago';

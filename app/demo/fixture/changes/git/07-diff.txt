@@ -47,6 +47,20 @@ index 112b804..25ad0ba 100644
 diff --git a/assets/splash/branding.png b/assets/splash/branding.png
 index 79859e2..4c81eff 100644
 Binary files a/assets/splash/branding.png and b/assets/splash/branding.png differ
+diff --git a/demo/loyalty.dart b/demo/loyalty.dart
+new file mode 100644
+index 0000000..ea7eb9c
+--- /dev/null
++++ b/demo/loyalty.dart
+@@ -0,0 +1,8 @@
++import 'package:flutter/material.dart';
++import 'package:flutter/widget_previews.dart';
++import 'package:brewline/shop/shop_app.dart';
++
++import 'shop.dart';
++
++@Preview(name: 'Stamp card', group: 'Brewline', wrapper: wrapInShop)
++Widget shopLoyalty() => const LoyaltyScreen();
 diff --git a/demo/store_panorama.dart b/demo/store_panorama.dart
 deleted file mode 100644
 index 8f431b8..0000000

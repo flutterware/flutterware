@@ -1024,6 +1024,49 @@ base from a blob in the tape, now from the copied file. Notes taken on the
 page fold and resolve in memory and are gone with it. The read-at stamp
 was the fifth wall clock; it reads `clock.now()`.
 
+### The comparison strip (2026-09-13)
+
+The two halves the changes screen sits under — previews and scenarios
+compared against the base — build the base checkout and render both
+sides, which nothing but a real checkout can. What a run leaves is the
+published report: one index, every finding with its verdict and its
+pictures, and `fw compare --export` writes that beside a PNG per frame.
+The exported page already drew both tabs from it; the strip in the studio
+now can too.
+
+**The seam.** `ComparisonEnvironment` was an interface already. Two
+changes: it hands over the `ShotStore` its pictures are read through,
+where the strip used to build one from the file cache; and
+`ComparisonTabs(environmentFor:)` takes the environment from the shell's
+`ChangesSources.comparison` instead of opening the session's own.
+`RecordedComparisonEnvironment` restores each half from the index the way
+a kept run restores, serves pictures from the recording, and refuses
+`prepareBase` with a sentence — so *Compare again* explains itself rather
+than failing.
+
+**The recording.** `record.dart --only=comparison` builds the same scratch
+checkout `--only=changes` does — same shas, everything pinned — resolves
+it, and runs `fw compare --export --frames=all` in it under a home
+directory of its own beneath `build/`, so the base checkout and the shot
+cache land there rather than in `~/.flutterware`. The scratch checkout is
+standalone the way the published projection is: the workspace line
+dropped, a `.gitignore` for what a resolution leaves, and a
+`pubspec_overrides.yaml` reaching this flutterware **by a relative path**,
+so the tree holds nothing from the machine and the changes tape stays
+byte-identical. The base checkout resolves through the same file, which
+is why it is placed at the same depth as the head; the recorder asserts
+that before running. Twelve previews and nine scenarios, 59 pictures,
+1.8 MB, 53 s. Pixels, so recorded from one machine like the scenario,
+translations and store parts.
+
+**What it bought.** The strip over the recording reads *previews · 10*
+and *scenarios · 5*: one preview added, three removed with the panorama,
+six changed — the menu by pixels, the others by the tree the loyalty
+scope put above them — and five walks that moved on the menu step. The
+branch script gained a preview of the stamp card so the added verdict is
+in the set. The strip's "ago" was the sixth wall clock; it reads
+`clock.now()`.
+
 ## What to do next
 
 0. ~~The launcher-icon slice.~~ Built; see above.

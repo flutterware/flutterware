@@ -8,6 +8,8 @@
 /// — which is what the studio's recordings do, and the only thing they do.
 library;
 
+import '../comparison/comparison_controller.dart';
+import '../plugins/worktree_session.dart';
 import 'change_set.dart';
 import 'file_contents.dart';
 import 'review_store.dart';
@@ -17,7 +19,7 @@ class ChangesSources {
     required this.load,
     required this.contents,
     required this.reviewStore,
-    this.comparisonUnavailable,
+    this.comparison,
   });
 
   /// One worktree's delta. Replaces the probe on an isolate.
@@ -30,8 +32,9 @@ class ChangesSources {
   /// Where the notes taken on the screen go.
   final ReviewStore Function(String worktreePath) reviewStore;
 
-  /// Why the strip above the screen offers no comparison, or null when a
-  /// comparison is possible. A comparison builds and runs the base checkout,
-  /// which nothing but a real one can.
-  final String? comparisonUnavailable;
+  /// The comparison the strip above the screen shows, or null for none. A
+  /// comparison builds and runs the base checkout, which nothing but a real
+  /// one can — so a recording's is one already run, kept.
+  final Future<ComparisonEnvironment?> Function(WorktreeSession session)?
+  comparison;
 }

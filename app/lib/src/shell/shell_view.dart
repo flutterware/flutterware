@@ -1716,7 +1716,7 @@ class _Panel extends StatelessWidget {
         key: ValueKey('changes::${changesFor.path}'),
         shell: shell,
         worktree: changesFor,
-        unavailable: sources?.comparisonUnavailable,
+        environmentFor: sources?.comparison,
         files: (context, withinTabs) => ChangesScreen(
           key: ValueKey(changesFor.path),
           worktree: changesFor,

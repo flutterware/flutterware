@@ -44,10 +44,31 @@ void main() {
     await s.pumpWidget(ShellApp(shell));
     await s.tap('Changes', shot: Shot('What the project pins'));
     await s.tap('All', shot: Shot('The whole delta'));
-    await s.tap('loyalty.dart', shot: Shot('A new file, with an edit on top'));
+    // Two files carry the name — the screen and its preview; the screen's
+    // is the one with an edit not committed yet.
+    await s.tap(
+      const Target.nth('loyalty.dart', 1),
+      shot: Shot('A new file, with an edit on top'),
+    );
     await s.tap('shop_app.dart', shot: Shot('A diff'));
     await s.tap('splash');
     await s.tap('branding.png', shot: Shot('An image, both sides'));
+  });
+
+  /// The comparison of the recorded branch against main, kept from the run
+  /// the recorder made: the previews half with its verdicts and one entry
+  /// open on both sides, the scenarios half and one walk that moved, and
+  /// what pressing Compare again says over a recording.
+  scenario('Comparing a recorded branch', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Changes');
+    await s.tap('previews', shot: Shot('The previews half'));
+    await s.tap('shopMenu', shot: Shot('The menu, before and after'));
+    await s.tap('scenarios', shot: Shot('The scenarios half'));
+    await s.tap('Order a cappuccino', shot: Shot('A walk that moved'));
+    await s.tap('Compare again', shot: Shot('What a recording says to that'));
   });
 
   /// The splash panel over the recorded files: every surface in both themes,

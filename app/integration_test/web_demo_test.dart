@@ -273,6 +273,31 @@ void main() {
     await screen.settle();
     await screen.shot('changes-image');
 
+    // The comparison strip: a run the recorder kept, its pictures fetched
+    // from beside the page — a preview's two sides, then a scenario's steps.
+    await screen.tap('previews');
+    await screen.waitFor('shopMenu');
+    await screen.tap('shopMenu');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) => e.key.contains('/comparison/shots/') && e.value == 200,
+      ),
+      what: 'a recorded preview shot fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('comparison-previews');
+    await screen.tap('scenarios');
+    await screen.waitFor('Order a cappuccino');
+    await screen.tap('Order a cappuccino');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) => e.key.contains('/comparison/frames/') && e.value == 200,
+      ),
+      what: 'a recorded scenario frame fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('comparison-scenarios');
+
     expect(errors, isEmpty, reason: errors.join('\n'));
   });
 

@@ -24,6 +24,7 @@ import '../changes/changes_probe.dart';
 import '../changes/changes_sources.dart';
 import '../changes/file_contents.dart';
 import '../changes/review_store.dart';
+import 'recorded_comparison.dart';
 import 'recorded_config.dart';
 import 'recording.dart';
 
@@ -158,8 +159,8 @@ ChangesSources recordedChangesSources(Recording recording, {RecordedGit? git}) {
     ),
     contents: (path) => FileContentStore(path, probe: probe, files: files),
     reviewStore: (_) => notes,
-    comparisonUnavailable:
-        'This is a recording: there is no checkout to build a base of, so '
-        'nothing to compare against. The files are here.',
+    // The comparison the recorder ran over the same checkout — see
+    // `recorded_comparison.dart` — or none, when the recording has no index.
+    comparison: (_) => RecordedComparisonEnvironment.open(recording),
   );
 }

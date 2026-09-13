@@ -143,9 +143,19 @@ class ScratchRepo {
 
 /// Builds the repository at [root] from the tracked files of [project] and
 /// grows the branch on it.
+///
+/// **Standalone**, the way `tool/publish_example.dart` projects it: the
+/// workspace line is dropped from the pubspec, a `.gitignore` covers what a
+/// resolution and a build leave behind, and a `pubspec_overrides.yaml` points
+/// `flutterware` at [flutterwareCheckout] — **by a relative path**, so the
+/// tree holds nothing from this machine and its shas are the same on every
+/// one. The path is relative to [root]; the comparison's base checkout is
+/// placed at the same depth so the same file resolves there too — see
+/// `record.dart`, which chooses both.
 Future<ScratchRepo> buildChangesRepo({
   required String project,
   required String root,
+  required String flutterwareCheckout,
 }) async {
   var dir = Directory(root);
   if (dir.existsSync()) dir.deleteSync(recursive: true);
@@ -170,11 +180,26 @@ Future<ScratchRepo> buildChangesRepo({
   }
   for (var path in tracked) {
     var target = File(p.join(root, path))..parent.createSync(recursive: true);
-    File(p.join(project, path)).copySync(target.path);
+    if (path == 'pubspec.yaml') {
+      target.writeAsStringSync(
+        _standalonePubspec(File(p.join(project, path)).readAsStringSync()),
+      );
+    } else {
+      File(p.join(project, path)).copySync(target.path);
+    }
   }
 
   var repo = ScratchRepo(root);
   var origin = pinnedClockOrigin;
+  repo.write('.gitignore', _gitignore);
+  repo.write(
+    'pubspec_overrides.yaml',
+    '# The flutterware this checkout is compared with — the one that recorded\n'
+        '# it, by a path relative to where the recorder builds this repository.\n'
+        'dependency_overrides:\n'
+        '  flutterware:\n'
+        '    path: ${p.relative(flutterwareCheckout, from: root).replaceAll(r'\', '/')}\n',
+  );
   await repo.git(['init', '-q', '-b', 'main']);
   await repo.commit('Brewline', at: origin.subtract(const Duration(days: 3)));
   await repo.git(['checkout', '-q', '-b', changesBranch]);
@@ -219,6 +244,9 @@ Future<void> growLoyaltyBranch(
 
   // --- 2. The stamp card ---------------------------------------------
   repo.write('lib/shop/loyalty.dart', _loyaltyDart);
+  // A preview of the new screen, beside the others: the comparison's one
+  // *added* entry.
+  repo.write('demo/loyalty.dart', _loyaltyPreviewDart);
 
   repo.edit(
     'lib/shop/shop_app.dart',
@@ -571,4 +599,44 @@ const _loyaltyNotes = '''
 - The reward drink: any size, or the size of the smallest on the card?
 - Where does the card persist? Nowhere yet — it is memory, like the cart.
   A real one is a token on the server, keyed by the name on the cup.
+''';
+
+/// What a resolution and a build leave in a checkout, kept out of the delta.
+const _gitignore = '''
+.dart_tool/
+build/
+pubspec.lock
+.flutter-plugins-dependencies
+.fvm/
+''';
+
+/// [pubspec] without its `resolution: workspace` line and the comment above
+/// it — the same cut `tool/publish_example.dart` makes.
+String _standalonePubspec(String pubspec) {
+  var lines = pubspec.split('\n');
+  var at = lines.indexWhere(
+    (line) => RegExp(r'^resolution:\s*workspace').hasMatch(line),
+  );
+  if (at < 0) {
+    throw StateError(
+      "the demo app's pubspec.yaml declares no `resolution: workspace`; "
+      'is it still a workspace member?',
+    );
+  }
+  var from = at;
+  while (from > 0 && lines[from - 1].startsWith('#')) {
+    from--;
+  }
+  return [...lines.take(from), ...lines.skip(at + 1)].join('\n');
+}
+
+const _loyaltyPreviewDart = '''
+import 'package:flutter/material.dart';
+import 'package:flutter/widget_previews.dart';
+import 'package:brewline/shop/shop_app.dart';
+
+import 'shop.dart';
+
+@Preview(name: 'Stamp card', group: 'Brewline', wrapper: wrapInShop)
+Widget shopLoyalty() => const LoyaltyScreen();
 ''';

@@ -94,7 +94,8 @@ void main() {
 
     // The delta, indexed from the recorded patch: the new file, the rename,
     // the deletion, and the two entries git has not been told about.
-    expect(find.text('loyalty.dart'), findsOneWidget);
+    // The screen and its preview, both new.
+    expect(find.text('loyalty.dart'), findsNWidgets(2));
     expect(find.text('markdown_text.dart'), findsOneWidget);
     expect(find.text('store_panorama.dart'), findsOneWidget);
     expect(find.textContaining('docs/'), findsWidgets);
@@ -120,6 +121,20 @@ void main() {
     expect(find.text('now'), findsOneWidget);
     expect(find.textContaining('Not readable'), findsNothing);
     expect(find.textContaining('No longer on disk'), findsNothing);
+
+    // The strip above: the comparison the recorder ran, restored as a kept
+    // run — its verdicts, its rows — and a refusal, with the reason, when
+    // asked to run again.
+    await tester.tap(find.text('previews'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 added'), findsOneWidget);
+    expect(find.text('shopMenu'), findsOneWidget);
+    await tester.tap(find.text('scenarios'));
+    await tester.pumpAndSettle();
+    expect(find.text('Order a cappuccino'), findsOneWidget);
+    await tester.tap(find.text('Compare again'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('This is a recording'), findsOneWidget);
   });
 
   testWidgets('opens a recorded scenario and draws its run', (tester) async {

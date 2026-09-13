@@ -20,6 +20,8 @@ import 'runner.dart';
 import 'scenarios_runner.dart';
 import 'scenarios_side.dart';
 import 'shot_cache.dart';
+import 'shot_store.dart';
+import 'shot_store_io.dart';
 import 'skip.dart';
 
 /// A comparison's world, built from an open worktree.
@@ -98,6 +100,9 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
 
   @override
   bool get baseCheckoutReady => BaseCheckout.isReady(base.sha);
+
+  @override
+  ShotStore get shotStore => CacheShotStore(shots);
 
   late final LastRunStore _lastRuns = LastRunStore(
     comparisonDirFor(cacheRoot, session.worktree),

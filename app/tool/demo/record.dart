@@ -60,12 +60,12 @@ import 'stack_traffic.dart';
 ///
 /// `--only=launcher-icon`, `--only=scenarios`, `--only=server`,
 /// `--only=stack`, `--only=translations`, `--only=store`,
-/// `--only=dependencies`, `--only=splash` or `--only=changes` records one
-/// part. The launcher-icon, server, stack, splash and changes parts are
-/// byte-identical on every machine, which CI checks; the scenario,
-/// translations and store parts spawn the harness and keep its pixels, and
-/// the dependencies part asks pub.dev, none of which is, and those are
-/// recorded from one machine on purpose.
+/// `--only=dependencies`, `--only=splash`, `--only=changes` or
+/// `--only=comparison` records one part. The launcher-icon, server, stack,
+/// splash and changes parts are byte-identical on every machine, which CI
+/// checks; the scenario, translations, store and comparison parts spawn the
+/// harness and keep its pixels, and the dependencies part asks pub.dev, none
+/// of which is, and those are recorded from one machine on purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
 /// this process, `tool/demo/server_traffic.dart` reports into it the way a
@@ -88,11 +88,12 @@ Future<void> main(List<String> arguments) async {
         'dependencies',
         'splash',
         'changes',
+        'comparison',
       }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
           '[--only=launcher-icon|scenarios|server|stack|translations|store'
-          '|dependencies|splash|changes]',
+          '|dependencies|splash|changes|comparison]',
         );
         exit(64);
       }
@@ -130,11 +131,9 @@ Future<void> main(List<String> arguments) async {
     if (only == null || only == 'splash')
       _recordSplash(project: project, out: out),
     if (only == null || only == 'changes')
-      await _recordChanges(
-        project: project,
-        out: out,
-        scratch: p.join(appRoot, 'build', 'demo_record'),
-      ),
+      await _recordChanges(project: project, out: out, appRoot: appRoot),
+    if (only == null || only == 'comparison')
+      await _recordComparison(project: project, out: out, appRoot: appRoot),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '
@@ -858,14 +857,16 @@ String _recordStack({required String out}) {
 Future<String> _recordChanges({
   required String project,
   required String out,
-  required String scratch,
+  required String appRoot,
 }) async {
   var dir = Directory(p.join(out, 'changes'));
   if (dir.existsSync()) dir.deleteSync(recursive: true);
 
+  var layout = _ChangesLayout(appRoot);
   var repo = await buildChangesRepo(
     project: project,
-    root: p.join(scratch, 'changes_repo'),
+    root: layout.head,
+    flutterwareCheckout: layout.checkout,
   );
   var root = repo.root;
 
@@ -1082,4 +1083,163 @@ class _RecordingChangesFiles extends ChangesFiles {
     if (bytes != null) read.add(path);
     return bytes;
   }
+}
+
+/// Where the recorded checkout is built, and where a comparison of it puts
+/// its base.
+///
+/// The checkout's `pubspec_overrides.yaml` reaches this flutterware by a
+/// **relative** path, so the tree holds nothing from this machine. The base
+/// checkout is the same tree at another directory, and resolves through the
+/// same file — so it has to sit at the same depth. `fw compare` places bases
+/// under the home directory, at `~/.flutterware/bases/<sha>`; the recorder
+/// hands it a home of its own under `build/` and builds the head checkout
+/// three directories below that home too. Both are then the same number of
+/// steps from the checkout, and [assertBaseDepth] says so before anything
+/// runs.
+class _ChangesLayout {
+  _ChangesLayout(String appRoot)
+    : checkout = p.dirname(appRoot),
+      home = p.join(appRoot, 'build', 'demo_record', 'changes', 'home');
+
+  /// This flutterware checkout — what the demo app resolves against.
+  final String checkout;
+
+  /// The home directory the comparison runs under.
+  final String home;
+
+  /// The head checkout: the demo app on its branch.
+  String get head => p.join(home, '.flutterware', 'repos', 'head');
+
+  /// Where `fw compare` will put the base checkout of [sha].
+  String baseFor(String sha) => p.join(home, '.flutterware', 'bases', sha);
+
+  void assertBaseDepth() {
+    var fromHead = p.relative(checkout, from: head);
+    var fromBase = p.relative(checkout, from: baseFor('x'));
+    if (fromHead != fromBase) {
+      throw StateError(
+        'the head checkout and a base checkout reach flutterware by different '
+        'paths ($fromHead and $fromBase); the layout has to keep them at one '
+        'depth.',
+      );
+    }
+  }
+}
+
+/// The comparison of the recorded branch against `main`: previews rendered
+/// on both sides, scenarios replayed on both sides, and every finding with
+/// its pictures — as `fw compare --export` writes it, which is the published
+/// report with a PNG per frame beside it.
+///
+/// Pixels, so recorded from one machine. The comparison builds the same
+/// checkout `--only=changes` records — same shas, since everything about it
+/// is pinned — then runs `fw compare` in it under a home directory of its
+/// own, so the base checkout and the shot cache land under `build/` rather
+/// than in the developer's `~/.flutterware`.
+Future<String> _recordComparison({
+  required String project,
+  required String out,
+  required String appRoot,
+}) async {
+  var dir = Directory(p.join(out, 'comparison'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+  var sdk = await FlutterSdkPath.findSdk();
+  if (sdk == null) {
+    stderr.writeln("Run this through a Flutter SDK's dart: fvm dart run …");
+    exit(1);
+  }
+
+  var layout = _ChangesLayout(appRoot)..assertBaseDepth();
+  var repo = await buildChangesRepo(
+    project: project,
+    root: layout.head,
+    flutterwareCheckout: layout.checkout,
+  );
+
+  // The home is the recorder's, the pub cache stays the machine's: a fresh
+  // home would otherwise download every package again into it.
+  var realHome =
+      Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+  var environment = {
+    ...Platform.environment,
+    'HOME': layout.home,
+    'PUB_CACHE':
+        Platform.environment['PUB_CACHE'] ??
+        p.join(realHome ?? layout.home, '.pub-cache'),
+    'FLUTTER_SUPPRESS_ANALYTICS': 'true',
+  };
+  Future<ProcessResult> run(String executable, List<String> arguments) =>
+      Process.run(
+        executable,
+        arguments,
+        workingDirectory: repo.root,
+        environment: environment,
+      );
+
+  print('Resolving the recorded checkout…');
+  var resolved = await run(sdk.flutter, ['pub', 'get']);
+  if (resolved.exitCode != 0) {
+    stderr.writeln(resolved.stdout);
+    stderr.writeln(resolved.stderr);
+    throw StateError('pub get failed in ${repo.root} (${resolved.exitCode})');
+  }
+
+  var export = p.join(repo.root, 'build', 'comparison', 'web');
+  print('Comparing $changesBranch against main (this renders both sides)…');
+  var compared = await run(Platform.resolvedExecutable, [
+    'run',
+    p.join(appRoot, 'bin', 'fw.dart'),
+    'compare',
+    '--export=$export',
+    '--frames=all',
+  ]);
+  // Exit 1 is a comparison that found differences — the point of this one.
+  if (compared.exitCode != 0 && compared.exitCode != 1) {
+    stderr.writeln(compared.stdout);
+    stderr.writeln(compared.stderr);
+    throw StateError('fw compare failed (${compared.exitCode})');
+  }
+
+  // The index, with the machine taken out of it: the time pinned, the
+  // checkout's path spelled as the recorded project's, and the two notes
+  // about where the export and a report went dropped with it.
+  var index =
+      jsonDecode(
+          File(p.join(export, 'index.json'))
+              .readAsStringSync()
+              .replaceAll(repo.root, recordedProjectRoot),
+        ) as Map<String, Object?>
+        ..['at'] = pinnedClockOrigin
+            .subtract(const Duration(hours: 1))
+            .toIso8601String()
+        ..remove('export')
+        ..remove('report');
+  File(p.join(out, recordedComparisonIndexPath))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert(index)}\n',
+    );
+  var copied = 0;
+  var bytes = 0;
+  for (var sub in const ['shots', 'frames']) {
+    var from = Directory(p.join(export, sub));
+    if (!from.existsSync()) continue;
+    for (var entity in from.listSync(recursive: true)) {
+      if (entity is! File) continue;
+      var relative = p
+          .relative(entity.path, from: export)
+          .replaceAll(r'\', '/');
+      var target = File(p.join(out, recordedComparisonFilePath(relative)))
+        ..parent.createSync(recursive: true);
+      entity.copySync(target.path);
+      copied++;
+      bytes += target.lengthSync();
+    }
+  }
+  var previews = index['previews']! as Map<String, Object?>;
+  var scenarios = index['scenarios'] as Map<String, Object?>?;
+  return 'a comparison of ${(previews['items']! as List).length} previews and '
+      '${(scenarios?['items'] as List?)?.length ?? 0} scenarios against main: '
+      '$copied pictures (${(bytes / 1024).toStringAsFixed(0)} KB)';
 }

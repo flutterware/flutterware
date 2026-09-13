@@ -167,3 +167,12 @@ String recordedChangesFilePath(String relative) => 'changes/root/$relative';
 /// argument carries. The recorder files with this; `RecordedGit` looks up
 /// with it.
 String gitTapeKey(List<String> arguments) => arguments.join('\u0000');
+
+/// The comparison the recorder ran over the recorded checkout, as `fw
+/// compare --export` writes it: the published index, with every frame it
+/// names rewritten to a PNG at [recordedComparisonFilePath].
+const recordedComparisonIndexPath = 'comparison/index.json';
+
+/// Where one of the comparison's pictures sits: at the relative path the
+/// export gave it, under the same directory as the index.
+String recordedComparisonFilePath(String relative) => 'comparison/$relative';
