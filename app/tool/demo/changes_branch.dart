@@ -62,8 +62,15 @@ class ScratchRepo {
     'LC_ALL': 'C',
   };
 
+  /// [at]'s wall clock, read as UTC.
+  ///
+  /// Not `at.toUtc()`: `pinnedClockOrigin` is a *local* `DateTime`, so that
+  /// converted it by the offset of whichever machine ran the recorder. Every
+  /// commit date moved with the timezone, and every sha with it — the
+  /// recording CI made in UTC never matched the one committed from a laptop
+  /// that was not.
   static String _stamp(DateTime at) =>
-      '${at.toUtc().millisecondsSinceEpoch ~/ 1000} +0000';
+      '${DateTime.utc(at.year, at.month, at.day, at.hour, at.minute, at.second).millisecondsSinceEpoch ~/ 1000} +0000';
 
   /// The settings that shape what git prints, on every call.
   static const _settings = {

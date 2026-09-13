@@ -343,14 +343,11 @@
   },
   "directories": {
     ".": [
-      ".dart_tool",
-      ".flutter-plugins-dependencies",
       ".mcp.json",
       "README.md",
       "analysis_options.yaml",
       "android",
       "assets",
-      "build",
       "demo",
       "flutter_native_splash.yaml",
       "ios",
@@ -361,10 +358,8 @@
       "tool",
       "web"
     ],
-    ".dart_tool": null,
     "android": null,
     "assets": null,
-    "build": null,
     "demo": null,
     "ios": null,
     "lib": null,
