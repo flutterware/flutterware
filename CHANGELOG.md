@@ -15,6 +15,15 @@
   so it loads them first with
   `await tester.runAsync(() => precacheSceneShaders(scene));`.
 
+- **A comparison's tree changes lead with the one that started it.** A layout
+  change reports every widget it carried along, and the list used to open on
+  the containers and the neighbours squeezed to make room — root first, the
+  order the walk met them — so a report capped at fifty lines could leave out
+  the widget that actually grew. Within a finding, the changes now read from
+  the cause outwards: what a widget is, then a size change under unchanged
+  constraints (deepest first), then an offset, then a size its parent forced,
+  then constraints. The same lines, in `fw compare`, MCP and `index.json`.
+
 ## 0.6.0
 
 Development tooling for Flutter projects: a desktop app, a command line and an

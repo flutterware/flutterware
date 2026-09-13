@@ -260,6 +260,66 @@ void main() {
     expect(store.widths, everyElement(isNotNull));
   });
 
+  // An 84×64 cell drew a phone screen thirty pixels wide. The cell takes the
+  // frame's shape, from what the report knows before anything decodes.
+  testWidgets("a cell takes its frame's shape, and decodes at twice it", (
+    tester,
+  ) async {
+    var store = _RecordingShots();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme,
+        home: Scaffold(
+          body: FindingsTab(
+            index: const ComparisonIndex(
+              base: 'abc123',
+              against: 'origin/master',
+              previewItems: [
+                ComparedItem(
+                  id: 'demo/wide.dart#wide',
+                  state: ComparedState.changed,
+                  shots: (base: 'b', head: 'h'),
+                  pixels: PixelChannel(
+                    PixelDiff(
+                      width: 900,
+                      height: 600,
+                      changedPixels: 10,
+                      comparedPixels: 540000,
+                      sizeChanged: false,
+                      clusters: [],
+                    ),
+                  ),
+                ),
+              ],
+              scenarios: [
+                ScenarioComparison(
+                  scenario: 'test/phone_test.dart#Phone',
+                  state: ComparedState.changed,
+                  branches: [],
+                  items: [
+                    ComparedItem(id: 'Menu', state: ComparedState.changed),
+                  ],
+                  frames: {
+                    'Menu': (
+                      base: FrameRef(path: 'menu.png', width: 390, height: 844),
+                      head: null,
+                    ),
+                  },
+                ),
+              ],
+            ),
+            store: store,
+            onOpen: (tab, id) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 140 tall: the phone as narrow as its shape, the laptop as wide.
+    expect(store.widths, containsAll([(140 * 390 / 844 * 2).ceil(), 420]));
+  });
+
   group('nothing worth attention', () {
     testWidgets('says so', (tester) async {
       await pump(

@@ -28,8 +28,60 @@ class TreeDiff {
     } else {
       _walk(base, head, '', deltas, ancestorResized: false);
     }
-    deltas.sort((a, b) => a.kind.index.compareTo(b.kind.index));
-    return TreeDiff(deltas);
+    return TreeDiff(_causeFirst(deltas));
+  }
+
+  /// The deltas, the one most likely to be the cause first.
+  ///
+  /// Ranked by [TreeDeltaKind] as they always were, and within `changed` by
+  /// how likely a line is to be where the change started. A layout change
+  /// ripples: a price set larger resizes its `Text`, which resizes the `Row`
+  /// around it, which squeezes the `Expanded` beside it with new `constraints`
+  /// and so a new size. The walk reports every link of that chain in the order
+  /// it met them — root first — so the first lines a reader saw were the
+  /// widgets carried along, and a report capped at fifty could drop the `Text`
+  /// altogether. So, within `changed`:
+  ///
+  /// 1. what a widget *is* — its description or key;
+  /// 2. a size change under **unchanged** constraints, deepest first: the
+  ///    widget resized itself, or a child of it did — where a resize started;
+  /// 3. an offset that moved on its own;
+  /// 4. a size change under changed constraints: its parent resized it;
+  /// 5. constraints, which a parent hands down and are therefore its doing.
+  ///
+  /// Walk order breaks every tie, so equal lines keep the order they had.
+  static List<TreeDelta> _causeFirst(List<TreeDelta> deltas) {
+    var constrained = {
+      for (var delta in deltas)
+        if (delta.kind == TreeDeltaKind.changed &&
+            delta.property == 'constraints')
+          delta.path,
+    };
+    int depth(TreeDelta delta) => ' › '.allMatches(delta.path).length;
+    int rank(TreeDelta delta) => delta.kind != TreeDeltaKind.changed
+        ? 0
+        : switch (delta.property) {
+            'size' => constrained.contains(delta.path) ? 3 : 1,
+            'offset' => 2,
+            'constraints' => 4,
+            _ => 0,
+          };
+    var ranked = [
+      for (var (walk, delta) in deltas.indexed)
+        (delta: delta, walk: walk, rank: rank(delta), depth: depth(delta)),
+    ];
+    ranked.sort((a, b) {
+      var by = a.delta.kind.index.compareTo(b.delta.kind.index);
+      if (by != 0) return by;
+      by = a.rank.compareTo(b.rank);
+      if (by != 0) return by;
+      if (a.rank == 1) {
+        by = b.depth.compareTo(a.depth);
+        if (by != 0) return by;
+      }
+      return a.walk.compareTo(b.walk);
+    });
+    return [for (var entry in ranked) entry.delta];
   }
 
   static void _walk(

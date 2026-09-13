@@ -7,6 +7,7 @@ import '../../ui/theme.dart';
 import '../shot_store.dart';
 import 'channel_signature.dart';
 import 'shot_image.dart';
+import 'stage.dart';
 import 'state_chip.dart';
 
 const findingsTabKey = Key('comparison-findings');
@@ -189,11 +190,19 @@ class _FindingRow extends StatelessWidget {
   }
 }
 
-/// Base beside head, small — the mosaic's cell, in the page.
+/// Base beside head — the mosaic's cell, in the page, with the change boxed.
 ///
-/// Sized rather than aspect-fitted: the rows have to line up down the list, and
-/// a portrait phone step beside a wide desktop preview would otherwise make
-/// every row a different height.
+/// **Tall enough to see the change, shaped like the frame.** The cells were
+/// 84×64 whatever they held: a phone screen came out 30 pixels wide and a
+/// laptop's a letterboxed strip, and neither said what changed. Now every cell
+/// is [height] tall and as wide as the frame's own shape makes it, within
+/// bounds, and the head carries the same boxes the stage draws — so a row
+/// points at its change before it is opened.
+///
+/// The shape comes from what the report already knows about the frame — a
+/// step's frame reference, a preview's pixel diff — before either picture has
+/// decoded. That is what keeps the rule the fixed cells were for: a row does
+/// not grow when its pictures land.
 class _Frames extends StatefulWidget {
   const _Frames({
     required this.finding,
@@ -205,14 +214,33 @@ class _Frames extends StatefulWidget {
   final ComparedItem face;
   final ShotStore store;
 
-  static const height = 64.0;
-  static const width = 84.0;
+  static const height = 140.0;
+  static const minWidth = 64.0;
+  static const maxWidth = 220.0;
+
+  /// A frame of unknown shape — nothing moved in its pixels, so there is no
+  /// diff to say — drawn in a cell that suits most screens well enough.
+  static const unknownAspect = 3 / 4;
+
+  Size get cell {
+    var frames = finding.scenario?.frames[face.id];
+    var diff = face.pixels?.diff;
+    var (width, height) = switch ((frames?.head ?? frames?.base, diff)) {
+      (var ref?, _) => (ref.width, ref.height),
+      (_, var diff?) => (diff.width, diff.height),
+      _ => (0, 0),
+    };
+    var aspect = height == 0 ? unknownAspect : width / height;
+    return Size(
+      (_Frames.height * aspect).clamp(minWidth, maxWidth),
+      _Frames.height,
+    );
+  }
 
   /// What the frames are decoded at — twice the drawn width, so the cell is
   /// crisp on a 2× display and still a fraction of the frame. Twenty rows of
-  /// two 900×700 frames decoded whole is a hundred megabytes of images drawn
-  /// at eighty-four pixels.
-  static const decodeWidth = 168;
+  /// two frames decoded whole is hundreds of megabytes drawn at a thumbnail.
+  int get decodeWidth => (cell.width * 2).ceil();
 
   @override
   State<_Frames> createState() => _FramesState();
@@ -237,7 +265,7 @@ class _FramesState extends State<_Frames> {
           .loadFrames(
             base: frames?.base,
             head: frames?.head,
-            width: _Frames.decodeWidth,
+            width: widget.decodeWidth,
           )
           .ignore();
       return;
@@ -247,7 +275,7 @@ class _FramesState extends State<_Frames> {
         .load(
           baseKey: shots?.base,
           headKey: shots?.head,
-          width: _Frames.decodeWidth,
+          width: widget.decodeWidth,
         )
         .ignore();
   }
@@ -276,12 +304,13 @@ class _FramesState extends State<_Frames> {
     // different statements and `ShotPair.settled` is what tells them apart —
     // "nothing here" said over a frame still being fetched is a lie that
     // corrects itself, which is worse than saying nothing.
-    Widget cell(Shot? shot, String label) => Column(
+    var size = widget.cell;
+    Widget cell(Shot? shot, String label, {PixelDiff? diff}) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: _Frames.width,
-          height: _Frames.height,
+          width: size.width,
+          height: size.height,
           decoration: BoxDecoration(
             color: colors.panel2,
             border: Border.all(color: colors.line),
@@ -293,7 +322,7 @@ class _FramesState extends State<_Frames> {
           // says the side drew nothing, which for a `broke` or `added` row is
           // the finding.
           child: switch ((shot, _shots.settled)) {
-            (var shot?, _) => ShotView(shot),
+            (var shot?, _) => BoxedShot(shot: shot, diff: diff),
             (_, false) => const SizedBox.shrink(),
             // An empty bordered box under the word `head` is the truth and
             // not obviously so — it reads as a frame that failed to load. The
@@ -315,7 +344,7 @@ class _FramesState extends State<_Frames> {
       children: [
         cell(_shots.base, 'base'),
         const Gap(FwSpacing.sm),
-        cell(_shots.head, 'head'),
+        cell(_shots.head, 'head', diff: widget.face.pixels?.diff),
       ],
     );
   }

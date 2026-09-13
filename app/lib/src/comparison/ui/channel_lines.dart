@@ -21,8 +21,8 @@ import '../rules.dart';
 /// is what a reader recognises and `detail` is only which of its fields; the
 /// old order led with the field name, which filled the scan column with
 /// `detail`, `moved` and `cart.id` — words from the wire, not the app.
-class ChannelLines extends StatelessWidget {
-  const ChannelLines(this.item, {super.key, this.onRule});
+class ChannelLines extends StatefulWidget {
+  const ChannelLines(this.item, {super.key, this.onRule, this.ruled = true});
 
   final ComparedItem item;
 
@@ -30,6 +30,10 @@ class ChannelLines extends StatelessWidget {
   /// log call from the list" is asked while looking at the log call, not at a
   /// category vocabulary. Null draws the rows without the affordance.
   final ValueChanged<ComparisonRule>? onRule;
+
+  /// Whether a rule separates this from what is drawn above it. False where it
+  /// stands beside the stage instead, and the column's own edge does that.
+  final bool ruled;
 
   /// How many rows one channel draws before it stops and says how many it cut.
   ///
@@ -39,11 +43,31 @@ class ChannelLines extends StatelessWidget {
   static const _max = 24;
 
   @override
+  State<ChannelLines> createState() => _ChannelLinesState();
+}
+
+class _ChannelLinesState extends State<ChannelLines> {
+  /// Every row rather than the first [ChannelLines._max] of each channel.
+  var _all = false;
+
+  ComparedItem get item => widget.item;
+  ValueChanged<ComparisonRule>? get onRule => widget.onRule;
+
+  @override
   Widget build(BuildContext context) {
     var colors = context.colors;
+    var cap = _all ? 1 << 30 : ChannelLines._max;
+    // Already cause-first: `TreeDiff.of` ranks them before anything takes a
+    // page's worth, which is where the order has to be decided.
     var tree = [
       for (var delta in item.tree?.diff.deltas ?? const <TreeDelta>[])
-        if (delta.kind != TreeDeltaKind.shifted) delta,
+        if (delta.kind == TreeDeltaKind.changed) delta,
+    ];
+    var came = [
+      for (var delta in item.tree?.diff.deltas ?? const <TreeDelta>[])
+        if (delta.kind == TreeDeltaKind.added ||
+            delta.kind == TreeDeltaKind.removed)
+          delta,
     ];
     // Folded like the events channel, and sorted so like sits with like: a
     // step whose network, database and log all moved was interleaving them in
@@ -66,31 +90,33 @@ class ChannelLines extends StatelessWidget {
               : (a.delta.subject ?? '').compareTo(b.delta.subject ?? '');
         });
 
+    var shownCame = came.take(cap).toList();
+    var shownTree = tree.take(cap - shownCame.length).toList();
+    var cut = came.length + tree.length - shownCame.length - shownTree.length;
+    void showAll() => setState(() => _all = true);
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.line)),
+        border: widget.ruled
+            ? Border(top: BorderSide(color: colors.line))
+            : const Border(),
       ),
       child: ListView(
         padding: const EdgeInsets.all(FwSpacing.xl),
         children: [
-          if (tree.isNotEmpty) ...[
-            _Header('TREE', dropped: tree.length - _max),
+          if (came.isNotEmpty || tree.isNotEmpty) ...[
+            _Header('TREE', dropped: cut, onShowAll: showAll),
             ..._folded([
-              for (var delta in tree.take(_max))
-                if (delta.kind == TreeDeltaKind.added)
-                  (_where(delta.path), true)
-                else if (delta.kind == TreeDeltaKind.removed)
-                  (_where(delta.path), false),
+              for (var delta in shownCame)
+                (_where(delta.path), delta.kind == TreeDeltaKind.added),
             ]),
-            for (var delta in tree.take(_max))
-              if (delta.kind != TreeDeltaKind.added &&
-                  delta.kind != TreeDeltaKind.removed)
-                _Moved(
-                  subject: _where(delta.path),
-                  property: delta.property ?? '',
-                  base: delta.base,
-                  head: delta.head,
-                ),
+            for (var delta in shownTree)
+              _Moved(
+                subject: _where(delta.path),
+                property: delta.property ?? '',
+                base: delta.base,
+                head: delta.head,
+              ),
             const Gap(FwSpacing.lg),
           ],
           if (item.texts case var texts?) ...[
@@ -104,13 +130,17 @@ class ChannelLines extends StatelessWidget {
           if (item.events case var found?) ...[
             _Header(
               'EVENTS',
-              dropped: found.deltasDropped + (events.length - _max),
+              dropped: events.length - events.take(cap).length,
+              // Dropped by the capture itself, not by this list: there is
+              // nothing more to show, only a number to say.
+              gone: found.deltasDropped,
+              onShowAll: showAll,
             ),
             ..._folded([
               for (var event in found.removed) (event, false),
               for (var event in found.added) (event, true),
             ]),
-            for (var row in events.take(_max))
+            for (var row in events.take(cap))
               _Moved(
                 channel: row.delta.subchannel,
                 // When the title is what moved it is already the `base`
@@ -160,31 +190,56 @@ class ChannelLines extends StatelessWidget {
   }
 }
 
+const channelShowAllKey = Key('comparison.channels.show-all');
+
 class _Header extends StatelessWidget {
-  const _Header(this.label, {required this.dropped});
+  const _Header(
+    this.label, {
+    required this.dropped,
+    this.gone = 0,
+    this.onShowAll,
+  });
 
   final String label;
+
+  /// Rows this list has and is not drawing yet.
   final int dropped;
 
+  /// Rows the capture never kept, so nothing can show them.
+  final int gone;
+
+  final VoidCallback? onShowAll;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: FwSpacing.xs),
-    child: Row(
-      children: [
-        Text(
-          label,
-          style: context.type.micro.copyWith(color: context.colors.mut),
-        ),
-        if (dropped > 0) ...[
-          const Gap(FwSpacing.sm),
-          Text(
-            '$dropped more not shown',
-            style: context.type.micro.copyWith(color: context.colors.mut3),
-          ),
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: FwSpacing.xs),
+      child: Row(
+        children: [
+          Text(label, style: context.type.micro.copyWith(color: colors.mut)),
+          if (dropped > 0) ...[
+            const Gap(FwSpacing.sm),
+            Tappable(
+              key: channelShowAllKey,
+              onTap: onShowAll,
+              child: Text(
+                'Show $dropped more',
+                style: context.type.micro.copyWith(color: colors.accentDark),
+              ),
+            ),
+          ],
+          if (gone > 0) ...[
+            const Gap(FwSpacing.sm),
+            Text(
+              '$gone not captured',
+              style: context.type.micro.copyWith(color: colors.mut3),
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// One field that moved, drawn as a diff: subject, field, then the old value

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutterware/comparison_report.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
@@ -44,6 +45,7 @@ class ComparisonStage extends StatefulWidget {
     required this.mode,
     required this.onMode,
     this.diff,
+    this.onEnlarge,
   });
 
   final ShotPair shots;
@@ -52,6 +54,10 @@ class ComparisonStage extends StatefulWidget {
 
   /// Where the pixels moved, for the clusters overlay.
   final PixelDiff? diff;
+
+  /// Opens these frames over the whole window. Null draws no button — the
+  /// window-sized stage itself, which has nowhere bigger to go.
+  final VoidCallback? onEnlarge;
 
   @override
   State<ComparisonStage> createState() => _ComparisonStageState();
@@ -103,10 +109,16 @@ class _ComparisonStageState extends State<ComparisonStage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // With one frame or none there is nothing to switch between, so the
-        // bar is not drawn at all — five disabled pills were furniture over
-        // a picture that has no modes.
+        // pills are not drawn at all — five disabled ones were furniture over
+        // a picture that has no modes. A lone frame can still be enlarged.
         if (base != null && head != null)
-          _ModeBar(mode: widget.mode, onMode: widget.onMode),
+          _ModeBar(
+            mode: widget.mode,
+            onMode: widget.onMode,
+            onEnlarge: widget.onEnlarge,
+          )
+        else if (base != null || head != null)
+          if (widget.onEnlarge case var enlarge?) _ModeBar(onEnlarge: enlarge),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(FwSpacing.xl),
@@ -161,30 +173,9 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => switch (mode) {
-    // Pulled together rather than centred in their own halves: two portrait
-    // frames on a wide pane end up a hand's width apart, and comparing them
-    // means looking away from one to see the other. The head half carries the
-    // diff's boxes, so the default mode both shows the frames and says where
-    // to look.
-    StageMode.sideBySide => Row(
-      children: [
-        Expanded(
-          child: _Framed(
-            label: 'base',
-            align: Alignment.centerRight,
-            child: ShotView(base),
-          ),
-        ),
-        const Gap(FwSpacing.xl),
-        Expanded(
-          child: _Framed(
-            label: 'head',
-            align: Alignment.centerLeft,
-            child: _BoxedShot(shot: head, diff: diff),
-          ),
-        ),
-      ],
-    ),
+    // The head carries the diff's boxes, so the default mode both shows the
+    // frames and says where to look.
+    StageMode.sideBySide => _Pair(base: base, head: head, diff: diff),
     StageMode.slider => _Framed(
       label: 'base · head',
       child: _Stacked(
@@ -225,6 +216,84 @@ class _Body extends StatelessWidget {
       child: _Clusters(head: head, diff: diff),
     ),
   };
+}
+
+/// Base beside head, as one picture.
+///
+/// **One surface, and the pair centred on it.** Each frame used to sit in a
+/// bordered half of its own, pushed towards the other so two portrait frames
+/// on a wide pane were not a hand's width apart. The pictures were together
+/// and the boxes around them were not: base read as off-centre in its box and
+/// head as pinned to the left of its, which is a layout bug to anyone who does
+/// not know it was meant. So the pair is laid out as one thing, each label
+/// over its own frame's edge, on the same surface every other mode draws on.
+///
+/// Each frame fits its own half, so a frame that changed size still shows as
+/// a different shape rather than being scaled to match.
+class _Pair extends StatelessWidget {
+  const _Pair({required this.base, required this.head, this.diff});
+
+  final Shot base;
+  final Shot head;
+  final PixelDiff? diff;
+
+  @override
+  Widget build(BuildContext context) => _Surface(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        var half = Size(
+          (constraints.maxWidth - FwSpacing.xl) / 2,
+          constraints.maxHeight - _labelHeight,
+        );
+        var baseBox = _fit(base.aspect, half);
+        var headBox = _fit(head.aspect, half);
+        return Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _Labelled(
+                label: 'base',
+                child: SizedBox.fromSize(size: baseBox, child: ShotView(base)),
+              ),
+              const Gap(FwSpacing.xl),
+              _Labelled(
+                label: 'head',
+                child: SizedBox.fromSize(
+                  size: headBox,
+                  child: BoxedShot(shot: head, diff: diff),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+/// A frame with its label over its own left edge.
+class _Labelled extends StatelessWidget {
+  const _Labelled({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        height: _labelHeight,
+        child: Text(
+          label,
+          style: context.type.micro.copyWith(color: context.colors.mut),
+        ),
+      ),
+      child,
+    ],
+  );
 }
 
 /// Two frames on one rect, one clipped or faded over the other.
@@ -391,15 +460,18 @@ class _Clusters extends StatelessWidget {
   }
 }
 
-/// The head frame with the changed regions boxed on it, wherever it hangs.
+/// A frame with the changed regions boxed on it, wherever it hangs.
 ///
-/// The stack shrink-wraps to the [ShotView]'s own laid-out box, so the painter
-/// lands on the pixels however the frame settles inside its half. **Outlines
-/// only, no wash**: side by side is where the two frames' true colours are
-/// read against each other, and a tint over the changed regions falsifies
-/// exactly the pixels being judged.
-class _BoxedShot extends StatelessWidget {
-  const _BoxedShot({required this.shot, this.diff});
+/// Give it the frame's own box: the painter scales the diff to whatever this
+/// is laid out at, so it lands on the pixels only when the picture fills it.
+/// **Outlines only, no wash**: side by side is where the two frames' true
+/// colours are read against each other, and a tint over the changed regions
+/// falsifies exactly the pixels being judged.
+///
+/// Public for the findings list, whose thumbnails point at the change the same
+/// way.
+class BoxedShot extends StatelessWidget {
+  const BoxedShot({super.key, required this.shot, this.diff});
 
   final Shot shot;
   final PixelDiff? diff;
@@ -407,7 +479,12 @@ class _BoxedShot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (diff case var diff?) {
+      // **Expanded, or the boxes miss.** A loose stack let the picture lay
+      // itself out at its own size, so the frame came out smaller than the
+      // base beside it and the painter scaled the diff to a rectangle the
+      // picture did not fill.
       return Stack(
+        fit: StackFit.expand,
         children: [
           ShotView(shot),
           Positioned.fill(
@@ -493,15 +570,10 @@ class _OneSided extends StatelessWidget {
 }
 
 class _Framed extends StatelessWidget {
-  const _Framed({
-    required this.label,
-    required this.child,
-    this.align = Alignment.center,
-  });
+  const _Framed({required this.label, required this.child});
 
   final String label;
   final Widget child;
-  final Alignment align;
 
   @override
   Widget build(BuildContext context) {
@@ -511,28 +583,37 @@ class _Framed extends StatelessWidget {
       children: [
         Text(label, style: context.type.micro.copyWith(color: colors.mut)),
         const Gap(FwSpacing.xs),
-        Expanded(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border.all(color: colors.line),
-              color: colors.panel,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(FwSpacing.sm),
-              child: Align(alignment: align, child: child),
-            ),
-          ),
-        ),
+        Expanded(child: _Surface(child: child)),
       ],
     );
   }
 }
 
-class _ModeBar extends StatelessWidget {
-  const _ModeBar({required this.mode, required this.onMode});
+/// What every mode draws its frames on.
+class _Surface extends StatelessWidget {
+  const _Surface({required this.child});
 
-  final StageMode mode;
-  final ValueChanged<StageMode> onMode;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border.all(color: context.colors.line),
+      color: context.colors.panel,
+    ),
+    child: Padding(padding: const EdgeInsets.all(FwSpacing.sm), child: child),
+  );
+}
+
+const enlargeStageKey = Key('stage.enlarge');
+
+class _ModeBar extends StatelessWidget {
+  const _ModeBar({this.mode, this.onMode, this.onEnlarge});
+
+  /// Null with [onMode] for a lone frame, which has no modes to pick.
+  final StageMode? mode;
+  final ValueChanged<StageMode>? onMode;
+  final VoidCallback? onEnlarge;
 
   @override
   Widget build(BuildContext context) {
@@ -547,31 +628,52 @@ class _ModeBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (var option in StageMode.values)
-            Padding(
-              padding: const EdgeInsets.only(right: FwSpacing.xs),
+          if (onMode case var onMode?)
+            for (var option in StageMode.values)
+              Padding(
+                padding: const EdgeInsets.only(right: FwSpacing.xs),
+                child: Tappable(
+                  key: stageModeKey(option),
+                  onTap: option != mode ? () => onMode(option) : null,
+                  borderRadius: BorderRadius.circular(
+                    context.radii.radiusSmall,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FwSpacing.md,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: option == mode
+                          ? colors.accent.withValues(alpha: 0.12)
+                          : null,
+                      borderRadius: BorderRadius.circular(
+                        context.radii.radiusSmall,
+                      ),
+                    ),
+                    child: Text(
+                      option.label,
+                      style: context.type.micro.copyWith(
+                        color: option == mode ? colors.accent : colors.mut,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          const Spacer(),
+          if (onEnlarge case var enlarge?)
+            Tooltip(
+              message: 'Enlarge (the whole window)',
               child: Tappable(
-                key: stageModeKey(option),
-                onTap: option != mode ? () => onMode(option) : null,
+                key: enlargeStageKey,
+                onTap: enlarge,
                 borderRadius: BorderRadius.circular(context.radii.radiusSmall),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: FwSpacing.md,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: option == mode
-                        ? colors.accent.withValues(alpha: 0.12)
-                        : null,
-                    borderRadius: BorderRadius.circular(
-                      context.radii.radiusSmall,
-                    ),
-                  ),
-                  child: Text(
-                    option.label,
-                    style: context.type.micro.copyWith(
-                      color: option == mode ? colors.accent : colors.mut,
-                    ),
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Icon(
+                    Icons.open_in_full_rounded,
+                    size: FwIconSize.sm,
+                    color: colors.mut,
                   ),
                 ),
               ),
@@ -582,8 +684,136 @@ class _ModeBar extends StatelessWidget {
   }
 }
 
+/// The same frames over the whole window, in the same mode.
+///
+/// The stage is one pane among several — a list beside it, the channels under
+/// or beside it — and a phone frame drawn at a third of the window's height
+/// is too small to judge a 0.3% change on. This is the one place the pictures
+/// get all of it. The mode travels both ways: whatever is picked here is what
+/// the pane shows when this closes.
+Future<void> showEnlargedStage(
+  BuildContext context, {
+  required String title,
+  required ShotPair shots,
+  required StageMode mode,
+  required ValueChanged<StageMode> onMode,
+  PixelDiff? diff,
+}) => showGeneralDialog<void>(
+  context: context,
+  barrierDismissible: true,
+  barrierLabel: 'Close',
+  pageBuilder: (context, _, _) => _EnlargedStage(
+    title: title,
+    shots: shots,
+    mode: mode,
+    onMode: onMode,
+    diff: diff,
+  ),
+);
+
+const enlargedStageKey = Key('stage.enlarged');
+
+class _EnlargedStage extends StatefulWidget {
+  const _EnlargedStage({
+    required this.title,
+    required this.shots,
+    required this.mode,
+    required this.onMode,
+    this.diff,
+  });
+
+  final String title;
+  final ShotPair shots;
+  final StageMode mode;
+  final ValueChanged<StageMode> onMode;
+  final PixelDiff? diff;
+
+  @override
+  State<_EnlargedStage> createState() => _EnlargedStageState();
+}
+
+class _EnlargedStageState extends State<_EnlargedStage> {
+  late var _mode = widget.mode;
+
+  @override
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    void close() => Navigator.of(context).pop();
+    return CallbackShortcuts(
+      bindings: {const SingleActivator(LogicalKeyboardKey.escape): close},
+      child: Focus(
+        autofocus: true,
+        child: Material(
+          key: enlargedStageKey,
+          color: colors.bg,
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    FwSpacing.xl,
+                    FwSpacing.md,
+                    FwSpacing.lg,
+                    FwSpacing.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          style: context.type.heading,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Tooltip(
+                        message: 'Close (Esc)',
+                        child: Tappable(
+                          onTap: close,
+                          borderRadius: BorderRadius.circular(
+                            context.radii.radiusSmall,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(FwSpacing.xs),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: FwIconSize.lg,
+                              color: colors.mut,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListenableBuilder(
+                    listenable: widget.shots,
+                    builder: (context, _) => ComparisonStage(
+                      shots: widget.shots,
+                      mode: _mode,
+                      diff: widget.diff,
+                      onMode: (mode) {
+                        setState(() => _mode = mode);
+                        widget.onMode(mode);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// How much height the onion control takes off the picture.
 const _sliderHeight = 40.0;
+
+/// How much height a frame's label takes over it, side by side.
+const _labelHeight = 18.0;
 
 /// The largest box of [aspect] that fits inside [available].
 Size _fit(double aspect, Size available) {
