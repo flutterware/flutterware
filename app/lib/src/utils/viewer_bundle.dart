@@ -66,6 +66,10 @@ class ViewerBundle {
       target,
       '--output',
       viewerDir,
+      // No service worker. An exported page is read once from a link, and the
+      // worker Flutter is retiring only ever delayed that read — the page
+      // waited on it before loading — and served a stale bundle after.
+      '--pwa-strategy=none',
       // Offline makes the page carry its own CanvasKit rather than fetch it
       // from Google's CDN — for an artifact read behind a firewall, or after
       // the engine revision it was built against stops being hosted. Without

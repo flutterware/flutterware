@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#0c1826",
     "theme_color": "#1e3350",
-    "description": "The flutterware studio over a recorded project.",
+    "description": "A flutterware report: what a branch changed in an app's previews and scenarios, or what a scenario run showed, frame by frame.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

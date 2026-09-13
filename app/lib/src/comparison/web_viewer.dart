@@ -76,6 +76,46 @@ class ViewerHistory {
   Stream<String> get changes => urlFragmentChanges;
 }
 
+/// What the page's browser tab says: the verdict, then which commit against
+/// which base — `7 changed — fe642dc against origin/master`.
+///
+/// It is what a reader with a dozen tabs open picks this one out by, and what
+/// the history remembers the visit as. A tab reading `Comparison` said neither
+/// which comparison nor whether it found anything. The verdict is worded the
+/// way the pull-request comment's heading words it, so the link and the page
+/// agree.
+String comparisonPageTitle(ComparisonIndex index) {
+  var counts = <ComparedState, int>{};
+  for (var state in [
+    for (var item in index.previewItems) item.state,
+    for (var scenario in index.scenarios) scenario.state,
+  ]) {
+    if (isComparedFinding(state)) counts[state] = (counts[state] ?? 0) + 1;
+  }
+  var gap = verdictGapOf(
+    previewsNote: index.previewsHalf.note,
+    scenariosNote: index.scenariosHalf?.note,
+    previewStates: index.previewItems.map((item) => item.state),
+    scenarioStates: index.scenarios.map((scenario) => scenario.state),
+    narrowed: index.narrowed,
+  );
+  var verdict = counts.isNotEmpty
+      ? [
+          for (var entry
+              in counts.entries.toList()
+                ..sort((a, b) => a.key.index.compareTo(b.key.index)))
+            '${entry.value} ${entry.key.name}',
+        ].join(' · ')
+      : gap != null
+      ? 'No verdict'
+      : 'Nothing changed';
+  var head = switch (index.headCommit) {
+    var sha? => '${sha.length > 7 ? sha.substring(0, 7) : sha} ',
+    null => '',
+  };
+  return '$verdict — ${head}against ${index.against}';
+}
+
 /// `previews/demo%2Fcard.dart%23card` → the tab and the decoded selection, or
 /// null when [fragment] does not start with a tab this page has.
 ///
