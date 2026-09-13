@@ -249,6 +249,30 @@ void main() {
     await screen.settle();
     await screen.shot('splash');
 
+    // The changes screen over the recorded checkout: the index from the
+    // tape's patch, then an image whose base side is a blob in the tape and
+    // whose other side is a copied file.
+    await screen.tap('Changes');
+    await screen.waitFor('shop_app.dart');
+    await screen.settle();
+    await screen.shot('changes');
+    await screen.tap('All');
+    await screen.waitFor('loyalty.dart');
+    await screen.tap('splash');
+    await screen.waitFor('branding.png');
+    await screen.tap('branding.png');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/changes/root/') &&
+            e.key.endsWith('branding.png') &&
+            e.value == 200,
+      ),
+      what: 'the recorded image fetched from beside the page',
+    );
+    await screen.settle();
+    await screen.shot('changes-image');
+
     expect(errors, isEmpty, reason: errors.join('\n'));
   });
 

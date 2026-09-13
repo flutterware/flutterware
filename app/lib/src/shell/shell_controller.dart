@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:watcher/watcher.dart';
 
 import '../changes/changes_config_cache.dart';
+import '../changes/changes_sources.dart';
 import '../context.dart';
 import '../identity/project_face.dart';
 import '../plugins/manifest_loader.dart';
@@ -91,6 +92,7 @@ class ShellController extends ChangeNotifier {
     WorktreeWatcher Function(String repoRoot)? worktreeWatcher,
     Stream<WatchEvent> Function(String directory)? watchEvents,
     Duration? watchDebounce,
+    this.changes,
   }) : _discovery = discovery ?? WorktreeDiscovery(),
        // ignore: prefer_initializing_formals
        _buildWorktreeFacts = worktreeFacts,
@@ -117,6 +119,11 @@ class ShellController extends ChangeNotifier {
 
   final AppContext appContext;
   final FlutterSdkPath flutterSdk;
+
+  /// Where the changes screen reads from, when not from the checkout: the
+  /// studio's recordings. Null is the checkout — git, the working tree, the
+  /// review log under the home directory.
+  final ChangesSources? changes;
 
   /// Which panels this build can draw.
   final PluginRegistry registry;

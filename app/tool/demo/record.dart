@@ -1,11 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 // ignore: implementation_imports
 import 'package:flutterware/src/clock.dart';
 import 'package:flutterware/plugins.dart' show FilePerLocaleCatalog;
 import 'package:flutterware/server.dart';
 import 'package:flutterware/translations.dart' show translationExportFile;
+import 'package:flutterware_app/src/changes/change_set.dart';
+import 'package:flutterware_app/src/changes/changes_config_cache.dart';
+import 'package:flutterware_app/src/changes/changes_files.dart';
+import 'package:flutterware_app/src/changes/changes_probe.dart';
+import 'package:flutterware_app/src/changes/file_contents.dart';
+import 'package:flutterware_app/src/changes/patch_index.dart';
 import 'package:flutterware_app/src/demo/recorded_config.dart';
 import 'package:flutterware_app/src/dependencies/model/pub_deps.dart';
 import 'package:flutterware_app/src/dependencies/model/pubspec_lock.dart';
@@ -21,12 +28,14 @@ import 'package:flutterware_app/src/splash/model/fingerprint.dart';
 import 'package:flutterware_app/src/splash/model/scan.dart';
 import 'package:flutterware_app/src/translations/loader.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
+import 'package:flutterware_app/src/worktrees/providers/git.dart';
 import 'package:image/image.dart' as img;
 import 'package:package_config/package_config.dart';
 import 'package:path/path.dart' as p;
 import 'package:pubspec_parse/pubspec_parse.dart' show Pubspec;
 import 'package:yaml/yaml.dart';
 
+import 'changes_branch.dart';
 import 'server_traffic.dart';
 import 'stack_traffic.dart';
 
@@ -51,12 +60,12 @@ import 'stack_traffic.dart';
 ///
 /// `--only=launcher-icon`, `--only=scenarios`, `--only=server`,
 /// `--only=stack`, `--only=translations`, `--only=store`,
-/// `--only=dependencies` or `--only=splash` records one part. The
-/// launcher-icon, server, stack and splash parts are byte-identical on every
-/// machine, which CI checks; the scenario, translations and store parts
-/// spawn the harness and keep its pixels, and the dependencies part asks
-/// pub.dev, none of which is, and those are recorded from one machine on
-/// purpose.
+/// `--only=dependencies`, `--only=splash` or `--only=changes` records one
+/// part. The launcher-icon, server, stack, splash and changes parts are
+/// byte-identical on every machine, which CI checks; the scenario,
+/// translations and store parts spawn the harness and keep its pixels, and
+/// the dependencies part asks pub.dev, none of which is, and those are
+/// recorded from one machine on purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
 /// this process, `tool/demo/server_traffic.dart` reports into it the way a
@@ -78,11 +87,12 @@ Future<void> main(List<String> arguments) async {
         'store',
         'dependencies',
         'splash',
+        'changes',
       }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
           '[--only=launcher-icon|scenarios|server|stack|translations|store'
-          '|dependencies|splash]',
+          '|dependencies|splash|changes]',
         );
         exit(64);
       }
@@ -119,6 +129,12 @@ Future<void> main(List<String> arguments) async {
       await _recordDependencies(project: project, out: out),
     if (only == null || only == 'splash')
       _recordSplash(project: project, out: out),
+    if (only == null || only == 'changes')
+      await _recordChanges(
+        project: project,
+        out: out,
+        scratch: p.join(appRoot, 'build', 'demo_record'),
+      ),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '
@@ -824,4 +840,246 @@ String _recordStack({required String out}) {
       '${const JsonEncoder.withIndent('  ').convert({'state': 'up', 'answers': answers})}\n',
     );
   return '1 stack: ${answers.length} answers';
+}
+
+/// What the changes screen reads: git, as it answered over a checkout with
+/// a branch in progress, and the files the screen opens.
+///
+/// The checkout is built for the occasion — see `changes_branch.dart` — and
+/// the real probe runs over it through a runner that keeps every call. Then
+/// the bodies the screen would open on a click are read the way the screen
+/// reads them, so the image's base side, the rendered markdown and the
+/// untracked files are in the tape and the copies too. The explorer's
+/// questions are asked last, in its own words, so the tab and the overview
+/// have their branch and their counts.
+///
+/// Byte-identical on every machine: the checkout's shas are pinned with its
+/// author and clock, and the stat times are the project clock's.
+Future<String> _recordChanges({
+  required String project,
+  required String out,
+  required String scratch,
+}) async {
+  var dir = Directory(p.join(out, 'changes'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+
+  var repo = await buildChangesRepo(
+    project: project,
+    root: p.join(scratch, 'changes_repo'),
+  );
+  var root = repo.root;
+
+  var tape = _GitTape(repo);
+  var files = _RecordingChangesFiles(root);
+  var probe = ChangesProbe(runGit: tape.run, files: files);
+  var set = await probe.probe(
+    root,
+    config: recordedChangesConfig,
+    configState: ChangesConfigState.fresh,
+  );
+
+  // The bodies a click opens, read the way the screen reads them.
+  var contents = FileContentStore(root, probe: probe, files: files);
+  for (var file in set.changed) {
+    switch (fileBodyKind(file.path)) {
+      case FileBodyKind.image:
+        if (file.status != ChangeStatus.added && set.mergeBase != null) {
+          await contents.atRevision(
+            set.mergeBase!,
+            file.oldPath ?? file.path,
+            maxBytes: ChangesLimits.imageContentBytes,
+          );
+        }
+        if (file.status != ChangeStatus.deleted) {
+          await contents.onDisk(
+            file.path,
+            maxBytes: ChangesLimits.imageContentBytes,
+          );
+        }
+      case FileBodyKind.markdown || FileBodyKind.svg:
+        if (file.status != ChangeStatus.deleted) {
+          await contents.onDisk(
+            file.path,
+            maxBytes: ChangesLimits.textContentBytes,
+          );
+        }
+      case FileBodyKind.text:
+        break;
+    }
+  }
+  for (var entry in set.untracked) {
+    if (entry.isDirectory) continue;
+    await contents.onDisk(
+      entry.path,
+      maxBytes: fileBodyKind(entry.path) == FileBodyKind.image
+          ? ChangesLimits.imageContentBytes
+          : ChangesLimits.textContentBytes,
+    );
+  }
+
+  // The explorer's questions: the worktree list, then what the facts probe
+  // asks of the one worktree, in its order.
+  await tape.runProcess('git', [
+    'worktree',
+    'list',
+    '--porcelain',
+  ], workingDirectory: root);
+  var git = GitProbe(runProcess: tape.runProcess);
+  var tips = await git.branchTips(root);
+  var base = await git.defaultBranch(root);
+  var status = await git.status(root);
+  var baseSha = base == null ? null : tips[base]?.sha;
+  var headSha = status?.head ?? tips[status?.branch ?? '']?.sha;
+  if (baseSha != null && headSha != null) {
+    await git.branchDiff(root, base: baseSha, head: headSha);
+  }
+
+  // The tape.
+  var calls = <Map<String, Object?>>[];
+  var index = 0;
+  for (var call in tape.calls.values) {
+    index++;
+    String? outPath;
+    if (call.out.isNotEmpty) {
+      String? text;
+      try {
+        text = utf8.decode(call.out);
+      } on FormatException {
+        text = null;
+      }
+      var name =
+          '${index.toString().padLeft(2, '0')}-${_gitVerb(call.args)}'
+          '${text == null ? '.bin' : '.txt'}';
+      outPath = 'changes/git/$name';
+      var target = File(p.join(out, outPath))
+        ..parent.createSync(recursive: true);
+      if (text == null) {
+        target.writeAsBytesSync(call.out);
+      } else {
+        target.writeAsStringSync(text.replaceAll(root, recordedProjectRoot));
+      }
+    }
+    calls.add({'args': call.args, 'exit': call.exitCode, 'out': ?outPath});
+  }
+  File(p.join(out, recordedGitTapePath))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({'branch': changesBranch, 'calls': calls})}\n',
+    );
+
+  // The files, at their own paths, with their stats pinned.
+  var stats = <String, Object?>{};
+  for (var path in files.statted.toList()..sort()) {
+    var rel = p.relative(path, from: root).replaceAll(r'\', '/');
+    stats[rel] = {
+      'size': File(path).lengthSync(),
+      'modified': pinnedClockOrigin
+          .subtract(const Duration(minutes: 10))
+          .toIso8601String(),
+    };
+  }
+  var copied = 0;
+  for (var path in files.read) {
+    var rel = p.relative(path, from: root).replaceAll(r'\', '/');
+    var target = File(p.join(out, recordedChangesFilePath(rel)))
+      ..parent.createSync(recursive: true);
+    File(path).copySync(target.path);
+    copied += target.lengthSync();
+  }
+  File(
+    p.join(out, recordedChangesFilesIndexPath),
+  ).writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(stats)}\n');
+
+  return 'a delta of ${set.changed.length} files and ${set.untracked.length} '
+      'untracked entries on $changesBranch: ${calls.length} git answers, '
+      '${files.read.length} files read '
+      '(${(copied / 1024).toStringAsFixed(0)} KB)';
+}
+
+/// The subcommand in [arguments], past the options the probe prefixes.
+String _gitVerb(List<String> arguments) {
+  for (var i = 0; i < arguments.length; i++) {
+    var argument = arguments[i];
+    if (argument == '-c') {
+      i++;
+      continue;
+    }
+    if (argument.startsWith('-')) continue;
+    return argument;
+  }
+  return 'git';
+}
+
+/// One git call as the tape keeps it.
+typedef _TapeCall = ({List<String> args, int exitCode, Uint8List out});
+
+/// Runs git in the scratch checkout and keeps every answer, keyed the way
+/// `RecordedGit` looks them up. Both runner shapes the app uses — the
+/// probe's bytes and the explorer's text — land in the same map.
+class _GitTape {
+  _GitTape(this.repo);
+
+  final ScratchRepo repo;
+  final calls = <String, _TapeCall>{};
+
+  Future<GitOutput> run(String directory, List<String> arguments) async {
+    if (!p.equals(directory, repo.root)) {
+      throw StateError(
+        'git asked in $directory, not the scratch checkout ${repo.root}',
+      );
+    }
+    var result = await repo.run(arguments, stdoutEncoding: null);
+    var out = Uint8List.fromList(result.stdout as List<int>);
+    calls.putIfAbsent(
+      gitTapeKey(arguments),
+      () => (args: arguments, exitCode: result.exitCode, out: out),
+    );
+    return GitOutput(
+      exitCode: result.exitCode,
+      stdout: out,
+      stderr: '${result.stderr}',
+    );
+  }
+
+  Future<ProcessResult> runProcess(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+  }) async {
+    var out = await run(workingDirectory ?? repo.root, arguments);
+    return ProcessResult(
+      0,
+      out.exitCode,
+      const Utf8Decoder(allowMalformed: true).convert(out.stdout),
+      out.stderr,
+    );
+  }
+}
+
+/// The disk, remembering what was asked of it.
+class _RecordingChangesFiles extends ChangesFiles {
+  _RecordingChangesFiles(this.root);
+
+  final String root;
+  final _live = const LiveChangesFiles();
+
+  /// Every path a stat found.
+  final statted = <String>{};
+
+  /// Every path read whole.
+  final read = <String>{};
+
+  @override
+  Future<FileFacts?> stat(String path) async {
+    var facts = await _live.stat(path);
+    if (facts != null) statted.add(path);
+    return facts;
+  }
+
+  @override
+  Future<Uint8List?> readBytes(String path) async {
+    var bytes = await _live.readBytes(path);
+    if (bytes != null) read.add(path);
+    return bytes;
+  }
 }

@@ -33,6 +33,23 @@ void main() {
     await s.tap('Themed icon', shot: Shot('The themed icon'));
   });
 
+  /// The changes screen over the recorded checkout: a feature branch with
+  /// three commits and two files still on the desk. It opens on what the
+  /// project pins, because it declared rules; then the whole tree, a new
+  /// file, a diff, and an image with both of its sides. Folders two deep
+  /// start folded, so the image's is opened first.
+  scenario('Changes of a recorded project', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Changes', shot: Shot('What the project pins'));
+    await s.tap('All', shot: Shot('The whole delta'));
+    await s.tap('loyalty.dart', shot: Shot('A new file, with an edit on top'));
+    await s.tap('shop_app.dart', shot: Shot('A diff'));
+    await s.tap('splash');
+    await s.tap('branding.png', shot: Shot('An image, both sides'));
+  });
+
   /// The splash panel over the recorded files: every surface in both themes,
   /// read back from what the generator wrote, then one cell opened. The
   /// scan is the live one, run over files the recording holds in memory.

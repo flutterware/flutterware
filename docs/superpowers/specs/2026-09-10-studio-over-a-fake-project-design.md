@@ -979,6 +979,51 @@ stamped its time with the wall clock, the fourth panel to; it reads
 `clock.now()`. And the analyzer had to be told the copied `pubspec.yaml`
 is a fixture, not a package.
 
+### The changes screen (2026-09-13)
+
+Not a plugin: a shell screen, three tabs under the comparison strip, and
+only the file diff is recordable — the previews and scenarios comparisons
+build and run the base checkout, which nothing but a real one can. On the
+web page it was a grey error box: the review log resolves its path under
+the home directory, which reads the platform.
+
+**The seams.** The probe already took a `GitRunner` and the screen already
+took a `load` and a `reviewStore` for its tests. What was missing: a
+`ChangesFiles` interface (a stat and a read — the stamp on an untracked
+file, the bytes behind an image or a rendered markdown file) on the probe
+and on `FileContentStore`; `ReviewStore` as an interface with the file log
+and a `MemoryReviewStore` behind it; a `contents:` door on the screen; and
+`ChangesSources` — the three together — as a field on `ShellController`,
+which the shell view hands to the screen. `ComparisonTabs(unavailable:)`
+is told up front that there is no base to build. Over a recording nothing
+is watched: no working tree, no review file.
+
+**The recording is a git tape.** `examples/brewline` is a directory of
+this repository, so its delta is this repository's. The recorder builds
+the repository it would be on its own — the tracked tree committed as
+`main` — and grows a feature branch on it by script
+(`app/tool/demo/changes_branch.dart`): a tidy-up commit with a rename and
+a deletion, a stamp-card feature with a new file, edits, a README
+paragraph and a recoloured image, its French copy, then an edit not
+committed and two things git has not been told about. Every state the
+screen draws is in it once. The real probe runs over that checkout through
+a runner that keeps every call, then the bodies a click would open are
+read the way the screen reads them, then the explorer's questions are
+asked in its own words — so the tab says `loyalty-stamps` and the overview
+says three ahead. Fourteen answers, three copied files, 6 KB of them.
+Identity, dates and every git setting that shapes output are pinned
+through the environment (`GIT_CONFIG_COUNT`, not `-c`, so the recorded
+arguments are the app's own), and it re-records byte-identical, so CI
+diffs it beside the icon, server, stack and splash parts.
+
+**What it bought.** The page and the studio's own scenario show the screen
+opening on what the project pins — the recorded manifest declares
+`fw.changes`, as brewline's own now does — then the whole tree, a new file
+with an uncommitted hunk on top, a diff, and an image with both sides: the
+base from a blob in the tape, now from the copied file. Notes taken on the
+page fold and resolve in memory and are gone with it. The read-at stamp
+was the fifth wall clock; it reads `clock.now()`.
+
 ## What to do next
 
 0. ~~The launcher-icon slice.~~ Built; see above.

@@ -108,7 +108,7 @@ class ReviewController extends ChangeNotifier {
   /// The parent, not the file. A watch cannot be placed on something that does
   /// not exist, and a checkout with no comments has no log until the first
   /// note. The directory is this checkout's own — see
-  /// [ReviewStore.fileFor] — so the traffic is this log and its neighbours,
+  /// [FileReviewStore.fileFor] — so the traffic is this log and its neighbours,
   /// not a tree.
   ///
   /// And it does not create it. Creating the directory to watch it would mean
@@ -116,12 +116,15 @@ class ReviewController extends ChangeNotifier {
   /// `~/.flutterware`, one per checkout, for a review that was never written. Writing the
   /// first note creates it, and [_apply] arms the watch then.
   void _watch() {
-    var parent = _store.file.parent;
+    // Only a file can be watched; a memory log has no other writer.
+    var store = _store;
+    if (store is! FileReviewStore) return;
+    var parent = store.file.parent;
     if (!parent.existsSync()) return;
     try {
       _watcher = parent
           .watch()
-          .where((event) => p.equals(event.path, _store.file.path))
+          .where((event) => p.equals(event.path, store.file.path))
           .listen((_) => reload());
     } on Object {
       // A platform without watches, or a home that will not take one. The

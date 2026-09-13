@@ -13,6 +13,7 @@ library;
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 
 import '../worktrees/facts_store.dart';
@@ -146,7 +147,7 @@ class ChangesController extends ChangeNotifier {
       // screen does not rebuild. See [ChangeSet.sameAnswerAs].
       _value = _value?.sameAnswerAs(set) ?? false ? _value : set;
       _failure = null;
-      _readAt = DateTime.now();
+      _readAt = clock.now();
     } on Object catch (error) {
       if (_disposed) return;
       // The last good answer survives a failed reload. A worktree that just

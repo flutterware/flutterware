@@ -32,7 +32,7 @@ void main() {
     worktree.deleteSync(recursive: true);
   });
 
-  ReviewStore storeFor() => ReviewStore.forWorktree(path);
+  FileReviewStore storeFor() => FileReviewStore.forWorktree(path);
 
   ReviewComment note(String id, {String body = 'a note'}) => ReviewComment(
     id: id,

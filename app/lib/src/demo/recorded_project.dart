@@ -55,6 +55,7 @@ import '../worktrees/providers/agent.dart';
 import '../worktrees/providers/forge.dart';
 import '../worktrees/providers/git.dart';
 import '../worktrees/watchers.dart';
+import 'recorded_changes.dart';
 import 'recorded_config.dart';
 import 'recorded_dependencies.dart';
 import 'recorded_scenarios.dart';
@@ -74,6 +75,9 @@ import 'recording.dart';
 PluginManifest recordedManifest() {
   const root = Pkg('.');
   var fw = FlutterwareConfig();
+  // How the delta is ranked, as the demo app declares it — see
+  // `recorded_config.dart` for why the rules live apart.
+  fw.changes(recordedChangesConfig);
   fw.use(Dependencies(packages: const [DependenciesPackage(root)]));
   // A phone app: its previews open on a phone, as the root manifest says.
   fw.use(
@@ -165,6 +169,9 @@ ShellController recordedShell({
         appToolDirectory: Directory(recordedProjectRoot),
       );
   var declared = manifest ?? recordedManifest();
+  // One tape answers git for the worktree list, the explorer's facts and the
+  // changes screen: the recorder asked all three's questions of one checkout.
+  var git = RecordedGit(recording);
   return ShellController(
     appContext: context,
     flutterSdk: flutterSdk ?? FlutterSdkPath('$recordedProjectRoot/flutter'),
@@ -177,7 +184,8 @@ ShellController recordedShell({
         plugin.id: _recordedCore(plugin.id, recording, previews),
     }),
     manifestLoader: RecordedManifestLoader(declared),
-    discovery: WorktreeDiscovery(runProcess: _recordedGit),
+    discovery: WorktreeDiscovery(runProcess: git.runProcess),
+    changes: recordedChangesSources(recording, git: git),
     worktreeFacts: (root) => WorktreeFactsController(
       repoRoot: root,
       probe: WorktreeFactsProbe(
@@ -185,7 +193,7 @@ ShellController recordedShell({
         // A path that is not there: the store reads an empty cache from it and
         // swallows the write, which is the one filesystem touch left here.
         store: WorktreeFactsStore.open(root, at: File('$root/facts.json')),
-        git: GitProbe(runProcess: _recordedGit),
+        git: GitProbe(runProcess: git.runProcess),
         agent: const _NoAgents(),
         forge: const _NoForge(),
         stack: RecordedStacks(RecordedStack(recording)),
@@ -202,24 +210,6 @@ ShellController recordedShell({
     ),
     watchEvents: (_) => const Stream.empty(),
   );
-}
-
-/// The one git answer a recording has: it is a repository with one worktree
-/// on `main`. Anything else git is asked fails, quietly.
-Future<ProcessResult> _recordedGit(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-}) async {
-  if (arguments.take(2).join(' ') == 'worktree list') {
-    return ProcessResult(
-      0,
-      0,
-      'worktree $recordedProjectRoot\nbranch refs/heads/main\n',
-      '',
-    );
-  }
-  return ProcessResult(0, 1, '', 'not available in a recording');
 }
 
 /// The live core over the recording, for a plugin with one behind it; a

@@ -146,3 +146,24 @@ String recordedScenarioSlug(String scenario) => scenario
     .toLowerCase()
     .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
     .replaceAll(RegExp(r'^-|-$'), '');
+
+/// The git tape behind the changes screen: every call the probe and the
+/// explorer's facts made over the recorded checkout, keyed by its arguments,
+/// with where each answer's bytes sit. A text answer is a `.txt` beside it
+/// and a binary one — a blob — a `.bin`.
+const recordedGitTapePath = 'changes/git.json';
+
+/// What the changes screen read off the recorded working tree: each file's
+/// size and time, keyed by checkout-relative path. The bytes sit at
+/// [recordedChangesFilePath].
+const recordedChangesFilesIndexPath = 'changes/files.json';
+
+/// Where the copy of one working-tree file the changes screen read goes: at
+/// its own relative path, so the tree under the recording is the tree the
+/// screen read.
+String recordedChangesFilePath(String relative) => 'changes/root/$relative';
+
+/// How a call is filed in the git tape: its arguments, joined by a byte no
+/// argument carries. The recorder files with this; `RecordedGit` looks up
+/// with it.
+String gitTapeKey(List<String> arguments) => arguments.join('\u0000');

@@ -98,6 +98,7 @@ class ChangesScreen extends StatefulWidget {
     this.onPathChanged,
     this.gitMoved,
     this.load,
+    this.contents,
     this.reviewStore,
     this.live = true,
     this.showTitle = true,
@@ -136,8 +137,12 @@ class ChangesScreen extends StatefulWidget {
   final bool live;
 
   /// Injected for widget tests, which must neither spawn an isolate nor need a
-  /// repository.
+  /// repository — and by the studio's recordings, which have neither.
   final Future<ChangeSet> Function(String path)? load;
+
+  /// The bytes behind the bodies a diff cannot draw. Defaults to the working
+  /// tree and git; a recording hands in its own.
+  final FileContentStore Function(String worktreePath)? contents;
 
   /// Where review comments are logged. Defaults to this checkout's own file —
   /// injected only by tests, which must not append to the developer's real
@@ -192,7 +197,9 @@ class _ChangesScreenState extends State<ChangesScreen> {
   /// screen can be re-targeted at another one under the same element.
   FileContentStore get _contents {
     if (_contentsStore?.worktreePath != widget.worktree.path) {
-      _contentsStore = FileContentStore(widget.worktree.path);
+      _contentsStore =
+          widget.contents?.call(widget.worktree.path) ??
+          FileContentStore(widget.worktree.path);
     }
     return _contentsStore!;
   }

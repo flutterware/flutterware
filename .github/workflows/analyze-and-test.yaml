@@ -366,8 +366,9 @@ jobs:
           dart run tool/demo/record.dart --only=server
           dart run tool/demo/record.dart --only=stack
           dart run tool/demo/record.dart --only=splash
+          dart run tool/demo/record.dart --only=changes
           git diff --exit-code --stat -- demo/fixture \
-            || (echo "##[error] app/demo/fixture is stale. Run 'cd app && fvm dart run tool/demo/record.dart' with '--only=launcher-icon', '--only=server', '--only=stack' and '--only=splash', and commit the result." \
+            || (echo "##[error] app/demo/fixture is stale. Run 'cd app && fvm dart run tool/demo/record.dart' with '--only=launcher-icon', '--only=server', '--only=stack', '--only=splash' and '--only=changes', and commit the result." \
                 && exit 1)
         working-directory: app
       - name: "the studio's own scenario, under the harness"

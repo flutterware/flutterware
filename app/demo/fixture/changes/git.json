@@ -1,0 +1,181 @@
+{
+  "branch": "loyalty-stamps",
+  "calls": [
+    {
+      "args": [
+        "--no-optional-locks",
+        "-c",
+        "core.quotePath=false",
+        "-c",
+        "color.ui=never",
+        "rev-parse",
+        "--verify",
+        "HEAD"
+      ],
+      "exit": 0,
+      "out": "changes/git/01-rev-parse.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "-c",
+        "core.quotePath=false",
+        "-c",
+        "color.ui=never",
+        "status",
+        "--porcelain=v2",
+        "--untracked-files=normal",
+        "-z"
+      ],
+      "exit": 0,
+      "out": "changes/git/02-status.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "symbolic-ref",
+        "--short",
+        "refs/remotes/origin/HEAD"
+      ],
+      "exit": 128
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        "main"
+      ],
+      "exit": 0,
+      "out": "changes/git/04-rev-parse.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "-c",
+        "core.quotePath=false",
+        "-c",
+        "color.ui=never",
+        "merge-base",
+        "main",
+        "HEAD"
+      ],
+      "exit": 0,
+      "out": "changes/git/05-merge-base.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "-c",
+        "core.quotePath=false",
+        "-c",
+        "color.ui=never",
+        "diff",
+        "--name-only",
+        "-M",
+        "-z",
+        "HEAD"
+      ],
+      "exit": 0,
+      "out": "changes/git/06-diff.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "-c",
+        "core.quotePath=false",
+        "-c",
+        "color.ui=never",
+        "diff",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-color",
+        "--src-prefix=a/",
+        "--dst-prefix=b/",
+        "-M",
+        "c7c4557f11efa8a2c83d7227f638b17fedfa43f0"
+      ],
+      "exit": 0,
+      "out": "changes/git/07-diff.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "-c",
+        "core.quotePath=false",
+        "-c",
+        "color.ui=never",
+        "cat-file",
+        "-s",
+        "c7c4557f11efa8a2c83d7227f638b17fedfa43f0:assets/splash/branding.png"
+      ],
+      "exit": 0,
+      "out": "changes/git/08-cat-file.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "-c",
+        "core.quotePath=false",
+        "-c",
+        "color.ui=never",
+        "cat-file",
+        "blob",
+        "c7c4557f11efa8a2c83d7227f638b17fedfa43f0:assets/splash/branding.png"
+      ],
+      "exit": 0,
+      "out": "changes/git/09-cat-file.bin"
+    },
+    {
+      "args": [
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "exit": 0,
+      "out": "changes/git/10-worktree.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "for-each-ref",
+        "--format=%(refname:short)%09%(committerdate:unix)%09%(objectname)",
+        "refs/heads/"
+      ],
+      "exit": 0,
+      "out": "changes/git/11-for-each-ref.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "status",
+        "--porcelain=v2",
+        "--branch"
+      ],
+      "exit": 0,
+      "out": "changes/git/12-status.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "rev-list",
+        "--left-right",
+        "--count",
+        "c7c4557f11efa8a2c83d7227f638b17fedfa43f0...de26831979c98c64f8db1198b7cb34fbef10b738"
+      ],
+      "exit": 0,
+      "out": "changes/git/13-rev-list.txt"
+    },
+    {
+      "args": [
+        "--no-optional-locks",
+        "diff",
+        "--numstat",
+        "c7c4557f11efa8a2c83d7227f638b17fedfa43f0...de26831979c98c64f8db1198b7cb34fbef10b738"
+      ],
+      "exit": 0,
+      "out": "changes/git/14-diff.txt"
+    }
+  ]
+}

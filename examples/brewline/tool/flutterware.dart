@@ -78,6 +78,20 @@ void main() => Flutterware.configure((fw) {
   fw.use(NativeSplash(packages: [.new(app)]));
   fw.use(LauncherIcon(packages: [.new(app)]));
 
+  // What to read first when this project's changes are reviewed: the words
+  // — a string that moved is a screen that moved, in two languages — then the
+  // package and the app's shell. The rest of a delta is ordinary until it
+  // proves otherwise.
+  fw.changes(
+    ChangesConfig(
+      attention: [
+        'assets/i18n/*.json',
+        'pubspec.yaml',
+        'lib/shop/shop_app.dart',
+      ],
+    ),
+  );
+
   fw.use(
     Run(
       packages: [

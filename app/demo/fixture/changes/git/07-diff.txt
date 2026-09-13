@@ -1,0 +1,484 @@
+diff --git a/README.md b/README.md
+index d9e05ff..452eb09 100644
+--- a/README.md
++++ b/README.md
+@@ -14,6 +14,14 @@ That is the whole setup. The first run is slow — it builds the studio — and
+ needs no SDK of its own: the `dart` you type is the `dart` it uses, so
+ `fvm dart run flutterware` works the same way if that is how you pin.
+ 
++## The stamp card
++
++Every drink ordered is a stamp on the card behind the loyalty icon on the
++menu; ten stamps and the next one is on the house. The card lives beside the
++cart rather than in it — an order clears the cart and keeps the stamps — so
++`lib/shop/loyalty.dart` is a scope of its own above the navigator, the same
++shape as the cart.
++
+ ## What to look at
+ 
+ **Previews** — `demo/shop.dart` has one entry per screen, annotated with
+diff --git a/assets/i18n/en.json b/assets/i18n/en.json
+index f448f34..c7138a1 100644
+--- a/assets/i18n/en.json
++++ b/assets/i18n/en.json
+@@ -16,6 +16,9 @@
+   "thanks": "Thanks, **{name}**!",
+   "onItsWay": "Your order is on its way.",
+   "backToMenu": "Back to menu",
++  "loyaltyTitle": "Your stamps",
++  "stampsOf": "{count} of 8 — keep going.",
++  "freeDrink": "Ten stamps, and the next one is on us.",
+   "drink.cappuccino": "Espresso, steamed milk, silky foam.",
+   "drink.flat-white": "Double espresso under a thin veil of milk.",
+   "drink.matcha": "Whisked green tea, soft and grassy.",
+diff --git a/assets/i18n/fr.json b/assets/i18n/fr.json
+index 112b804..25ad0ba 100644
+--- a/assets/i18n/fr.json
++++ b/assets/i18n/fr.json
+@@ -15,6 +15,8 @@
+   "emptyCart": "Le panier est vide.",
+   "thanks": "Merci, **{name}** !",
+   "backToMenu": "Retour à la carte",
++  "loyaltyTitle": "Vos tampons",
++  "stampsOf": "{count} sur 10 — encore un effort.",
+   "drink.cappuccino": "Espresso, lait vapeur, mousse soyeuse.",
+   "drink.flat-white": "Double espresso sous un voile de lait.",
+   "drink.matcha": "Thé vert fouetté, doux et végétal.",
+diff --git a/assets/splash/branding.png b/assets/splash/branding.png
+index 79859e2..4c81eff 100644
+Binary files a/assets/splash/branding.png and b/assets/splash/branding.png differ
+diff --git a/demo/store_panorama.dart b/demo/store_panorama.dart
+deleted file mode 100644
+index 8f431b8..0000000
+--- a/demo/store_panorama.dart
++++ /dev/null
+@@ -1,141 +0,0 @@
+-/// The shop's store frame, drawn as a listing rather than as one picture.
+-///
+-/// Five canvases side by side, which is the only way to see whether a panorama
+-/// actually joins. A frame that looks right on its own can still restart its
+-/// scene at every boundary, and one preview would never show it — the join is
+-/// the thing being built, so the join has to be what is on screen.
+-///
+-/// The screens inside are painted here, so this needs no export behind it and
+-/// iterates at the speed of `previews screenshot` rather than of a listing.
+-library;
+-
+-import 'dart:ui' as ui;
+-
+-import 'package:flutter/foundation.dart';
+-import 'package:flutter/material.dart';
+-import 'package:flutter/widget_previews.dart';
+-import 'package:flutterware/plugins.dart';
+-import 'package:flutterware/store.dart';
+-import 'package:brewline/store_frame.dart';
+-
+-const _slugs = ['welcome', 'menu', 'cart', 'order-placed', 'empty-cart'];
+-
+-@Preview(name: 'Coffee frame · the whole listing', group: 'Store')
+-Widget coffeeListing() =>
+-    _listing(PlayClass.phone.canvas, PlayClass.phone.device);
+-
+-@Preview(name: 'Coffee frame · one shot', group: 'Store')
+-Widget coffeeOne() =>
+-    _listing(PlayClass.phone.canvas, PlayClass.phone.device, only: 3);
+-
+-@Preview(name: 'Coffee frame · App Store canvas', group: 'Store')
+-Widget coffeeAppStore() =>
+-    _listing(AppStoreClass.iphone69.canvas, AppStoreClass.iphone69.device);
+-
+-Widget _listing(StoreCanvas canvas, Device device, {int? only}) {
+-  var images = [
+-    for (var i = 0; i < _slugs.length; i++) _StandIn(index: i, device: device),
+-  ];
+-  var shots = [
+-    for (var i = 0; i < _slugs.length; i++)
+-      StoreShot(
+-        image: images[i],
+-        set: images,
+-        imageSize: Size(device.width, device.height),
+-        slug: _slugs[i],
+-        index: i + 1,
+-        total: _slugs.length,
+-        locale: const Locale('en'),
+-        device: device,
+-        canvas: canvas,
+-      ),
+-  ];
+-  // **The `Row` needs its own `Directionality`.** `StoreFrameStage` supplies
+-  // one *inside* each canvas — that is how a frame gets RTL from its locale —
+-  // but the row laying the canvases side by side is above them, and these
+-  // entries declare no wrapper of their own. Without it the flex asserts
+-  // "Horizontal RenderFlex with multiple children has a null textDirection"
+-  // and everything under it fails to lay out. `previews screenshot` drew a
+-  // picture anyway; `previews audit` is what reported it.
+-  return Directionality(
+-    textDirection: TextDirection.ltr,
+-    child: FittedBox(
+-      child: Row(
+-        mainAxisSize: MainAxisSize.min,
+-        children: [
+-          for (var shot in shots)
+-            if (only == null || only == shot.index)
+-              StoreFrameStage(shot: shot, child: CoffeeStoreFrame(shot)),
+-        ],
+-      ),
+-    ),
+-  );
+-}
+-
+-/// A painted stand-in for a captured screen — enough shape to judge the
+-/// composition around it, and obviously not the real app.
+-class _StandIn extends ImageProvider<_StandIn> {
+-  const _StandIn({required this.index, required this.device});
+-
+-  final int index;
+-  final Device device;
+-
+-  static const _grounds = [
+-    Color(0xFFFDF3EC),
+-    Color(0xFFFFF6F0),
+-    Color(0xFFFBF1E8),
+-  ];
+-
+-  @override
+-  Future<_StandIn> obtainKey(ImageConfiguration configuration) =>
+-      SynchronousFuture(this);
+-
+-  @override
+-  ImageStreamCompleter loadImage(_StandIn key, ImageDecoderCallback _) =>
+-      OneFrameImageStreamCompleter(_paint());
+-
+-  Future<ImageInfo> _paint() async {
+-    var width = device.width;
+-    var height = device.height;
+-    var recorder = ui.PictureRecorder();
+-    var canvas = Canvas(recorder);
+-    canvas.drawRect(
+-      Rect.fromLTWH(0, 0, width, height),
+-      Paint()..color = _grounds[index % _grounds.length],
+-    );
+-    canvas.drawRRect(
+-      RRect.fromRectAndRadius(
+-        Rect.fromLTWH(width * 0.08, height * 0.07, width * 0.5, height * 0.035),
+-        const Radius.circular(8),
+-      ),
+-      Paint()..color = const Color(0x555C2E1A),
+-    );
+-    var ink = Paint()..color = const Color(0x1A5C2E1A);
+-    for (var row = 0; row < 5; row++) {
+-      canvas.drawRRect(
+-        RRect.fromRectAndRadius(
+-          Rect.fromLTWH(
+-            width * 0.08,
+-            height * (0.17 + row * 0.1),
+-            width * 0.84,
+-            height * 0.075,
+-          ),
+-          const Radius.circular(12),
+-        ),
+-        ink,
+-      );
+-    }
+-    var image = await recorder.endRecording().toImage(
+-      width.round(),
+-      height.round(),
+-    );
+-    return ImageInfo(image: image);
+-  }
+-
+-  @override
+-  bool operator ==(Object other) =>
+-      other is _StandIn && other.index == index && other.device == device;
+-
+-  @override
+-  int get hashCode => Object.hash(index, device);
+-}
+diff --git a/lib/shop/loyalty.dart b/lib/shop/loyalty.dart
+new file mode 100644
+index 0000000..eab36c2
+--- /dev/null
++++ b/lib/shop/loyalty.dart
+@@ -0,0 +1,104 @@
++import 'package:flutter/material.dart';
++
++import 'shop_app.dart';
++
++/// Ten stamps and the eleventh coffee is on the house.
++///
++/// Kept beside the cart rather than in it: an order clears the cart and
++/// leaves the stamps, which is the whole point of them.
++class Loyalty extends ChangeNotifier {
++  static const perReward = 8;
++
++  int _stamps = 0;
++  int get stamps => _stamps;
++
++  /// One stamp per drink ordered, never per order — a round of five is five.
++  void stamp(int drinks) {
++    if (drinks <= 0) return;
++    _stamps = (_stamps + drinks) % perReward;
++    notifyListeners();
++  }
++
++  static Loyalty of(BuildContext context) => LoyaltyScope.of(context);
++}
++
++/// The stamps, above the navigator, so every screen sees the same card.
++class LoyaltyScope extends InheritedNotifier<Loyalty> {
++  const LoyaltyScope({
++    super.key,
++    required Loyalty loyalty,
++    required super.child,
++  }) : super(notifier: loyalty);
++
++  static Loyalty of(BuildContext context) => context
++      .dependOnInheritedWidgetOfExactType<LoyaltyScope>()!
++      .notifier!;
++}
++
++/// The card: a row of circles, filled up to the count.
++class StampCard extends StatelessWidget {
++  const StampCard({super.key, required this.stamps});
++
++  final int stamps;
++
++  @override
++  Widget build(BuildContext context) {
++    var scheme = Theme.of(context).colorScheme;
++    return Wrap(
++      spacing: 10,
++      runSpacing: 10,
++      alignment: WrapAlignment.center,
++      children: [
++        for (var i = 0; i < Loyalty.perReward; i++)
++          Container(
++            width: 36,
++            height: 36,
++            decoration: BoxDecoration(
++              shape: BoxShape.circle,
++              color: i < stamps ? scheme.primary : scheme.surfaceContainerLow,
++              border: Border.all(color: scheme.primary, width: 2),
++            ),
++            child: i < stamps
++                ? Icon(Icons.local_cafe, size: 18, color: scheme.onPrimary)
++                : null,
++          ),
++      ],
++    );
++  }
++}
++
++class LoyaltyScreen extends StatelessWidget {
++  const LoyaltyScreen({super.key});
++
++  @override
++  Widget build(BuildContext context) {
++    var strings = ShopStrings.of(context);
++    var scheme = Theme.of(context).colorScheme;
++    var loyalty = Loyalty.of(context);
++    return Scaffold(
++      appBar: AppBar(title: Text(strings.loyaltyTitle)),
++      body: Padding(
++        padding: const EdgeInsets.all(24),
++        child: Column(
++          crossAxisAlignment: CrossAxisAlignment.stretch,
++          children: [
++            const SizedBox(height: 24),
++            StampCard(stamps: loyalty.stamps),
++            const SizedBox(height: 24),
++            Text(
++              strings.stampsOf(loyalty.stamps),
++              textAlign: TextAlign.center,
++              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
++            ),
++            const SizedBox(height: 8),
++            Text(
++              strings.freeDrink,
++              textAlign: TextAlign.center,
++              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++}
+diff --git a/lib/shop/mini_markdown.dart b/lib/shop/markdown_text.dart
+similarity index 100%
+rename from lib/shop/mini_markdown.dart
+rename to lib/shop/markdown_text.dart
+diff --git a/lib/shop/shop_app.dart b/lib/shop/shop_app.dart
+index 8ddc916..252a0e8 100644
+--- a/lib/shop/shop_app.dart
++++ b/lib/shop/shop_app.dart
+@@ -1,9 +1,11 @@
+ import 'package:flutter/material.dart';
+ import 'package:flutter_localizations/flutter_localizations.dart';
+ 
++import 'loyalty.dart';
+ import 'shop_screens.dart';
+ import 'shop_strings.dart';
+ 
++export 'loyalty.dart';
+ export 'shop_screens.dart';
+ export 'shop_strings.dart';
+ 
+@@ -54,6 +56,10 @@ class ShopApp extends StatefulWidget {
+ class _ShopAppState extends State<ShopApp> {
+   late final _cart = widget.cart ?? Cart();
+ 
++  /// Kept beside the cart rather than in it: an order clears the cart and
++  /// leaves the stamps, which is the whole point of them.
++  late final _loyalty = Loyalty();
++
+   @override
+   Widget build(BuildContext context) {
+     return MaterialApp(
+@@ -71,20 +77,29 @@ class _ShopAppState extends State<ShopApp> {
+       themeMode: widget.themeMode,
+       locale: widget.locale,
+       navigatorKey: widget.navigatorKey,
+-      // Above the navigator, so every pushed route sees the cart.
+-      builder: (context, child) => CartScope(
+-        cart: _cart,
+-        child: widget.overlay == null
+-            ? child!
+-            : Stack(
+-                children: [
+-                  child!,
+-                  // Positioned rather than a plain child: an overlay sized to
+-                  // the whole stack would swallow every tap meant for the app
+-                  // underneath it.
+-                  Positioned(top: 0, left: 0, right: 0, child: widget.overlay!),
+-                ],
+-              ),
++      // Above the navigator, so every pushed route sees the cart — and the
++      // stamps, which outlive any one order.
++      builder: (context, child) => LoyaltyScope(
++        loyalty: _loyalty,
++        child: CartScope(
++          cart: _cart,
++          child: widget.overlay == null
++              ? child!
++              : Stack(
++                  children: [
++                    child!,
++                    // Positioned rather than a plain child: an overlay sized
++                    // to the whole stack would swallow every tap meant for
++                    // the app underneath it.
++                    Positioned(
++                      top: 0,
++                      left: 0,
++                      right: 0,
++                      child: widget.overlay!,
++                    ),
++                  ],
++                ),
++        ),
+       ),
+       home: widget.home ?? const WelcomeScreen(),
+     );
+@@ -150,6 +165,7 @@ class ShopKeys {
+   static const placeOrder = Key('shop.placeOrder');
+   static const backToMenu = Key('shop.backToMenu');
+   static const openCart = Key('shop.openCart');
++  static const loyalty = Key('shop.loyalty');
+   static Key size(DrinkSize size) => Key('shop.size.${size.name}');
+ }
+ 
+diff --git a/lib/shop/shop_screens.dart b/lib/shop/shop_screens.dart
+index aa1ee5d..17a0c27 100644
+--- a/lib/shop/shop_screens.dart
++++ b/lib/shop/shop_screens.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/material.dart';
+ 
+-import 'mini_markdown.dart';
++import 'loyalty.dart';
++import 'markdown_text.dart';
+ import 'shop_app.dart';
+ 
+ /// Leaves whatever you are on and lands on the menu, as the root.
+@@ -28,6 +29,13 @@ class MenuScreen extends StatelessWidget {
+       appBar: AppBar(
+         title: Text(strings.menuTitle),
+         actions: [
++          IconButton(
++            key: ShopKeys.loyalty,
++            icon: const Icon(Icons.loyalty_outlined),
++            onPressed: () => Navigator.of(context).push(
++              MaterialPageRoute<void>(builder: (_) => const LoyaltyScreen()),
++            ),
++          ),
+           Padding(
+             padding: const EdgeInsets.only(right: 12),
+             child: Badge(
+@@ -297,6 +305,8 @@ class _CartScreenState extends State<CartScreen> {
+                     key: ShopKeys.placeOrder,
+                     onPressed: () {
+                       var name = _name.text.isEmpty ? '—' : _name.text;
++                      // One stamp per drink, before the cart forgets them.
++                      Loyalty.of(context).stamp(cart.items.length);
+                       cart.clear();
+                       Navigator.of(context).pushReplacement(
+                         MaterialPageRoute<void>(
+diff --git a/lib/shop/shop_strings.dart b/lib/shop/shop_strings.dart
+index 468e518..47d9843 100644
+--- a/lib/shop/shop_strings.dart
++++ b/lib/shop/shop_strings.dart
+@@ -84,6 +84,15 @@ class ShopStrings {
+   String get emptyCart => read('emptyCart');
+   String get onItsWay => read('onItsWay');
+   String get backToMenu => read('backToMenu');
++  String get loyaltyTitle => read('loyaltyTitle');
++  String get freeDrink => read('freeDrink');
++
++  /// The count goes through a placeholder — see [thanks] for why the key
++  /// is routed rather than read back.
++  String stampsOf(int count) => _expand(
++    'stampsOf',
++    read('stampsOf').replaceAll('{count}', '$count'),
++  );
+ 
+   /// The string that goes through a placeholder, and still resolves.
+   ///
+diff --git a/test/scenarios/desktop/flutter_test_config.dart b/test/scenarios/desktop/flutter_test_config.dart
+index 38b7b9f..c895907 100644
+--- a/test/scenarios/desktop/flutter_test_config.dart
++++ b/test/scenarios/desktop/flutter_test_config.dart
+@@ -1,7 +1,7 @@
+ import 'dart:async';
+ 
+ import 'package:flutterware/flutter_test.dart';
+-import 'package:brewline/shop/mini_markdown.dart';
++import 'package:brewline/shop/markdown_text.dart';
+ import 'package:brewline/shop/shop_strings.dart';
+ 
+ import '../profiles.dart';
+diff --git a/test/scenarios/mobile/flutter_test_config.dart b/test/scenarios/mobile/flutter_test_config.dart
+index 7407629..3411ffe 100644
+--- a/test/scenarios/mobile/flutter_test_config.dart
++++ b/test/scenarios/mobile/flutter_test_config.dart
+@@ -1,7 +1,7 @@
+ import 'dart:async';
+ 
+ import 'package:flutterware/flutter_test.dart';
+-import 'package:brewline/shop/mini_markdown.dart';
++import 'package:brewline/shop/markdown_text.dart';
+ import 'package:brewline/shop/shop_strings.dart';
+ 
+ import '../profiles.dart';
+diff --git a/test/shop/translations_test.dart b/test/shop/translations_test.dart
+index 2938e49..4f101fe 100644
+--- a/test/shop/translations_test.dart
++++ b/test/shop/translations_test.dart
+@@ -1,7 +1,7 @@
+ import 'package:flutter/material.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:flutterware/translations.dart';
+-import 'package:brewline/shop/mini_markdown.dart';
++import 'package:brewline/shop/markdown_text.dart';
+ import 'package:brewline/shop/shop_app.dart';
+ 
+ /// Pins the shop's end of the translation seam.

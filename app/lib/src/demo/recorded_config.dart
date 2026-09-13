@@ -16,3 +16,11 @@ const recordedTranslationCatalogs = [
   TranslationCatalog(name: 'shop', files: 'assets/i18n/*.json'),
   TranslationCatalog(name: 'store', files: 'assets/store/*.json'),
 ];
+
+/// How the demo app's delta is ranked, as its `tool/flutterware.dart`
+/// declares it: the words first, then the package and the app's shell. The
+/// recorder ranks the recorded delta by the same rules, so the *Important*
+/// tab over a recording is the tab the project would show.
+const recordedChangesConfig = ChangesConfig(
+  attention: ['assets/i18n/*.json', 'pubspec.yaml', 'lib/shop/shop_app.dart'],
+);

@@ -72,10 +72,16 @@ class ComparisonTabs extends StatefulWidget {
     required this.shell,
     required this.worktree,
     required this.files,
+    this.unavailable,
   });
 
   final ShellController shell;
   final Worktree worktree;
+
+  /// Why there is no comparison to offer, known before anything is asked —
+  /// a recording, which has no checkout to build a base of. Null means to
+  /// find out from the session and git, which is the normal case.
+  final String? unavailable;
 
   /// The file diff, built only when its tab is showing.
   ///
@@ -116,11 +122,16 @@ class _ComparisonTabsState extends State<ComparisonTabs>
     // pinned that answer forever, on the very worktree the window was
     // launched in.
     widget.shell.addListener(_onShell);
+    if (widget.unavailable case var reason?) {
+      _unavailable = reason;
+      _loading = false;
+      return;
+    }
     unawaited(_open());
   }
 
   void _onShell() {
-    if (!mounted) return;
+    if (!mounted || widget.unavailable != null) return;
     if (_controller != null) {
       // The address moves the tab — and nothing else: a pasted link, the back
       // button and a drive `navigate` land on a tab that shows its kept

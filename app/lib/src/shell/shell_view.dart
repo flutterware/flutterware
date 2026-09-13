@@ -1708,10 +1708,15 @@ class _Panel extends StatelessWidget {
       // session; the files tab is handed in, because it is a screen of its own
       // with its own master, detail and index tabs — and because it renders for
       // a checkout nobody has opened, which the other two cannot.
+      // A recording hands the screen its sources; a checkout is read as it
+      // always was. Nothing is watched over a recording — there is no
+      // working tree to watch, and no review file to.
+      var sources = shell.changes;
       body = ComparisonTabs(
         key: ValueKey('changes::${changesFor.path}'),
         shell: shell,
         worktree: changesFor,
+        unavailable: sources?.comparisonUnavailable,
         files: (context, withinTabs) => ChangesScreen(
           key: ValueKey(changesFor.path),
           worktree: changesFor,
@@ -1721,6 +1726,10 @@ class _Panel extends StatelessWidget {
           initialPath: _changesFilePath(shell),
           onPathChanged: (path) => shell.selectChangesFile(changesFor, path),
           gitMoved: shell.gitMoved,
+          load: sources?.load,
+          contents: sources?.contents,
+          reviewStore: sources?.reviewStore(changesFor.path),
+          live: sources == null,
         ),
       );
     } else if (worktree == null) {
