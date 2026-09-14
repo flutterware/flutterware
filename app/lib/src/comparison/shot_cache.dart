@@ -109,15 +109,30 @@ class ShotCache {
     File(path).writeAsStringSync(jsonEncode(tree));
   }
 
+  /// The tree filed under [key], or null when nothing is.
+  ///
+  /// Touched on the way past, for the reason [read] touches. A preview's tree
+  /// sits beside its bytes and shares their age, but a replayed step's tree is
+  /// an entry of its own: left untouched, it is the oldest thing in the store
+  /// on the day the store runs over [sweep]'s cap, and goes first while the
+  /// frames and the list that name it survive.
   Map<String, Object?>? readTree(String key) {
     var file = File('${_pathFor(key)}.tree.json');
     if (!file.existsSync()) return null;
+    Object? json;
     try {
-      var json = jsonDecode(file.readAsStringSync());
-      return json is Map<String, Object?> ? json : null;
+      json = jsonDecode(file.readAsStringSync());
     } on FormatException {
       return null;
+    } on FileSystemException {
+      return null;
     }
+    try {
+      file.setLastModifiedSync(DateTime.now());
+    } on FileSystemException {
+      // Read-only, or swept a moment ago. The tree is in hand.
+    }
+    return json is Map<String, Object?> ? json : null;
   }
 
   /// Two levels of fan-out, as every content-addressed store does it: a

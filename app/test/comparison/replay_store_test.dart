@@ -127,6 +127,40 @@ void main() {
     expect(store.read(key), isNull);
   });
 
+  // Trees are entries of their own too. Served without one, a step is diffed
+  // against no tree at all, and every node on the other side reads as added —
+  // measured on a consumer's CI: 1,084 unchanged steps each reported as
+  // `added` at the root, from replays whose trees the sweep had taken.
+  test('a replay with a tree swept away reads as absent', () {
+    store.write(key, [replayed(1), replayed(2)]);
+    var trees = [
+      for (var file in Directory(cache.root).listSync(recursive: true))
+        if (file is File && file.path.endsWith('.tree.json')) file,
+    ];
+    expect(trees, hasLength(2));
+    trees.last.deleteSync();
+
+    expect(store.has(key), isTrue);
+    expect(store.read(key), isNull);
+  });
+
+  // Reading a replay refreshes the list and the frames; the trees have to be
+  // refreshed with them, or they are the first thing a sweep takes.
+  test('reading a replay keeps its trees as fresh as its frames', () {
+    store.write(key, [replayed(1)]);
+    var old = DateTime.now().subtract(const Duration(days: 30));
+    for (var file in Directory(cache.root).listSync(recursive: true)) {
+      if (file is File) file.setLastModifiedSync(old);
+    }
+
+    expect(store.read(key), isNotNull);
+    cache.sweep();
+
+    var read = store.read(key);
+    expect(read, isNotNull);
+    expect(read!.single.tree, isNotNull);
+  });
+
   test('a step with no frame is filed without one', () {
     store.write(key, [
       ScenarioStepShot(

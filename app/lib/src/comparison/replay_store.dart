@@ -46,7 +46,7 @@ class ReplayStore {
   bool has(String key) => File(_listOf(key)).existsSync();
 
   /// The steps filed under [key], with frames pointing into the store, or
-  /// null when the replay — or any frame it names — is not there.
+  /// null when the replay — or any frame or tree it names — is not there.
   List<ScenarioStepShot>? read(String key) {
     var list = File(_listOf(key));
     Object? json;
@@ -71,6 +71,10 @@ class ReplayStore {
       var tree = step['tree'] == true
           ? cache.readTree(_stepKey(key, index))
           : null;
+      // The same rule as a frame. A step's tree is an entry of its own, swept
+      // on its own, and a step served without the tree it was filed with is
+      // diffed against nothing: every node of the other side reads as added.
+      if (step['tree'] == true && tree == null) return null;
       steps.add(
         ScenarioStepShot(
           step: AlignableStep(
