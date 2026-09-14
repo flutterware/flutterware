@@ -67,8 +67,8 @@ class ComparisonVerdict extends StatelessWidget {
   final ValueChanged<ComparisonRule>? onToggle;
 
   /// The verdict of one [ComparisonHalf], built the same wherever the half is
-  /// drawn — the panel wires [onToggle] to the half's own rules, the exported
-  /// page passes none and gets labels.
+  /// drawn — the panel and the exported page both wire [onToggle] to the
+  /// half's own rules.
   ///
   /// The scenario half's findings are its **steps**, not its flows: a flow's
   /// verdict is a roll-up of the steps inside it, and the channels live on the

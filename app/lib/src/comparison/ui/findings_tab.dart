@@ -5,6 +5,7 @@ import '../../ui/empty_state.dart';
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
 import '../../utils/string/plural.dart';
+import '../finding_face.dart';
 import '../shot_store.dart';
 import 'channel_signature.dart';
 import 'compared_name.dart';
@@ -118,21 +119,16 @@ class _FindingRow extends StatelessWidget {
   String get _tab =>
       finding.half == ComparedHalfKind.previews ? 'previews' : 'scenarios';
 
-  /// The scenario's face: its worst step that has frames.
+  /// The scenario's face: the step its picture is taken from.
   ///
   /// A flow's own verdict is a roll-up and carries no picture, so a row that
   /// showed only what the flow says would show nothing at all. The same choice
-  /// the mosaic makes.
-  ComparedItem? get _face {
-    if (finding.preview case var preview?) return preview;
-    ComparedItem? worst;
-    for (var step in finding.scenario?.items ?? const <ComparedItem>[]) {
-      if (!isComparedFinding(step.state)) continue;
-      if (finding.scenario!.frames[step.id] == null) continue;
-      if (worst == null || step.state.index < worst.state.index) worst = step;
-    }
-    return worst;
-  }
+  /// the mosaic makes — [scenarioFace].
+  ComparedItem? get _face => switch (finding) {
+    ComparedFinding(:var preview?) => preview,
+    ComparedFinding(:var scenario?) => scenarioFace(scenario),
+    _ => null,
+  };
 
   @override
   Widget build(BuildContext context) {

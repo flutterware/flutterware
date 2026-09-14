@@ -293,7 +293,8 @@ void main() {
       comment,
       contains(
         '<summary>${mosaicRowCap + 4} findings '
-        '(the picture shows the worst $mosaicRowCap)</summary>',
+        '(the picture shows $mosaicRowCap, those that moved on screen '
+        'first)</summary>',
       ),
     );
     // Folded, but complete: every finding is a table row.
@@ -322,6 +323,103 @@ void main() {
     var comment = File(report.commentPath).readAsStringSync();
     expect('| changed |'.allMatches(comment).length, commentRowCap);
     expect(comment, contains('…and 4 more — the page has them all.'));
+  });
+
+  test('the mosaic leads with what moved on screen, whatever the cap', () {
+    file('pixels-base', 40);
+    file('pixels-head', 200);
+    var report = writePrReport(
+      artifact: ComparisonArtifact(
+        previews: previews([
+          // Ranked ahead by name, and not one of them changed a pixel — their
+          // frames are not even in the cache, so a mosaic spent on them draws
+          // nothing at all.
+          for (var index = 0; index < mosaicRowCap; index++)
+            ComparedItem(
+              id: 'a/entry$index.dart#entry',
+              state: ComparedState.changed,
+              texts: const TextChannel(added: ['Pay'], removed: ['Buy']),
+              shots: (base: 'gone-base$index', head: 'gone-head$index'),
+            ),
+          ComparedItem(
+            id: 'z/card.dart#card',
+            state: ComparedState.changed,
+            pixels: PixelChannel(
+              PixelDiff(
+                width: 6,
+                height: 6,
+                changedPixels: 36,
+                comparedPixels: 36,
+                sizeChanged: false,
+                clusters: const [],
+              ),
+            ),
+            shots: (base: 'pixels-base', head: 'pixels-head'),
+          ),
+        ]),
+      ),
+      cache: cache,
+      against: 'master',
+      directory: p.join(temp.path, 'report'),
+    );
+
+    expect(report.mosaicPath, isNotNull);
+  });
+
+  test('a scenario is pictured at a step whose pixels moved', () {
+    var framePath = p.join(temp.path, 'frame.raw');
+    File(framePath)
+        .writeAsBytesSync(Uint8List(4 * 4 * 4)..fillRange(0, 4 * 4 * 4, 120));
+    var frame = FrameRef(path: framePath, width: 4, height: 4);
+    var report = writePrReport(
+      artifact: ComparisonArtifact(
+        previews: previews(const []),
+        scenarios: ScenarioResults.of(
+          ran: 1,
+          skipped: 0,
+          elapsed: const Duration(seconds: 1),
+          items: [
+            ScenarioComparison(
+              scenario: 'test/shop.dart#Checkout',
+              state: ComparedState.changed,
+              items: [
+                const ComparedItem(
+                  id: 'Cart',
+                  state: ComparedState.changed,
+                  texts: TextChannel(added: ['Pay'], removed: ['Buy']),
+                ),
+                ComparedItem(
+                  id: 'Pay',
+                  state: ComparedState.changed,
+                  pixels: PixelChannel(
+                    PixelDiff(
+                      width: 4,
+                      height: 4,
+                      changedPixels: 16,
+                      comparedPixels: 16,
+                      sizeChanged: false,
+                      clusters: const [],
+                    ),
+                  ),
+                ),
+              ],
+              branches: const [],
+              frames: {
+                'Cart': (base: frame, head: frame),
+                'Pay': (base: frame, head: frame),
+              },
+            ),
+          ],
+        ),
+      ),
+      cache: cache,
+      against: 'develop',
+      directory: p.join(temp.path, 'report'),
+    );
+
+    var comment = File(report.commentPath).readAsStringSync();
+    expect(comment, contains('[step `Pay`]'));
+    expect(comment, isNot(contains('[step `Cart`]')));
   });
 
   test("a scenario's face in the mosaic is its worst step with frames", () {
