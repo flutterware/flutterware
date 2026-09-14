@@ -66,6 +66,23 @@ const auditBudget = Duration(seconds: 5);
 /// than it wants the prettiest frame.
 const auditSettle = Settle.elapse(auditBudget);
 
+/// How long, in real time, an entry's settle waits for work the app handed to
+/// `RealWork.track` before the entry is photographed anyway.
+///
+/// The fake clock makes every other input to the picture reproducible, and a
+/// ceiling on real time is the one thing it cannot cover. At the default
+/// [realWorkWait] of one second the picture depended on the machine: measured
+/// on a 1.7 MB glTF import that took ~860ms on an idle machine, the entry drew
+/// the model when the machine was idle and its spinner every time the CPU was
+/// saturated, and the comparison reported the difference as a change.
+///
+/// So this is a deadline rather than a budget: the scenario deadline's thirty
+/// seconds, `package:test`'s own default. Work that finishes is waited for
+/// exactly as long as it takes. Work that does not is named on the capture as
+/// `pending`, so a picture taken with it outstanding is never mistaken for the
+/// entry.
+const auditTrackedWait = Duration(seconds: 30);
+
 /// One preview, as the generated harness hands it over.
 ///
 /// [build] is a thunk rather than a widget because a preview is built *inside*
@@ -773,19 +790,24 @@ void _declare(
           // not exist was reported clean, because the read that would have thrown
           // never completed. So the settle lands announced work as it goes, out
           // of the same purse as the landing after it.
+          //
+          // Only the last settle's answer is kept, because the picture is of the
+          // screen that settle left.
+          var pending = const <String, Object?>{};
           Future<void> settle() async {
-            var budget = RealWorkBudget();
+            var budget = RealWorkBudget(trackedWait: auditTrackedWait);
             var settled = await auditSettle.apply(
               tester,
               land: () => budget.land(tester, assets),
             );
-            await landRealWork(
+            var result = await landRealWork(
               tester,
               auditSettle,
               settled: settled,
               budget: budget,
               assets: assets,
             );
+            pending = result.landed ? const {} : pendingRealWork(assets);
           }
 
           await settle();
@@ -870,16 +892,22 @@ void _declare(
               ),
             };
           } else if (output != null) {
-            captured?[entry.id] = await _capture(
-              tester,
-              entry,
-              output,
-              index,
-              pixelRatio: pixelRatio,
-              tree: tree,
-              timings: timings,
-              format: format,
-            );
+            captured?[entry.id] = {
+              ...await _capture(
+                tester,
+                entry,
+                output,
+                index,
+                pixelRatio: pixelRatio,
+                tree: tree,
+                timings: timings,
+                format: format,
+              ),
+              // The walk above says this per frame. A still has one frame, and
+              // until this it said nothing: a capture that gave up on a load
+              // looked exactly like one that finished.
+              if (pending.isNotEmpty) 'pending': pending,
+            };
           }
         } finally {
           FlutterError.onError = previous;

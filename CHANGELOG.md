@@ -1,5 +1,19 @@
 ## Unreleased
 
+- **A preview waits for the work it announced, and a capture taken without
+  it is not compared.** The previews lane gave work handed to
+  `RealWork.track` one second of real time, so a picture depended on how busy
+  the machine was: a model import that fit on an idle machine was
+  photographed on its spinner on a loaded one, and `fw compare` reported the
+  difference as a change. The lane now waits up to thirty seconds, the
+  scenario deadline. A still that is captured with announced work in flight
+  carries it as `pending`, and the comparison refuses that frame with the work
+  named instead of diffing it or caching it. Cached comparison pictures are
+  re-rendered once.
+
+  `landRealWork` no longer reports `landed: true` for a step whose allowance
+  ran out while a spinner kept the screen moving.
+
 - **A project's own shaders load, and scene text can be painted with one.**
   The shaders a pubspec declares under `flutter: shaders:` were never in the
   bundle flutterware renders from, so `FragmentProgram.fromAsset` failed with

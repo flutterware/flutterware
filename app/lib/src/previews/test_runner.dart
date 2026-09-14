@@ -152,6 +152,7 @@ class PreviewCaptureRow {
     this.width = 0,
     this.height = 0,
     this.tree,
+    this.pending = const {},
   });
 
   final String id;
@@ -179,6 +180,11 @@ class PreviewCaptureRow {
 
   /// `InspectTree.toJson` on disk, beside the image.
   final String? tree;
+
+  /// What the app had announced and not finished when [image] was taken —
+  /// `tracked` labels, `images` and `assets` counts — or empty when nothing
+  /// was. Always empty from a harness that predates the field.
+  final Map<String, Object?> pending;
 }
 
 /// Renders a package's whole catalog under `flutter_tester` and reports what
@@ -416,6 +422,10 @@ class PreviewTestRunner {
             width: row['width'] as int? ?? 0,
             height: row['height'] as int? ?? 0,
             tree: row['tree'] as String?,
+            pending: switch (row['pending']) {
+              Map found => found.cast<String, Object?>(),
+              _ => const {},
+            },
           ),
         );
       } else {

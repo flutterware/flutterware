@@ -168,15 +168,21 @@ Future<({bool settled, bool landed})> landRealWork(
     // A frame is progress, so the next link starts from a full budget rather
     // than from whatever this one had left.
     guesses = 0;
+    // Kept rather than dropped: when the policy does not settle, its landings
+    // are the only ones this link gets. A load started by the frame the loop
+    // just drew — a read that landed, a build that began an import — behind a
+    // spinner is exactly that, and the allowance running out on it is the one
+    // fact the step has to report.
+    var landed = true;
     settled = await policy.apply(
       tester,
       record: record,
       land: () async {
         beforePump?.call();
-        await budget.land(tester, assets);
+        landed = await budget.land(tester, assets);
       },
     );
-    if (!settled) return (settled: false, landed: true);
+    if (!settled) return (settled: false, landed: landed);
   }
 }
 
@@ -193,10 +199,11 @@ class RealWorkBudget {
   /// is as long as it takes. A scenario passes null: a tracked future is the
   /// app's own promise, and a broken one runs into the scenario's deadline,
   /// whose message names it — a better answer than `landed: false` in a
-  /// report nobody reads. A lane with no deadline above it keeps the
-  /// default: the previews harness has nothing that would ever name a
-  /// future that never completes, and ten minutes per entry is not an
-  /// answer.
+  /// report nobody reads. A lane with no deadline above it passes a ceiling
+  /// instead, and has to say on its own output what was still pending when
+  /// the ceiling was reached — the previews harness does both, see
+  /// `auditTrackedWait`. Ten minutes per entry is not an answer, and neither
+  /// is a picture of a spinner that nobody is told about.
   RealWorkBudget({this.trackedWait = realWorkWait});
 
   final Duration? trackedWait;
@@ -273,6 +280,20 @@ bool _announced(ScenarioAssetBundle? assets) =>
     PaintingBinding.instance.imageCache.pendingImageCount > 0 ||
     (assets?.readsInFlight ?? 0) > 0 ||
     RealWork.pending > 0;
+
+/// What [_announced] is counting right now, in the shape a report carries:
+/// the label of every tracked future, and the image decodes and asset reads
+/// when there are any. Empty when nothing is in flight.
+Map<String, Object?> pendingRealWork(ScenarioAssetBundle? assets) {
+  var images = PaintingBinding.instance.imageCache.pendingImageCount;
+  var reads = assets?.readsInFlight ?? 0;
+  return {
+    if (RealWork.pending > 0)
+      'tracked': [for (var work in RealWork.pendingWork) '$work'],
+    if (images > 0) 'images': images,
+    if (reads > 0) 'assets': reads,
+  };
+}
 
 /// Drops what a previous test body left the image cache holding, so the next
 /// one starts with [_announced] describing **it**.

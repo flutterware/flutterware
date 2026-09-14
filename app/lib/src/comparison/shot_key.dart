@@ -69,7 +69,12 @@ class ShotKey {
   /// with "Asset not found", so a pass it paints is drawn now where it was
   /// blank then; and a v10 key never read a `.frag`, so a branch that edited
   /// only a shader was served its base's picture as "same".
-  static const revision = 'v11';
+  /// v12 — a preview's settle waits for tracked real work up to
+  /// `auditTrackedWait` rather than one second. Every v11 picture of an entry
+  /// whose announced load took longer than that second on the machine that
+  /// rendered it was taken with the load still in flight — its spinner rather
+  /// than its content — and filed as if it were the entry.
+  static const revision = 'v12';
 
   /// [closure] is a [SourceClosure.fingerprint]; [sdk] identifies the SDK both
   /// sides are rendered with; [axes] and [knobs] are whatever was applied.
