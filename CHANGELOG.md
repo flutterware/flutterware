@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A preview's image provider that sleeps before it decodes is drawn
+  loaded.** Between the frames of its settle, the previews lane waited in real
+  time for every decode the image cache counted — including one whose provider
+  was still sleeping on the fake clock, which cannot move during that wait. The
+  whole allowance went on a timer only the next frame could fire, and the entry
+  was photographed on its placeholder, then refused by the comparison as still
+  waiting. Between frames the lane now waits for tracked work only; decodes and
+  asset reads are landed once the clock has run, from the same allowance.
+
 - **A scenario replay whose trees were swept is replayed, not compared
   against nothing.** A replayed step's tree is cached apart from its frame, and
   reading it did not count as using it, so it was the first thing the cache's

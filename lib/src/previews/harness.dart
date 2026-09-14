@@ -796,9 +796,13 @@ void _declare(
           var pending = const <String, Object?>{};
           Future<void> settle() async {
             var budget = RealWorkBudget(trackedWait: auditTrackedWait);
+            // Only tracked work between the policy's frames. What else is
+            // announced may be waiting for the clock those frames move — an
+            // image provider that sleeps before it decodes — and is landed
+            // below, once the clock has been spent.
             var settled = await auditSettle.apply(
               tester,
-              land: () => budget.land(tester, assets),
+              land: () => budget.land(tester, assets, untracked: false),
             );
             var result = await landRealWork(
               tester,
