@@ -16,6 +16,7 @@ void main() {
   var knob = <String, String>{};
   var loaded = false;
   var decoded = false;
+  var trackedDrawn = false;
   var clockAt = <String, DateTime>{};
 
   Widget probe(String id) => Builder(
@@ -61,6 +62,12 @@ void main() {
         path: 'demo/decoding.dart',
         name: 'Decoding',
         build: () => _LateDecode(onDecoded: () => decoded = true),
+      ),
+      PreviewEntry(
+        id: 'demo/tracked.dart#tracked',
+        path: 'demo/tracked.dart',
+        name: 'Tracked',
+        build: () => _TrackedLoad(onDrawnLoaded: () => trackedDrawn = true),
       ),
     ],
     canvases: const [
@@ -134,6 +141,14 @@ void main() {
     // audit reported it clean, because the read that would have thrown never
     // completed.
     expect(decoded, isTrue);
+  });
+
+  test('a tracked load is drawn loaded however long it takes', () {
+    // Longer than the second the lane used to allow, which is what made the
+    // picture depend on the machine: a load that fit on an idle one did not
+    // on a busy one, and the entry was photographed on its spinner.
+    expect(auditTrackedWait, greaterThan(_TrackedLoad.duration));
+    expect(trackedDrawn, isTrue);
   });
 
   test('a row says the harness ran out of clock, not that the entry leaks', () {
@@ -254,4 +269,43 @@ class _LateDecodeState extends State<_LateDecode> {
   @override
   Widget build(BuildContext context) =>
       Text(_decoded ? 'decoded' : 'decoding', textDirection: TextDirection.ltr);
+}
+
+/// A preview announcing a load that takes real seconds, behind a spinner — an
+/// import of a real model, which is what a one-second allowance did not cover.
+class _TrackedLoad extends StatefulWidget {
+  const _TrackedLoad({required this.onDrawnLoaded});
+
+  /// Twice the old allowance, so a lane that still gave up at one second
+  /// could not land it by the time its turns add up.
+  static const duration = Duration(seconds: 2);
+
+  final VoidCallback onDrawnLoaded;
+
+  @override
+  State<_TrackedLoad> createState() => _TrackedLoadState();
+}
+
+class _TrackedLoadState extends State<_TrackedLoad> {
+  var _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      RealWork.run(
+        () => Future<void>.delayed(_TrackedLoad.duration),
+        label: 'model',
+      ).then((_) {
+        if (mounted) setState(() => _loaded = true);
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) return const Center(child: CircularProgressIndicator());
+    widget.onDrawnLoaded();
+    return const Text('loaded', textDirection: TextDirection.ltr);
+  }
 }

@@ -188,6 +188,15 @@ class PreviewsSide implements ComparisonSide {
             failed[row.id] = row.failure ?? 'did not render';
             return;
           }
+          // A frame taken with announced work still in flight is a picture of
+          // a loading state the entry would have left. Compared, it reads as a
+          // change on whichever side the work happened to be slower; filed, it
+          // is served as that side's picture on every later run. Refused, it
+          // is neither — and the row says what the entry was waiting on.
+          if (row.pending.isNotEmpty) {
+            failed[row.id] = stillWaiting(row.pending);
+            return;
+          }
           var tree = _tree(row.tree);
           await onFrame(
             RenderedEntry(
@@ -264,6 +273,20 @@ class PreviewsSide implements ComparisonSide {
   /// complaint is not a reason to refuse to compare it.
   static bool _replacesTheFrame(InspectError error) =>
       error.library == 'widgets library';
+
+  /// The row's note for a frame captured while [pending] was in flight, in
+  /// the shape `PreviewCaptureRow.pending` carries it.
+  static String stillWaiting(Map<String, Object?> pending) {
+    String count(int n, String noun) => n == 1 ? '1 $noun' : '$n ${noun}s';
+    var waitingOn = [
+      if (pending['tracked'] case List tracked)
+        for (var label in tracked) '`$label`',
+      if (pending['images'] case int images) count(images, 'image decode'),
+      if (pending['assets'] case int reads) count(reads, 'asset read'),
+    ];
+    if (waitingOn.isEmpty) waitingOn.add('work it announced');
+    return 'still waiting on ${waitingOn.join(', ')} when it was captured';
+  }
 
   String _packageRootIn(String checkout) =>
       p.normalize(p.join(checkout, packagePath));
