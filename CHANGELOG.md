@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A scenario replay whose trees were swept is replayed, not compared
+  against nothing.** A replayed step's tree is cached apart from its frame, and
+  reading it did not count as using it, so it was the first thing the cache's
+  size sweep removed. The replay was then served with its frames and no trees,
+  and every step of it was reported as changed: the whole tree on the other
+  side read as `added`. A replay missing a tree now reads as absent, like one
+  missing a frame, and reading a tree keeps it as fresh as the frames beside
+  it.
+
 - **A preview waits for the work it announced, and a capture taken without
   it is not compared.** The previews lane gave work handed to
   `RealWork.track` one second of real time, so a picture depended on how busy
