@@ -192,6 +192,71 @@ void main() {
     expect(store.asked, isNot(contains('one.png')));
   });
 
+  testWidgets('a scenario shows a step whose pixels moved over one that did '
+      'not', (tester) async {
+    var store = _RecordingShots();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme,
+        home: Scaffold(
+          body: FindingsTab(
+            index: ComparisonIndex(
+              base: 'abc123',
+              against: 'origin/master',
+              previewItems: const [],
+              scenarios: [
+                ScenarioComparison(
+                  scenario: 'test/pay_test.dart#Pay',
+                  state: ComparedState.changed,
+                  branches: const [],
+                  items: [
+                    const ComparedItem(
+                      id: '#1',
+                      state: ComparedState.changed,
+                      texts: TextChannel(added: ['Pay'], removed: ['Buy']),
+                    ),
+                    ComparedItem(
+                      id: '#2',
+                      state: ComparedState.changed,
+                      pixels: PixelChannel(
+                        PixelDiff(
+                          width: 4,
+                          height: 4,
+                          changedPixels: 16,
+                          comparedPixels: 16,
+                          sizeChanged: false,
+                          clusters: const [],
+                        ),
+                      ),
+                    ),
+                  ],
+                  frames: const {
+                    '#1': (
+                      base: FrameRef(path: 'one.png', width: 4, height: 4),
+                      head: FrameRef(path: 'one.png', width: 4, height: 4),
+                    ),
+                    '#2': (
+                      base: FrameRef(path: 'two.png', width: 4, height: 4),
+                      head: FrameRef(path: 'two.png', width: 4, height: 4),
+                    ),
+                  },
+                ),
+              ],
+            ),
+            store: store,
+            onOpen: (tab, id) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // `#1` comes first and changed only its texts: its two frames are the same
+    // picture. `#2` is where the change can be seen.
+    expect(store.asked, contains('two.png'));
+    expect(store.asked, isNot(contains('one.png')));
+  });
+
   // Every finding is listed; a page that decoded four hundred pairs of frames
   // would spend its memory on rows nobody has scrolled to.
   testWidgets('only the first rows ask for their frames', (tester) async {

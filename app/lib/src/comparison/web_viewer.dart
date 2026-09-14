@@ -367,28 +367,40 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
         message: index.scenariosNote ?? 'No scenarios were compared.',
       );
     }
-    // The same verdict the panel draws over its list, minus the controls: an
-    // exported page has no session to hold a rule, so the chips are labels —
-    // which is exactly what `onToggle: null` is for.
-    return tab == 'previews'
-        ? PreviewsTab(
-            half: _previews!,
-            store: _store,
-            settle: _settle,
-            selected: _selected,
-            onSelect: _selectRow,
-            header: ComparisonVerdict.ofHalf(_previews!),
-            framesWithheld: index.framesWithheldFor,
-          )
-        : ScenariosTab(
-            half: _scenarios!,
-            store: _store,
-            settle: _settle,
-            selected: _selected,
-            onSelect: _selectRow,
-            header: ComparisonVerdict.ofHalf(_scenarios!),
-            framesWithheld: index.framesWithheldFor,
-          );
+    var half = tab == 'previews' ? _previews! : _scenarios!;
+    // Rebuilt on the half's own notification, the way the panel's host
+    // rebuilds it. A tab hears its half too, but only to reload its frames: a
+    // rule toggled here filtered nothing until something else happened to
+    // rebuild the page.
+    return ListenableBuilder(
+      listenable: half,
+      builder: (context, _) {
+        // The same verdict the panel draws over its list, controls included.
+        // A rule is session-scoped in the panel as well, and this page's
+        // session is the browser tab — drawn as labels, the chips were the
+        // page's whole filter and did nothing.
+        var header = ComparisonVerdict.ofHalf(half, onToggle: half.toggleRule);
+        return tab == 'previews'
+            ? PreviewsTab(
+                half: half,
+                store: _store,
+                settle: _settle,
+                selected: _selected,
+                onSelect: _selectRow,
+                header: header,
+                framesWithheld: index.framesWithheldFor,
+              )
+            : ScenariosTab(
+                half: half,
+                store: _store,
+                settle: _settle,
+                selected: _selected,
+                onSelect: _selectRow,
+                header: header,
+                framesWithheld: index.framesWithheldFor,
+              );
+      },
+    );
   }
 
   @override

@@ -8,6 +8,7 @@ import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import 'artifact.dart';
+import 'finding_face.dart';
 import 'shot_cache.dart';
 
 /// What a pull-request comment needs, as files.
@@ -54,6 +55,13 @@ class _MosaicRow {
 ///
 /// The mosaic is one row per finding, base beside head, capped at
 /// [mosaicRowCap] — it is the teaser, and the exported page is the artifact.
+///
+/// **A picture leads with what a picture can show.** The findings whose
+/// picture shows their change come first, worst first among them, and the ones
+/// that changed only what no screenshot sees — events, texts, the tree — fill
+/// whatever the cap leaves. Ranked by state alone, a branch that fired a new
+/// event on thirty flows and moved a layout on two would spend the cap on
+/// thirty pairs of identical frames and cut the two anybody could see.
 PrReport writePrReport({
   required ComparisonArtifact artifact,
   required ShotCache cache,
@@ -64,8 +72,12 @@ PrReport writePrReport({
   Directory(directory).createSync(recursive: true);
 
   var findings = _findings(artifact);
+  var pictured = [
+    ...findings.where((finding) => finding.showsInPicture),
+    ...findings.where((finding) => !finding.showsInPicture),
+  ];
   var rows = [
-    for (var finding in findings.take(mosaicRowCap))
+    for (var finding in pictured.take(mosaicRowCap))
       ?_row(finding, cache: cache),
   ];
 
@@ -134,6 +146,7 @@ class _Finding {
     this.delta,
     this.item,
     this.frames,
+    this.showsInPicture = false,
   });
 
   final String id;
@@ -152,6 +165,9 @@ class _Finding {
 
   /// A scenario step's frames, which are files rather than cache keys.
   final ({FrameRef? base, FrameRef? head})? frames;
+
+  /// Whether [item]'s picture shows its change — see `showsInPicture`.
+  final bool showsInPicture;
 }
 
 List<_Finding> _findings(ComparisonArtifact artifact) {
@@ -165,34 +181,31 @@ List<_Finding> _findings(ComparisonArtifact artifact) {
         state: item.state,
         delta: _delta(item),
         item: item,
+        showsInPicture: showsInPicture(item),
       ),
     );
   }
   for (var scenario
       in artifact.scenarios?.items ?? const <ScenarioComparison>[]) {
     if (!_isFinding(scenario.state)) continue;
-    // The scenario's face in the mosaic is its worst step that has pictures —
-    // one row per flow, because one decision in the source should not fill
-    // the comment with four near-identical frames.
-    ComparedItem? worst;
-    for (var step in scenario.items) {
-      if (!_isFinding(step.state)) continue;
-      if (scenario.frames[step.id] == null) continue;
-      if (worst == null || step.state.index < worst.state.index) worst = step;
-    }
+    // The scenario's face in the mosaic is one step that has pictures — one
+    // row per flow, because one decision in the source should not fill the
+    // comment with four near-identical frames.
+    var face = scenarioFace(scenario);
     findings.add(
       _Finding(
         id: scenario.scenario,
         tab: 'scenarios',
         state: scenario.state,
-        delta: worst == null
+        delta: face == null
             ? scenario.branches.isEmpty
                   ? null
                   : '${scenario.branches.length} branch'
                         '${scenario.branches.length == 1 ? '' : 'es'}'
-            : 'step `${worst.id}`',
-        item: worst,
-        frames: worst == null ? null : scenario.frames[worst.id],
+            : 'step `${face.id}`',
+        item: face,
+        frames: face == null ? null : scenario.frames[face.id],
+        showsInPicture: face != null && showsInPicture(face),
       ),
     );
   }
@@ -492,8 +505,8 @@ String _comment(
     // The summary line says the mosaic is a cap when it is one, which is the
     // whole job the old "…and N more" footnote was doing.
     var shown = hasMosaic && findings.length > mosaicRowCap
-        ? '${findings.length} findings (the picture shows the worst '
-              '$mosaicRowCap)'
+        ? '${findings.length} findings (the picture shows $mosaicRowCap, '
+              'those that moved on screen first)'
         : '${findings.length} finding${findings.length == 1 ? '' : 's'}';
     buffer
       ..writeln('<details><summary>$shown</summary>\n')
