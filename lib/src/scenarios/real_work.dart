@@ -237,8 +237,22 @@ class RealWorkBudget {
   /// immediately, and free, when nothing is in flight: three integer reads
   /// is the whole cost on the path almost every frame of almost every step
   /// takes.
-  Future<bool> land(WidgetTester tester, ScenarioAssetBundle? assets) async {
-    while (_announced(assets)) {
+  ///
+  /// [untracked] false waits for tracked work alone, and leaves image decodes
+  /// and asset reads to a later landing. That is for landing between the
+  /// frames of a policy that is about to move a fake clock. The image cache
+  /// counts a decode from the moment its provider starts, and a provider that
+  /// sleeps on that clock before it decodes cannot finish while a real wait
+  /// holds the clock still: the wait spends the whole allowance on a timer only
+  /// the next pump can fire, and nothing is left for the decode once it has.
+  /// Tracked work is the app's word that it runs on the real loop, so it is
+  /// worth waiting for wherever it is.
+  Future<bool> land(
+    WidgetTester tester,
+    ScenarioAssetBundle? assets, {
+    bool untracked = true,
+  }) async {
+    while (untracked ? _announced(assets) : RealWork.pending > 0) {
       if (RealWork.pending > 0) {
         if (trackedWait case var ceiling?
             when _trackedSpent.elapsed >= ceiling) {
