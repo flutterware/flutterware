@@ -35,6 +35,7 @@ void main() {
       name: name,
       verb: verb,
       target: target,
+      failure: failure,
     ),
     rgba: frame(pixels),
     width: 8,
@@ -264,6 +265,171 @@ void main() {
 
       expect(result.state, ComparedState.wasBroken);
     });
+
+    // A consumer's base replay failed in its body, between verbs, on a step
+    // the head never took. It was a removed step, removed steps fold into
+    // `changed`, and a broken baseline read as the branch's change with its
+    // error nowhere on the page.
+    test('a base failure on a step head never took is the base breaking', () {
+      var result = compare(
+        [
+          shot(1, name: 'Form'),
+          shot(2, parent: 1, failure: 'Expected: "Saved"\nActual: <none>'),
+        ],
+        [shot(1, name: 'Form'), shot(2, name: 'Saved', parent: 1)],
+      );
+
+      expect(result.state, ComparedState.wasBroken);
+      expect(result.baseErrors, ['Expected: "Saved"']);
+      var failed = result.items.singleWhere((i) => i.note != null);
+      expect(failed.state, ComparedState.wasBroken);
+      expect(failed.label, 'failed: Expected: "Saved"');
+      expect(failed.note, contains('Actual: <none>'));
+    });
+
+    test('a head failure on a step base never took is the branch breaking', () {
+      var result = compare(
+        [shot(1, name: 'Cart'), shot(2, name: 'Pay', parent: 1)],
+        [
+          shot(1, name: 'Cart'),
+          shot(2, parent: 1, failure: 'did not finish within 30s'),
+        ],
+      );
+
+      expect(result.state, ComparedState.broke);
+      expect(result.headErrors, ['did not finish within 30s']);
+      expect(
+        result.items.singleWhere((i) => i.note != null).state,
+        ComparedState.broke,
+      );
+    });
+
+    test('both sides failing carries both messages', () {
+      var result = compare(
+        [shot(1, name: 'Cart', failure: 'base broke')],
+        [shot(1, name: 'Cart', failure: 'head broke')],
+      );
+
+      expect(result.state, ComparedState.failed);
+      expect(result.items.single.note, 'head: head broke\nbase: base broke');
+      expect(result.toJson()['errors'], {
+        'base': ['base broke'],
+        'head': ['head broke'],
+      });
+    });
+
+    test('a failure with no step at all still decides the verdict', () {
+      var result = compareScenarioSteps(
+        scenario: 'test/checkout.dart#Checkout',
+        base: [shot(1, name: 'Cart')],
+        head: const [],
+        headErrors: const ['setUpAll threw'],
+      );
+
+      expect(result.state, ComparedState.broke);
+      expect(result.headErrors, ['setUpAll threw']);
+    });
+  });
+
+  // A slow host may make a run inconclusive; it must never make it different.
+  group('a side is believed only once it is a result', () {
+    ScenarioReplay replay({String? failure, bool complete = true}) =>
+        ScenarioReplay([
+          shot(1, name: 'Cart'),
+          if (failure != null) shot(2, parent: 1, failure: failure),
+        ], complete: complete);
+
+    test('a clean replay is believed the first time', () {
+      var side = confirmSide(replay(), null, side: 'the base');
+
+      expect(side.isResult, isTrue);
+    });
+
+    test('a failure that reproduces is a result', () {
+      var second = replay(failure: 'nothing matches "Pay" in _Widget#1a2b3');
+
+      var side = confirmSide(
+        replay(failure: 'nothing matches "Pay" in _Widget#9f8e7'),
+        second,
+        side: 'the base',
+      );
+
+      expect(side.replay, same(second));
+    });
+
+    test('a failure that passes when replayed again is not a result', () {
+      var side = confirmSide(
+        replay(failure: 'an error dialog was showing'),
+        replay(),
+        side: 'the base',
+      );
+
+      expect(side.isResult, isFalse);
+      expect(
+        side.inconclusive,
+        allOf(
+          startsWith('the base failed once and passed when replayed again'),
+          contains('an error dialog was showing'),
+          contains('racing real time'),
+        ),
+      );
+    });
+
+    test('a failure that changes when replayed again is not a result', () {
+      var side = confirmSide(
+        replay(failure: 'first'),
+        replay(failure: 'second'),
+        side: 'this branch',
+      );
+
+      expect(side.inconclusive, contains('failed differently'));
+    });
+
+    // A deadline says nothing about what a scenario draws, only about how
+    // long the machine took to draw it.
+    test(
+      'a replay abandoned once and finished the second time is the second',
+      () {
+        var second = replay();
+
+        var side = confirmSide(
+          replay(failure: 'did not finish within 30s', complete: false),
+          second,
+          side: 'this branch',
+        );
+
+        expect(side.replay, same(second));
+      },
+    );
+
+    test('a replay abandoned twice is not a result', () {
+      var abandoned = replay(
+        failure: 'did not finish within 30s',
+        complete: false,
+      );
+
+      var side = confirmSide(abandoned, abandoned, side: 'this branch');
+
+      expect(
+        side.inconclusive,
+        'this branch did not finish on either of two replays: '
+        'did not finish within 30s.',
+      );
+    });
+  });
+
+  test('a scenario not compared travels as skipped, with its sentence', () {
+    var json = const ScenarioComparison.notCompared(
+      scenario: 'test/checkout.dart#Checkout',
+      inconclusive: 'The base failed once and passed when replayed again.',
+      baseErrors: ['boom'],
+    ).toJson();
+
+    expect(json['state'], 'skipped');
+    var back = ScenarioComparison.fromJson(json);
+    expect(back.compared, isFalse);
+    expect(back.inconclusive, startsWith('The base failed once'));
+    expect(back.baseErrors, ['boom']);
   });
 
   // Two identical pictures are the *reason* a retarget is worth saying, not a

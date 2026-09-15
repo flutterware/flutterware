@@ -103,6 +103,39 @@ void main() {
 
       expect(out.toString(), contains('— 16 scenarios'));
     });
+
+    // A consumer's split-branch timeouts appeared nowhere in their job log,
+    // and a base failure printed as `removed step 26` with no message.
+    test('a scenario with no result says why, and is counted', () {
+      cli.printScenarios(
+        ScenarioResults.of(
+          items: const [
+            ScenarioComparison.notCompared(
+              scenario: 'test/save.dart#Save',
+              inconclusive:
+                  'The base failed once and passed when replayed again: '
+                  'an error dialog was showing.',
+            ),
+            ScenarioComparison(
+              scenario: 'test/boot.dart#Boot',
+              items: [],
+              branches: [],
+              state: ComparedState.broke,
+              headErrors: ['setUpAll threw'],
+            ),
+          ],
+          ran: 2,
+          skipped: 0,
+          elapsed: Duration.zero,
+        ),
+      );
+
+      var printed = out.toString();
+      expect(printed, contains('no result  test/save.dart#Save'));
+      expect(printed, contains('not compared — The base failed once'));
+      expect(printed, contains('head failed — setUpAll threw'));
+      expect(printed, contains('0 skipped, 1 not compared in 0ms'));
+    });
   });
 
   group('a half that could not run', () {

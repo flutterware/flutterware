@@ -801,11 +801,32 @@ class FwCli {
       out.writeln('  scenarios: $note');
     }
     for (var scenario in results.items) {
+      // Not a finding, and never silent: a scenario whose output depended on
+      // the machine is the one line in a job log its author most needs.
+      if (scenario.inconclusive case var reason?) {
+        out
+          ..writeln('  ${'no result'.padRight(10)} ${scenario.scenario}')
+          ..writeln('             not compared — $reason');
+        continue;
+      }
       if (scenario.state == ComparedState.same ||
           scenario.state == ComparedState.skipped) {
         continue;
       }
       out.writeln('  ${scenario.state.name.padRight(10)} ${scenario.scenario}');
+      // The outcome's own errors, when no step carries them: a scenario can
+      // fail before it captures anything, and then this is the only place a
+      // job log says why.
+      if (!scenario.items.any((step) => step.note != null)) {
+        for (var (side, errors) in [
+          ('base', scenario.baseErrors),
+          ('head', scenario.headErrors),
+        ]) {
+          for (var error in errors) {
+            out.writeln('             $side failed — $error');
+          }
+        }
+      }
       for (var branch in scenario.branches) {
         out.writeln(
           '             ${branch.added ? '+' : '-'} branch '
@@ -823,10 +844,13 @@ class FwCli {
     // The replays beside the runs, as the previews line puts renders beside
     // entries: a side the store already had costs nothing, and this is the
     // number that says whether it did.
+    var notCompared = results.items.where((item) => !item.compared).length;
     out.writeln(
       '${results.items.length} scenarios, ${results.ran} run'
       '${results.ran == 0 ? '' : ' (${results.replays} replayed)'}, '
-      '${results.skipped} skipped in ${results.elapsed.inMilliseconds}ms',
+      '${results.skipped} skipped'
+      '${notCompared == 0 ? '' : ', $notCompared not compared'} '
+      'in ${results.elapsed.inMilliseconds}ms',
     );
     _printBecause(results.because, unit: 'scenario', plural: 'scenarios');
   }

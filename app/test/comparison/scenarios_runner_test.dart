@@ -561,8 +561,81 @@ void main() {
 
       await runnerFor(base: base, head: head).run(outDir: root.path);
 
-      expect(source.replayed, hasLength(2));
+      // Both sides, each replayed a second time to confirm.
+      expect(source.replayed, hasLength(4));
     });
+
+    // Measured on a consumer's merge request: a base replay that failed once
+    // on a loaded host was filed, and the next comparison against the same
+    // base served it again — the same "changed" row, byte-identical frames.
+    test(
+      'a failure that does not reproduce is not compared, nor filed',
+      () async {
+        source.flaky['test/shop.dart#Checkout:base'] = 1;
+
+        var results = await runnerFor(
+          base: base,
+          head: head,
+        ).run(outDir: root.path);
+
+        var scenario = results.items.single;
+        expect(scenario.compared, isFalse);
+        expect(scenario.state, ComparedState.skipped);
+        expect(
+          scenario.inconclusive,
+          startsWith('The base failed once and passed when replayed again'),
+        );
+        expect(scenario.baseErrors, ['an error dialog was showing']);
+        expect(source.replayed, [
+          'test/shop.dart#Checkout:base',
+          'test/shop.dart#Checkout:head',
+          'test/shop.dart#Checkout:base',
+        ]);
+        expect(results.replays, 3);
+
+        source.replayed.clear();
+        await runnerFor(base: base, head: head).run(outDir: root.path);
+
+        expect(source.replayed, ['test/shop.dart#Checkout:base']);
+      },
+    );
+
+    test('a failure that reproduces is the verdict, and is filed', () async {
+      source.failOn = 'test/shop.dart#Checkout';
+
+      var results = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+
+      expect(results.items.single.state, ComparedState.broke);
+      expect(source.replayed.last, 'test/shop.dart#Checkout:head');
+      expect(source.replayed, hasLength(3));
+
+      source.replayed.clear();
+      var again = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+
+      expect(source.replayed, isEmpty);
+      expect(again.items.single.state, ComparedState.broke);
+    });
+
+    test(
+      'a replay abandoned once is compared from its second replay',
+      () async {
+        source.slow['test/shop.dart#Checkout:head'] = 1;
+
+        var results = await runnerFor(
+          base: base,
+          head: head,
+        ).run(outDir: root.path);
+
+        expect(results.items.single.state, ComparedState.same);
+        expect(source.replayed, hasLength(3));
+      },
+    );
 
     test('a filed replay whose frames were swept is replayed', () async {
       await runnerFor(base: base, head: head).run(outDir: root.path);
@@ -663,14 +736,38 @@ class _FakeSource implements ScenarioSource {
   /// Whether the harness gives up on every scenario it replays.
   var abandon = false;
 
+  /// Sides that fail this many more times and then pass, by `<id>:<side>` —
+  /// a scenario whose outcome depends on the machine.
+  final flaky = <String, int>{};
+
+  /// Sides the harness gives up on this many more times, by `<id>:<side>`.
+  final slow = <String, int>{};
+
   @override
   Future<ScenarioReplay> shots(
     String id, {
     required bool base,
     required String outDir,
   }) async {
-    replayed.add('$id:${base ? 'base' : 'head'}');
+    var side = '$id:${base ? 'base' : 'head'}';
+    replayed.add(side);
     await gate?.call(base);
+    bool spend(Map<String, int> counts) {
+      var left = counts[side] ?? 0;
+      if (left == 0) return false;
+      counts[side] = left - 1;
+      return true;
+    }
+
+    var flakes = spend(flaky);
+    var abandoned = abandon || spend(slow);
+    var failure = !base && id == failOn
+        ? 'nothing matches "Pay"'
+        : flakes
+        ? 'an error dialog was showing'
+        : abandoned
+        ? 'did not finish within 30s'
+        : null;
     return ScenarioReplay([
       ScenarioStepShot(
         step: const AlignableStep(index: 1, position: '#1', name: 'Open'),
@@ -678,9 +775,9 @@ class _FakeSource implements ScenarioSource {
         width: 4,
         height: 4,
         events: events,
-        failure: !base && id == failOn ? 'nothing matches "Pay"' : null,
+        failure: failure,
       ),
-    ], complete: !abandon);
+    ], complete: !abandoned);
   }
 
   @override

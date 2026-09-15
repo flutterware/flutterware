@@ -413,6 +413,7 @@ String? verdictGap(ComparisonArtifact artifact) => verdictGapOf(
   scenarioStates:
       artifact.scenarios?.items.map((item) => item.state) ?? const [],
   previewStates: artifact.previews.items.map((item) => item.state),
+  inconclusiveScenarios: artifact.notCompared.length,
   narrowed: artifact.narrowed,
 );
 

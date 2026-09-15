@@ -44,7 +44,9 @@ class ScenarioComparison {
     required this.state,
     this.frames = const {},
     this.package,
-  });
+    this.baseErrors = const [],
+    this.headErrors = const [],
+  }) : inconclusive = null;
 
   /// A scenario that was never replayed — one that exists on a single side,
   /// or one the skip rule answered without running anything.
@@ -57,6 +59,29 @@ class ScenarioComparison {
     required this.state,
     this.package,
   }) : items = const [],
+       branches = const [],
+       frames = const {},
+       inconclusive = null,
+       baseErrors = const [],
+       headErrors = const [];
+
+  /// A scenario that was replayed and did not produce a result on one side
+  /// or both — see [inconclusive].
+  ///
+  /// [ComparedState.skipped] on the wire, deliberately rather than a state of
+  /// its own. Every reader already shipped decodes a state name it does not
+  /// know as `skipped`, so a new one would read as `skipped` anyway — with no
+  /// sentence, in exactly the readers that most need one. And it is not a
+  /// finding: a scenario that did not produce a result says nothing about the
+  /// branch, so an old reader's `ok` and a new one's agree.
+  const ScenarioComparison.notCompared({
+    required this.scenario,
+    required String this.inconclusive,
+    this.package,
+    this.baseErrors = const [],
+    this.headErrors = const [],
+  }) : state = ComparedState.skipped,
+       items = const [],
        branches = const [],
        frames = const {};
 
@@ -86,17 +111,56 @@ class ScenarioComparison {
   /// how a reader ends up opening the wrong one.
   final Map<String, ({FrameRef? base, FrameRef? head})> frames;
 
+  /// Why this scenario was not compared, when it was replayed and one side
+  /// did not produce a result: the harness gave up on it, or its outcome did
+  /// not reproduce when it was replayed again. One sentence naming the side,
+  /// what happened and what to do about it.
+  ///
+  /// Null for every scenario that was compared, and for one that never had to
+  /// be. A slow host may make a run inconclusive; it must never make it
+  /// different — this is where the first half of that is written down.
+  final String? inconclusive;
+
+  /// Whether both sides produced a result and were compared. False for a
+  /// scenario that was replayed and was [inconclusive].
+  bool get compared => inconclusive == null;
+
+  /// What the base side failed on, one message each, first line only — empty
+  /// when it did not fail.
+  ///
+  /// On the scenario rather than only on its steps, because a failure is not
+  /// always a step: a `setUpAll` that throws fails every scenario in its file
+  /// before any of them captures anything, and a failing step that lines up
+  /// with nothing on the other side has no pair to carry its note.
+  final List<String> baseErrors;
+
+  /// What the head side failed on — see [baseErrors].
+  final List<String> headErrors;
+
   /// The same scenario, addressed inside [package] — the twin of
   /// [ComparedItem.inPackage], and the same rule.
-  ScenarioComparison inPackage(String package, {required bool qualify}) =>
-      ScenarioComparison(
-        scenario: qualify ? comparedIdIn(package, scenario) : scenario,
-        items: items,
-        branches: branches,
-        state: state,
-        frames: frames,
+  ScenarioComparison inPackage(String package, {required bool qualify}) {
+    var id = qualify ? comparedIdIn(package, scenario) : scenario;
+    if (inconclusive case var reason?) {
+      return ScenarioComparison.notCompared(
+        scenario: id,
+        inconclusive: reason,
         package: package,
+        baseErrors: baseErrors,
+        headErrors: headErrors,
       );
+    }
+    return ScenarioComparison(
+      scenario: id,
+      items: items,
+      branches: branches,
+      state: state,
+      frames: frames,
+      package: package,
+      baseErrors: baseErrors,
+      headErrors: headErrors,
+    );
+  }
 
   Map<String, Object?> toJson() => {
     // `id` rather than `scenario`, and `steps` alongside a preview's
@@ -105,6 +169,12 @@ class ScenarioComparison {
     'id': scenario,
     'state': state.name,
     'package': ?package,
+    'inconclusive': ?inconclusive,
+    if (baseErrors.isNotEmpty || headErrors.isNotEmpty)
+      'errors': {
+        if (baseErrors.isNotEmpty) 'base': baseErrors,
+        if (headErrors.isNotEmpty) 'head': headErrors,
+      },
     if (branches.isNotEmpty)
       'branches': [
         for (var branch in branches)
@@ -150,8 +220,22 @@ class ScenarioComparison {
         );
       }
     }
+    var errors = json['errors'] as Map<String, Object?>? ?? const {};
+    var baseErrors = [for (var e in errors['base'] as List? ?? const []) '$e'];
+    var headErrors = [for (var e in errors['head'] as List? ?? const []) '$e'];
+    if (json['inconclusive'] case String reason) {
+      return ScenarioComparison.notCompared(
+        scenario: json['id'] as String? ?? '',
+        inconclusive: reason,
+        package: json['package'] as String?,
+        baseErrors: baseErrors,
+        headErrors: headErrors,
+      );
+    }
     return ScenarioComparison(
       scenario: json['id'] as String? ?? '',
+      baseErrors: baseErrors,
+      headErrors: headErrors,
       state:
           ComparedState.values.asNameMap()[json['state']] ??
           ComparedState.skipped,

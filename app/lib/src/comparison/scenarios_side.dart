@@ -213,10 +213,21 @@ class ScenariosSide {
     var scenarios = (response['scenarios'] as List?) ?? const [];
     var outcome = scenarios.firstOrNull;
     if (outcome is! Map) return ScenarioReplay(const [], complete: complete);
-    return ScenarioReplay([
-      for (var step in (outcome['steps'] as List?) ?? const [])
-        if (step is Map) _shotOf(step.cast<String, Object?>()),
-    ], complete: complete);
+    return ScenarioReplay(
+      [
+        for (var step in (outcome['steps'] as List?) ?? const [])
+          if (step is Map) _shotOf(step.cast<String, Object?>()),
+      ],
+      complete: complete,
+      // The outcome's own word, not only its steps': a scenario can fail
+      // without capturing anything, and a replay read as steps alone called
+      // that an empty run.
+      errors: [
+        for (var error in (outcome['errors'] as List?) ?? const [])
+          if (error is Map && error['error'] is String)
+            firstLineOf(error['error'] as String),
+      ],
+    );
   }
 
   static ScenarioStepShot _shotOf(Map<String, Object?> step) {
@@ -231,6 +242,7 @@ class ScenariosSide {
         name: step['name'] as String?,
         verb: step['verb'] as String?,
         target: step['target'] as String?,
+        failure: step['failure'] as String?,
       ),
       // Only a raw capture is comparable as pixels. A PNG here would mean the
       // run was asked for one, which this never does — and decoding it to

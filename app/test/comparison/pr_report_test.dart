@@ -65,6 +65,60 @@ void main() {
     expect(verdict, greaterThan(caveat));
   });
 
+  // A consumer's comparison on a saturated runner reported two base-side
+  // flakes as the branch's change. A scenario with no result is named — never
+  // a finding, never folded into "skipped" — and the verdict stays clean.
+  test('a scenario with no result is named, and is not a finding', () {
+    var report = writePrReport(
+      artifact: ComparisonArtifact(
+        previews: previews(const []),
+        scenarios: ScenarioResults.of(
+          items: const [
+            ScenarioComparison.notCompared(
+              scenario: 'test/save.dart#Save',
+              inconclusive:
+                  'The base failed once and passed when replayed again: '
+                  'an error | dialog.',
+            ),
+            ScenarioComparison.notRun(
+              scenario: 'test/cart.dart#Cart',
+              state: ComparedState.skipped,
+            ),
+            ScenarioComparison(
+              scenario: 'test/pay.dart#Pay',
+              items: [],
+              branches: [],
+              state: ComparedState.same,
+            ),
+          ],
+          ran: 2,
+          skipped: 1,
+          elapsed: Duration.zero,
+        ),
+      ),
+      cache: cache,
+      against: 'origin/master',
+      directory: temp.path,
+    );
+    var comment = File(report.commentPath).readAsStringSync();
+
+    expect(
+      comment,
+      contains('### Comparison against `origin/master` · 1 not compared'),
+    );
+    expect(
+      comment,
+      contains('Nothing changed — 3 entries compared · 1 skipped'),
+    );
+    expect(comment, contains('1 scenario not compared'));
+    expect(
+      comment,
+      contains('| `test/save.dart#Save` | The base failed once and passed '),
+    );
+    expect(comment, contains(r'an error \| dialog.'));
+    expect(report.mosaicPath, isNull);
+  });
+
   // A half whose harness would not build leaves no rows, and until this the
   // comment printed that silence as a pass — the one thing a pull-request gate
   // must never do.

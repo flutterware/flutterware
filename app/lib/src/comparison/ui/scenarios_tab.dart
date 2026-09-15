@@ -331,7 +331,7 @@ class _ScenariosTabState extends State<ScenariosTab> {
                   // reads as a row you cannot open rather than as one there is
                   // nothing behind.
                   child: scenario.items.isEmpty && scenario.branches.isEmpty
-                      ? _NotReplayed(scenario.state)
+                      ? _NotReplayed(scenario)
                       : MergedTree(
                           scenario: scenario,
                           store: widget.store,
@@ -410,10 +410,17 @@ class _Index extends StatelessWidget {
       for (var s in half.scenarios)
         if (s.state.isFinding && allHidden(s) && filter.matches(s.scenario)) s,
     ];
+    // Not findings, and not quiet either: listed whatever the scope, since
+    // each is a scenario whose output depended on the machine that ran it.
+    var unsure = [
+      for (var s in half.scenarios)
+        if (!s.compared && filter.matches(s.scenario)) s,
+    ];
     var quiet = [
       for (var s in half.scenarios)
         if (filter.scope == IndexScope.all &&
             !s.state.isFinding &&
+            s.compared &&
             filter.matches(s.scenario))
           s,
     ];
@@ -444,6 +451,15 @@ class _Index extends StatelessWidget {
         if (pending.isNotEmpty) ...[
           _SectionHeader('STILL REPLAYING', pending.length),
           for (var id in pending) _PendingRow(id),
+        ],
+        if (unsure.isNotEmpty) ...[
+          _SectionHeader('NO RESULT', unsure.length),
+          for (var s in unsure)
+            _IndexRow(
+              scenario: s,
+              selected: s.scenario == selected,
+              onTap: () => onSelect(s.scenario),
+            ),
         ],
         if (hidden.isNotEmpty)
           HiddenRows(
@@ -589,7 +605,7 @@ class _IndexRow extends StatelessWidget {
                   ),
                 ),
                 const Gap(FwSpacing.sm),
-                StateChip(scenario.state),
+                StateChip.of(scenario),
               ],
             ),
             Row(
@@ -660,46 +676,70 @@ class _Header extends StatelessWidget {
     child: Row(
       children: [
         Expanded(child: ComparedTitle(scenario.scenario)),
-        StateChip(scenario.state),
+        StateChip.of(scenario),
       ],
     ),
   );
 }
 
-/// Why a scenario has no tree: it was never replayed, and the reason differs.
+/// Why a scenario has no tree: it was never replayed, or it was and produced
+/// no result — and the reason differs.
 ///
 /// The word in the chip, expanded. `skipped` beside an empty pane is a
 /// verdict a reader has to already know how to trust — the thing worth saying
 /// is *what was compared to reach it*, which is the closure hash, and that it
-/// answers "no reason to run", not "could not run".
+/// answers "no reason to run", not "could not run". A scenario with no result
+/// is the other answer, and says what happened and what to do about it.
 class _NotReplayed extends StatelessWidget {
-  const _NotReplayed(this.state);
+  const _NotReplayed(this.scenario);
 
-  final ComparedState state;
+  final ScenarioComparison scenario;
+
+  static const _notAboutTheBranch =
+      'Not a finding about the branch: the scenario did not produce the same '
+      'outcome twice here.';
 
   @override
-  Widget build(BuildContext context) => EmptyState(
-    icon: switch (state) {
-      ComparedState.added || ComparedState.removed => Icons.call_split,
-      _ => Icons.done_all,
-    },
-    title: switch (state) {
-      ComparedState.added => 'Only on this branch',
-      ComparedState.removed => 'Only on the base',
-      _ => 'Not replayed',
-    },
-    message: switch (state) {
-      ComparedState.added =>
-        'The base has no scenario by this name, so there is no run to compare '
-            'this one against.',
-      ComparedState.removed =>
-        'This branch no longer declares it; the base still does.',
-      _ =>
-        'Nothing that decides its pixels changed between the two sides — not '
-            'a file in its import closure, not an asset, not a lockfile — so '
-            'both runs would have drawn the same frames and neither was run.',
-    },
-  );
+  Widget build(BuildContext context) {
+    if (scenario.inconclusive case var reason?) {
+      return EmptyState(
+        icon: Icons.help_outline,
+        title: 'No result on this machine',
+        message: [
+          reason,
+          for (var error in scenario.baseErrors)
+            if (!reason.contains(error)) 'Base: $error',
+          for (var error in scenario.headErrors)
+            if (!reason.contains(error)) 'This branch: $error',
+          _notAboutTheBranch,
+        ].join('\n\n'),
+      );
+    }
+    var state = scenario.state;
+    return EmptyState(
+      icon: switch (state) {
+        ComparedState.added || ComparedState.removed => Icons.call_split,
+        _ => Icons.done_all,
+      },
+      title: switch (state) {
+        ComparedState.added => 'Only on this branch',
+        ComparedState.removed => 'Only on the base',
+        _ => 'Not replayed',
+      },
+      message: switch (state) {
+        ComparedState.added =>
+          'The base has no scenario by this name, so there is no run to '
+              'compare this one against.',
+        ComparedState.removed =>
+          'This branch no longer declares it; the base still does.',
+        _ =>
+          'Nothing that decides its pixels changed between the two sides — '
+              'not a file in its import closure, not an asset, not a lockfile '
+              '— so both runs would have drawn the same frames and neither was '
+              'run.',
+      },
+    );
+  }
 }
 
 /// One step, over the flow: the two frames, and what the other channels found.

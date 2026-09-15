@@ -276,11 +276,18 @@ List<ComparedFinding> rankComparedFindings({
 /// narrowed to named entries compares the rows somebody picked, and picking
 /// the one pre-broken flow would otherwise turn its ordinary finding into a
 /// permanent gap no change on the branch can lift.
+///
+/// [inconclusiveScenarios] is how many of the scenario rows were replayed and
+/// not compared — see [ScenarioComparison.inconclusive]. A half in which that
+/// is every replayed scenario compared nothing, which is the same gap an
+/// all-failed half is, and near-always the same kind of cause: a host that
+/// could not run anything to the end.
 String? verdictGapOf({
   String? scenariosNote,
   String? previewsNote,
   Iterable<ComparedState> scenarioStates = const [],
   Iterable<ComparedState> previewStates = const [],
+  int inconclusiveScenarios = 0,
   bool narrowed = false,
 }) {
   if (scenariosNote case var note?) {
@@ -296,9 +303,20 @@ String? verdictGapOf({
     return 'the previews half produced no verdict — ${note.split('\n').first}';
   }
   if (narrowed) return null;
+  if (inconclusiveScenarios > 0 &&
+      !scenarioStates.any(
+        (state) => state != ComparedState.skipped && !_settledUnrun(state),
+      )) {
+    return 'the scenario half produced no verdict — all '
+        '$inconclusiveScenarios replayed scenarios were inconclusive';
+  }
   return _uniformGap('scenario', 'scenarios', scenarioStates) ??
       _uniformGap('previews', 'entries', previewStates);
 }
+
+/// A state a scenario gets without being replayed: it exists on one side.
+bool _settledUnrun(ComparedState state) =>
+    state == ComparedState.added || state == ComparedState.removed;
 
 /// The gap sentence for a half whose rows all carry one no-verdict state, or
 /// null for one that compared anything at all — one copy of both the
@@ -516,8 +534,19 @@ class ComparisonIndex {
     previewsNote: previewsHalf.note,
     scenarioStates: scenarios.map((scenario) => scenario.state),
     previewStates: previewItems.map((item) => item.state),
+    inconclusiveScenarios: notCompared.length,
     narrowed: narrowed,
   );
+
+  /// The scenarios that were replayed and not compared, because a side did not
+  /// produce a result — see [ScenarioComparison.inconclusive].
+  ///
+  /// Not findings, and not silent either: a reader is owed the list, since
+  /// every one of them is a scenario whose output depended on the machine.
+  List<ScenarioComparison> get notCompared => [
+    for (var scenario in scenarios)
+      if (!scenario.compared) scenario,
+  ];
 
   /// Findings across both halves, worst first — the header's chips.
   ///

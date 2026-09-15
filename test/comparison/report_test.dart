@@ -202,6 +202,58 @@ void main() {
       );
     });
 
+    // A host that could run nothing to the end compared nothing, and a page
+    // of "not compared" rows with a clean `ok` would otherwise read as a pass.
+    test('a half where every replayed scenario had no result is a gap', () {
+      var index = ComparisonIndex.fromJson({
+        'version': comparisonReportVersion,
+        'base': 'abc123def456',
+        'previews': {'rendered': 0, 'items': <Object?>[]},
+        'scenarios': {
+          'ran': 2,
+          'items': [
+            {
+              'id': 'test/a_test.dart#one',
+              'state': 'skipped',
+              'inconclusive': 'This branch did not finish on either replay.',
+            },
+            {'id': 'test/a_test.dart#two', 'state': 'skipped'},
+            {'id': 'test/a_test.dart#new', 'state': 'added'},
+          ],
+        },
+      });
+
+      expect(index.ok, isFalse, reason: 'the added row is a finding');
+      expect(index.notCompared.single.scenario, 'test/a_test.dart#one');
+      expect(
+        index.verdictGap,
+        'the scenario half produced no verdict — '
+        'all 1 replayed scenarios were inconclusive',
+      );
+    });
+
+    test('one scenario with no result beside compared ones is no gap', () {
+      var index = ComparisonIndex.fromJson({
+        'version': comparisonReportVersion,
+        'base': 'abc123def456',
+        'previews': {'rendered': 0, 'items': <Object?>[]},
+        'scenarios': {
+          'ran': 2,
+          'items': [
+            {
+              'id': 'test/a_test.dart#one',
+              'state': 'skipped',
+              'inconclusive': 'This branch did not finish on either replay.',
+            },
+            {'id': 'test/a_test.dart#two', 'state': 'same'},
+          ],
+        },
+      });
+
+      expect(index.ok, isTrue);
+      expect(index.verdictGap, isNull);
+    });
+
     test('a narrowed file switches the all-failed rule off', () {
       var index = ComparisonIndex.fromJson(allFailed(narrowed: true));
 

@@ -62,15 +62,148 @@ class ScenarioStepShot {
 
 /// What one side's replay of one scenario produced.
 class ScenarioReplay {
-  const ScenarioReplay(this.steps, {this.complete = true});
+  const ScenarioReplay(
+    this.steps, {
+    this.complete = true,
+    this.errors = const [],
+  });
 
   final List<ScenarioStepShot> steps;
 
   /// False when the harness gave up on the scenario — it blew its deadline,
   /// and what it hands back is how far it got, which is not where it would
-  /// get next time. Compared like any other replay, and never filed.
+  /// get next time. Never a result, and never filed.
   final bool complete;
+
+  /// What the outcome says the scenario failed on, first line each.
+  ///
+  /// Read off the outcome rather than off its steps, because a failure is not
+  /// always a step: a `setUpAll` that throws fails the scenario before it
+  /// captures anything.
+  final List<String> errors;
+
+  /// Everything this replay failed on: [errors], or — for a replay whose
+  /// outcome did not say, such as one filed before outcomes were read — the
+  /// messages its failed steps carry.
+  List<String> get failures => errors.isNotEmpty
+      ? errors
+      : [
+          for (var shot in steps)
+            if (shot.failure case var failure?) firstLineOf(failure),
+        ];
+
+  /// A result with nothing wrong in it — the only replay that is believed the
+  /// first time.
+  bool get clean => complete && failures.isEmpty;
 }
+
+/// The first line of a message, trimmed — what a report carries of an error.
+String firstLineOf(String message) => message.trim().split('\n').first.trim();
+
+/// One side of one scenario, once it has been replayed as often as it had to
+/// be: a [replay] that is a result, or the sentence saying why there is none.
+class ConfirmedSide {
+  const ConfirmedSide.result(ScenarioReplay this.replay) : inconclusive = null;
+
+  const ConfirmedSide.inconclusive(String this.inconclusive) : replay = null;
+
+  final ScenarioReplay? replay;
+
+  /// Why this side is not a result — see `ScenarioComparison.inconclusive`.
+  final String? inconclusive;
+
+  bool get isResult => replay != null;
+}
+
+/// Decides what one side is from its replays.
+///
+/// A clean replay is believed at once. Anything else was replayed a
+/// [second] time — alone, because the host is the suspect and the other
+/// side's tester is load — and is believed only if it did the same thing
+/// again:
+///
+/// - a failure whose first line reproduces is a result, and can be filed;
+/// - a failure that passed the second time, or failed differently, is not: its
+///   outcome depends on the machine, and the scenario is what has to change;
+/// - a replay the harness gave up on says nothing about the scenario's output,
+///   only about its deadline, so a second replay that finished cleanly is the
+///   result, and one that did not finish either is not.
+///
+/// [side] names the side in the sentence: "the base", "this branch".
+ConfirmedSide confirmSide(
+  ScenarioReplay first,
+  ScenarioReplay? second, {
+  required String side,
+}) {
+  if (first.clean) return ConfirmedSide.result(first);
+  if (second == null) {
+    throw ArgumentError.value(
+      second,
+      'second',
+      'a replay that is not clean '
+          'has to be replayed again before it is believed',
+    );
+  }
+  var firstFailure = first.failures.firstOrNull;
+  var secondFailure = second.failures.firstOrNull;
+  if (!first.complete) {
+    if (second.clean) return ConfirmedSide.result(second);
+    if (!second.complete) {
+      return ConfirmedSide.inconclusive(
+        '$side did not finish on either of two replays'
+        '${_quoted(secondFailure ?? firstFailure)}',
+      );
+    }
+    return ConfirmedSide.inconclusive(
+      '$side did not finish, then failed when replayed again'
+      '${_quoted(secondFailure)}',
+    );
+  }
+  if (!second.complete) {
+    return ConfirmedSide.inconclusive(
+      '$side failed, then did not finish when replayed again'
+      '${_quoted(firstFailure)}',
+    );
+  }
+  if (second.clean) {
+    return ConfirmedSide.inconclusive(
+      '$side failed once and passed when replayed again'
+      '${_quoted(firstFailure)} Its outcome depends on the machine running '
+      'it: something in the scenario is racing real time.',
+    );
+  }
+  if (_sameFailure(firstFailure, secondFailure)) {
+    return ConfirmedSide.result(second);
+  }
+  return ConfirmedSide.inconclusive(
+    '$side failed differently on two replays'
+    '${_quoted(firstFailure)} then${_quoted(secondFailure)}',
+  );
+}
+
+String _quoted(String? failure) => failure == null ? '.' : ': $failure.';
+
+/// Whether two failures are the same one. First lines, with the short hash
+/// codes Flutter prints for an object (`#1a2b3`) taken out — they name an
+/// instance, and two replays never share one.
+bool _sameFailure(String? a, String? b) {
+  String normal(String? message) =>
+      (message ?? '').replaceAll(RegExp(r'#[0-9a-f]{5}\b'), '#');
+  return normal(a) == normal(b);
+}
+
+/// Compares two replays that are both results — see [confirmSide].
+ScenarioComparison compareScenarioReplays({
+  required String scenario,
+  required ScenarioReplay base,
+  required ScenarioReplay head,
+}) => compareScenarioSteps(
+  scenario: scenario,
+  base: base.steps,
+  head: head.steps,
+  baseErrors: base.errors,
+  headErrors: head.errors,
+);
 
 /// Compares two runs of one scenario.
 ///
@@ -78,11 +211,21 @@ class ScenarioReplay {
 /// is the most valuable thing this tool can say, and a percentage next to it
 /// would be answering a smaller question — so a failure that appeared is the
 /// verdict, whatever the steps before it look like.
+///
+/// **Whether or not the failing step lines up with anything.** It used to
+/// count only on a matched pair: a failure on a step the other side never
+/// took — the body throwing between verbs, a flow that broke before its next
+/// screen — was an added or removed step, and those fold into `changed`.
+/// That is how a base that broke read as the branch's change.
 ScenarioComparison compareScenarioSteps({
   required String scenario,
   required List<ScenarioStepShot> base,
   required List<ScenarioStepShot> head,
+  List<String> baseErrors = const [],
+  List<String> headErrors = const [],
 }) {
+  var baseFailures = ScenarioReplay(base, errors: baseErrors).failures;
+  var headFailures = ScenarioReplay(head, errors: headErrors).failures;
   var alignment = ScenarioAlignment.of(
     base: [for (var shot in base) shot.step],
     head: [for (var shot in head) shot.step],
@@ -98,15 +241,23 @@ ScenarioComparison compareScenarioSteps({
       head: pair.head == null ? null : headByIndex[pair.head!.index]?.frame,
     );
     items.add(switch (pair.delta) {
-      StepDelta.added => ComparedItem(
-        id: pair.path,
+      StepDelta.added => _unpaired(
+        pair.path,
+        pair.head!.label,
+        headByIndex[pair.head!.index]?.failure,
         state: ComparedState.added,
-        label: pair.head!.label,
+        failed: baseFailures.isEmpty
+            ? ComparedState.broke
+            : ComparedState.failed,
       ),
-      StepDelta.removed => ComparedItem(
-        id: pair.path,
+      StepDelta.removed => _unpaired(
+        pair.path,
+        pair.base!.label,
+        baseByIndex[pair.base!.index]?.failure,
         state: ComparedState.removed,
-        label: pair.base!.label,
+        failed: headFailures.isEmpty
+            ? ComparedState.wasBroken
+            : ComparedState.failed,
       ),
       StepDelta.matched || StepDelta.retargeted => _compare(
         pair,
@@ -120,10 +271,32 @@ ScenarioComparison compareScenarioSteps({
     scenario: scenario,
     items: items,
     branches: alignment.branches,
-    state: _verdict(items, alignment),
+    state: switch ((baseFailures.isNotEmpty, headFailures.isNotEmpty)) {
+      (true, true) => ComparedState.failed,
+      (false, true) => ComparedState.broke,
+      (true, false) => ComparedState.wasBroken,
+      (false, false) => _verdict(items, alignment),
+    },
     frames: frames,
+    baseErrors: baseFailures,
+    headErrors: headFailures,
   );
 }
+
+/// A step on one side only. A failed one is the failure first and the
+/// missing counterpart second, and carries its message.
+ComparedItem _unpaired(
+  String id,
+  String label,
+  String? failure, {
+  required ComparedState state,
+  required ComparedState failed,
+}) => ComparedItem(
+  id: id,
+  state: failure == null ? state : failed,
+  label: label,
+  note: failure,
+);
 
 ComparedItem _compare(
   AlignedPair pair,
@@ -139,7 +312,7 @@ ComparedItem _compare(
       label: pair.head!.label,
       baseRendered: base.failure == null,
       headRendered: head.failure == null,
-      note: head.failure ?? base.failure,
+      note: _failureNote(base.failure, head.failure),
     );
   }
   var item = ComparedItem.of(
@@ -181,6 +354,16 @@ ComparedItem _compare(
     );
   }
   return item;
+}
+
+/// One note for a matched pair that failed: both messages when both sides
+/// failed differently, since "head's message" alone hid what the base broke
+/// on.
+String? _failureNote(String? base, String? head) {
+  if (base == null || head == null || firstLineOf(base) == firstLineOf(head)) {
+    return head ?? base;
+  }
+  return 'head: ${firstLineOf(head)}\nbase: ${firstLineOf(base)}';
 }
 
 ComparedState _verdict(List<ComparedItem> items, ScenarioAlignment alignment) {
