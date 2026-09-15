@@ -457,9 +457,10 @@ class ScenariosRunner {
   /// already let the pair's first replays finish, because the host is the
   /// suspect and running the other side's tester beside it is load.
   ///
-  /// Only a result is filed, and not every result. Four are not: one that
-  /// did not finish, an empty one, one whose requests reached the network,
-  /// and — by construction — anything [confirmSide] did not call a result. Everything else a replay
+  /// Only a result is filed, and not every result. Five are not: one that
+  /// did not finish, one with a step that landed work by guessing, an empty
+  /// one, one whose requests reached the network, and — by construction —
+  /// anything [confirmSide] did not call a result. Everything else a replay
   /// reads is in its key — under `FakeAsync`, with the clock pinned and the
   /// network off or answered from a committed recording, two replays of one
   /// key draw the same frames. A `live` request is the one input nothing can
@@ -488,6 +489,10 @@ class ScenariosRunner {
         // A hang that reproduced is a result to report and not one to serve:
         // the harness abandoned the rest of the file with it.
         !replay.complete ||
+        // Pictures that depended on the machine's speed. Served to a later
+        // comparison on a slower machine, they would be the fast answer beside
+        // a slow one, and never replayed to find out.
+        replay.hazards.isNotEmpty ||
         replay.steps.isEmpty ||
         replay.steps.any(_reachedNetwork)) {
       return side;
@@ -615,13 +620,50 @@ class ScenariosRunner {
           [filedBase, filedHead].where((side) => side == null).length +
           (_retries - retriesBefore);
       if (baseSide.replay case var base? when headSide.replay != null) {
-        report(
-          compareScenarioReplays(
-            scenario: id,
-            base: base,
-            head: headSide.replay!,
-          ),
+        var head = headSide.replay!;
+        var compared = compareScenarioReplays(
+          scenario: id,
+          base: base,
+          head: head,
         );
+        // A difference in a scenario whose pictures depended on the machine
+        // is not believed until each side has done the same thing twice.
+        // Every side here is fresh: a side with hazards is never filed.
+        if (compared.state.isFinding &&
+            (base.hazards.isNotEmpty || head.hazards.isNotEmpty)) {
+          onProgress?.call(
+            'replaying "$name" again, alone: it drew work nothing announced '
+            '· $count',
+          );
+          var unstable = <String>[];
+          for (var (isBase, replay) in [(true, base), (false, head)]) {
+            if ((isBase ? filedBase : filedHead) != null) continue;
+            var again = await source.shots(id, base: isBase, outDir: outDir);
+            replays++;
+            if (!replaysAgree(replay, again)) {
+              var side = isBase ? 'the base' : 'this branch';
+              unstable.add(
+                replay.hazards.isNotEmpty
+                    ? unstableHazardSentence(side, replay)
+                    : again.hazards.isNotEmpty
+                    ? unstableHazardSentence(side, again)
+                    : '$side did not replay the same way twice.',
+              );
+            }
+          }
+          if (unstable.isNotEmpty) {
+            report(
+              ScenarioComparison.notCompared(
+                scenario: id,
+                inconclusive: unstable.map(_capitalized).join(' '),
+                baseErrors: base.failures,
+                headErrors: head.failures,
+              ),
+            );
+            continue;
+          }
+        }
+        report(compared);
       } else {
         report(
           ScenarioComparison.notCompared(

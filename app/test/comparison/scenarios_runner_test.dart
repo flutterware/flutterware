@@ -630,6 +630,72 @@ void main() {
       expect(again.items.single.state, ComparedState.broke);
     });
 
+    // A picture that depended on the real loop turning fast enough, and a
+    // difference beside it: not believed until each side does it twice.
+    test('a difference beside a guessed landing that does not reproduce is '
+        'not compared, nor filed', () async {
+      source
+        ..guessed['test/shop.dart#Checkout:head'] = 9
+        ..wobbly['test/shop.dart#Checkout:head'] = 1;
+
+      var results = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+
+      var scenario = results.items.single;
+      expect(scenario.compared, isFalse);
+      expect(
+        scenario.inconclusive,
+        allOf(
+          startsWith('This branch drew work nothing announced'),
+          contains('`Open` (turn 9)'),
+          contains('RealWork.run'),
+        ),
+      );
+      expect(source.replayed, hasLength(4), reason: 'each side once more');
+
+      source.replayed.clear();
+      await runnerFor(base: base, head: head).run(outDir: root.path);
+      expect(
+        source.replayed,
+        contains('test/shop.dart#Checkout:head'),
+        reason: 'a replay with a guessed landing is never filed',
+      );
+    });
+
+    test('a difference beside a guessed landing that reproduces is reported, '
+        'and says so', () async {
+      source
+        ..guessed['test/shop.dart#Checkout:head'] = 9
+        ..pixels['test/shop.dart#Checkout:head'] = 200;
+
+      var results = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+
+      var scenario = results.items.single;
+      expect(scenario.state, ComparedState.changed);
+      expect(
+        scenario.items.single.note,
+        contains('drew work nothing announced on this branch (turn 9)'),
+      );
+    });
+
+    test('a guessed landing with nothing different costs nothing', () async {
+      source.guessed['test/shop.dart#Checkout:head'] = 9;
+
+      var results = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+
+      expect(results.items.single.state, ComparedState.same);
+      expect(results.items.single.items.single.note, isNull);
+      expect(source.replayed, hasLength(2));
+    });
+
     test(
       'a replay abandoned once is compared from its second replay',
       () async {
@@ -751,6 +817,17 @@ class _FakeSource implements ScenarioSource {
   /// Sides the harness gives up on this many more times, by `<id>:<side>`.
   final slow = <String, int>{};
 
+  /// Sides whose step landed work by guessing, and on which turn, by
+  /// `<id>:<side>`.
+  final guessed = <String, int>{};
+
+  /// Sides that draw a different picture this many more times, by
+  /// `<id>:<side>` — a race a guessed landing sometimes loses.
+  final wobbly = <String, int>{};
+
+  /// The pixel value a side draws, by `<id>:<side>`; 0 when not named.
+  final pixels = <String, int>{};
+
   @override
   Future<ScenarioReplay> shots(
     String id, {
@@ -769,6 +846,7 @@ class _FakeSource implements ScenarioSource {
 
     var flakes = spend(flaky);
     var abandoned = abandon || spend(slow);
+    var value = spend(wobbly) ? 99 : pixels[side] ?? 0;
     var failure = !base && id == failOn
         ? 'nothing matches "Pay"'
         : flakes
@@ -779,11 +857,12 @@ class _FakeSource implements ScenarioSource {
     return ScenarioReplay([
       ScenarioStepShot(
         step: const AlignableStep(index: 1, position: '#1', name: 'Open'),
-        rgba: Uint8List(4 * 4 * 4),
+        rgba: Uint8List(4 * 4 * 4)..fillRange(0, 4 * 4 * 4, value),
         width: 4,
         height: 4,
         events: events,
         failure: failure,
+        guessed: guessed[side],
       ),
     ], complete: !abandoned);
   }

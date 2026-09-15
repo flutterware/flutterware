@@ -304,6 +304,10 @@ class _SpyMessenger extends TestDefaultBinaryMessenger {
       ),
     );
     var result = super.send(channel, message);
+    result?.then(
+      (_) => platformReplies++,
+      onError: (Object _) => platformReplies++,
+    );
     // What a deadline can quote: which sends the body never saw answered,
     // and from where in the app. Plugin traffic and asset reads only — the
     // framework's own chatter is nobody's deadlock, and a stack per message
@@ -1392,6 +1396,7 @@ Future<Map<String, Object?>> _runOne(
       settled: capture.settled,
       waited: capture.waited,
       landed: capture.landed,
+      guessed: capture.guessed,
       digest: digest,
       strayFrames: capture.strayFrames,
       failure: capture.failure,
@@ -1583,6 +1588,7 @@ Future<Map<String, Object?>> _runOne(
       settled: capture.settled,
       waited: capture.waited,
       landed: capture.landed,
+      guessed: capture.guessed,
       // Absent on a pixel-less capture, for the reason `unchanged` is false
       // there: every such step digests the same empty bytes, so a *reported*
       // digest would be a claim about pixels nobody took. `compareScenarioRuns`
@@ -1750,6 +1756,7 @@ Future<Map<String, Object?>> _runOne(
     stepCount: steps.length,
     unchangedCount: steps.where((step) => step.unchanged).length,
     unsettledCount: steps.where((step) => !step.settled && step.waited).length,
+    guessedCount: steps.where((step) => step.guessed != null).length,
     errors: passed ? const [] : errors,
     translations: read.isNotEmpty ? read : null,
   );

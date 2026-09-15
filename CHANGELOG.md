@@ -1,5 +1,20 @@
 ## Unreleased
 
+- **A scenario step says when its picture depended on how fast the machine
+  was.** Work that resolves on the real event loop and announces nothing — a
+  `FutureBuilder` on a real future, an untracked read — is found by turning
+  the loop a dozen times, and on a slower machine it lands later or not at
+  all. A step whose landing found such work now records the turn as
+  `guessed`, each outcome counts them as `guessedCount`, and the scenario ends
+  with one line naming those steps and the fix: hand the work to
+  `RealWork.run`. Turns that only delivered a platform reply are not counted —
+  a form's clipboard query is the framework's, and was all eight of the
+  example suite's. `fw compare` acts on it: a difference in a scenario with a
+  guessed landing is replayed on each side once more, alone, and reported as
+  not compared when a side does not reproduce itself; a difference that holds
+  says beside the step that it may be the machine. A replay with a guessed
+  landing is never cached.
+
 - **A scenario's `timeout:` is how long it may go without progress, not how
   long it may take.** It was a wall-clock budget for the whole scenario —
   every `split` replay, every capture, every wait on tracked work — so it

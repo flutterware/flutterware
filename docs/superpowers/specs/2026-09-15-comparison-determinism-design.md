@@ -174,9 +174,25 @@ landed on guessed turn 9 of 12, and on a slower host it will not. Wrap it in
 `RealWork.run`."* A folder or scenario may make hazards failures, the way
 `Settle.strict` makes an unsettled step one. By default they warn.
 
-A **slow-host run** makes the flake reproducible on a laptop: guessing off,
-tracked work delayed, compared against a normal run with the drift facets that
-already exist. What differs is exactly what CI will one day report.
+Built 2026-09-15 with one refinement measured into it: a guessed turn that
+delivered a platform reply is not a hazard. Every one of the example suite's
+eight guessed steps was a `TextField` asking the platform about the clipboard,
+Live Text and text actions — the framework's traffic, on every form, and
+nothing a scenario can hand to `RealWork`. With replies counted (all channels,
+not only the ones the stall diagnosis records), the example suite reports
+none, and flutterware's own studio suite reports nine, each a panel reading a
+recorded project's files off the fake clock — genuine.
+
+**Deferred, and why.** Two pieces of this section were not built:
+
+- *Strict hazards.* A folder or scenario that turns a guessed landing into a
+  failure. Worth having once the warning has been lived with; building it now
+  would fix a public name before the signal has earned one.
+- *A slow-host run.* Turning guessing off makes a guessed landing miss, but
+  nothing flutterware controls can slow the engine's own real-loop work, and a
+  run that only removes the guessing reports exactly what `guessed` already
+  says. What it would add — work that lands during a policy's frames, before
+  any guessing starts — has no reproduction yet. Revisit with one.
 
 The comparison uses hazards as a trigger: a difference on a hazard step
 re-runs that side once, and a side that disagrees with itself is not compared,
@@ -200,8 +216,13 @@ Not stability, but load and legibility — the pressure that exposes the rest:
    Alone, this removes all five false findings in the report that started
    this.
 2. **Progress deadline** and the stall diagnosis (§3).
-3. **Hazards** in the run, the author's messages, the slow-host run (§4).
-4. **The comparison acts on hazards** (§4, last paragraph).
+3. **Hazards** in the run and the author's messages (§4). Built; strict and
+   the slow-host run deferred, as §4 says.
+4. **The comparison acts on hazards** (§4, last paragraph). Built: a finding
+   in a scenario with a hazard on either side replays each side once more,
+   alone; a side that does not reproduce itself makes the scenario not
+   compared; a difference that holds carries a note on the step. A replay with
+   a hazard is never filed.
 5. **A timeout inside a `split` is placed on the branch that was running**, and
    so is a failure in a later replay's shared prefix — today both become an
    unlabelled second child of a trunk step, and the aligner stops walking

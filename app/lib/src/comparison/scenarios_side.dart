@@ -255,6 +255,7 @@ class ScenariosSide {
       texts: (step['texts'] as List?)?.cast<String>() ?? const [],
       events: _events(step['events'] as String?),
       failure: step['failure'] as String?,
+      guessed: step['guessed'] as int?,
       frame: step['format'] == 'raw' && image != null
           ? FrameRef(
               path: image,

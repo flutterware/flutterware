@@ -297,6 +297,31 @@ ScenarioNetwork _reachOf(
   return reach;
 }
 
+/// The sentence a scenario whose pictures depended on the machine's speed
+/// owes its author, or null when none did.
+///
+/// Said as the scenario ends rather than failed on: the pictures are right on
+/// this machine, and a flow that is otherwise fine should not go red for it.
+/// But it is the one warning that arrives before a comparison on a slower
+/// machine reports the difference as somebody's change.
+String? guessedLandingNotice(String scenario, Map<String, int> guessed) {
+  if (guessed.isEmpty) return null;
+  String step(String label, int turn) =>
+      '`${label.isEmpty ? 'the first frame' : 's.$label'}` '
+      '(turn $turn of $realWorkTurns)';
+  var steps = [
+    for (var MapEntry(key: label, value: turn) in guessed.entries)
+      step(label, turn),
+  ];
+  return '"$scenario": ${steps.length == 1 ? 'a step' : '${steps.length} steps'} '
+      'drew work nothing announced, found only by turning the real event '
+      'loop: ${steps.join(', ')}. The pictures are right on this machine; on '
+      'a slower one that work lands later or not at all, and the step '
+      'photographs what came before it. Hand the work to `RealWork.run` '
+      '(`package:flutterware/real_work.dart`) and the scenario waits for it '
+      'however long it takes.';
+}
+
 /// Which scenarios have already had their overruled `record` reported.
 ///
 /// Keyed on the file *and* the description, not the description alone: the
@@ -628,6 +653,10 @@ Future<void> _runScenario(
       }
     } while (state.plan.advance());
 
+    if (guessedLandingNotice(description, state.guessed) case var said?) {
+      stderr.writeln('[flutterware] $said');
+    }
+
     if (inertNetworkMessage(
           description,
           reach,
@@ -675,6 +704,11 @@ Future<void> _runScenario(
 /// into [ScenarioStepCapture.overflowErrors]. Only ever counts under the
 /// expansion filter below, so it stays zero on every ordinary run.
 int _overflowsSinceLastCapture = 0;
+
+/// The deepest turn of the real loop on which work nothing announced landed
+/// since the last capture — see `landRealWork`'s `guessed` — drained per step
+/// into [ScenarioStepCapture.guessed] the way the overflows are.
+int? _guessedSinceLastCapture;
 
 /// Under a budget probe, an overflow is the *measurement*, not a failure.
 ///
@@ -786,6 +820,11 @@ class _ReplayState {
   final emitted = <String, int>{};
 
   var stepCount = 0;
+
+  /// Every verb whose landing found work by guessing, with the deepest turn
+  /// it took — see `landRealWork`'s `guessed`. Said once when the scenario
+  /// ends, by [guessedLandingNotice].
+  final guessed = <String, int>{};
 }
 
 /// Depth-first enumeration of a scenario's `split` choices.
@@ -2083,7 +2122,7 @@ class ScenarioTester {
       );
       // Frames are all a policy follows; work on the real event loop
       // schedules none while it is in flight. See [landRealWork].
-      (settled: settled, landed: landed) = await landRealWork(
+      var landing = await landRealWork(
         tester,
         policy,
         settled: settled,
@@ -2092,6 +2131,12 @@ class ScenarioTester {
         record: _sink,
         beforePump: _keyboard.step,
       );
+      (settled, landed) = (landing.settled, landing.landed);
+      if (landing.guessed case var turn?) {
+        _guessedSinceLastCapture = _deeper(_guessedSinceLastCapture, turn);
+        var label = [?verb, ?target].join(' ');
+        _state.guessed[label] = _deeper(_state.guessed[label], turn)!;
+      }
       // After the landing and not before it: a strict policy is red about
       // a screen that *stays* animating, and a decode still on its way is
       // not that. The throw takes the ordinary failure path below, so the
@@ -2456,6 +2501,8 @@ class ScenarioTester {
     pending.strayFrames += stray;
     pending.overflowErrors += _overflowsSinceLastCapture;
     _overflowsSinceLastCapture = 0;
+    pending.guessed = _deeper(pending.guessed, _guessedSinceLastCapture);
+    _guessedSinceLastCapture = null;
     // The events belong to the step wearing the name rather than to whichever
     // step captures next: they happened on the way to *this* frame, and this
     // frame is the pending capture. Rolling them forward — what a
@@ -2920,6 +2967,7 @@ class ScenarioTester {
         failure: failure,
         segment: _segment,
         overflowErrors: _overflowsSinceLastCapture,
+        guessed: _guessedSinceLastCapture,
         frames: _frames,
         // What the screen lost to a keyboard when this was photographed. Read
         // here with the texts and the overlay style, for the reason written on
@@ -2930,6 +2978,7 @@ class ScenarioTester {
       // count riding to the next capture, exactly as the frame-exact path
       // does.
       _overflowsSinceLastCapture = 0;
+      _guessedSinceLastCapture = null;
     });
     if (adopted) {
       _adoptOntoPending(
@@ -3020,6 +3069,7 @@ class _PendingEmit {
     required this.frames,
     this.segment = 0,
     this.overflowErrors = 0,
+    this.guessed,
     this.keyboard,
     this.aim,
     this.kind = ScenarioCaptureKind.screen,
@@ -3096,6 +3146,10 @@ class _PendingEmit {
   /// step, like [events].
   int overflowErrors;
 
+  /// See [ScenarioStepCapture.guessed] — the deepest over the stretch an
+  /// adoption extends this step with.
+  int? guessed;
+
   /// How tall the software keyboard was when this frame was taken, in logical
   /// pixels — null when it was down, which is nearly every step.
   final double? keyboard;
@@ -3133,9 +3187,18 @@ class _PendingEmit {
     strayFrames: strayFrames,
     failure: failure,
     overflowErrors: overflowErrors,
+    guessed: guessed,
     keyboard: keyboard,
   );
 }
+
+int? _deeper(int? a, int? b) => a == null
+    ? b
+    : b == null
+    ? a
+    : a > b
+    ? a
+    : b;
 
 /// What a scenario says to whatever is filming it — `s.film`.
 ///

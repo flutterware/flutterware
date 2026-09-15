@@ -33,6 +33,7 @@ class ScenarioStepShot {
     this.events = const [],
     this.failure,
     this.frame,
+    this.guessed,
   });
 
   final AlignableStep step;
@@ -49,6 +50,11 @@ class ScenarioStepShot {
 
   /// What the scenario broke on at this step, when it did.
   final String? failure;
+
+  /// The turn of the real event loop on which work nothing announced landed
+  /// on the way to this step — `ScenarioRunStep.guessed`. A picture that
+  /// depended on the machine's speed.
+  final int? guessed;
 
   /// Where the harness left this step's frame.
   ///
@@ -95,6 +101,34 @@ class ScenarioReplay {
   /// A result with nothing wrong in it — the only replay that is believed the
   /// first time.
   bool get clean => complete && failures.isEmpty;
+
+  /// The steps whose pictures depended on how fast the machine was — see
+  /// [ScenarioStepShot.guessed].
+  List<ScenarioStepShot> get hazards => [
+    for (var shot in steps)
+      if (shot.guessed != null) shot,
+  ];
+}
+
+/// Whether two replays of one side did the same thing: the same failures, and
+/// nothing between their steps that a comparison would call a change.
+bool replaysAgree(ScenarioReplay a, ScenarioReplay b) =>
+    a.complete == b.complete &&
+    a.failures.length == b.failures.length &&
+    compareScenarioReplays(scenario: '', base: a, head: b).state ==
+        ComparedState.same;
+
+/// The sentence a side whose pictures depended on the machine gets when two
+/// replays of it disagreed.
+String unstableHazardSentence(String side, ScenarioReplay replay) {
+  var steps = [
+    for (var shot in replay.hazards)
+      '`${shot.step.label}` (turn ${shot.guessed})',
+  ];
+  return '$side drew work nothing announced, found only by turning the real '
+      'event loop — at ${steps.join(', ')} — and two replays of it disagreed. '
+      'Its pictures depend on the machine running it. Hand that work to '
+      '`RealWork.run` and the scenario waits for it however long it takes.';
 }
 
 /// The first line of a message, trimmed — what a report carries of an error.
@@ -312,9 +346,19 @@ ComparedItem _compare(
       note: _failureNote(base.failure, head.failure),
     );
   }
+  var guessed = [
+    if (base.guessed case var turn?) 'base (turn $turn)',
+    if (head.guessed case var turn?) 'this branch (turn $turn)',
+  ];
   var item = ComparedItem.of(
     id: pair.path,
     label: pair.head!.label,
+    // Said beside a change it may have caused: this step drew work nothing
+    // announced, so its picture depended on the machine as well as the code.
+    note: guessed.isEmpty
+        ? null
+        : 'drew work nothing announced on ${guessed.join(' and ')}: a '
+              'difference here can be the machine rather than the branch',
     pixels: base.rgba == null || head.rgba == null
         ? null
         : PixelDiff.of(
@@ -332,6 +376,17 @@ ComparedItem _compare(
     baseEvents: base.events,
     headEvents: head.events,
   );
+  if (item.state == ComparedState.same && item.note != null) {
+    item = ComparedItem(
+      id: item.id,
+      state: item.state,
+      label: item.label,
+      pixels: item.pixels,
+      tree: item.tree,
+      texts: item.texts,
+      events: item.events,
+    );
+  }
   // A retarget is a change whatever the channels found: the same step now
   // names something else, and two identical pictures are the *reason* it is
   // worth saying rather than a reason to stay quiet.

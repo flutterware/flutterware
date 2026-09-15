@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/real_work/tracker.dart';
 import 'package:flutterware/src/scenarios/real_work.dart';
+import 'package:flutterware/src/scenarios/scenario.dart'
+    show guessedLandingNotice;
 import 'package:flutterware/src/scenarios/settle.dart';
 
 /// `landed` is what a step says about work it gave up on, so it has to be false
@@ -50,6 +52,98 @@ void main() {
       'tracked': ['slow load'],
     });
   });
+
+  // The picture was right, but only because the real loop turned fast enough:
+  // the step has to be able to say so, or a slower machine's missing artwork
+  // is the first anybody hears of it.
+  testWidgets('work only a guessed turn found is reported with its turn', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: _UntrackedRead()));
+    const policy = Settle.standard;
+    var budget = RealWorkBudget();
+    var settled = await policy.apply(tester);
+
+    var result = await landRealWork(
+      tester,
+      policy,
+      settled: settled,
+      budget: budget,
+    );
+
+    expect(find.text('read'), findsOneWidget);
+    expect(result.guessed, isNotNull);
+    expect(result.guessed, inInclusiveRange(1, realWorkTurns));
+  });
+
+  testWidgets('work that was announced is not a guess', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: _UntrackedRead(tracked: true)),
+    );
+    const policy = Settle.standard;
+    var budget = RealWorkBudget();
+    var settled = await policy.apply(
+      tester,
+      land: () => budget.land(tester, null),
+    );
+
+    var result = await landRealWork(
+      tester,
+      policy,
+      settled: settled,
+      budget: budget,
+    );
+
+    expect(find.text('read'), findsOneWidget);
+    expect(result.guessed, isNull);
+  });
+
+  test('the notice names each step and the fix', () {
+    expect(guessedLandingNotice('Checkout', const {}), isNull);
+
+    var said = guessedLandingNotice('Checkout', const {'tap "Pay"': 9})!;
+
+    expect(said, contains('"Checkout": a step drew work nothing announced'));
+    expect(said, contains('`s.tap "Pay"` (turn 9 of $realWorkTurns)'));
+    expect(said, contains('RealWork.run'));
+  });
+}
+
+/// A read off the fake clock that lands on the real loop — announced to
+/// `RealWork` only when [tracked].
+class _UntrackedRead extends StatefulWidget {
+  const _UntrackedRead({this.tracked = false});
+
+  final bool tracked;
+
+  @override
+  State<_UntrackedRead> createState() => _UntrackedReadState();
+}
+
+class _UntrackedReadState extends State<_UntrackedRead> {
+  var _read = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void> read() =>
+        Future<void>.delayed(const Duration(milliseconds: 1));
+    var done = widget.tracked
+        ? RealWork.run(read, label: 'read')
+        : _rootRead(read);
+    done.then((_) {
+      if (mounted) setState(() => _read = true);
+    });
+  }
+
+  static Future<void> _rootRead(Future<void> Function() read) {
+    var done = Completer<void>();
+    Zone.root.run(() => read().then(done.complete));
+    return done.future;
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(_read ? 'read' : 'reading');
 }
 
 class _ChainedLoad extends StatefulWidget {

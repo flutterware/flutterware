@@ -163,7 +163,11 @@ to want to see. That is why the default is `all`.
   depended on the machine rather than on the branch. Not compared is named in
   the comment's heading and never fails the check: it is a finding about the
   scenario, and the fix is in the scenario — usually real work nothing
-  announced, which `RealWork.run` makes the scenario wait for. A scenario's
+  announced, which `RealWork.run` makes the scenario wait for. A scenario run
+  already says where that is: each step that found such work only by turning
+  the real event loop records the turn as `guessed`, and the run ends with a
+  line naming those steps. A comparison that finds a difference in one of
+  those scenarios replays both sides once more before it believes it. A scenario's
   `timeout:` is how long it may go without progress, not how long it may take,
   so a slow runner stretches a scenario without failing it.
 

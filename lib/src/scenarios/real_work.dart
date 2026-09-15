@@ -6,6 +6,7 @@ import 'asset_bundle.dart';
 import 'motion.dart';
 import 'progress.dart';
 import 'settle.dart';
+import 'stall.dart';
 
 /// How many turns of the real event loop a caller spends **guessing** — see
 /// [landRealWork].
@@ -97,6 +98,13 @@ const _waitingTurn = Duration(milliseconds: 1);
 /// guessed half, and there cannot be: not knowing whether anything is coming is
 /// the whole reason those turns are spent.
 ///
+/// What there can be is `guessed`: the turn on which work nothing announced
+/// *did* land and draw, the deepest one when several did, or null when none
+/// did. It is the one fact about the guessed half a run can state, and it is
+/// a hazard rather than a success — the picture depended on the real loop
+/// turning fast enough, and on a slower machine the same work lands on a later
+/// turn or on none, and the step photographs what came before it.
+///
 /// What none of it buys is work that needs real *time* — an http call, a
 /// `Future.delayed` on the real clock — which no counter names and which
 /// `s.runAsync` is the verb for.
@@ -120,7 +128,7 @@ const _waitingTurn = Duration(milliseconds: 1);
 /// a step its artwork — before this, *every* step reporting `settled: false`
 /// skipped the landing altogether, the announced half included, and said
 /// `landed: true` while doing it.
-Future<({bool settled, bool landed})> landRealWork(
+Future<({bool settled, bool landed, int? guessed})> landRealWork(
   WidgetTester tester,
   Settle policy, {
   required bool settled,
@@ -133,7 +141,7 @@ Future<({bool settled, bool landed})> landRealWork(
     for (var i = 0; i < realWorkTurns; i++) {
       if (_announced(assets)) {
         if (!await budget.land(tester, assets)) {
-          return (settled: false, landed: false);
+          return (settled: false, landed: false, guessed: null);
         }
       } else {
         await tester.runAsync(() => Future<void>.delayed(Duration.zero));
@@ -150,22 +158,51 @@ Future<({bool settled, bool landed})> landRealWork(
     // Read again rather than repeated: the turns above may have drawn the
     // frame the policy was waiting on — a spinner whose future landed — and
     // a strict policy would otherwise fail a screen that is now quiet.
-    return (settled: !tester.binding.hasScheduledFrame, landed: true);
+    // Nothing here says which turn a frame came from — see the doc above.
+    return (
+      settled: !tester.binding.hasScheduledFrame,
+      landed: true,
+      guessed: null,
+    );
   }
   var guesses = 0;
+  int? guessed;
+  var answered = platformReplies;
   while (true) {
-    if (_announced(assets)) {
+    var guessing = !_announced(assets);
+    if (!guessing) {
       if (!await budget.land(tester, assets)) {
-        return (settled: true, landed: false);
+        return (settled: true, landed: false, guessed: guessed);
       }
     } else {
-      if (guesses >= realWorkTurns) return (settled: true, landed: true);
+      if (guesses >= realWorkTurns) {
+        return (settled: true, landed: true, guessed: guessed);
+      }
+      answered = platformReplies;
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       guesses++;
     }
     // A frame the landing drew itself counts too: it is the same progress,
     // and the policy below is where the recorder sees it.
-    if (!tester.binding.hasScheduledFrame && !budget.takeDrewFrame()) continue;
+    var drew = budget.takeDrewFrame();
+    var asked = tester.binding.hasScheduledFrame;
+    if (!asked && !drew) continue;
+    // A quiet tree that asked for a frame after a guessed turn: work nobody
+    // announced just landed, and only the turn found it. Not when a landing
+    // drew one: that frame is announced work's, drawn before this turn. And
+    // not when the turn delivered a platform reply: the send was recorded as
+    // it went out, and it is the framework's — a `TextField` asking whether
+    // the clipboard has anything is on every form, and no scenario can hand
+    // it to `RealWork`. Measured on the example suite before this: every one
+    // of its eight guessed steps was a form's clipboard and text-action
+    // queries, and none was the app's.
+    if (guessing &&
+        asked &&
+        !drew &&
+        platformReplies == answered &&
+        guesses > (guessed ?? 0)) {
+      guessed = guesses;
+    }
     // A frame is progress, so the next link starts from a full budget rather
     // than from whatever this one had left.
     guesses = 0;
@@ -183,7 +220,7 @@ Future<({bool settled, bool landed})> landRealWork(
         landed = await budget.land(tester, assets);
       },
     );
-    if (!settled) return (settled: false, landed: landed);
+    if (!settled) return (settled: false, landed: landed, guessed: guessed);
   }
 }
 
