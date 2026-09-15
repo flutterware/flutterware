@@ -6,7 +6,6 @@ import 'asset_bundle.dart';
 import 'motion.dart';
 import 'progress.dart';
 import 'settle.dart';
-import 'stall.dart';
 
 /// How many turns of the real event loop a caller spends **guessing** — see
 /// [landRealWork].
@@ -167,7 +166,8 @@ Future<({bool settled, bool landed, int? guessed})> landRealWork(
   }
   var guesses = 0;
   int? guessed;
-  var answered = platformReplies;
+  var messenger = tester.binding.defaultBinaryMessenger;
+  var replied = false;
   while (true) {
     var guessing = !_announced(assets);
     if (!guessing) {
@@ -178,8 +178,9 @@ Future<({bool settled, bool landed, int? guessed})> landRealWork(
       if (guesses >= realWorkTurns) {
         return (settled: true, landed: true, guessed: guessed);
       }
-      answered = platformReplies;
+      var unanswered = messenger.pendingMessageCount;
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      replied = messenger.pendingMessageCount < unanswered;
       guesses++;
     }
     // A frame the landing drew itself counts too: it is the same progress,
@@ -196,11 +197,16 @@ Future<({bool settled, bool landed, int? guessed})> landRealWork(
     // it to `RealWork`. Measured on the example suite before this: every one
     // of its eight guessed steps was a form's clipboard and text-action
     // queries, and none was the app's.
-    if (guessing &&
-        asked &&
-        !drew &&
-        platformReplies == answered &&
-        guesses > (guessed ?? 0)) {
+    //
+    // Read off the test binding's own count of unanswered sends, which every
+    // test binding keeps — not off a messenger of our own, which only the
+    // runner's binding installs. Counted there, a plain `flutter test` saw no
+    // reply ever land and called every one unannounced work: 393 turns across
+    // a consumer's 129 scenarios and five of brewline's nine, none of them the
+    // app's. A send made and answered inside the one turn leaves the count
+    // where it was, but the framework sends from a pump, never from inside a
+    // turn.
+    if (guessing && asked && !drew && !replied && guesses > (guessed ?? 0)) {
       guessed = guesses;
     }
     // A frame is progress, so the next link starts from a full budget rather

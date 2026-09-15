@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A comparison that cannot write a picture says so, instead of blaming the
+  code.** Any failure while filing a rendered preview — a full disk on a CI
+  runner, measured — was reported as "the base checkout does not compile".
+  The error now reaches the output as itself.
+
 - **A dependency change no picture can show no longer re-renders the
   package.** A package's `pubspec.yaml` was a whole-file input to every
   preview and scenario in it, so removing one dependency or adding a
@@ -33,11 +38,11 @@
   the loop a dozen times, and on a slower machine it lands later or not at
   all. A step whose landing found such work now records the turn as
   `guessed`, each outcome counts them as `guessedCount`, and the scenario ends
-  with one line naming those steps and the fix: hand the work to
-  `RealWork.run`. Turns that only delivered a platform reply are not counted —
-  a form's clipboard query is the framework's, and was all eight of the
-  example suite's. `fw compare` acts on it: a difference in a scenario with a
-  guessed landing is replayed on each side once more, alone, and reported as
+  with one line naming those steps, under the runner and a plain
+  `flutter test` alike. Turns that only delivered a platform reply are not
+  counted — a form's clipboard query is the framework's, and was all eight of
+  the example suite's. `fw compare` acts on it: a difference in a scenario with
+  a guessed landing is replayed on each side once more, alone, and reported as
   not compared when a side does not reproduce itself; a difference that holds
   says beside the step that it may be the machine. A replay with a guessed
   landing is never cached.

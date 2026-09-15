@@ -96,12 +96,6 @@ int recordPendingSend(String title) {
 /// and that is the point: from the suspended body's side it *is*.
 void sendAnswered(int token) => _pendingSends.remove(token);
 
-/// How many platform replies have reached their sender, ever — every channel,
-/// the framework's own included, which [recordPendingSend] leaves out. Read
-/// before and after a turn of the real loop to tell whether that turn
-/// delivered one.
-var platformReplies = 0;
-
 /// The sends nobody has seen answered, oldest first.
 List<PendingSend> get pendingSends => _pendingSends.values.toList();
 

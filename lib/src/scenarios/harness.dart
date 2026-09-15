@@ -304,10 +304,6 @@ class _SpyMessenger extends TestDefaultBinaryMessenger {
       ),
     );
     var result = super.send(channel, message);
-    result?.then(
-      (_) => platformReplies++,
-      onError: (Object _) => platformReplies++,
-    );
     // What a deadline can quote: which sends the body never saw answered,
     // and from where in the app. Plugin traffic and asset reads only — the
     // framework's own chatter is nobody's deadlock, and a stack per message
