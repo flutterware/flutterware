@@ -13,7 +13,6 @@ import '../previews/devices.dart';
 import '../previews/discovery.dart';
 import '../previews/test_runner.dart';
 import '../embedder/build_directory.dart';
-import 'cancel.dart';
 import 'runner.dart';
 
 /// The previews of a checkout, as the runner asks about them.
@@ -157,6 +156,9 @@ class PreviewsSide implements ComparisonSide {
       buildDirectory: buildDirectory,
     );
     var outDir = Directory.systemTemp.createTempSync('fw_comparison_previews');
+    // What [onFrame] threw, so the catch below can tell the caller's own
+    // failure from the harness's.
+    Object? filing;
     try {
       await runner.capture(
         entryIds: [for (var entry in wanted) entry.id],
@@ -198,28 +200,34 @@ class PreviewsSide implements ComparisonSide {
             return;
           }
           var tree = _tree(row.tree);
-          await onFrame(
-            RenderedEntry(
-              entryId: row.id,
-              rgba: File(image).readAsBytesSync(),
-              width: row.width,
-              height: row.height,
-              tree: tree?.root,
-              treeFormat: tree?.format,
-              // The framework's word first: a failure with errors beside it
-              // is usually the test runner restating one of them.
-              complaint: errors.firstOrNull?.exception ?? row.failure,
-            ),
-          );
+          try {
+            await onFrame(
+              RenderedEntry(
+                entryId: row.id,
+                rgba: File(image).readAsBytesSync(),
+                width: row.width,
+                height: row.height,
+                tree: tree?.root,
+                treeFormat: tree?.format,
+                // The framework's word first: a failure with errors beside it
+                // is usually the test runner restating one of them.
+                complaint: errors.firstOrNull?.exception ?? row.failure,
+              ),
+            );
+          } catch (error) {
+            filing = error;
+            rethrow;
+          }
         },
       );
-    } on ComparisonCancelled {
-      // A stop is not a compile failure. The runner's cancel check throws
-      // from inside `onFrame`, which unwinds through the capture loop — the
-      // finally below reaps the tester — and must reach the controller as
-      // itself.
-      rethrow;
     } on Object catch (error) {
+      // **What the caller's [onFrame] threw is not a compile failure.** It
+      // unwinds through the capture loop — the finally below reaps the tester
+      // — and reaches the caller as itself: a stop, or a picture the shot
+      // cache could not write. Wrapped, a full disk on a CI runner read "the
+      // base checkout does not compile" and sent its reader to the base
+      // branch's code.
+      if (identical(error, filing)) rethrow;
       // **A side that cannot start is one finding.** The harness refuses as a
       // whole when the generated entrypoint does not compile past blame — one
       // way that happens is version skew, because the base is rendered with

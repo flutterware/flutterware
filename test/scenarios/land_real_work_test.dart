@@ -98,14 +98,47 @@ void main() {
     expect(result.guessed, isNull);
   });
 
-  test('the notice names each step and the fix', () {
+  // Under the stock binding a plain `flutter test` runs on. A field gaining
+  // focus asks the platform about the clipboard and text actions, and those
+  // replies land on the turns the landing takes.
+  testWidgets('a turn that only delivered a platform reply is not a guess', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: TextField())),
+    );
+    await tester.tap(find.byType(TextField));
+    const policy = Settle.standard;
+    var settled = await policy.apply(tester);
+    expect(
+      tester.binding.defaultBinaryMessenger.pendingMessageCount,
+      isPositive,
+      reason: 'the setup has to leave a reply for the turns to deliver',
+    );
+
+    var result = await landRealWork(
+      tester,
+      policy,
+      settled: settled,
+      budget: RealWorkBudget(),
+    );
+
+    expect(tester.binding.defaultBinaryMessenger.pendingMessageCount, 0);
+    expect(result.guessed, isNull);
+  });
+
+  test('the notice names each step and its turn', () {
     expect(guessedLandingNotice('Checkout', const {}), isNull);
 
-    var said = guessedLandingNotice('Checkout', const {'tap "Pay"': 9})!;
+    var said = guessedLandingNotice('Checkout', const {'': 2, 'tap "Pay"': 9})!;
 
-    expect(said, contains('"Checkout": a step drew work nothing announced'));
-    expect(said, contains('`s.tap "Pay"` (turn 9 of $realWorkTurns)'));
-    expect(said, contains('RealWork.run'));
+    expect(
+      said,
+      startsWith(
+        '"Checkout": `the first frame` (turn 2 of $realWorkTurns), '
+        '`s.tap "Pay"` (turn 9 of $realWorkTurns) finished drawing',
+      ),
+    );
   });
 }
 

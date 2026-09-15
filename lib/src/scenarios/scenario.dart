@@ -297,13 +297,14 @@ ScenarioNetwork _reachOf(
   return reach;
 }
 
-/// The sentence a scenario whose pictures depended on the machine's speed
-/// owes its author, or null when none did.
+/// The sentence a scenario whose steps depended on the machine's speed owes
+/// its author, or null when none did.
 ///
-/// Said as the scenario ends rather than failed on: the pictures are right on
-/// this machine, and a flow that is otherwise fine should not go red for it.
-/// But it is the one warning that arrives before a comparison on a slower
-/// machine reports the difference as somebody's change.
+/// Said as the scenario ends rather than failed on, and the same under the
+/// runner and a plain `flutter test`: a step that is right only because the
+/// real loop turned fast enough is a flaky expectation on a slower machine as
+/// much as it is a changed picture. It states the hazard and nothing more —
+/// what to do about it depends on what the work is.
 String? guessedLandingNotice(String scenario, Map<String, int> guessed) {
   if (guessed.isEmpty) return null;
   String step(String label, int turn) =>
@@ -313,13 +314,9 @@ String? guessedLandingNotice(String scenario, Map<String, int> guessed) {
     for (var MapEntry(key: label, value: turn) in guessed.entries)
       step(label, turn),
   ];
-  return '"$scenario": ${steps.length == 1 ? 'a step' : '${steps.length} steps'} '
-      'drew work nothing announced, found only by turning the real event '
-      'loop: ${steps.join(', ')}. The pictures are right on this machine; on '
-      'a slower one that work lands later or not at all, and the step '
-      'photographs what came before it. Hand the work to `RealWork.run` '
-      '(`package:flutterware/real_work.dart`) and the scenario waits for it '
-      'however long it takes.';
+  return '"$scenario": ${steps.join(', ')} finished drawing only after '
+      'turns of the real event loop, on work nothing announced. On a slower '
+      'machine that work can land after the step has moved on.';
 }
 
 /// Which scenarios have already had their overruled `record` reported.
