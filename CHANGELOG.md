@@ -1,5 +1,71 @@
 ## Unreleased
 
+- **A dependency change no picture can show no longer re-renders the
+  package.** A package's `pubspec.yaml` was a whole-file input to every
+  preview and scenario in it, so removing one dependency or adding a
+  `flutter: config:` flag re-rendered and re-replayed everything — measured on
+  one merge request, 420 renders and 258 replays. It is now hashed without its
+  dependency lists (the lockfile and the import graph cover what they resolve
+  to), `flutter: config:`, and what only pub.dev reads; everything else,
+  including keys it does not recognise, still counts. A lockfile entry is no
+  longer a change when only its `direct`/`transitive` kind moved. The cache key
+  also carries the rasterizer, so pictures drawn by Metal, Vulkan and Skia's
+  software backend are no longer served for one another. Cached comparison
+  pictures are re-rendered once.
+
+- **A comparison records the machine it ran on, and how long each replay
+  took.** `index.json` carries `host` — OS, CPU count and the rasterizer — and
+  each scenario its `ms` per side; the pull-request comment's footer names the
+  machine.
+
+- **A scenario that breaks while a `split` replays its shared prefix is
+  placed on the branch that replay was heading into.** Each branch replays the
+  body from the top, and a failure or a timeout before that replay reached its
+  `split` was filed as an unlabelled step under the last step it had seen —
+  another branch's. That branch grew a step its source does not contain, the
+  comparison's aligner stopped walking the flow there, and the branch that
+  never ran was missing from both sides. The break is now the first step of
+  the branch it belongs to, hanging off the step the split forks from.
+
+- **A scenario step says when its picture depended on how fast the machine
+  was.** Work that resolves on the real event loop and announces nothing — a
+  `FutureBuilder` on a real future, an untracked read — is found by turning
+  the loop a dozen times, and on a slower machine it lands later or not at
+  all. A step whose landing found such work now records the turn as
+  `guessed`, each outcome counts them as `guessedCount`, and the scenario ends
+  with one line naming those steps and the fix: hand the work to
+  `RealWork.run`. Turns that only delivered a platform reply are not counted —
+  a form's clipboard query is the framework's, and was all eight of the
+  example suite's. `fw compare` acts on it: a difference in a scenario with a
+  guessed landing is replayed on each side once more, alone, and reported as
+  not compared when a side does not reproduce itself; a difference that holds
+  says beside the step that it may be the machine. A replay with a guessed
+  landing is never cached.
+
+- **A scenario's `timeout:` is how long it may go without progress, not how
+  long it may take.** It was a wall-clock budget for the whole scenario —
+  every `split` replay, every capture, every wait on tracked work — so it
+  measured the machine: a flow that passes in five seconds on a quiet machine
+  failed thirty on a CI runner shared by three jobs. Under the runner a
+  scenario now fails when no verb has returned, no step has been captured and
+  no tracked work has been pending for its timeout, on an isolate that sat
+  idle. Tracked work is waited for up to two minutes per future, and a
+  scenario still going at ten times its timeout is stopped. The stall message
+  no longer calls a slow `RealWork` load a dead zone: it names the work and how
+  long it had been pending. A bare `flutter test` keeps the timeout as written.
+
+- **`fw compare` replays a failing scenario side again before it believes
+  it.** A side that failed, or that the harness gave up on, is replayed once
+  more on its own. A failure that reproduces is the verdict — including one on
+  a step the other side never took, which used to fold into `changed`, so a
+  base that broke read as the branch's change. One that does not reproduce is
+  **not compared**: written as `skipped` with an `inconclusive` sentence, named
+  in the comment's heading, listed in the CLI and on the page, and never a
+  gate failure. A failed replay is cached only once it has reproduced, so one
+  bad minute on one runner is no longer served to every later comparison
+  against that base. Each scenario carries both sides' errors, and a failed
+  step is labelled by what it failed on rather than `step N`.
+
 - **A preview's image provider that sleeps before it decodes is drawn
   loaded.** Between the frames of its settle, the previews lane waited in real
   time for every decode the image cache counted — including one whose provider

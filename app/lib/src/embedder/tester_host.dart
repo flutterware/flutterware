@@ -712,6 +712,25 @@ class TesterCompileException implements Exception {
 /// which is why a scenario that renders through Flutter GPU runs here and not
 /// there. Spawning the tester ourselves is what buys the third flag — the same
 /// reason we omit `--use-test-fonts`.
+/// What [rasterizerArguments] makes the tester draw with, by name:
+/// `skia-software`, `impeller-metal` or `impeller-vulkan`.
+///
+/// Vulkan is whatever adapter the host offers the tester, which on a CI runner
+/// with no GPU is a CPU rasterizer — slower by a wide margin, and the first
+/// thing to know about a comparison that took three times its usual length.
+String rasterizerName({
+  required bool macOS,
+  required Map<String, String> environment,
+}) => environment[softwareRenderingKey] == '1'
+    ? 'skia-software'
+    : macOS
+    ? 'impeller-metal'
+    : 'impeller-vulkan';
+
+/// [rasterizerName] for this process's own host.
+String hostRasterizer() =>
+    rasterizerName(macOS: Platform.isMacOS, environment: Platform.environment);
+
 List<String> rasterizerArguments({
   required bool macOS,
   required Map<String, String> environment,

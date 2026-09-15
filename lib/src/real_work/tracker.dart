@@ -51,13 +51,19 @@ abstract final class RealWork {
   /// list rebuilding at 60Hz in a release build.
   static var _observed = false;
 
+  /// What [TrackedRealWork.pendingFor] is measured on. Real time on purpose:
+  /// the work is on the real event loop, and a scenario's clock is fake.
+  static final _clock = Stopwatch()..start();
+
   /// Announces [work] and hands it straight back.
   ///
   /// [label] is what a diagnosis calls it — the deadline message names every
   /// tracked future still pending when a scenario runs out of time, and
   /// `scene model` reads better there than `Future<void>`.
   static Future<T> track<T>(Future<T> work, {String? label}) {
-    var entry = TrackedRealWork(label, _observed ? StackTrace.current : null);
+    var entry = _observed
+        ? TrackedRealWork(label, StackTrace.current, since: _clock.elapsed)
+        : TrackedRealWork(label, null);
     _pending.add(entry);
     void done(Object? _) => _pending.remove(entry);
     // `then` with an error handler rather than `whenComplete`: the future
@@ -110,7 +116,10 @@ abstract final class RealWork {
 
 /// One announced future that has not completed yet.
 class TrackedRealWork {
-  TrackedRealWork(this.label, this.announcedAt);
+  TrackedRealWork(this.label, this.announcedAt, {Duration? since})
+    // A named parameter cannot be private.
+    // ignore: prefer_initializing_formals
+    : _since = since;
 
   /// What the app called it, or null.
   final String? label;
@@ -119,6 +128,13 @@ class TrackedRealWork {
   /// answer to "which load is this". Null outside a scenario, where nobody
   /// would read it.
   final StackTrace? announcedAt;
+
+  final Duration? _since;
+
+  /// How long it has been pending, in real time — or null outside a scenario,
+  /// where nothing reads it and nothing is paid to know it.
+  Duration? get pendingFor =>
+      _since == null ? null : RealWork._clock.elapsed - _since;
 
   @override
   String toString() => label ?? 'untitled real work';

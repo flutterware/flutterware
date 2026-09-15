@@ -1088,7 +1088,7 @@ void main() {
         expect(hung['name'], 'Never returns');
         expect(hung['ok'], isFalse);
         var error = '${((hung['errors']! as List).first as Map)['error']}';
-        expect(error, contains('did not finish within 2s'));
+        expect(error, contains('made no progress for 2s'));
         // The diagnosis: where the body was, and which mechanism. This body
         // went past its last verb into a bare `tester.runAsync`, so it is
         // placed after that verb; and nothing is queued in the fake zone,
@@ -1110,6 +1110,52 @@ void main() {
           scenarios.map((s) => s['name']),
           isNot(contains('After the hang')),
         );
+      } finally {
+        await runner.dispose();
+        dir.deleteSync(recursive: true);
+        Directory(outDir).deleteSync(recursive: true);
+      }
+    },
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
+
+  // A scenario's timeout is how long it may go without progress. As a
+  // wall-clock budget it failed a split that passes in five seconds on a
+  // quiet machine once three comparison jobs shared the host.
+  test(
+    'a scenario slower than its timeout passes while it gets somewhere',
+    () async {
+      var flutterRoot = Platform.environment['FLUTTER_ROOT']!;
+      var repoRoot = Directory.current.parent.path;
+      var outDir = Directory.systemTemp.createTempSync('scenario_slow').path;
+      var dir = Directory(p.join(repoRoot, 'test', 'scenarios_slow'))
+        ..createSync(recursive: true);
+      File(p.join(dir.path, 'slow_test.dart')).writeAsStringSync(_slowSource);
+
+      var runner = ScenarioRunner(
+        packageRoot: repoRoot,
+        directory: 'test/scenarios_slow',
+        flutterSdkRoot: flutterRoot,
+      );
+      try {
+        var report = await runner.run(outDir: outDir);
+        var scenarios = (report['scenarios']! as List)
+            .cast<Map<String, dynamic>>();
+
+        expect(report['abandoned'], isNot(isTrue));
+        for (var scenario in scenarios) {
+          expect(
+            scenario['ok'],
+            isTrue,
+            reason: '${scenario['name']}: ${scenario['errors']}',
+          );
+          expect(
+            scenario['ms'] as int,
+            greaterThan(1500),
+            reason: 'it has to have outlived its one-second timeout',
+          );
+        }
+        expect(scenarios, hasLength(2));
       } finally {
         await runner.dispose();
         dir.deleteSync(recursive: true);
@@ -1627,6 +1673,65 @@ void main() {
   scenario('After the hang', (s) async {
     await s.pumpWidget(const SizedBox.shrink());
   });
+}
+''';
+
+const _slowSource = r'''
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutterware/flutter_test.dart';
+import 'package:flutterware/real_work.dart';
+
+void main() {
+  scenario(
+    'Steps that take longer than the timeout together',
+    timeout: const Timeout(Duration(seconds: 1)),
+    (s) async {
+      for (var i = 0; i < 5; i++) {
+        await s.tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 400)),
+        );
+        await s.pumpWidget(
+          Text('$i', textDirection: TextDirection.ltr),
+        );
+      }
+    },
+  );
+
+  scenario(
+    'Tracked work that takes longer than the timeout',
+    timeout: const Timeout(Duration(seconds: 1)),
+    (s) async {
+      await s.pumpWidget(const _Loads());
+    },
+  );
+}
+
+class _Loads extends StatefulWidget {
+  const _Loads();
+
+  @override
+  State<_Loads> createState() => _LoadsState();
+}
+
+class _LoadsState extends State<_Loads> {
+  var _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    RealWork.run(
+      () => Future<void>.delayed(const Duration(seconds: 2)),
+      label: 'slow import',
+    ).then((_) {
+      if (mounted) setState(() => _done = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(_done ? 'loaded' : 'loading', textDirection: TextDirection.ltr);
 }
 ''';
 

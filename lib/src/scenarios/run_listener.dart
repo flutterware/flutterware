@@ -47,6 +47,7 @@ class ScenarioStepCapture {
     this.strayFrames = 0,
     this.failure,
     this.overflowErrors = 0,
+    this.guessed,
     this.keyboard,
   });
 
@@ -207,6 +208,12 @@ class ScenarioStepCapture {
   /// as data instead of letting them fail the scenario. The same lifetime as
   /// [events]: they describe the edge into this step.
   final int overflowErrors;
+
+  /// The turn of the real event loop on which work nothing announced landed
+  /// and was drawn on the way to this frame — the deepest, when several did —
+  /// or null when nothing needed guessing at. A hazard: see
+  /// `ScenarioRunStep.guessed`.
+  final int? guessed;
 }
 
 /// The tree behind one capture, and the semantics behind it.
@@ -234,6 +241,14 @@ class ScenarioScreenRead {
 /// that hangs never reaches the verb that would have flushed it, and the
 /// last picture it took would otherwise go with it.
 void Function()? scenarioFlushHeld;
+
+/// Where a step the running scenario never took belongs — its parent, its
+/// split branch and its position — for the harness's deadline to put its
+/// invented step there. Armed beside [scenarioFlushHeld], for the same
+/// reader: the body is suspended, and only the scenario knows where in its
+/// shape it is.
+({int? parent, String? branch, String position}) Function()?
+scenarioBreakPlacement;
 
 /// Set by the flutterware harness beside [scenarioRunListener]: reads the
 /// screen a capture is photographing, at the moment it is photographed.

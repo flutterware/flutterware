@@ -276,11 +276,18 @@ List<ComparedFinding> rankComparedFindings({
 /// narrowed to named entries compares the rows somebody picked, and picking
 /// the one pre-broken flow would otherwise turn its ordinary finding into a
 /// permanent gap no change on the branch can lift.
+///
+/// [inconclusiveScenarios] is how many of the scenario rows were replayed and
+/// not compared — see [ScenarioComparison.inconclusive]. A half in which that
+/// is every replayed scenario compared nothing, which is the same gap an
+/// all-failed half is, and near-always the same kind of cause: a host that
+/// could not run anything to the end.
 String? verdictGapOf({
   String? scenariosNote,
   String? previewsNote,
   Iterable<ComparedState> scenarioStates = const [],
   Iterable<ComparedState> previewStates = const [],
+  int inconclusiveScenarios = 0,
   bool narrowed = false,
 }) {
   if (scenariosNote case var note?) {
@@ -296,9 +303,20 @@ String? verdictGapOf({
     return 'the previews half produced no verdict — ${note.split('\n').first}';
   }
   if (narrowed) return null;
+  if (inconclusiveScenarios > 0 &&
+      !scenarioStates.any(
+        (state) => state != ComparedState.skipped && !_settledUnrun(state),
+      )) {
+    return 'the scenario half produced no verdict — all '
+        '$inconclusiveScenarios replayed scenarios were inconclusive';
+  }
   return _uniformGap('scenario', 'scenarios', scenarioStates) ??
       _uniformGap('previews', 'entries', previewStates);
 }
+
+/// A state a scenario gets without being replayed: it exists on one side.
+bool _settledUnrun(ComparedState state) =>
+    state == ComparedState.added || state == ComparedState.removed;
 
 /// The gap sentence for a half whose rows all carry one no-verdict state, or
 /// null for one that compared anything at all — one copy of both the
@@ -315,6 +333,48 @@ String? _uniformGap(String half, String unit, Iterable<ComparedState> s) {
         '${states.length} $unit failed on the base side alone';
   }
   return null;
+}
+
+/// The machine a comparison ran on — what a reader needs before deciding a
+/// run that took three times its usual length, or a picture drawn by a
+/// software rasterizer, is about the branch.
+///
+/// Facts, not caveats: nothing here says the two sides were measured
+/// differently. Both ran here.
+class ComparisonHost {
+  const ComparisonHost({this.os, this.cpus, this.rasterizer});
+
+  /// `macos`, `linux`, `windows`.
+  final String? os;
+
+  /// Logical processors, as the OS reports them.
+  final int? cpus;
+
+  /// What the tester drew with: `impeller-metal`, `impeller-vulkan` — which on
+  /// a machine with no GPU is a CPU rasterizer — or `skia-software`.
+  final String? rasterizer;
+
+  Map<String, Object?> toJson() => {
+    'os': ?os,
+    'cpus': ?cpus,
+    'rasterizer': ?rasterizer,
+  };
+
+  /// Null for a file written before the key existed.
+  static ComparisonHost? fromJson(Object? json) => json is Map
+      ? ComparisonHost(
+          os: json['os'] as String?,
+          cpus: json['cpus'] as int?,
+          rasterizer: json['rasterizer'] as String?,
+        )
+      : null;
+
+  /// One line, for a comment's footer: `linux · 8 CPUs · impeller-vulkan`.
+  String get summary => [
+    ?os,
+    if (cpus case var n?) '$n CPU${n == 1 ? '' : 's'}',
+    ?rasterizer,
+  ].join(' · ');
 }
 
 /// A whole `index.json`, read back.
@@ -338,6 +398,7 @@ class ComparisonIndex {
     this.exported = ExportedFrames.all,
     this.narrowed = false,
     this.caveats = const [],
+    this.host,
     this.previewsHalf = const ComparedHalf(),
     this.scenariosHalf,
     this.export,
@@ -410,6 +471,10 @@ class ComparisonIndex {
   /// existed.
   final List<String> caveats;
 
+  /// Where it ran — see [ComparisonHost]. Null for a file written before the
+  /// key existed.
+  final ComparisonHost? host;
+
   final ComparedHalf previewsHalf;
 
   /// Absent when the project declares no scenarios at all. A half that tried
@@ -470,6 +535,7 @@ class ComparisonIndex {
       caveats: [
         for (var caveat in json['caveats'] as List? ?? const []) '$caveat',
       ],
+      host: ComparisonHost.fromJson(json['host']),
       previewsHalf: ComparedHalf.fromJson(previews),
       scenariosHalf: scenarios == null
           ? null
@@ -516,8 +582,19 @@ class ComparisonIndex {
     previewsNote: previewsHalf.note,
     scenarioStates: scenarios.map((scenario) => scenario.state),
     previewStates: previewItems.map((item) => item.state),
+    inconclusiveScenarios: notCompared.length,
     narrowed: narrowed,
   );
+
+  /// The scenarios that were replayed and not compared, because a side did not
+  /// produce a result — see [ScenarioComparison.inconclusive].
+  ///
+  /// Not findings, and not silent either: a reader is owed the list, since
+  /// every one of them is a scenario whose output depended on the machine.
+  List<ScenarioComparison> get notCompared => [
+    for (var scenario in scenarios)
+      if (!scenario.compared) scenario,
+  ];
 
   /// Findings across both halves, worst first — the header's chips.
   ///

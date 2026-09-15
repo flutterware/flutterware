@@ -14,6 +14,7 @@ class AlignableStep {
     this.name,
     this.verb,
     this.target,
+    this.failure,
   });
 
   final int index;
@@ -31,6 +32,11 @@ class AlignableStep {
   final String? verb;
   final String? target;
 
+  /// What the scenario broke on at this step, when it did. Read for the
+  /// [label] alone: whether a failure lines up is the signature's business,
+  /// and a message is not a signature — it carries whatever the error does.
+  final String? failure;
+
   /// What two steps are "the same step" under.
   ///
   /// The tiers are trust: an authored `Shot` name is a decision somebody made
@@ -47,7 +53,17 @@ class AlignableStep {
   };
 
   /// How it reads in a report.
-  String get label => name ?? _did ?? 'step $index';
+  ///
+  /// A failure with neither a name nor a verb is the body throwing between
+  /// verbs, and it reads as what it threw. `step N` was all it used to say,
+  /// and `N` counts every capture of the run — a number no reader can place.
+  String get label => name ?? _did ?? _failed ?? 'step $index';
+
+  String? get _failed {
+    if (failure == null) return null;
+    var line = failure!.trim().split('\n').first.trim();
+    return 'failed: ${line.length > 80 ? '${line.substring(0, 79)}…' : line}';
+  }
 }
 
 /// What happened to one step between two runs.

@@ -441,10 +441,12 @@ String _comment(
   };
   // The skip clause only when the skip rule answered anything: a cold CI run
   // printing "0 skipped" is noise wearing a number.
+  var notCompared = artifact.notCompared;
   var receipt = [
     '$compared entries compared',
     if (packages.length > 1) 'across ${packages.length} packages',
-    if (skipped > 0) '$skipped skipped',
+    if (skipped - notCompared.length > 0)
+      '${skipped - notCompared.length} skipped',
     if (elapsed > Duration.zero) 'in ${_took(elapsed)}',
   ].join(' · ');
 
@@ -459,6 +461,7 @@ String _comment(
     scenarioStates:
         artifact.scenarios?.items.map((item) => item.state) ?? const [],
     previewStates: artifact.previews.items.map((item) => item.state),
+    inconclusiveScenarios: artifact.notCompared.length,
     narrowed: artifact.narrowed,
   );
   // Under the heading, whatever it says: a caveat qualifies a clean verdict as
@@ -470,10 +473,42 @@ String _comment(
     }
   }
 
+  // Scenarios that produced no result, named under whichever verdict the rest
+  // reached. Not findings — nothing here is a claim about the branch — and
+  // never folded into "skipped", which means the skip rule found no reason to
+  // look: every one of these was looked at, and what it drew depended on the
+  // machine.
+  void unsure() {
+    if (notCompared.isEmpty) return;
+    var count = notCompared.length;
+    buffer
+      ..writeln(
+        '<details><summary>$count scenario${count == 1 ? '' : 's'} not '
+        'compared — no result on this machine, which is a finding about the '
+        'scenario and not the branch</summary>\n',
+      )
+      ..writeln('| scenario | why |')
+      ..writeln('|---|---|');
+    for (var scenario in notCompared.take(commentRowCap)) {
+      var why = scenario.inconclusive!.replaceAll('|', r'\|');
+      buffer.writeln('| `${scenario.scenario}` | $why |');
+    }
+    if (count > commentRowCap) {
+      buffer.writeln(
+        '\n*…and ${count - commentRowCap} more — the page has them all.*',
+      );
+    }
+    buffer.writeln('\n</details>\n');
+  }
+
+  var notComparedClause = notCompared.isEmpty
+      ? ''
+      : ' · ${notCompared.length} not compared';
   if (findings.isEmpty && gap == null) {
-    buffer.writeln('### Comparison against `$against`\n');
+    buffer.writeln('### Comparison against `$against`$notComparedClause\n');
     caveats();
-    buffer.writeln('Nothing changed — $receipt.');
+    buffer.writeln('Nothing changed — $receipt.\n');
+    unsure();
   } else if (findings.isEmpty) {
     buffer.writeln('### Comparison against `$against` — **no verdict**\n');
     caveats();
@@ -482,12 +517,15 @@ String _comment(
       ..writeln(
         '[**Open the full comparison →**]($viewerUrlPlaceholder) · $receipt\n',
       );
+    unsure();
   } else {
     var summary = [
       for (var entry in counts.entries)
         if (_isFinding(entry.key)) '${entry.value} ${entry.key.name}',
     ].join(' · ');
-    buffer.writeln('### Comparison against `$against` — **$summary**\n');
+    buffer.writeln(
+      '### Comparison against `$against` — **$summary**$notComparedClause\n',
+    );
     caveats();
     // Above the link rather than folded away with the table: a reader who
     // stops at the pictures has to know part of the run answered nothing.
@@ -537,15 +575,21 @@ String _comment(
       );
     }
     buffer.writeln('\n</details>\n');
+    unsure();
   }
   // The head sha, because this comment gets overwritten in place: it is what
   // tells a reader whether the report still describes the latest push.
   var at = head == null
       ? ''
       : ' @${head.length > 7 ? head.substring(0, 7) : head}';
+  // "Computed from git" was the whole sentence, and it was loose: either side
+  // may be read back from the cache instead of replayed. What it meant is that
+  // nothing is blessed — and that a cached side is one that was a result.
+  var host = artifact.host?.summary;
   buffer.writeln(
-    '<sub>`fw compare`$at — both sides computed from git, with no stored '
-    'baseline.</sub>',
+    '<sub>`fw compare`$at${host == null || host.isEmpty ? '' : ' on $host'} — '
+    'both sides from git, nothing blessed; a side read from the cache is one '
+    'that replayed to a result under the same inputs.</sub>',
   );
   return buffer.toString();
 }

@@ -12,6 +12,7 @@ import '../utils/base_href.dart';
 import '../utils/flutter_sdk.dart';
 import '../utils/run_dir.dart';
 import 'artifact.dart';
+import 'host_facts.dart';
 import 'base_checkout.dart';
 import 'base_ref.dart';
 import 'pr_report.dart';
@@ -229,7 +230,7 @@ Future<CompareOutcome> runComparison({
       baseRoot: checkout.path,
       baseSha: base.sha,
       cache: shotCache,
-      sdk: sdk.identity,
+      sdk: renderKeyOf(sdk),
       only: options.entries.isEmpty ? null : options.entries,
       side: PreviewsSide(
         flutterSdkRoot: sdk.root,
@@ -304,6 +305,7 @@ Future<CompareOutcome> runComparison({
     // the comment must agree about which push they describe.
     headCommit: await BaseRef.headOf(top),
     at: DateTime.now(),
+    host: currentComparisonHost(),
   );
   var index = artifact.writeTo(
     p.join(comparisonDirFor(flutterwareDir(), session.worktree), 'index.json'),
@@ -413,6 +415,7 @@ String? verdictGap(ComparisonArtifact artifact) => verdictGapOf(
   scenarioStates:
       artifact.scenarios?.items.map((item) => item.state) ?? const [],
   previewStates: artifact.previews.items.map((item) => item.state),
+  inconclusiveScenarios: artifact.notCompared.length,
   narrowed: artifact.narrowed,
 );
 
@@ -681,7 +684,7 @@ Future<ScenarioResults> _comparePackageScenarios({
             baseRoot: baseRoot,
             source: source,
             cache: cache,
-            sdk: sdk.identity,
+            sdk: renderKeyOf(sdk),
             pixels: PixelInputs.ofScenarios(
               packagePath: side.packagePath,
               roots: [top, baseRoot],

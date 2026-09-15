@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/network_store.dart'
@@ -106,9 +109,101 @@ class PixelInputs {
   final _byRoot = <String, SourceClosure>{};
 
   /// [paths] as they are in [root] — hashed on the first ask, kept after.
-  SourceClosure inRoot(String root) =>
-      _byRoot.putIfAbsent(root, () => SourceClosure.of(paths, root: root));
+  ///
+  /// A package's `pubspec.yaml` is hashed as [pubspecPixelDigest] rather than
+  /// as bytes, under its own path, so a reason still reads `pubspec.yaml
+  /// differs` when a part of it that decides pixels moved.
+  SourceClosure inRoot(String root) => _byRoot.putIfAbsent(root, () {
+    var closure = SourceClosure.of(paths, root: root);
+    return SourceClosure({
+      for (var MapEntry(key: path, value: digest) in closure.digests.entries)
+        path:
+            p.basename(path) == 'pubspec.yaml' &&
+                digest != SourceClosure.missing
+            ? pubspecPixelDigest(p.join(root, path))
+            : digest,
+    });
+  });
 }
+
+/// A digest of the parts of the `pubspec.yaml` at [path] that can change a
+/// pixel.
+///
+/// The whole file was a pixel input for every entry of its package, so any
+/// byte decided every picture. Measured on a consumer's merge request that
+/// removed one dependency from one package and added a `flutter: config:` flag
+/// to another: 420 preview renders and 258 scenario replays, on a CI runner
+/// that was already the heaviest job on its host — and not one pixel in them
+/// could have moved.
+///
+/// What is left out, and what covers it instead:
+///
+/// - `dependencies`, `dev_dependencies`, `dependency_overrides`: what they
+///   resolve to is in the lockfile, read per reached package by [LockInputs],
+///   and what an entry imports is in its closure. A dependency nothing reaches
+///   decides nothing.
+/// - `flutter: config:`: feature flags the `flutter` tool passes to an app it
+///   builds. No lane here builds through the tool, so none reaches a render.
+///   The day one does, this line is where it has to come back.
+/// - `description`, `version`, `homepage`, `repository`, `issue_tracker`,
+///   `documentation`, `publish_to`, `funding`, `topics`, `screenshots`,
+///   `false_secrets`, `executables`, `platforms`: what pub.dev reads.
+///
+/// Everything else stays, **including what this does not recognise**: the
+/// bias is the lockfile's — a key wrongly kept costs a render, a key wrongly
+/// dropped reports a regression as clean. That keeps `environment` (the SDK
+/// floor sets the language version), `name`, `hooks` (build-hook user
+/// defines), and every other `flutter:` key: assets, fonts, shaders,
+/// `generate`, `uses-material-design`, `deferred-components`, flavors.
+///
+/// A file that will not parse is hashed as bytes.
+String pubspecPixelDigest(String path) {
+  String text;
+  try {
+    text = File(path).readAsStringSync();
+  } on FileSystemException {
+    return SourceClosure.missing;
+  }
+  Object? yaml;
+  try {
+    yaml = loadYaml(text);
+  } on Object {
+    yaml = null;
+  }
+  if (yaml is! Map) return sha1.convert(utf8.encode(text)).toString();
+  var kept = <String, Object?>{
+    for (var entry in yaml.entries)
+      if (!_pubspecMetadata.contains('${entry.key}'))
+        '${entry.key}': entry.key == 'flutter' && entry.value is Map
+            ? {
+                for (var flutter in (entry.value as Map).entries)
+                  if (flutter.key != 'config') '${flutter.key}': flutter.value,
+              }
+            : entry.value,
+  };
+  return sha1
+      .convert(utf8.encode('pubspec-pixels\x00${LockInputs.canonical(kept)}'))
+      .toString();
+}
+
+const _pubspecMetadata = {
+  'dependencies',
+  'dev_dependencies',
+  'dependency_overrides',
+  'description',
+  'version',
+  'homepage',
+  'repository',
+  'issue_tracker',
+  'documentation',
+  'publish_to',
+  'funding',
+  'topics',
+  'screenshots',
+  'false_secrets',
+  'executables',
+  'platforms',
+};
 
 Iterable<String> _declaredAssets(String root, String packagePath) sync* {
   var flutter = _yamlMap(p.join(root, packagePath, 'pubspec.yaml'))?['flutter'];

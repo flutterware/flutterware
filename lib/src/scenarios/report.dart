@@ -413,6 +413,10 @@ class ScenarioRunOutcome {
         json['unsettledCount'],
         steps.where((step) => !step.settled && step.waited).length,
       ),
+      guessedCount: _int(
+        json['guessedCount'],
+        steps.where((step) => step.guessed != null).length,
+      ),
       errors: _listOf(json['errors'], ScenarioRunError.fromJson),
       translations: _translationsOrNull(json['translations']),
       stepsElided: _int(json['stepsElided'], 0),
@@ -431,6 +435,7 @@ class ScenarioRunOutcome {
     this.stepCount = 0,
     this.unchangedCount = 0,
     this.unsettledCount = 0,
+    this.guessedCount = 0,
     this.errors = const [],
     this.translations,
     this.stepsElided = 0,
@@ -501,6 +506,13 @@ class ScenarioRunOutcome {
   /// is the copy a reader gets.
   final int unsettledCount;
 
+  /// How many steps drew work nothing announced, found only by turning the
+  /// real event loop — see [ScenarioRunStep.guessed]. Each is a picture that
+  /// depended on how fast the machine was, and a comparison against another
+  /// run of the same scenario on a slower one can differ there for no reason
+  /// in the branch. Carried beside [unsettledCount] for the reason it is.
+  final int guessedCount;
+
   /// The failure, when [ok] is false. The last captured step is the frame
   /// just before it.
   final List<ScenarioRunError> errors;
@@ -545,6 +557,7 @@ class ScenarioRunOutcome {
     stepCount: stepCount,
     unchangedCount: unchangedCount,
     unsettledCount: unsettledCount,
+    guessedCount: guessedCount,
     errors: errors,
     translations: translations,
     stepsElided: stepCount - keep.length,
@@ -579,6 +592,7 @@ class ScenarioRunOutcome {
         stepCount: stepCount,
         unchangedCount: unchangedCount,
         unsettledCount: unsettledCount,
+        guessedCount: guessedCount,
         errors: errors,
         stepsElided: stepCount - keep.length,
       );
@@ -607,6 +621,7 @@ class ScenarioRunOutcome {
     'stepCount': stepCount,
     'unchangedCount': unchangedCount,
     'unsettledCount': unsettledCount,
+    if (guessedCount > 0) 'guessedCount': guessedCount,
     if (stepsElided > 0) 'stepsElided': stepsElided,
     if (errors.isNotEmpty) 'errors': errors,
     if (translations != null) 'translations': translations,
@@ -703,6 +718,7 @@ class ScenarioRunStep {
         settled: json['settled'] as bool? ?? true,
         waited: json['waited'] as bool? ?? true,
         landed: json['landed'] as bool? ?? true,
+        guessed: json['guessed'] as int?,
         digest: json['digest'] as String?,
         strayFrames: _int(json['strayFrames'], 0),
         keyboard: (json['keyboard'] as num?)?.toDouble(),
@@ -752,6 +768,7 @@ class ScenarioRunStep {
     this.settled = true,
     this.waited = true,
     this.landed = true,
+    this.guessed,
     this.digest,
     this.strayFrames = 0,
     this.keyboard,
@@ -1012,6 +1029,21 @@ class ScenarioRunStep {
   /// default here.
   final bool landed;
 
+  /// The turn of the real event loop on which work nothing announced landed
+  /// and was drawn into this step — the deepest, when several did — or null
+  /// when nothing had to be guessed at.
+  ///
+  /// The half of [landed] that *can* be stated. A decode announces itself and
+  /// is waited for however long it takes; a `FutureBuilder` on a real future,
+  /// an untracked read or an isolate does not, and the landing spends a dozen
+  /// turns of the real loop looking for it. When one of them finds it, the
+  /// picture is right — on this machine. On a slower one the same work lands
+  /// on a later turn, or on none, and the step photographs what came before
+  /// it. So this is a **hazard**, not a success: the fix is to hand the work
+  /// to `RealWork.run` (`package:flutterware/real_work.dart`), after which it
+  /// is announced, waited for, and gone from here.
+  final int? guessed;
+
   /// What this step captured, hashed — the pixels for a screen, the payload
   /// for a document. Null where the step wrote no bytes.
   ///
@@ -1136,6 +1168,7 @@ class ScenarioRunStep {
     settled: settled,
     waited: waited,
     landed: landed,
+    guessed: guessed,
     digest: digest,
     strayFrames: strayFrames,
     unchanged: unchanged,
@@ -1195,6 +1228,7 @@ class ScenarioRunStep {
     if (!settled) 'settled': settled,
     if (!waited) 'waited': waited,
     if (!landed) 'landed': landed,
+    if (guessed != null) 'guessed': guessed,
     if (digest != null) 'digest': digest,
     if (strayFrames > 0) 'strayFrames': strayFrames,
     if (keyboard != null) 'keyboard': keyboard,

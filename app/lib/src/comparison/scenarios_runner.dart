@@ -448,31 +448,66 @@ class ScenariosRunner {
     );
   }
 
-  /// Replays one side of [id], and files it under [key] when it can be served
-  /// again.
+  /// Replays one side of [id] until it is believed, and files it under [key]
+  /// when it can be served again.
   ///
-  /// Two replays cannot: one the harness abandoned (see
-  /// [ScenarioReplay.complete]), and one whose requests reached the network.
-  /// Everything else a replay reads is in its key — under `FakeAsync`, with the
-  /// clock pinned and the network off or answered from a committed recording,
-  /// two replays of one key draw the same frames. A `live` request is the one
-  /// input nothing can hash: filing it would hand the next push today's answer
-  /// from yesterday's server.
-  Future<List<ScenarioStepShot>> _replay(
+  /// A clean replay is believed at once. One that failed or was abandoned is
+  /// replayed a second time before anything is concluded from it — see
+  /// [confirmSide]. That second replay is taken **alone**: the caller has
+  /// already let the pair's first replays finish, because the host is the
+  /// suspect and running the other side's tester beside it is load.
+  ///
+  /// Only a result is filed, and not every result. Five are not: one that
+  /// did not finish, one with a step that landed work by guessing, an empty
+  /// one, one whose requests reached the network, and — by construction —
+  /// anything [confirmSide] did not call a result. Everything else a replay
+  /// reads is in its key — under `FakeAsync`, with the clock pinned and the
+  /// network off or answered from a committed recording, two replays of one
+  /// key draw the same frames. A `live` request is the one input nothing can
+  /// hash: filing it would hand the next push today's answer from yesterday's
+  /// server. And a failure is filed only once it has reproduced, which is the
+  /// one moment "same key, same frames" can be checked rather than assumed.
+  Future<ConfirmedSide> _confirm(
     String id,
-    String? key, {
+    String? key,
+    ScenarioReplay first, {
     required bool base,
     required String outDir,
   }) async {
-    var replay = await source.shots(id, base: base, outDir: outDir);
-    if (key == null ||
+    var second = first.clean
+        ? null
+        : await source.shots(id, base: base, outDir: outDir);
+    if (second != null) _retries++;
+    var side = confirmSide(
+      first,
+      second,
+      side: base ? 'the base' : 'this branch',
+    );
+    var replay = side.replay;
+    if (replay == null ||
+        key == null ||
+        // A hang that reproduced is a result to report and not one to serve:
+        // the harness abandoned the rest of the file with it.
         !replay.complete ||
+        // Pictures that depended on the machine's speed. Served to a later
+        // comparison on a slower machine, they would be the fast answer beside
+        // a slow one, and never replayed to find out.
+        replay.hazards.isNotEmpty ||
         replay.steps.isEmpty ||
         replay.steps.any(_reachedNetwork)) {
-      return replay.steps;
+      return side;
     }
-    return _store.write(key, replay.steps);
+    return ConfirmedSide.result(
+      ScenarioReplay(
+        _store.write(key, replay.steps, errors: replay.errors),
+        errors: replay.errors,
+        ms: replay.ms,
+      ),
+    );
   }
+
+  /// How many sides this run replayed a second time — see [_confirm].
+  var _retries = 0;
 
   /// Whether a step's requests went out to a real network — `live` or
   /// `record`, as the funnel answers on each request's event.
@@ -492,6 +527,10 @@ class ScenariosRunner {
         };
         return answered == 'live' || answered == 'record';
       });
+
+  static String _capitalized(String sentence) => sentence.isEmpty
+      ? sentence
+      : '${sentence[0].toUpperCase()}${sentence.substring(1)}';
 
   /// Replays what [plan] left and aligns the two runs.
   ///
@@ -533,8 +572,8 @@ class ScenariosRunner {
       var name = id.contains('#') ? id.substring(id.indexOf('#') + 1) : id;
       var count = '$done of ${plan.toRun.length}';
       var key = plan.keys[id];
-      var filedBase = key == null ? null : _store.read(key.base);
-      var filedHead = key == null ? null : _store.read(key.head);
+      var filedBase = key == null ? null : _store.readReplay(key.base);
+      var filedHead = key == null ? null : _store.readReplay(key.head);
       var where = switch ((filedBase, filedHead)) {
         (null, null) => 'on both sides',
         (null, _) => 'on the base',
@@ -546,20 +585,103 @@ class ScenariosRunner {
             ? 'reading "$name" from the cache · $count'
             : 'replaying "$name" $where · $count',
       );
-      var sides = await Future.wait([
-        if (filedBase case var steps?)
-          Future.value(steps)
-        else
-          _replay(id, key?.base, base: true, outDir: outDir),
-        if (filedHead case var steps?)
-          Future.value(steps)
-        else
-          _replay(id, key?.head, base: false, outDir: outDir),
+      var retriesBefore = _retries;
+      var firsts = await Future.wait([
+        filedBase == null
+            ? source.shots(id, base: true, outDir: outDir)
+            : Future.value(filedBase),
+        filedHead == null
+            ? source.shots(id, base: false, outDir: outDir)
+            : Future.value(filedHead),
       ]);
-      replays += [filedBase, filedHead].where((side) => side == null).length;
-      report(
-        compareScenarioSteps(scenario: id, base: sides[0], head: sides[1]),
-      );
+      if (firsts.any((first) => !first.clean)) {
+        onProgress?.call('replaying "$name" again, alone, to confirm · $count');
+      }
+      // One after the other, never together: see [_confirm]. A filed side is
+      // a result already and is not confirmed again.
+      var baseSide = filedBase != null
+          ? ConfirmedSide.result(filedBase)
+          : await _confirm(
+              id,
+              key?.base,
+              firsts[0],
+              base: true,
+              outDir: outDir,
+            );
+      var headSide = filedHead != null
+          ? ConfirmedSide.result(filedHead)
+          : await _confirm(
+              id,
+              key?.head,
+              firsts[1],
+              base: false,
+              outDir: outDir,
+            );
+      replays +=
+          [filedBase, filedHead].where((side) => side == null).length +
+          (_retries - retriesBefore);
+      if (baseSide.replay case var base? when headSide.replay != null) {
+        var head = headSide.replay!;
+        var compared = compareScenarioReplays(
+          scenario: id,
+          base: base,
+          head: head,
+        );
+        // A difference in a scenario whose pictures depended on the machine
+        // is not believed until each side has done the same thing twice.
+        // Every side here is fresh: a side with hazards is never filed.
+        if (compared.state.isFinding &&
+            (base.hazards.isNotEmpty || head.hazards.isNotEmpty)) {
+          onProgress?.call(
+            'replaying "$name" again, alone: it drew work nothing announced '
+            '· $count',
+          );
+          var unstable = <String>[];
+          for (var (isBase, replay) in [(true, base), (false, head)]) {
+            if ((isBase ? filedBase : filedHead) != null) continue;
+            var again = await source.shots(id, base: isBase, outDir: outDir);
+            replays++;
+            if (!replaysAgree(replay, again)) {
+              var side = isBase ? 'the base' : 'this branch';
+              unstable.add(
+                replay.hazards.isNotEmpty
+                    ? unstableHazardSentence(side, replay)
+                    : again.hazards.isNotEmpty
+                    ? unstableHazardSentence(side, again)
+                    : '$side did not replay the same way twice.',
+              );
+            }
+          }
+          if (unstable.isNotEmpty) {
+            report(
+              ScenarioComparison.notCompared(
+                scenario: id,
+                inconclusive: unstable.map(_capitalized).join(' '),
+                baseErrors: base.failures,
+                headErrors: head.failures,
+                baseMs: base.ms,
+                headMs: head.ms,
+              ),
+            );
+            continue;
+          }
+        }
+        report(compared);
+      } else {
+        report(
+          ScenarioComparison.notCompared(
+            scenario: id,
+            inconclusive: [
+              ?baseSide.inconclusive,
+              ?headSide.inconclusive,
+            ].map(_capitalized).join(' '),
+            baseErrors: firsts[0].failures,
+            headErrors: firsts[1].failures,
+            baseMs: firsts[0].ms,
+            headMs: firsts[1].ms,
+          ),
+        );
+      }
     }
 
     return ScenarioResults.of(

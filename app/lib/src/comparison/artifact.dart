@@ -185,7 +185,8 @@ class ScenarioResults {
   /// from the `ReplayStore`.
   final int ran;
 
-  /// How many sides were actually replayed: up to two per scenario in [ran],
+  /// How many sides were actually replayed: two per scenario in [ran], plus
+  /// one for every side replayed again to confirm what it did the first time,
   /// and none for a side the store already had. The scenario twin of
   /// [ComparisonResult.rendered].
   final int replays;
@@ -286,7 +287,11 @@ class ComparisonArtifact {
     this.headCommit,
     this.at,
     this.caveats = const [],
+    this.host,
   });
+
+  /// The machine it ran on — see [ComparisonHost].
+  final ComparisonHost? host;
 
   final ComparisonResult previews;
 
@@ -334,6 +339,13 @@ class ComparisonArtifact {
     return counts;
   }
 
+  /// The scenarios replayed and not compared — see
+  /// [ScenarioComparison.inconclusive].
+  List<ScenarioComparison> get notCompared => [
+    for (var scenario in scenarios?.items ?? const <ScenarioComparison>[])
+      if (!scenario.compared) scenario,
+  ];
+
   /// True when nothing either half looked at came out worse than [same].
   bool get clean => !counts.keys.any(
     (state) => state != ComparedState.same && state != ComparedState.skipped,
@@ -362,6 +374,7 @@ class ComparisonArtifact {
     'frames': ComparisonFrames.local.name,
     if (narrowed) 'narrowed': true,
     'caveats': ?(caveats.isEmpty ? null : caveats),
+    'host': ?host?.toJson(),
     'previews': previews.toJson(),
     'scenarios': ?scenarios?.toJson(),
   };

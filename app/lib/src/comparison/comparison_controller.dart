@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import 'artifact.dart';
+import 'host_facts.dart';
 import 'cancel.dart';
 import 'last_run.dart';
 import 'rules.dart';
@@ -595,6 +596,7 @@ class ComparisonController extends ChangeNotifier {
         previews: result,
         scenarios: scenarios.scenarioResults,
       ),
+      host: currentComparisonHost(),
     );
   }
 

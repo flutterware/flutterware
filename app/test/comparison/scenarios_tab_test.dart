@@ -63,6 +63,28 @@ void main() {
     );
   });
 
+  // On the wire it is `skipped`. Drawn as `skipped` — "nothing that decides
+  // its pixels changed" — it would say the opposite of what happened.
+  testWidgets('a scenario with no result says what happened, listed apart', (
+    tester,
+  ) async {
+    await pump(tester, [
+      const ScenarioComparison.notCompared(
+        scenario: 'test/save_test.dart#save',
+        inconclusive:
+            'The base failed once and passed when replayed again: '
+            'an error dialog was showing.',
+        baseErrors: ['an error dialog was showing'],
+      ),
+    ], selected: 'test/save_test.dart#save');
+
+    expect(find.text('NO RESULT · 1'), findsOneWidget);
+    expect(find.text('no result'), findsNWidgets(2), reason: 'row and header');
+    expect(find.text('No result on this machine'), findsOneWidget);
+    expect(find.textContaining('The base failed once'), findsOneWidget);
+    expect(find.text('Not replayed'), findsNothing);
+  });
+
   testWidgets('a scenario only this branch has says so in its own words', (
     tester,
   ) async {

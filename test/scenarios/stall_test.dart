@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/real_work/tracker.dart';
+import 'package:flutterware/src/scenarios/progress.dart';
 import 'package:flutterware/src/scenarios/stall.dart';
 
 /// The sentence a scenario gets for running out its deadline: it names the
@@ -41,7 +42,8 @@ void main() {
         ),
       ),
     );
-    expect(message, contains('did not finish within 30s'));
+    expect(message, contains('made no progress for 30s'));
+    expect(message, contains('waiting rather than working'));
     expect(message, contains('inside `s.pumpWidget SceneApp`'));
     expect(message, contains('called from test/scenarios/a_test.dart:12'));
     expect(message, contains('2 microtasks are queued'));
@@ -73,6 +75,9 @@ void main() {
   });
 
   test('unanswered sends and tracked work ride along with their frames', () {
+    // What the harness does as a scenario begins, and what makes a tracked
+    // future remember where and when it was announced.
+    resetTrackedRealWork();
     var token = recordPendingSend('flutter/assets assets/model.glb');
     var answered = recordPendingSend('some/plugin ping');
     sendAnswered(answered);
@@ -91,12 +96,67 @@ void main() {
       contains('never seen answered: flutter/assets assets/model.glb'),
     );
     expect(message, isNot(contains('some/plugin ping')));
-    expect(message, contains('Tracked real work still pending: `scene model`'));
+    expect(
+      message,
+      contains('Tracked real work still pending: `scene model` (for '),
+    );
     expect(message, contains('1 image decode still pending'));
     expect(message, contains('on the failed step'));
     sendAnswered(token);
     resetTrackedRealWork();
     completer.complete();
+  });
+
+  // A consumer's GLB import on a CPU-starved host was called "not slowness"
+  // and blamed on an earlier scenario's zone. Pending tracked work is a
+  // landing polling the real clock, not a dead zone.
+  test(
+    'tracked work past its ceiling is named first, and not as a dead zone',
+    () {
+      var model = TrackedRealWork('3D model', null);
+      var message = stallDiagnosis(
+        deadline: const Duration(seconds: 30),
+        kind: ScenarioStallKind.trackedWork,
+        elapsed: const Duration(minutes: 2, seconds: 3),
+        overdue: model,
+        landingTracked: true,
+        microtasks: 0,
+        inFlight: ScenarioVerbInFlight('tap', '"3D"', StackTrace.empty),
+        tracked: [model],
+      );
+
+      expect(
+        message,
+        startsWith(
+          'tracked real work `3D model` was still pending after 2m 3s',
+        ),
+      );
+      expect(message, contains('`s.tap "3D"` was waiting for it'));
+      expect(message, contains('RealWork.run'));
+      expect(message, isNot(contains('not slowness')));
+      expect(message, isNot(contains('Nothing is queued in the fake zone')));
+      expect(message, isNot(contains('give it longer')));
+    },
+  );
+
+  test('a body looping without end is told so', () {
+    var message = stallDiagnosis(
+      deadline: const Duration(seconds: 30),
+      kind: ScenarioStallKind.ceiling,
+      elapsed: const Duration(minutes: 5),
+      microtasks: 0,
+    );
+
+    expect(message, contains('still running after 5m'));
+    expect(message, contains('never went 30s without progress'));
+    expect(message, isNot(contains('Nothing is queued')));
+  });
+
+  test('a span reads as a sentence reads it', () {
+    expect(spanOf(const Duration(milliseconds: 400)), '400ms');
+    expect(spanOf(const Duration(seconds: 2)), '2s');
+    expect(spanOf(const Duration(milliseconds: 27400)), '27.4s');
+    expect(spanOf(const Duration(minutes: 2)), '2m');
   });
 
   test('the pending sends are bounded and forgotten per scenario', () {

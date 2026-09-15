@@ -47,7 +47,16 @@ class ReplayStore {
 
   /// The steps filed under [key], with frames pointing into the store, or
   /// null when the replay — or any frame or tree it names — is not there.
-  List<ScenarioStepShot>? read(String key) {
+  List<ScenarioStepShot>? read(String key) => readReplay(key)?.steps;
+
+  /// The replay filed under [key] — its steps and what it failed on — or null
+  /// when it, or any frame or tree it names, is not there.
+  ///
+  /// Also null for a failed replay filed before failures had to reproduce to
+  /// be filed: nothing vouches that it would fail again, and serving it is how
+  /// one bad minute on one host became every later comparison's finding
+  /// against that base.
+  ScenarioReplay? readReplay(String key) {
     var list = File(_listOf(key));
     Object? json;
     try {
@@ -58,6 +67,15 @@ class ReplayStore {
       return null;
     }
     if (json is! Map || json['steps'] is! List) return null;
+    var errors = [
+      for (var error in json['errors'] as List? ?? const []) '$error',
+    ];
+    var failed =
+        errors.isNotEmpty ||
+        (json['steps'] as List).any(
+          (step) => step is Map && step['failure'] != null,
+        );
+    if (failed && json['confirmed'] != true) return null;
     var steps = <ScenarioStepShot>[];
     for (var entry in json['steps'] as List) {
       if (entry is! Map) return null;
@@ -85,6 +103,7 @@ class ReplayStore {
             name: step['name'] as String?,
             verb: step['verb'] as String?,
             target: step['target'] as String?,
+            failure: step['failure'] as String?,
           ),
           rgba: rgba,
           width: width,
@@ -115,7 +134,7 @@ class ReplayStore {
     } on FileSystemException {
       // Read-only, or swept a moment ago. The steps are in hand.
     }
-    return steps;
+    return ScenarioReplay(steps, errors: errors);
   }
 
   /// Files [steps] under [key], and hands them back pointing into the store.
@@ -128,7 +147,17 @@ class ReplayStore {
   /// it, so a comparison killed halfway through filing leaves frames nothing
   /// names, which the sweep collects, rather than a list naming frames that
   /// were never written.
-  List<ScenarioStepShot> write(String key, List<ScenarioStepShot> steps) {
+  ///
+  /// Filing is the caller vouching that this is a *result*: a replay that
+  /// failed is filed only once its failure has reproduced, and one filed with
+  /// a failure is stamped so [readReplay] can tell it from one filed before
+  /// that was the rule. [errors] are the outcome's own — a failure that is not
+  /// on any step still has to come back with the steps.
+  List<ScenarioStepShot> write(
+    String key,
+    List<ScenarioStepShot> steps, {
+    List<String> errors = const [],
+  }) {
     var filed = <ScenarioStepShot>[];
     var listed = <Map<String, Object?>>[];
     for (var shot in steps) {
@@ -208,7 +237,15 @@ class ReplayStore {
     var list = File(_listOf(key));
     list.parent.createSync(recursive: true);
     var staging = File('${list.path}.part');
-    staging.writeAsStringSync(jsonEncode({'steps': listed}), flush: true);
+    var failed = errors.isNotEmpty || steps.any((shot) => shot.failure != null);
+    staging.writeAsStringSync(
+      jsonEncode({
+        'steps': listed,
+        if (errors.isNotEmpty) 'errors': errors,
+        if (failed) 'confirmed': true,
+      }),
+      flush: true,
+    );
     staging.renameSync(list.path);
     return filed;
   }

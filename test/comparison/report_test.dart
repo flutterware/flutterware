@@ -67,6 +67,39 @@ void main() {
     );
   });
 
+  test('the host and the replay time of each side survive a round trip', () {
+    var index = ComparisonIndex.fromJson({
+      'version': comparisonReportVersion,
+      'base': 'abc123def456',
+      'host': {'os': 'linux', 'cpus': 8, 'rasterizer': 'impeller-vulkan'},
+      'previews': {'rendered': 0, 'items': <Object?>[]},
+      'scenarios': {
+        'ran': 1,
+        'items': [
+          const ScenarioComparison(
+            scenario: 'test/a_test.dart#one',
+            items: [],
+            branches: [],
+            state: ComparedState.same,
+            baseMs: 1200,
+            headMs: 3400,
+          ).toJson(),
+        ],
+      },
+    });
+
+    expect(index.host?.summary, 'linux · 8 CPUs · impeller-vulkan');
+    expect(index.scenarios.single.baseMs, 1200);
+    expect(index.scenarios.single.headMs, 3400);
+    expect(
+      ComparisonIndex.fromJson({
+        'version': comparisonReportVersion,
+        'base': 'abc',
+      }).host,
+      isNull,
+    );
+  });
+
   test('a report from a newer flutterware is refused, not half-read', () {
     var future = page('future', {
       ...index(frames: 'relative'),
@@ -200,6 +233,58 @@ void main() {
         'the scenario half produced no verdict — '
         'all 2 scenarios failed on both sides',
       );
+    });
+
+    // A host that could run nothing to the end compared nothing, and a page
+    // of "not compared" rows with a clean `ok` would otherwise read as a pass.
+    test('a half where every replayed scenario had no result is a gap', () {
+      var index = ComparisonIndex.fromJson({
+        'version': comparisonReportVersion,
+        'base': 'abc123def456',
+        'previews': {'rendered': 0, 'items': <Object?>[]},
+        'scenarios': {
+          'ran': 2,
+          'items': [
+            {
+              'id': 'test/a_test.dart#one',
+              'state': 'skipped',
+              'inconclusive': 'This branch did not finish on either replay.',
+            },
+            {'id': 'test/a_test.dart#two', 'state': 'skipped'},
+            {'id': 'test/a_test.dart#new', 'state': 'added'},
+          ],
+        },
+      });
+
+      expect(index.ok, isFalse, reason: 'the added row is a finding');
+      expect(index.notCompared.single.scenario, 'test/a_test.dart#one');
+      expect(
+        index.verdictGap,
+        'the scenario half produced no verdict — '
+        'all 1 replayed scenarios were inconclusive',
+      );
+    });
+
+    test('one scenario with no result beside compared ones is no gap', () {
+      var index = ComparisonIndex.fromJson({
+        'version': comparisonReportVersion,
+        'base': 'abc123def456',
+        'previews': {'rendered': 0, 'items': <Object?>[]},
+        'scenarios': {
+          'ran': 2,
+          'items': [
+            {
+              'id': 'test/a_test.dart#one',
+              'state': 'skipped',
+              'inconclusive': 'This branch did not finish on either replay.',
+            },
+            {'id': 'test/a_test.dart#two', 'state': 'same'},
+          ],
+        },
+      });
+
+      expect(index.ok, isTrue);
+      expect(index.verdictGap, isNull);
     });
 
     test('a narrowed file switches the all-failed rule off', () {

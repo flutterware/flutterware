@@ -4869,6 +4869,12 @@ final resultShapes = <String, ResultShape>{
               'doc': 'False when the shutter fell with an image decode or an asset read still in flight — the picture is of a screen that was still filling in, and the artwork it is missing turns up on the next step; `true` is the absence of a report rather than a claim that everything the screen wanted has arrived, and a step that is not a `screen` has nothing to land and reads `true` vacuously.',
             },
             <String, Object?>{
+              'name': 'guessed',
+              'type': 'int',
+              'optional': true,
+              'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
+            },
+            <String, Object?>{
               'name': 'digest',
               'type': 'String',
               'optional': true,
@@ -4915,6 +4921,12 @@ final resultShapes = <String, ResultShape>{
         'name': 'unsettledCount',
         'type': 'int',
         'doc': 'How many of those steps were captured with the app still animating after a policy that **waited** for it to stop — `settled: false` with `waited: true`, the settle giving up with frames still scheduled.',
+      },
+      <String, Object?>{
+        'name': 'guessedCount',
+        'type': 'int',
+        'optional': true,
+        'doc': 'How many steps drew work nothing announced, found only by turning the real event loop — see [ScenarioRunStep.guessed].',
       },
       <String, Object?>{
         'name': 'stepsElided',
@@ -5256,6 +5268,12 @@ final resultShapes = <String, ResultShape>{
                     'doc': 'False when the shutter fell with an image decode or an asset read still in flight — the picture is of a screen that was still filling in, and the artwork it is missing turns up on the next step; `true` is the absence of a report rather than a claim that everything the screen wanted has arrived, and a step that is not a `screen` has nothing to land and reads `true` vacuously.',
                   },
                   <String, Object?>{
+                    'name': 'guessed',
+                    'type': 'int',
+                    'optional': true,
+                    'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
+                  },
+                  <String, Object?>{
                     'name': 'digest',
                     'type': 'String',
                     'optional': true,
@@ -5303,6 +5321,12 @@ final resultShapes = <String, ResultShape>{
               'name': 'unsettledCount',
               'type': 'int',
               'doc': 'How many of those steps were captured with the app still animating after a policy that **waited** for it to stop — `settled: false` with `waited: true`, the settle giving up with frames still scheduled.',
+            },
+            <String, Object?>{
+              'name': 'guessedCount',
+              'type': 'int',
+              'optional': true,
+              'doc': 'How many steps drew work nothing announced, found only by turning the real event loop — see [ScenarioRunStep.guessed].',
             },
             <String, Object?>{
               'name': 'stepsElided',
@@ -5701,6 +5725,12 @@ final resultShapes = <String, ResultShape>{
                           'doc': 'False when the shutter fell with an image decode or an asset read still in flight — the picture is of a screen that was still filling in, and the artwork it is missing turns up on the next step; `true` is the absence of a report rather than a claim that everything the screen wanted has arrived, and a step that is not a `screen` has nothing to land and reads `true` vacuously.',
                         },
                         <String, Object?>{
+                          'name': 'guessed',
+                          'type': 'int',
+                          'optional': true,
+                          'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
+                        },
+                        <String, Object?>{
                           'name': 'digest',
                           'type': 'String',
                           'optional': true,
@@ -5747,6 +5777,12 @@ final resultShapes = <String, ResultShape>{
                     'name': 'unsettledCount',
                     'type': 'int',
                     'doc': 'How many of those steps were captured with the app still animating after a policy that **waited** for it to stop — `settled: false` with `waited: true`, the settle giving up with frames still scheduled.',
+                  },
+                  <String, Object?>{
+                    'name': 'guessedCount',
+                    'type': 'int',
+                    'optional': true,
+                    'doc': 'How many steps drew work nothing announced, found only by turning the real event loop — see [ScenarioRunStep.guessed].',
                   },
                   <String, Object?>{
                     'name': 'stepsElided',
@@ -6025,6 +6061,12 @@ final resultShapes = <String, ResultShape>{
         'type': 'bool',
         'optional': true,
         'doc': 'False when the shutter fell with an image decode or an asset read still in flight — the picture is of a screen that was still filling in, and the artwork it is missing turns up on the next step; `true` is the absence of a report rather than a claim that everything the screen wanted has arrived, and a step that is not a `screen` has nothing to land and reads `true` vacuously.',
+      },
+      <String, Object?>{
+        'name': 'guessed',
+        'type': 'int',
+        'optional': true,
+        'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
       },
       <String, Object?>{
         'name': 'digest',

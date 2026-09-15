@@ -28,6 +28,7 @@ import 'motion.dart';
 import 'network.dart';
 import 'notification.dart';
 import 'profile.dart';
+import 'progress.dart';
 import 'real_work.dart';
 import 'run_args.dart';
 import 'run_listener.dart';
@@ -159,9 +160,16 @@ void scenario(
   testWidgets(
     name,
     skip: skip,
-    timeout: timeout ?? scenarioDefaultTimeout,
+    // Under the harness the declared timeout is a progress deadline the
+    // harness keeps itself, and `test_api`'s own timer — which knows nothing
+    // about progress — is switched off so it cannot fire first. A bare
+    // `flutter test` has no harness, and keeps the timeout as written.
+    timeout: scenarioDefaultTimeout == null ? timeout : Timeout.none,
     tags: tags,
     (tester) async {
+      if (scenarioDefaultTimeout case var fallback?) {
+        scenarioDeclaredTimeout = timeout ?? fallback;
+      }
       // Always pinned to something, and to [pinnedClockOrigin] unless somebody
       // said otherwise — a run whose date is "whenever it happened" cannot be
       // compared with the next one, which is what every surface reading these
@@ -287,6 +295,31 @@ ScenarioNetwork _reachOf(
     stderr.writeln('[flutterware] $said');
   }
   return reach;
+}
+
+/// The sentence a scenario whose pictures depended on the machine's speed
+/// owes its author, or null when none did.
+///
+/// Said as the scenario ends rather than failed on: the pictures are right on
+/// this machine, and a flow that is otherwise fine should not go red for it.
+/// But it is the one warning that arrives before a comparison on a slower
+/// machine reports the difference as somebody's change.
+String? guessedLandingNotice(String scenario, Map<String, int> guessed) {
+  if (guessed.isEmpty) return null;
+  String step(String label, int turn) =>
+      '`${label.isEmpty ? 'the first frame' : 's.$label'}` '
+      '(turn $turn of $realWorkTurns)';
+  var steps = [
+    for (var MapEntry(key: label, value: turn) in guessed.entries)
+      step(label, turn),
+  ];
+  return '"$scenario": ${steps.length == 1 ? 'a step' : '${steps.length} steps'} '
+      'drew work nothing announced, found only by turning the real event '
+      'loop: ${steps.join(', ')}. The pictures are right on this machine; on '
+      'a slower one that work lands later or not at all, and the step '
+      'photographs what came before it. Hand the work to `RealWork.run` '
+      '(`package:flutterware/real_work.dart`) and the scenario waits for it '
+      'however long it takes.';
 }
 
 /// Which scenarios have already had their overruled `record` reported.
@@ -583,6 +616,7 @@ Future<void> _runScenario(
       // Reachable from outside the body while the body runs, for the one
       // reader that needs it there: the harness's deadline.
       scenarioFlushHeld = s._flushPending;
+      scenarioBreakPlacement = s._breakPlacement;
       try {
         await body(s);
         s._flushPending();
@@ -619,6 +653,10 @@ Future<void> _runScenario(
         Error.throwWithStackTrace(inContext, stack);
       }
     } while (state.plan.advance());
+
+    if (guessedLandingNotice(description, state.guessed) case var said?) {
+      stderr.writeln('[flutterware] $said');
+    }
 
     if (inertNetworkMessage(
           description,
@@ -667,6 +705,11 @@ Future<void> _runScenario(
 /// into [ScenarioStepCapture.overflowErrors]. Only ever counts under the
 /// expansion filter below, so it stays zero on every ordinary run.
 int _overflowsSinceLastCapture = 0;
+
+/// The deepest turn of the real loop on which work nothing announced landed
+/// since the last capture — see `landRealWork`'s `guessed` — drained per step
+/// into [ScenarioStepCapture.guessed] the way the overflows are.
+int? _guessedSinceLastCapture;
 
 /// Under a budget probe, an overflow is the *measurement*, not a failure.
 ///
@@ -778,6 +821,11 @@ class _ReplayState {
   final emitted = <String, int>{};
 
   var stepCount = 0;
+
+  /// Every verb whose landing found work by guessing, with the deepest turn
+  /// it took — see `landRealWork`'s `guessed`. Said once when the scenario
+  /// ends, by [guessedLandingNotice].
+  final guessed = <String, int>{};
 }
 
 /// Depth-first enumeration of a scenario's `split` choices.
@@ -801,7 +849,7 @@ class _SplitPlan {
   /// Whose splits these are, for the refusal.
   final String scenario;
 
-  final _stack = <({int choice, int count})>[];
+  final _stack = <({int choice, List<String> names})>[];
   var _cursor = 0;
 
   void beginRun() => _cursor = 0;
@@ -814,7 +862,7 @@ class _SplitPlan {
     // position: a stated walk that recorded nothing here would give the first
     // step after a split the same key as the first step before it, and the
     // second of them would be recognised as already captured and skipped.
-    _stack.add((choice: choice, count: names.length));
+    _stack.add((choice: choice, names: names));
     _cursor++;
     return choice;
   }
@@ -851,15 +899,35 @@ class _SplitPlan {
   String get path =>
       [for (var entry in _stack.take(_cursor)) entry.choice].join('.');
 
+  /// The branch this run is replaying its way towards and has not reached
+  /// yet — the first planned choice not consumed, by name, with the path its
+  /// first step sits under — or null once every planned split has been
+  /// entered.
+  ///
+  /// Non-null only on a later replay's shared prefix, which is exactly where
+  /// a failure has no branch of its own to wear: the steps around it were all
+  /// captured by an earlier replay, and the choice that makes this replay
+  /// different has not been taken yet.
+  ({String label, String path})? get upcoming {
+    if (_cursor >= _stack.length) return null;
+    var next = _stack[_cursor];
+    return (
+      label: next.names[next.choice],
+      path: [for (var entry in _stack.take(_cursor + 1)) entry.choice]
+          .join('.'),
+    );
+  }
+
   /// Moves to the next unvisited path; false when every path has run — and
   /// false at once for a film, which walks the one path it was given.
   bool advance() {
     if (stated != null) return false;
-    while (_stack.isNotEmpty && _stack.last.choice + 1 >= _stack.last.count) {
+    while (_stack.isNotEmpty &&
+        _stack.last.choice + 1 >= _stack.last.names.length) {
       _stack.removeLast();
     }
     if (_stack.isEmpty) return false;
-    _stack.last = (choice: _stack.last.choice + 1, count: _stack.last.count);
+    _stack.last = (choice: _stack.last.choice + 1, names: _stack.last.names);
     return true;
   }
 }
@@ -2057,8 +2125,8 @@ class ScenarioTester {
       // announced itself as they go — otherwise fake time runs the transition
       // out in a few real milliseconds and every frame of the movie behind the
       // step is a hole — and the landing below spends what is left.
-      // No ceiling on tracked work here: the scenario's own deadline is the
-      // ceiling, and its message names what was still pending.
+      // No ceiling on tracked work here: the scenario's deadline holds one
+      // per tracked future, and its message names what was still pending.
       var budget = RealWorkBudget(trackedWait: null);
       settled = await policy.apply(
         tester,
@@ -2075,7 +2143,7 @@ class ScenarioTester {
       );
       // Frames are all a policy follows; work on the real event loop
       // schedules none while it is in flight. See [landRealWork].
-      (settled: settled, landed: landed) = await landRealWork(
+      var landing = await landRealWork(
         tester,
         policy,
         settled: settled,
@@ -2084,6 +2152,12 @@ class ScenarioTester {
         record: _sink,
         beforePump: _keyboard.step,
       );
+      (settled, landed) = (landing.settled, landing.landed);
+      if (landing.guessed case var turn?) {
+        _guessedSinceLastCapture = _deeper(_guessedSinceLastCapture, turn);
+        var label = [?verb, ?target].join(' ');
+        _state.guessed[label] = _deeper(_state.guessed[label], turn)!;
+      }
       // After the landing and not before it: a strict policy is red about
       // a screen that *stays* animating, and a decode still on its way is
       // not that. The throw takes the ordinary failure path below, so the
@@ -2100,6 +2174,7 @@ class ScenarioTester {
     } finally {
       if (inFlight != null) scenarioLastVerb = inFlight;
       scenarioVerbInFlight = null;
+      markScenarioProgress();
     }
     _framesAtLastStep = _frames;
     await _afterStep(
@@ -2447,6 +2522,8 @@ class ScenarioTester {
     pending.strayFrames += stray;
     pending.overflowErrors += _overflowsSinceLastCapture;
     _overflowsSinceLastCapture = 0;
+    pending.guessed = _deeper(pending.guessed, _guessedSinceLastCapture);
+    _guessedSinceLastCapture = null;
     // The events belong to the step wearing the name rather than to whichever
     // step captures next: they happened on the way to *this* frame, and this
     // frame is the pending capture. Rolling them forward — what a
@@ -2592,6 +2669,10 @@ class ScenarioTester {
       // appending these would multiply a shared prefix once per branch.
       appEventBuffer?.discard();
       _recorder?.discard();
+      // What landed on the way to a step an earlier replay captured belongs
+      // to that step. Left to ride, it was credited to the next step this
+      // replay emits — a branch's first step, which guessed at nothing.
+      _guessedSinceLastCapture = null;
       _lastCaptureFresh = false;
       _lastPosition = position;
       _pendingBranch = null;
@@ -2617,6 +2698,7 @@ class ScenarioTester {
       // and left alone they pad the next step's movie and eat its frame
       // budget. The events keep riding, as a skipped shot's always have.
       _recorder?.discard();
+      _guessedSinceLastCapture = null;
       _state.emitted[position] = _state.stepCount;
       _lastPosition = position;
       return;
@@ -2681,6 +2763,45 @@ class ScenarioTester {
     _framesAtLastCapture = _frames;
   }
 
+  /// Where a step the scenario breaks on belongs: its parent, its branch and
+  /// its position.
+  ///
+  /// Usually where the flow is — the last step seen, and the branch label
+  /// still owed if the branch has captured nothing yet. On a later replay's
+  /// shared prefix that answer is wrong: every step around the break was
+  /// captured by an earlier replay, so the last one seen is a trunk step that
+  /// already has a branch hanging off it, and a second, unlabelled child there
+  /// is one the aligner cannot walk past — everything below it went missing
+  /// from a comparison, and a timeout there read as a step of the *previous*
+  /// branch. So the break is placed where this replay was heading: the first
+  /// step of the branch it had not reached, under the step the split forks
+  /// from.
+  ({int? parent, String? branch, String position}) _breakPlacement() {
+    var parent = _lastPosition == null ? null : _state.emitted[_lastPosition!];
+    if (_state.plan.upcoming case var upcoming?) {
+      var trunk = _state.plan.path;
+      var fork = parent;
+      var deepest = -1;
+      for (var MapEntry(key: position, value: index)
+          in _state.emitted.entries) {
+        var hash = position.lastIndexOf('#');
+        if (hash < 0 || position.substring(0, hash) != trunk) continue;
+        var ordinal = int.tryParse(position.substring(hash + 1)) ?? -1;
+        if (ordinal > deepest) (deepest, fork) = (ordinal, index);
+      }
+      return (
+        parent: fork,
+        branch: upcoming.label,
+        position: '${upcoming.path}#1',
+      );
+    }
+    return (
+      parent: parent,
+      branch: _pendingBranch,
+      position: '${_state.plan.path}#${_ordinal + 1}',
+    );
+  }
+
   /// The frame the scenario broke on.
   ///
   /// Captured whatever the shot policy says, since a failure is the step most
@@ -2697,16 +2818,17 @@ class ScenarioTester {
     var root = error is ScenarioFailure ? error.error : error;
     if (!_capturing || identical(_capturedFailure, root)) return;
     _capturedFailure = root;
+    var placed = _breakPlacement();
     await _emit(
-      parent: _lastPosition == null ? null : _state.emitted[_lastPosition!],
-      branch: _pendingBranch,
+      parent: placed.parent,
+      branch: placed.branch,
       shot: null,
       settled: true,
       // The position this step *would* have had. A failure is never captured
       // twice, so nothing is keyed on it — but a comparison aligning two runs
       // needs somewhere to put it, and "the place the flow stopped" is the
-      // only honest answer.
-      position: '${_state.plan.path}#${_ordinal + 1}',
+      // only honest answer. See [_breakPlacement] for where that is.
+      position: placed.position,
       // The verb that broke, on the step that records the break — a failed
       // step used to be the one step in a flow that could not say what it was
       // trying to do.
@@ -2911,6 +3033,7 @@ class ScenarioTester {
         failure: failure,
         segment: _segment,
         overflowErrors: _overflowsSinceLastCapture,
+        guessed: _guessedSinceLastCapture,
         frames: _frames,
         // What the screen lost to a keyboard when this was photographed. Read
         // here with the texts and the overlay style, for the reason written on
@@ -2921,6 +3044,7 @@ class ScenarioTester {
       // count riding to the next capture, exactly as the frame-exact path
       // does.
       _overflowsSinceLastCapture = 0;
+      _guessedSinceLastCapture = null;
     });
     if (adopted) {
       _adoptOntoPending(
@@ -3011,6 +3135,7 @@ class _PendingEmit {
     required this.frames,
     this.segment = 0,
     this.overflowErrors = 0,
+    this.guessed,
     this.keyboard,
     this.aim,
     this.kind = ScenarioCaptureKind.screen,
@@ -3087,6 +3212,10 @@ class _PendingEmit {
   /// step, like [events].
   int overflowErrors;
 
+  /// See [ScenarioStepCapture.guessed] — the deepest over the stretch an
+  /// adoption extends this step with.
+  int? guessed;
+
   /// How tall the software keyboard was when this frame was taken, in logical
   /// pixels — null when it was down, which is nearly every step.
   final double? keyboard;
@@ -3124,9 +3253,18 @@ class _PendingEmit {
     strayFrames: strayFrames,
     failure: failure,
     overflowErrors: overflowErrors,
+    guessed: guessed,
     keyboard: keyboard,
   );
 }
+
+int? _deeper(int? a, int? b) => a == null
+    ? b
+    : b == null
+    ? a
+    : a > b
+    ? a
+    : b;
 
 /// What a scenario says to whatever is filming it — `s.film`.
 ///

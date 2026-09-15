@@ -38,16 +38,32 @@ extension ComparedStateLook on ComparedState {
 
 /// A verdict, as a small filled label.
 class StateChip extends StatelessWidget {
-  const StateChip(this.state, {super.key, this.count});
+  const StateChip(this.state, {super.key, this.count}) : _unsure = false;
+
+  /// A scenario that was replayed and produced no result — see
+  /// `ScenarioComparison.inconclusive`. On the wire it is `skipped`, and
+  /// drawn as `skipped` it would say the opposite of what happened: every one
+  /// of these was looked at.
+  const StateChip.notCompared({super.key, this.count})
+    : state = ComparedState.skipped,
+      _unsure = true;
+
+  /// The chip [scenario]'s verdict is drawn as.
+  factory StateChip.of(ScenarioComparison scenario, {Key? key}) =>
+      scenario.compared
+      ? StateChip(scenario.state, key: key)
+      : StateChip.notCompared(key: key);
 
   final ComparedState state;
+  final bool _unsure;
 
   /// How many rows are in this state, when the chip is standing for a group.
   final int? count;
 
   @override
   Widget build(BuildContext context) {
-    var color = state.colorIn(context);
+    var color = _unsure ? context.colors.warningText : state.colorIn(context);
+    var word = _unsure ? 'no result' : state.word;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: FwSpacing.sm,
@@ -58,7 +74,7 @@ class StateChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(context.radii.radiusSmall),
       ),
       child: Text(
-        count == null ? state.word : '$count ${state.word}',
+        count == null ? word : '$count $word',
         style: context.type.micro.copyWith(color: color),
       ),
     );
