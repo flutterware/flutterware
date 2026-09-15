@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A scenario that breaks while a `split` replays its shared prefix is
+  placed on the branch that replay was heading into.** Each branch replays the
+  body from the top, and a failure or a timeout before that replay reached its
+  `split` was filed as an unlabelled step under the last step it had seen —
+  another branch's. That branch grew a step its source does not contain, the
+  comparison's aligner stopped walking the flow there, and the branch that
+  never ran was missing from both sides. The break is now the first step of
+  the branch it belongs to, hanging off the step the split forks from.
+
 - **A scenario step says when its picture depended on how fast the machine
   was.** Work that resolves on the real event loop and announces nothing — a
   `FutureBuilder` on a real future, an untracked read — is found by turning

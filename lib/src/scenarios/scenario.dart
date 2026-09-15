@@ -616,6 +616,7 @@ Future<void> _runScenario(
       // Reachable from outside the body while the body runs, for the one
       // reader that needs it there: the harness's deadline.
       scenarioFlushHeld = s._flushPending;
+      scenarioBreakPlacement = s._breakPlacement;
       try {
         await body(s);
         s._flushPending();
@@ -848,7 +849,7 @@ class _SplitPlan {
   /// Whose splits these are, for the refusal.
   final String scenario;
 
-  final _stack = <({int choice, int count})>[];
+  final _stack = <({int choice, List<String> names})>[];
   var _cursor = 0;
 
   void beginRun() => _cursor = 0;
@@ -861,7 +862,7 @@ class _SplitPlan {
     // position: a stated walk that recorded nothing here would give the first
     // step after a split the same key as the first step before it, and the
     // second of them would be recognised as already captured and skipped.
-    _stack.add((choice: choice, count: names.length));
+    _stack.add((choice: choice, names: names));
     _cursor++;
     return choice;
   }
@@ -898,15 +899,35 @@ class _SplitPlan {
   String get path =>
       [for (var entry in _stack.take(_cursor)) entry.choice].join('.');
 
+  /// The branch this run is replaying its way towards and has not reached
+  /// yet — the first planned choice not consumed, by name, with the path its
+  /// first step sits under — or null once every planned split has been
+  /// entered.
+  ///
+  /// Non-null only on a later replay's shared prefix, which is exactly where
+  /// a failure has no branch of its own to wear: the steps around it were all
+  /// captured by an earlier replay, and the choice that makes this replay
+  /// different has not been taken yet.
+  ({String label, String path})? get upcoming {
+    if (_cursor >= _stack.length) return null;
+    var next = _stack[_cursor];
+    return (
+      label: next.names[next.choice],
+      path: [for (var entry in _stack.take(_cursor + 1)) entry.choice]
+          .join('.'),
+    );
+  }
+
   /// Moves to the next unvisited path; false when every path has run — and
   /// false at once for a film, which walks the one path it was given.
   bool advance() {
     if (stated != null) return false;
-    while (_stack.isNotEmpty && _stack.last.choice + 1 >= _stack.last.count) {
+    while (_stack.isNotEmpty &&
+        _stack.last.choice + 1 >= _stack.last.names.length) {
       _stack.removeLast();
     }
     if (_stack.isEmpty) return false;
-    _stack.last = (choice: _stack.last.choice + 1, count: _stack.last.count);
+    _stack.last = (choice: _stack.last.choice + 1, names: _stack.last.names);
     return true;
   }
 }
@@ -2737,6 +2758,45 @@ class ScenarioTester {
     _framesAtLastCapture = _frames;
   }
 
+  /// Where a step the scenario breaks on belongs: its parent, its branch and
+  /// its position.
+  ///
+  /// Usually where the flow is — the last step seen, and the branch label
+  /// still owed if the branch has captured nothing yet. On a later replay's
+  /// shared prefix that answer is wrong: every step around the break was
+  /// captured by an earlier replay, so the last one seen is a trunk step that
+  /// already has a branch hanging off it, and a second, unlabelled child there
+  /// is one the aligner cannot walk past — everything below it went missing
+  /// from a comparison, and a timeout there read as a step of the *previous*
+  /// branch. So the break is placed where this replay was heading: the first
+  /// step of the branch it had not reached, under the step the split forks
+  /// from.
+  ({int? parent, String? branch, String position}) _breakPlacement() {
+    var parent = _lastPosition == null ? null : _state.emitted[_lastPosition!];
+    if (_state.plan.upcoming case var upcoming?) {
+      var trunk = _state.plan.path;
+      var fork = parent;
+      var deepest = -1;
+      for (var MapEntry(key: position, value: index)
+          in _state.emitted.entries) {
+        var hash = position.lastIndexOf('#');
+        if (hash < 0 || position.substring(0, hash) != trunk) continue;
+        var ordinal = int.tryParse(position.substring(hash + 1)) ?? -1;
+        if (ordinal > deepest) (deepest, fork) = (ordinal, index);
+      }
+      return (
+        parent: fork,
+        branch: upcoming.label,
+        position: '${upcoming.path}#1',
+      );
+    }
+    return (
+      parent: parent,
+      branch: _pendingBranch,
+      position: '${_state.plan.path}#${_ordinal + 1}',
+    );
+  }
+
   /// The frame the scenario broke on.
   ///
   /// Captured whatever the shot policy says, since a failure is the step most
@@ -2753,16 +2813,17 @@ class ScenarioTester {
     var root = error is ScenarioFailure ? error.error : error;
     if (!_capturing || identical(_capturedFailure, root)) return;
     _capturedFailure = root;
+    var placed = _breakPlacement();
     await _emit(
-      parent: _lastPosition == null ? null : _state.emitted[_lastPosition!],
-      branch: _pendingBranch,
+      parent: placed.parent,
+      branch: placed.branch,
       shot: null,
       settled: true,
       // The position this step *would* have had. A failure is never captured
       // twice, so nothing is keyed on it — but a comparison aligning two runs
       // needs somewhere to put it, and "the place the flow stopped" is the
-      // only honest answer.
-      position: '${_state.plan.path}#${_ordinal + 1}',
+      // only honest answer. See [_breakPlacement] for where that is.
+      position: placed.position,
       // The verb that broke, on the step that records the break — a failed
       // step used to be the one step in a flow that could not say what it was
       // trying to do.

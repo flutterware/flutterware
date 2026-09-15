@@ -1723,6 +1723,7 @@ Future<Map<String, Object?>> _runOne(
     scenarioRunListener = null;
     scenarioScreenReader = null;
     scenarioFlushHeld = null;
+    scenarioBreakPlacement = null;
   }
 
   var errors = [
@@ -1826,14 +1827,27 @@ String _captureTimeout(
   } catch (_) {
     // A tree that will not be read mid-suspension is a step without one.
   }
-  var index = steps.length + 1;
+  // Past every index the run has handed out, not only past the steps that
+  // reached here: a render that threw spends an index and leaves no step.
+  var index =
+      steps.fold(
+        0,
+        (highest, step) => step.index > highest ? step.index : highest,
+      ) +
+      1;
+  ({int? parent, String? branch, String position})? placed;
+  try {
+    placed = scenarioBreakPlacement?.call();
+  } catch (_) {
+    // Placed where the flow was last seen instead.
+  }
   var pendingImages = PaintingBinding.instance.imageCache.pendingImageCount;
   scenarioRunListener?.call(
     ScenarioStepCapture(
       index: index,
-      position: '#$index',
-      parent: steps.lastOrNull?.index,
-      branch: null,
+      position: placed?.position ?? '#$index',
+      parent: placed == null ? steps.lastOrNull?.index : placed.parent,
+      branch: placed?.branch,
       name: null,
       tags: const [],
       format: 'none',

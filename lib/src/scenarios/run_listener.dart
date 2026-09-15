@@ -242,6 +242,14 @@ class ScenarioScreenRead {
 /// last picture it took would otherwise go with it.
 void Function()? scenarioFlushHeld;
 
+/// Where a step the running scenario never took belongs — its parent, its
+/// split branch and its position — for the harness's deadline to put its
+/// invented step there. Armed beside [scenarioFlushHeld], for the same
+/// reader: the body is suspended, and only the scenario knows where in its
+/// shape it is.
+({int? parent, String? branch, String position}) Function()?
+scenarioBreakPlacement;
+
 /// Set by the flutterware harness beside [scenarioRunListener]: reads the
 /// screen a capture is photographing, at the moment it is photographed.
 ///

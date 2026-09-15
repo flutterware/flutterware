@@ -212,6 +212,36 @@ void main() {
     expect(branched[1].parent, branched[0].index);
     expect(branched[2].parent, branched[0].index);
   });
+
+  // A consumer's timeout while the next branch's replay re-mounted the app
+  // was filed as a child of the previous branch's last step: that branch grew
+  // a step its source does not contain, and the branch that never ran was
+  // missing from both sides with no delta. A break on a later replay's shared
+  // prefix belongs to the branch that replay was heading into.
+  var broken = <ScenarioStepCapture>[];
+  var replays = 0;
+  scenario('a break on a later replay of the shared prefix wears the next '
+      'branch', (s) async {
+    replays++;
+    await s.pumpWidget(const _StillApp(), shot: Shot('Start'));
+    if (replays == 2) {
+      await expectLater(() => s.tap('Subscribe'), throwsA(anything));
+    }
+    await s.split({
+      'once': () async => s.screen('A'),
+      'twice': () async => s.screen('B'),
+    });
+    broken = captures;
+  });
+
+  test('the break above hangs off the fork, as the second branch', () {
+    var start = broken.firstWhere((c) => c.name == 'Start');
+    var failed = broken.singleWhere((c) => c.failure != null);
+    expect(failed.branch, 'twice');
+    expect(failed.parent, start.index);
+    expect(failed.position, '1#1');
+    expect(broken.firstWhere((c) => c.name == 'A').branch, 'once');
+  });
 }
 
 class _StillApp extends StatefulWidget {
