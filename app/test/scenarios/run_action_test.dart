@@ -24,8 +24,12 @@ import 'package:path/path.dart' as p;
 void main() {
   late Directory root;
 
-  ScenariosCore core(_FakeRunner runner) {
+  ScenariosCore core(
+    _FakeRunner runner, {
+    Map<String, _FakeRunner> others = const {},
+  }) {
     var worktree = Worktree(path: root.path);
+    var paths = ['.', ...others.keys];
     var subject = ScenariosCore(
       PluginHost(
         id: scenariosPluginId,
@@ -33,19 +37,22 @@ void main() {
         worktree: worktree,
         workspace: Workspace(
           root: worktree.path,
-          declared: [Pkg('.')],
-          discovered: ['.'],
+          declared: [for (var path in paths) Pkg(path)],
+          discovered: paths,
           appContext: AppContext(logger: LogClient.print()),
           flutterSdk: FlutterSdkPath('/tmp/flutter'),
         ),
         config: {
           'packages': [
-            {'path': '.'},
+            for (var path in paths) {'path': path},
           ],
         },
       ),
     );
     subject.debugInstallRunner('.', runner);
+    for (var MapEntry(key: path, value: other) in others.entries) {
+      subject.debugInstallRunner(path, other);
+    }
     return subject;
   }
 
@@ -102,6 +109,35 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
     expect(p.dirname(report), expected);
     expect(File(report).existsSync(), isTrue);
   });
+
+  test(
+    'one output over several packages gives each its own directory',
+    () async {
+      // Every package wrote its run.json into the one directory, each over the
+      // last, and every package's answer named the survivor.
+      writeScenarios('shop_test.dart', ['Around the shop']);
+      var subject = core(
+        _FakeRunner(steps: 1),
+        others: {'examples/shop': _FakeRunner(steps: 1)},
+      );
+
+      var result =
+          (await subject.invoke('run', arguments: {'output': 'build/all'}))!
+              as ScenarioRunResult;
+
+      var reports = [for (var run in result.packages) run.report!];
+      expect(reports.map(p.dirname), [
+        p.join(root.path, 'build', 'all', 'root'),
+        p.join(root.path, 'build', 'all', 'examples-shop'),
+      ]);
+      for (var (i, report) in reports.indexed) {
+        var written = ScenarioRunResult.fromJson(
+          jsonDecode(File(report).readAsStringSync()) as Map<String, Object?>,
+        );
+        expect(written.packages.single.path, result.packages[i].path);
+      }
+    },
+  );
 
   group('a selector that matched nothing', () {
     test('names the scenarios the file does declare', () async {

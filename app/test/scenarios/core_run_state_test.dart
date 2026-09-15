@@ -24,8 +24,13 @@ import 'package:path/path.dart' as p;
 void main() {
   late Directory root;
 
-  ScenariosCore core({_FakeRunner? runner, double? captureScale}) {
+  ScenariosCore core({
+    _FakeRunner? runner,
+    double? captureScale,
+    Map<String, _FakeRunner> others = const {},
+  }) {
     var worktree = Worktree(path: root.path);
+    var paths = ['.', ...others.keys];
     var subject = ScenariosCore(
       PluginHost(
         id: scenariosPluginId,
@@ -33,19 +38,23 @@ void main() {
         worktree: worktree,
         workspace: Workspace(
           root: worktree.path,
-          declared: [Pkg('.')],
-          discovered: ['.'],
+          declared: [for (var path in paths) Pkg(path)],
+          discovered: paths,
           appContext: AppContext(logger: LogClient.print()),
           flutterSdk: FlutterSdkPath('/tmp/flutter'),
         ),
         config: {
           'packages': [
             {'path': '.', 'captureScale': ?captureScale},
+            for (var path in others.keys) {'path': path},
           ],
         },
       ),
     );
     if (runner != null) subject.debugInstallRunner('.', runner);
+    for (var MapEntry(key: path, value: other) in others.entries) {
+      subject.debugInstallRunner(path, other);
+    }
     return subject;
   }
 
@@ -483,6 +492,37 @@ void main() {
       );
     },
   );
+
+  test("shots over several packages keeps every package's tree", () async {
+    // The output was emptied before each package, so the second deleted the
+    // first's screenshots and the answer still counted them.
+    var subject = core(
+      runner: _FakeRunner()..writeShots = true,
+      others: {'examples/shop': _FakeRunner()..writeShots = true},
+    );
+    var output = p.join(root.path, 'store');
+
+    var result =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'output': output,
+                'devices': 'iphone-16',
+                'languages': 'en',
+              },
+            ))!
+            as ScenarioShotsResult;
+
+    expect(result.packages, hasLength(2));
+    for (var package in ['root', 'examples-shop']) {
+      expect(
+        File(p.join(output, package, 'en', 'iphone-16', '01-welcome.png'))
+            .existsSync(),
+        isTrue,
+        reason: package,
+      );
+    }
+  });
 
   test('the accessibility switches travel as axes', () async {
     var runner = _FakeRunner();
