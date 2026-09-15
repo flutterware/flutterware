@@ -9,6 +9,7 @@ import '../plugins/worktree_session.dart';
 import '../utils/flutter_sdk.dart';
 import '../utils/run_dir.dart';
 import 'artifact.dart';
+import 'host_facts.dart';
 import 'base_checkout.dart';
 import 'base_ref.dart';
 import 'cancel.dart';
@@ -288,7 +289,7 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
               baseRoot: baseRoot,
               source: source,
               cache: _cache,
-              sdk: flutterSdk.identity,
+              sdk: renderKeyOf(flutterSdk),
               pixels: PixelInputs.ofScenarios(
                 packagePath: side.packagePath,
                 roots: [topLevel, baseRoot],
@@ -377,7 +378,7 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
       baseRoot: baseRoot,
       baseSha: base.sha,
       cache: _cache,
-      sdk: flutterSdk.identity,
+      sdk: renderKeyOf(flutterSdk),
       onItem: onItem,
       onPlan: onPlan,
       onProgress: onProgress,

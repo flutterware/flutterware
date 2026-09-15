@@ -46,6 +46,8 @@ class ScenarioComparison {
     this.package,
     this.baseErrors = const [],
     this.headErrors = const [],
+    this.baseMs,
+    this.headMs,
   }) : inconclusive = null;
 
   /// A scenario that was never replayed — one that exists on a single side,
@@ -63,7 +65,9 @@ class ScenarioComparison {
        frames = const {},
        inconclusive = null,
        baseErrors = const [],
-       headErrors = const [];
+       headErrors = const [],
+       baseMs = null,
+       headMs = null;
 
   /// A scenario that was replayed and did not produce a result on one side
   /// or both — see [inconclusive].
@@ -80,6 +84,8 @@ class ScenarioComparison {
     this.package,
     this.baseErrors = const [],
     this.headErrors = const [],
+    this.baseMs,
+    this.headMs,
   }) : state = ComparedState.skipped,
        items = const [],
        branches = const [],
@@ -137,6 +143,17 @@ class ScenarioComparison {
   /// What the head side failed on — see [baseErrors].
   final List<String> headErrors;
 
+  /// How long the base side's replay took, in milliseconds — null for a side
+  /// read from the cache, which this run did not replay.
+  ///
+  /// The number that says a run was slow before it says anything else: a
+  /// scenario whose replay took three times its usual length on a loaded
+  /// machine is the first thing to know about a finding next to it.
+  final int? baseMs;
+
+  /// How long the head side's replay took — see [baseMs].
+  final int? headMs;
+
   /// The same scenario, addressed inside [package] — the twin of
   /// [ComparedItem.inPackage], and the same rule.
   ScenarioComparison inPackage(String package, {required bool qualify}) {
@@ -148,6 +165,8 @@ class ScenarioComparison {
         package: package,
         baseErrors: baseErrors,
         headErrors: headErrors,
+        baseMs: baseMs,
+        headMs: headMs,
       );
     }
     return ScenarioComparison(
@@ -159,6 +178,8 @@ class ScenarioComparison {
       package: package,
       baseErrors: baseErrors,
       headErrors: headErrors,
+      baseMs: baseMs,
+      headMs: headMs,
     );
   }
 
@@ -170,6 +191,8 @@ class ScenarioComparison {
     'state': state.name,
     'package': ?package,
     'inconclusive': ?inconclusive,
+    if (baseMs != null || headMs != null)
+      'ms': {'base': ?baseMs, 'head': ?headMs},
     if (baseErrors.isNotEmpty || headErrors.isNotEmpty)
       'errors': {
         if (baseErrors.isNotEmpty) 'base': baseErrors,
@@ -221,6 +244,9 @@ class ScenarioComparison {
       }
     }
     var errors = json['errors'] as Map<String, Object?>? ?? const {};
+    var ms = json['ms'] as Map<String, Object?>? ?? const {};
+    var baseMs = ms['base'] as int?;
+    var headMs = ms['head'] as int?;
     var baseErrors = [for (var e in errors['base'] as List? ?? const []) '$e'];
     var headErrors = [for (var e in errors['head'] as List? ?? const []) '$e'];
     if (json['inconclusive'] case String reason) {
@@ -230,12 +256,16 @@ class ScenarioComparison {
         package: json['package'] as String?,
         baseErrors: baseErrors,
         headErrors: headErrors,
+        baseMs: baseMs,
+        headMs: headMs,
       );
     }
     return ScenarioComparison(
       scenario: json['id'] as String? ?? '',
       baseErrors: baseErrors,
       headErrors: headErrors,
+      baseMs: baseMs,
+      headMs: headMs,
       state:
           ComparedState.values.asNameMap()[json['state']] ??
           ComparedState.skipped,

@@ -417,6 +417,107 @@ void main() {
       expect(paths, isNot(contains('pkg/assets/.DS_Store')));
     });
 
+    // Measured on a consumer's merge request: one dependency removed from one
+    // package and a `flutter: config:` flag added to another re-rendered 420
+    // previews and replayed 258 scenarios, none of which could have moved.
+    group('the pubspec', () {
+      const pubspec =
+          'name: pkg\n'
+          'description: A package.\n'
+          'version: 1.0.0\n'
+          'environment:\n'
+          '  sdk: ^3.8.0\n'
+          'dependencies:\n'
+          '  flutter:\n'
+          '    sdk: flutter\n'
+          '  http: ^1.2.0\n'
+          'flutter:\n'
+          '  uses-material-design: true\n'
+          '  assets:\n'
+          '    - assets/logo.png\n';
+
+      SkipDecision decide(String base, String head, String name) {
+        var dart = {'pkg/lib/a.dart': 'const a = 1;'};
+        var headRoot = checkout('${name}_head', {
+          ...dart,
+          'pkg/pubspec.yaml': head,
+        });
+        var baseRoot = checkout('${name}_base', {
+          ...dart,
+          'pkg/pubspec.yaml': base,
+        });
+        return SkipDecision.of(
+          entryId: 'e',
+          memo: memoWith('e', ['pkg/lib/a.dart']),
+          baseRoot: baseRoot,
+          headRoot: headRoot,
+          pixels: PixelInputs.of(
+            packagePath: 'pkg',
+            roots: [headRoot, baseRoot],
+          ),
+        );
+      }
+
+      test('a removed dependency decides no pixel', () {
+        var decision = decide(
+          pubspec,
+          pubspec.replaceFirst('  http: ^1.2.0\n', ''),
+          'dependency',
+        );
+
+        expect(decision.skip, isTrue, reason: '${decision.changed}');
+      });
+
+      test('a flutter config flag, a version and a comment decide no pixel', () {
+        var decision = decide(
+          pubspec,
+          '${pubspec.replaceFirst('version: 1.0.0', 'version: 1.0.1  # bump')}'
+              '  config:\n'
+              '    enable-swift-package-manager: true\n',
+          'config',
+        );
+
+        expect(decision.skip, isTrue, reason: '${decision.changed}');
+      });
+
+      test('an added asset declaration is a change, named by the pubspec', () {
+        var decision = decide(
+          pubspec,
+          '$pubspec    - assets/banner.png\n',
+          'asset',
+        );
+
+        expect(decision.skip, isFalse);
+        expect(decision.changed, contains('pkg/pubspec.yaml'));
+      });
+
+      test('the language version is a change', () {
+        var decision = decide(
+          pubspec,
+          pubspec.replaceFirst('^3.8.0', '^3.10.0'),
+          'sdk',
+        );
+
+        expect(decision.skip, isFalse);
+      });
+
+      test('a key it does not know is kept', () {
+        var decision = decide(
+          pubspec,
+          '${pubspec}hooks:\n  user_defines: {}\n',
+          'hooks',
+        );
+
+        expect(decision.skip, isFalse);
+      });
+
+      test('a pubspec that will not parse is hashed as bytes', () {
+        var decision = decide('name: [', 'name: [ ', 'broken');
+
+        expect(decision.skip, isFalse);
+      });
+    });
+
     test('a package with no flutter section still hashes its pubspec', () {
       var head = checkout('head4', {'pkg/pubspec.yaml': 'name: pkg\n'});
       var paths = pixelInputsOf(packagePath: 'pkg', roots: [head]);

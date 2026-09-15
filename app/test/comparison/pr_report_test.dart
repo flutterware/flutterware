@@ -226,6 +226,29 @@ void main() {
     expect(row.trim(), endsWith('|'));
   });
 
+  // A run that took three times its usual length on a runner with no GPU was
+  // indistinguishable, in its comment, from one on a quiet machine.
+  test('the footer says what machine it ran on', () {
+    var report = writePrReport(
+      artifact: ComparisonArtifact(
+        previews: previews(const []),
+        host: const ComparisonHost(
+          os: 'linux',
+          cpus: 8,
+          rasterizer: 'impeller-vulkan',
+        ),
+      ),
+      cache: cache,
+      against: 'master',
+      directory: p.join(temp.path, 'host'),
+    );
+
+    expect(
+      File(report.commentPath).readAsStringSync(),
+      contains('on linux · 8 CPUs · impeller-vulkan —'),
+    );
+  });
+
   test('a clean comparison is a short comment and no mosaic', () {
     var report = writePrReport(
       artifact: ComparisonArtifact(

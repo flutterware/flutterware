@@ -67,6 +67,39 @@ void main() {
     );
   });
 
+  test('the host and the replay time of each side survive a round trip', () {
+    var index = ComparisonIndex.fromJson({
+      'version': comparisonReportVersion,
+      'base': 'abc123def456',
+      'host': {'os': 'linux', 'cpus': 8, 'rasterizer': 'impeller-vulkan'},
+      'previews': {'rendered': 0, 'items': <Object?>[]},
+      'scenarios': {
+        'ran': 1,
+        'items': [
+          const ScenarioComparison(
+            scenario: 'test/a_test.dart#one',
+            items: [],
+            branches: [],
+            state: ComparedState.same,
+            baseMs: 1200,
+            headMs: 3400,
+          ).toJson(),
+        ],
+      },
+    });
+
+    expect(index.host?.summary, 'linux · 8 CPUs · impeller-vulkan');
+    expect(index.scenarios.single.baseMs, 1200);
+    expect(index.scenarios.single.headMs, 3400);
+    expect(
+      ComparisonIndex.fromJson({
+        'version': comparisonReportVersion,
+        'base': 'abc',
+      }).host,
+      isNull,
+    );
+  });
+
   test('a report from a newer flutterware is refused, not half-read', () {
     var future = page('future', {
       ...index(frames: 'relative'),

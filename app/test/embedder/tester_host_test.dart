@@ -2,6 +2,24 @@ import 'package:flutterware_app/src/embedder/tester_host.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('the rasterizer is named the way the arguments choose it', () {
+    expect(
+      rasterizerName(macOS: true, environment: const {}),
+      'impeller-metal',
+    );
+    expect(
+      rasterizerName(macOS: false, environment: const {}),
+      'impeller-vulkan',
+    );
+    expect(
+      rasterizerName(
+        macOS: true,
+        environment: const {'FW_SOFTWARE_RENDERING': '1'},
+      ),
+      'skia-software',
+    );
+  });
+
   group('rasterizerArguments', () {
     test('names Metal on macOS, because a build hook compiled for it', () {
       expect(rasterizerArguments(macOS: true, environment: const {}), [

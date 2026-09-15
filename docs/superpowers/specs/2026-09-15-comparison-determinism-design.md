@@ -226,7 +226,10 @@ Not stability, but load and legibility — the pressure that exposes the rest:
 5. **A timeout inside a `split` is placed on the branch that was running**, and
    so is a failure in a later replay's shared prefix — today both become an
    unlabelled second child of a trunk step, and the aligner stops walking
-   there. Then §5.
+   there. Built: the split plan remembers branch names, and a break there is
+   the first step of the branch the replay was heading into. Then §5, built
+   except the load average, which needs per-OS code for a number the CPU
+   count and the per-side `ms` already mostly answer.
 
 ## 7. Decided
 

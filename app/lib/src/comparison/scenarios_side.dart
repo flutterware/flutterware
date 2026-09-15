@@ -219,6 +219,7 @@ class ScenariosSide {
           if (step is Map) _shotOf(step.cast<String, Object?>()),
       ],
       complete: complete,
+      ms: outcome['ms'] as int?,
       // The outcome's own word, not only its steps': a scenario can fail
       // without capturing anything, and a replay read as steps alone called
       // that an empty run.

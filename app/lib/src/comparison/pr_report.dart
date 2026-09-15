@@ -585,10 +585,11 @@ String _comment(
   // "Computed from git" was the whole sentence, and it was loose: either side
   // may be read back from the cache instead of replayed. What it meant is that
   // nothing is blessed — and that a cached side is one that was a result.
+  var host = artifact.host?.summary;
   buffer.writeln(
-    '<sub>`fw compare`$at — both sides from git, nothing blessed; a side '
-    'read from the cache is one that replayed to a result under the same '
-    'inputs.</sub>',
+    '<sub>`fw compare`$at${host == null || host.isEmpty ? '' : ' on $host'} — '
+    'both sides from git, nothing blessed; a side read from the cache is one '
+    'that replayed to a result under the same inputs.</sub>',
   );
   return buffer.toString();
 }

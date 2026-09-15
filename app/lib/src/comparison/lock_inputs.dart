@@ -126,7 +126,7 @@ class LockInputs {
           // silently winning.
           var key = '$relative#$name';
           byPackage[name] = _digest(
-            '${byPackage[name] ?? ''}$key\x00${_canonical(entry.value)}',
+            '${byPackage[name] ?? ''}$key\x00${canonical(_resolution(entry.value))}',
           );
         }
       } else {
@@ -163,18 +163,33 @@ class LockInputs {
   static String _digest(String text) =>
       sha1.convert(utf8.encode(text)).toString();
 
+  /// A package's lock entry without `dependency:` — whether the package is a
+  /// direct dependency or a transitive one.
+  ///
+  /// That is a fact about the pubspec, not about what was resolved, and it
+  /// moved on its own: removing a direct dependency that something else still
+  /// pulls in flips it from `direct main` to `transitive` with the same
+  /// source and version, and every entry reaching it re-rendered for a change
+  /// no picture can show.
+  static Object? _resolution(Object? entry) => entry is Map
+      ? {
+          for (var field in entry.entries)
+            if (field.key != 'dependency') field.key: field.value,
+        }
+      : entry;
+
   /// A YAML node as text that does not depend on how it was written.
   ///
   /// Keys sorted, because two checkouts whose resolution is identical must
   /// hash identically and nothing promises pub writes a map in one order
   /// forever.
-  static String _canonical(Object? node) {
+  static String canonical(Object? node) {
     if (node is Map) {
       var keys = node.keys.map((key) => '$key').toList()..sort();
-      return '{${[for (var key in keys) '$key:${_canonical(node[key])}'].join(',')}}';
+      return '{${[for (var key in keys) '$key:${canonical(node[key])}'].join(',')}}';
     }
     if (node is List) {
-      return '[${[for (var value in node) _canonical(value)].join(',')}]';
+      return '[${[for (var value in node) canonical(value)].join(',')}]';
     }
     return '$node';
   }

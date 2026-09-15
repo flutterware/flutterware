@@ -335,6 +335,48 @@ String? _uniformGap(String half, String unit, Iterable<ComparedState> s) {
   return null;
 }
 
+/// The machine a comparison ran on — what a reader needs before deciding a
+/// run that took three times its usual length, or a picture drawn by a
+/// software rasterizer, is about the branch.
+///
+/// Facts, not caveats: nothing here says the two sides were measured
+/// differently. Both ran here.
+class ComparisonHost {
+  const ComparisonHost({this.os, this.cpus, this.rasterizer});
+
+  /// `macos`, `linux`, `windows`.
+  final String? os;
+
+  /// Logical processors, as the OS reports them.
+  final int? cpus;
+
+  /// What the tester drew with: `impeller-metal`, `impeller-vulkan` — which on
+  /// a machine with no GPU is a CPU rasterizer — or `skia-software`.
+  final String? rasterizer;
+
+  Map<String, Object?> toJson() => {
+    'os': ?os,
+    'cpus': ?cpus,
+    'rasterizer': ?rasterizer,
+  };
+
+  /// Null for a file written before the key existed.
+  static ComparisonHost? fromJson(Object? json) => json is Map
+      ? ComparisonHost(
+          os: json['os'] as String?,
+          cpus: json['cpus'] as int?,
+          rasterizer: json['rasterizer'] as String?,
+        )
+      : null;
+
+  /// One line, for a comment's footer: `linux · 8 CPUs · impeller-vulkan`.
+  String get summary => [
+    ?os,
+    if (cpus case var n?) '$n CPU${n == 1 ? '' : 's'}',
+    ?rasterizer,
+  ].join(' · ');
+}
+
 /// A whole `index.json`, read back.
 ///
 /// Parses either file both writers produce, and the object `fw compare --json`
@@ -356,6 +398,7 @@ class ComparisonIndex {
     this.exported = ExportedFrames.all,
     this.narrowed = false,
     this.caveats = const [],
+    this.host,
     this.previewsHalf = const ComparedHalf(),
     this.scenariosHalf,
     this.export,
@@ -428,6 +471,10 @@ class ComparisonIndex {
   /// existed.
   final List<String> caveats;
 
+  /// Where it ran — see [ComparisonHost]. Null for a file written before the
+  /// key existed.
+  final ComparisonHost? host;
+
   final ComparedHalf previewsHalf;
 
   /// Absent when the project declares no scenarios at all. A half that tried
@@ -488,6 +535,7 @@ class ComparisonIndex {
       caveats: [
         for (var caveat in json['caveats'] as List? ?? const []) '$caveat',
       ],
+      host: ComparisonHost.fromJson(json['host']),
       previewsHalf: ComparedHalf.fromJson(previews),
       scenariosHalf: scenarios == null
           ? null

@@ -501,6 +501,7 @@ class ScenariosRunner {
       ScenarioReplay(
         _store.write(key, replay.steps, errors: replay.errors),
         errors: replay.errors,
+        ms: replay.ms,
       ),
     );
   }
@@ -658,6 +659,8 @@ class ScenariosRunner {
                 inconclusive: unstable.map(_capitalized).join(' '),
                 baseErrors: base.failures,
                 headErrors: head.failures,
+                baseMs: base.ms,
+                headMs: head.ms,
               ),
             );
             continue;
@@ -674,6 +677,8 @@ class ScenariosRunner {
             ].map(_capitalized).join(' '),
             baseErrors: firsts[0].failures,
             headErrors: firsts[1].failures,
+            baseMs: firsts[0].ms,
+            headMs: firsts[1].ms,
           ),
         );
       }

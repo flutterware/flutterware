@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutterware_app/src/comparison/closure.dart';
 import 'package:flutterware_app/src/comparison/import_graph.dart';
+import 'package:flutterware_app/src/comparison/lock_inputs.dart';
 import 'package:flutterware_app/src/comparison/skip.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -302,6 +303,35 @@ void main() {
 
   // Two checkouts whose resolution is identical must hash identically, and
   // nothing promises pub writes a map in one order forever.
+  // Removing a direct dependency something else still pulls in flips it to
+  // `transitive` with the same source and version: a fact about the pubspec,
+  // not about the resolution.
+  test('a dependency turning transitive is not a change', () {
+    var base = checkout(
+      'base_kind',
+      versions: {'http': '1.2.0'},
+      graph: {
+        'pkg': ['http'],
+      },
+    );
+    var head = checkout(
+      'head_kind',
+      versions: {'http': '1.2.0'},
+      graph: {
+        'pkg': ['http'],
+      },
+    );
+    var lock = File(p.join(head, 'pubspec.lock'));
+    lock.writeAsStringSync(
+      lock.readAsStringSync().replaceFirst('"direct main"', 'transitive'),
+    );
+
+    var baseInputs = LockInputs.of(root: base, packagePath: '.');
+    var headInputs = LockInputs.of(root: head, packagePath: '.');
+
+    expect(headInputs.forPackages({'http'}), baseInputs.forPackages({'http'}));
+  });
+
   test('the order keys were written in is not a change', () {
     var files = {'lib/a.dart': "import 'package:used/used.dart';\n"};
     var graph = {

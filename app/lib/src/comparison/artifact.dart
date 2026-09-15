@@ -287,7 +287,11 @@ class ComparisonArtifact {
     this.headCommit,
     this.at,
     this.caveats = const [],
+    this.host,
   });
+
+  /// The machine it ran on — see [ComparisonHost].
+  final ComparisonHost? host;
 
   final ComparisonResult previews;
 
@@ -370,6 +374,7 @@ class ComparisonArtifact {
     'frames': ComparisonFrames.local.name,
     if (narrowed) 'narrowed': true,
     'caveats': ?(caveats.isEmpty ? null : caveats),
+    'host': ?host?.toJson(),
     'previews': previews.toJson(),
     'scenarios': ?scenarios?.toJson(),
   };

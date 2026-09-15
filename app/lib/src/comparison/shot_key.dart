@@ -74,7 +74,11 @@ class ShotKey {
   /// whose announced load took longer than that second on the machine that
   /// rendered it was taken with the load still in flight — its spinner rather
   /// than its content — and filed as if it were the entry.
-  static const revision = 'v12';
+  /// v13 — a package's `pubspec.yaml` is hashed as its pixel-relevant parts
+  /// (`pubspecPixelDigest`) rather than as bytes, and a lockfile entry without
+  /// its `dependency:` kind. Nothing about the pictures changed — the keys
+  /// did, as at v9.
+  static const revision = 'v13';
 
   /// [closure] is a [SourceClosure.fingerprint]; [sdk] identifies the SDK both
   /// sides are rendered with; [axes] and [knobs] are whatever was applied.

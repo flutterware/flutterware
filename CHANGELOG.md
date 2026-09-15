@@ -1,5 +1,23 @@
 ## Unreleased
 
+- **A dependency change no picture can show no longer re-renders the
+  package.** A package's `pubspec.yaml` was a whole-file input to every
+  preview and scenario in it, so removing one dependency or adding a
+  `flutter: config:` flag re-rendered and re-replayed everything — measured on
+  one merge request, 420 renders and 258 replays. It is now hashed without its
+  dependency lists (the lockfile and the import graph cover what they resolve
+  to), `flutter: config:`, and what only pub.dev reads; everything else,
+  including keys it does not recognise, still counts. A lockfile entry is no
+  longer a change when only its `direct`/`transitive` kind moved. The cache key
+  also carries the rasterizer, so pictures drawn by Metal, Vulkan and Skia's
+  software backend are no longer served for one another. Cached comparison
+  pictures are re-rendered once.
+
+- **A comparison records the machine it ran on, and how long each replay
+  took.** `index.json` carries `host` — OS, CPU count and the rasterizer — and
+  each scenario its `ms` per side; the pull-request comment's footer names the
+  machine.
+
 - **A scenario that breaks while a `split` replays its shared prefix is
   placed on the branch that replay was heading into.** Each branch replays the
   body from the top, and a failure or a timeout before that replay reached its

@@ -72,9 +72,14 @@ class ScenarioReplay {
     this.steps, {
     this.complete = true,
     this.errors = const [],
+    this.ms,
   });
 
   final List<ScenarioStepShot> steps;
+
+  /// How long the replay took, as the harness measured it — null for one
+  /// read from the cache.
+  final int? ms;
 
   /// False when the harness gave up on the scenario — it blew its deadline,
   /// and what it hands back is how far it got, which is not where it would
@@ -234,6 +239,8 @@ ScenarioComparison compareScenarioReplays({
   head: head.steps,
   baseErrors: base.errors,
   headErrors: head.errors,
+  baseMs: base.ms,
+  headMs: head.ms,
 );
 
 /// Compares two runs of one scenario.
@@ -254,6 +261,8 @@ ScenarioComparison compareScenarioSteps({
   required List<ScenarioStepShot> head,
   List<String> baseErrors = const [],
   List<String> headErrors = const [],
+  int? baseMs,
+  int? headMs,
 }) {
   var baseFailures = ScenarioReplay(base, errors: baseErrors).failures;
   var headFailures = ScenarioReplay(head, errors: headErrors).failures;
@@ -311,6 +320,8 @@ ScenarioComparison compareScenarioSteps({
     frames: frames,
     baseErrors: baseFailures,
     headErrors: headFailures,
+    baseMs: baseMs,
+    headMs: headMs,
   );
 }
 
