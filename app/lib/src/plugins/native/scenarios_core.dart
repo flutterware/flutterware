@@ -823,7 +823,9 @@ class ScenariosCore extends PluginCore {
                   'Where step artifacts are written, worktree-relative '
                   "unless absolute; a fresh directory under the package's "
                   'build/ when omitted. run.json lands in the same '
-                  'directory as the images it names.',
+                  'directory as the images it names. A run over several '
+                  'packages writes each into `<output>/<package>`, with '
+                  '`/` in its path as `-` and the root package as `root`.',
             ),
             const ActionParameter(
               'baseline',
@@ -841,7 +843,9 @@ class ScenariosCore extends PluginCore {
                   'out run takes the matching point inside it — '
                   '`<baseline>/<slug>` — and refuses where that point is '
                   'missing rather than comparing one point against another, '
-                  'which shares no scenario and would answer `compared: 0`',
+                  'which shares no scenario and would answer `compared: 0`. '
+                  'A run over several packages takes each one from '
+                  '`<baseline>/<package>`, the directory `output` gave it',
             ),
             // The axes. Declared because they change the pixels, and anything
             // that changes the pixels is recorded on the artifact's address.
@@ -1822,7 +1826,8 @@ class ScenariosCore extends PluginCore {
                   'Where the tree is written, worktree-relative unless '
                   'absolute; `build/flutterware/screenshots` under the '
                   'package when omitted. Emptied first, so what is there '
-                  'afterwards is exactly this run.',
+                  'afterwards is exactly this run. Several packages each get '
+                  '`<output>/<package>`, named as `run` names them.',
             ),
             const ActionParameter(
               'devices',
@@ -2911,7 +2916,11 @@ class ScenariosCore extends PluginCore {
       var packageRoot = host.workspace.packageFor(path).directory.path;
       // Same base as `run`'s `output`: the worktree, unless absolute.
       var output = switch (arguments['output'] as String?) {
-        var given? when given.isNotEmpty => _absolute(given),
+        var given? when given.isNotEmpty => _perPackage(
+          _absolute(given),
+          path,
+          paths,
+        ),
         _ => p.join(packageRoot, 'build', 'flutterware', 'screenshots'),
       };
       var root = Directory(output);
@@ -3466,15 +3475,16 @@ class ScenariosCore extends PluginCore {
       var pathAssignments = assignmentsFor[path]!;
       var fannedOut = pathAssignments.length > 1;
       var packageRoot = host.workspace.packageFor(path).directory.path;
-      var base =
-          output ??
-          p.join(
-            packageRoot,
-            'build',
-            'flutterware',
-            'scenario_runs',
-            '${DateTime.now().millisecondsSinceEpoch}',
-          );
+      var base = switch (output) {
+        var given? => _perPackage(given, path, paths),
+        _ => p.join(
+          packageRoot,
+          'build',
+          'flutterware',
+          'scenario_runs',
+          '${DateTime.now().millisecondsSinceEpoch}',
+        ),
+      };
       // This run replaces whatever the last one had to say about drift,
       // including having had nothing to say.
       _lastDrift.remove(path);
@@ -3491,7 +3501,7 @@ class ScenariosCore extends PluginCore {
         var previous = _previousRun(
           outDir,
           packageRoot,
-          given: baseline,
+          given: baseline == null ? null : _perPackage(baseline, path, paths),
           point: fannedOut ? axisSlug(assignment) : null,
         );
         // From zero for this point: the count is how far *this* pass has
@@ -4175,6 +4185,19 @@ class ScenariosCore extends PluginCore {
   }
 
   /// A file name from a scenario's own name.
+  /// Where [path]'s share of a directory named for a whole request goes:
+  /// [given] itself when [path] is the only package, `<given>/<package>` when
+  /// there are several.
+  ///
+  /// Every package wrote into [given] once, which is one `run.json` per
+  /// request whatever the package count — each overwrote the last, and every
+  /// package's answer named the survivor. `shots` was worse, emptying the
+  /// directory before each package and so deleting the one before it.
+  static String _perPackage(String given, String path, List<String> paths) =>
+      paths.length < 2
+      ? given
+      : p.join(given, path == '.' ? 'root' : path.replaceAll('/', '-'));
+
   static String _slug(String name) {
     var slug = name
         .toLowerCase()
