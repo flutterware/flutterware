@@ -155,12 +155,25 @@ to want to see. That is why the default is `all`.
 
 ## What to know before turning it on
 
+- **A loaded runner can make a scenario inconclusive, never different.** A
+  scenario side that failed, or that the harness gave up on, is replayed once
+  more on its own before anything is concluded from it. A failure that
+  reproduces is the verdict; one that does not — failed once, passed the second
+  time — is listed as **not compared**, with what happened, because its outcome
+  depended on the machine rather than on the branch. Not compared is named in
+  the comment's heading and never fails the check: it is a finding about the
+  scenario, and the fix is in the scenario — usually real work nothing
+  announced, which `RealWork.run` makes the scenario wait for. A scenario's
+  `timeout:` is how long it may go without progress, not how long it may take,
+  so a slow runner stretches a scenario without failing it.
+
 - **The two caches, and what each buys.** `~/.flutterware/shots` holds the
   rendered pictures and the scenario replays, content-addressed: without it a
   runner renders and replays *both sides of every row, every run*, and with it
   a push whose inputs did not move replays nothing, and a base is replayed
   once however many pull requests compare against it. A replay whose requests
-  went out to a live network, or one the harness gave up on, is never filed.
+  went out to a live network, or one the harness gave up on, is never filed,
+  and a replay that failed is filed only once its failure has reproduced.
   `fw compare` trims it at the end of every run — anything unread for two
   weeks, then the oldest past 2GB — so a restored cache stays bounded without
   a cleanup step of your own; so do the base checkouts and each checkout

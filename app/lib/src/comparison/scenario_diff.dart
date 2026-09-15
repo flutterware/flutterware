@@ -125,9 +125,12 @@ class ConfirmedSide {
 /// - a failure whose first line reproduces is a result, and can be filed;
 /// - a failure that passed the second time, or failed differently, is not: its
 ///   outcome depends on the machine, and the scenario is what has to change;
-/// - a replay the harness gave up on says nothing about the scenario's output,
-///   only about its deadline, so a second replay that finished cleanly is the
-///   result, and one that did not finish either is not.
+/// - a replay the harness gave up on stalled — its deadline is a progress
+///   deadline, which a slow machine stretches without firing — so a second
+///   stall is the scenario hanging, and a result whatever its message says
+///   (a stall's sentence carries how long things had been pending, and two
+///   of them never read alike); a second replay that finished cleanly is the
+///   result instead, and one that failed is not a result at all.
 ///
 /// [side] names the side in the sentence: "the base", "this branch".
 ConfirmedSide confirmSide(
@@ -147,13 +150,7 @@ ConfirmedSide confirmSide(
   var firstFailure = first.failures.firstOrNull;
   var secondFailure = second.failures.firstOrNull;
   if (!first.complete) {
-    if (second.clean) return ConfirmedSide.result(second);
-    if (!second.complete) {
-      return ConfirmedSide.inconclusive(
-        '$side did not finish on either of two replays'
-        '${_quoted(secondFailure ?? firstFailure)}',
-      );
-    }
+    if (second.clean || !second.complete) return ConfirmedSide.result(second);
     return ConfirmedSide.inconclusive(
       '$side did not finish, then failed when replayed again'
       '${_quoted(secondFailure)}',

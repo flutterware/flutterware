@@ -1,16 +1,18 @@
-/// What a scenario that ran out of time was doing, and the sentence that says
-/// so.
+/// What a scenario that stopped getting anywhere was doing, and the sentence
+/// that says so.
 ///
-/// A scenario runs under fake time, so a deadline is never slowness: the body
-/// is suspended on a future nothing here will complete. The harness's timeout
-/// fires in the same isolate, so there is no stack to ask for — the isolate's
-/// stack *is* the timeout handler, and the body's frames live in suspended
-/// continuations no API enumerates. What can be known is recorded on the way
-/// in instead: which verb the body is inside and where it was called from,
-/// which platform messages went out and were never seen answered and from
-/// where, what the app announced through `RealWork.track`, and — the one
-/// discriminating fact — whether the fake zone has microtasks queued that
-/// nobody is pumping.
+/// The deadline is a progress deadline (see `progress.dart`): it fires when
+/// no verb has returned, no step has been captured and no tracked work has
+/// been pending for the scenario's timeout, on an isolate that sat idle. So
+/// what it catches is waiting, not working: the body is suspended on a future
+/// nothing here will complete. The deadline fires in the same isolate, so
+/// there is no stack to ask for — the isolate's stack *is* the handler, and
+/// the body's frames live in suspended continuations no API enumerates. What
+/// can be known is recorded on the way in instead: which verb the body is
+/// inside and where it was called from, which platform messages went out and
+/// were never seen answered and from where, what the app announced through
+/// `RealWork.track` and how long ago, and — the one discriminating fact —
+/// whether the fake zone has microtasks queued that nobody is pumping.
 ///
 /// That last bit is the fingerprint of the case that costs the most: real
 /// work *completed*, its completion was scheduled on the fake zone as a
@@ -19,9 +21,16 @@
 /// the awaited future will never complete by pumping, because it belongs to a
 /// zone that is gone (an earlier scenario's) or to real time (a channel nobody
 /// answers, a real-clock timer outside `s.runAsync`).
+///
+/// Tracked work is the exception, and the reason the kinds exist. It is
+/// waited for as long as it takes, so an empty queue beside pending tracked
+/// work is a landing polling the real clock — the expected state, not a dead
+/// zone — and a sentence calling it one sent a reader looking for a bug in a
+/// scenario that was only on a slow machine.
 library;
 
 import '../real_work/tracker.dart';
+import 'progress.dart';
 
 /// A verb the body is inside — `tap "Pay"` — and where the scenario called it.
 class ScenarioVerbInFlight {
@@ -153,7 +162,13 @@ const _framework = [
   'package:clock/',
 ];
 
-/// The sentence a scenario gets for running out its [deadline].
+/// The sentence a scenario gets for running out its [deadline] — the
+/// declared timeout, which is how long it may go without progress.
+///
+/// [kind] is which way the deadline fired, [elapsed] how long the scenario
+/// had run, and [overdue] the
+/// tracked future that ran past its ceiling. [landingTracked] says the body
+/// was inside a landing, waiting for tracked work, when it fired.
 ///
 /// [watchdog] is what the `runAsync` watchdog already said, when it said
 /// anything — that diagnosis is complete on its own. [microtasks] is the fake
@@ -163,6 +178,10 @@ const _framework = [
 /// forever.
 String stallDiagnosis({
   required Duration deadline,
+  ScenarioStallKind kind = ScenarioStallKind.stalled,
+  Duration? elapsed,
+  TrackedRealWork? overdue,
+  bool landingTracked = false,
   String? watchdog,
   int? microtasks,
   ScenarioVerbInFlight? inFlight,
@@ -173,15 +192,32 @@ String stallDiagnosis({
   String? previousScenario,
   bool eventsOnFailedStep = false,
 }) {
-  var seconds = deadline.inSeconds > 0
-      ? '${deadline.inSeconds}s'
-      : '${deadline.inMilliseconds}ms';
-  var opening =
-      'the scenario did not finish within $seconds. A scenario runs under '
-      'fake time, so this is not slowness — '
-      '${watchdog ?? _where(inFlight, lastVerb)}';
-  var lines = <String>[opening];
-  if (watchdog == null) {
+  var lines = <String>[
+    switch (kind) {
+      ScenarioStallKind.stalled =>
+        'the scenario made no progress for ${spanOf(deadline)} — no '
+            'verb returned, no step was captured, no tracked work was pending, '
+            'and the isolate sat idle, so it was waiting rather than working: '
+            '${watchdog ?? _where(inFlight, lastVerb)}',
+      ScenarioStallKind.trackedWork =>
+        'tracked real work `$overdue` was still pending after '
+            '${spanOf(overdue?.pendingFor ?? elapsed ?? trackedWorkCeiling)}, '
+            'past the ${spanOf(trackedWorkCeiling)} any one tracked future is '
+            'given. ${_waitingFor(landingTracked, inFlight, lastVerb)} Tracked '
+            'work is waited for as long as it takes, so a slow machine does '
+            'not end up here: work this late is not coming. The usual cause is '
+            "a future a dependency memoized in an earlier scenario's zone"
+            '${previousScenario == null ? '' : ' — `$previousScenario` ran before this one in the same process'}'
+            ', which `RealWork.run` avoids by running the load in the root '
+            'zone.',
+      ScenarioStallKind.ceiling =>
+        'the scenario was still running after ${spanOf(elapsed ?? deadline)}, '
+            'though it never went ${spanOf(deadline)} without progress — a '
+            'flow that loops without end? '
+            '${watchdog ?? _where(inFlight, lastVerb)}',
+    },
+  ];
+  if (kind == ScenarioStallKind.stalled && watchdog == null) {
     lines.add(_mechanism(microtasks, previousScenario));
   }
   for (var send in sends) {
@@ -198,6 +234,7 @@ String stallDiagnosis({
     };
     lines.add(
       'Tracked real work still pending: `$work`'
+      '${work.pendingFor == null ? '' : ' (for ${spanOf(work.pendingFor!)})'}'
       '${frames.isEmpty ? '' : ', announced from ${frames.join(' ← ')}'}.',
     );
   }
@@ -209,10 +246,38 @@ String stallDiagnosis({
   }
   lines.add(
     'The steps it captured before it stopped are on disk'
-    '${eventsOnFailedStep ? ', and what the app printed and did since the last of them is on the failed step (`scenarios read --events`)' : ''}. '
-    'Give it longer, or opt out, with `scenario(timeout: …)`.',
+    '${eventsOnFailedStep ? ', and what the app printed and did since the last of them is on the failed step (`scenarios read --events`)' : ''}.'
+    '${kind == ScenarioStallKind.trackedWork ? '' : ' Its timeout is how long it may go without progress, not how long it may take: give it longer, or opt out, with `scenario(timeout: …)`.'}',
   );
   return lines.join(' ');
+}
+
+/// A duration as a sentence reads it: `2s`, `27.4s`, `2m 5s`, `400ms`.
+String spanOf(Duration duration) {
+  var ms = duration.inMilliseconds;
+  if (ms < 1000) return '${ms}ms';
+  if (ms < 60000) {
+    return ms % 1000 == 0
+        ? '${ms ~/ 1000}s'
+        : '${(ms / 1000).toStringAsFixed(1)}s';
+  }
+  var seconds = duration.inSeconds % 60;
+  return '${duration.inMinutes}m${seconds == 0 ? '' : ' ${seconds}s'}';
+}
+
+/// Where the body was while tracked work ran out its ceiling.
+String _waitingFor(
+  bool landing,
+  ScenarioVerbInFlight? inFlight,
+  ScenarioVerbInFlight? lastVerb,
+) {
+  if (landing && inFlight != null) {
+    var site = inFlight.callSite;
+    return '`s.${inFlight.label}`${site == null ? '' : ' ($site)'} was '
+        'waiting for it.';
+  }
+  return 'The body was not waiting for it: '
+      '${_where(inFlight, lastVerb)}';
 }
 
 String _where(ScenarioVerbInFlight? inFlight, ScenarioVerbInFlight? lastVerb) {

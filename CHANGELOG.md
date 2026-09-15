@@ -1,5 +1,29 @@
 ## Unreleased
 
+- **A scenario's `timeout:` is how long it may go without progress, not how
+  long it may take.** It was a wall-clock budget for the whole scenario —
+  every `split` replay, every capture, every wait on tracked work — so it
+  measured the machine: a flow that passes in five seconds on a quiet machine
+  failed thirty on a CI runner shared by three jobs. Under the runner a
+  scenario now fails when no verb has returned, no step has been captured and
+  no tracked work has been pending for its timeout, on an isolate that sat
+  idle. Tracked work is waited for up to two minutes per future, and a
+  scenario still going at ten times its timeout is stopped. The stall message
+  no longer calls a slow `RealWork` load a dead zone: it names the work and how
+  long it had been pending. A bare `flutter test` keeps the timeout as written.
+
+- **`fw compare` replays a failing scenario side again before it believes
+  it.** A side that failed, or that the harness gave up on, is replayed once
+  more on its own. A failure that reproduces is the verdict — including one on
+  a step the other side never took, which used to fold into `changed`, so a
+  base that broke read as the branch's change. One that does not reproduce is
+  **not compared**: written as `skipped` with an `inconclusive` sentence, named
+  in the comment's heading, listed in the CLI and on the page, and never a
+  gate failure. A failed replay is cached only once it has reproduced, so one
+  bad minute on one runner is no longer served to every later comparison
+  against that base. Each scenario carries both sides' errors, and a failed
+  step is labelled by what it failed on rather than `step N`.
+
 - **A preview's image provider that sleeps before it decodes is drawn
   loaded.** Between the frames of its settle, the previews lane waited in real
   time for every decode the image cache counted — including one whose provider

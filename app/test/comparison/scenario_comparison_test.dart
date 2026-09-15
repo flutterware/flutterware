@@ -402,19 +402,34 @@ void main() {
       },
     );
 
-    test('a replay abandoned twice is not a result', () {
-      var abandoned = replay(
-        failure: 'did not finish within 30s',
+    // The deadline is a progress deadline, which a slow machine stretches
+    // without firing: stalling twice is the scenario hanging.
+    test('a replay abandoned twice is a result: the scenario hangs', () {
+      var second = replay(
+        failure: 'made no progress for 30s (for 31.2s)',
         complete: false,
       );
 
-      var side = confirmSide(abandoned, abandoned, side: 'this branch');
-
-      expect(
-        side.inconclusive,
-        'this branch did not finish on either of two replays: '
-        'did not finish within 30s.',
+      var side = confirmSide(
+        replay(
+          failure: 'made no progress for 30s (for 30.4s)',
+          complete: false,
+        ),
+        second,
+        side: 'this branch',
       );
+
+      expect(side.replay, same(second));
+    });
+
+    test('a replay abandoned, then failing, is not a result', () {
+      var side = confirmSide(
+        replay(failure: 'made no progress for 30s', complete: false),
+        replay(failure: 'Expected: "Saved"'),
+        side: 'the base',
+      );
+
+      expect(side.inconclusive, contains('did not finish, then failed'));
     });
   });
 

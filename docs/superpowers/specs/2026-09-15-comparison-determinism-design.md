@@ -75,7 +75,8 @@ second tester is load. Then:
 | failed | failed, same first line | **failed** — a result, and fileable |
 | failed | clean, or failed differently | **inconclusive** — unstable |
 | abandoned | clean | **the second replay** — a deadline says how long the machine took, not what the scenario draws |
-| abandoned | abandoned, or failed | **inconclusive** — see §3 for what a progress deadline changes |
+| abandoned | abandoned | **failed** — under a progress deadline (§3) a stall that reproduces is the scenario hanging; reported, never filed |
+| abandoned | failed | **inconclusive** |
 
 Cost is proportional to what went wrong, not to the size of the suite. A clean
 pair is never replayed twice.
@@ -147,8 +148,10 @@ travels beside it, or test_api's own heartbeat timer fires first and fails the
 scenario with no diagnosis and without abandoning it.
 
 With a progress deadline, a slow host no longer produces stalls, so a stall is
-evidence again: an abandoned head that stalls again on its retry while base is
-a result is `broke`, with the stall's diagnosis as its note.
+evidence again: a side that stalls again on its retry is a failed result — a
+head that hangs beside a base that does not is `broke`, with the stall's
+diagnosis as its note. It is still never filed: the harness abandoned the rest
+of the file with it.
 
 The stall diagnosis stops saying "this is not slowness" when the body was
 waiting on tracked work inside `RealWorkBudget.land`. It leads with the work,

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../real_work/tracker.dart';
 import 'asset_bundle.dart';
 import 'motion.dart';
+import 'progress.dart';
 import 'settle.dart';
 
 /// How many turns of the real event loop a caller spends **guessing** — see
@@ -259,9 +260,11 @@ class RealWorkBudget {
           return false;
         }
         _trackedSpent.start();
+        scenarioLandingTrackedWork = true;
         try {
           await tester.runAsync(() => Future<void>.delayed(_waitingTurn));
         } finally {
+          scenarioLandingTrackedWork = false;
           _trackedSpent.stop();
         }
         // A tracked load usually arrives in links — a read completes, the

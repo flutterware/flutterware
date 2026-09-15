@@ -556,7 +556,15 @@ void main() {
 
     test('a replay the harness abandoned is never filed', () async {
       source.abandon = true;
-      await runnerFor(base: base, head: head).run(outDir: root.path);
+      var results = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+      expect(
+        results.items.single.state,
+        ComparedState.failed,
+        reason: 'both sides hang, twice each',
+      );
       source.replayed.clear();
 
       await runnerFor(base: base, head: head).run(outDir: root.path);

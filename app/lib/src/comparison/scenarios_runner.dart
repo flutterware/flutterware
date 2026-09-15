@@ -457,9 +457,9 @@ class ScenariosRunner {
   /// already let the pair's first replays finish, because the host is the
   /// suspect and running the other side's tester beside it is load.
   ///
-  /// Only a result is filed, and not every result. Three are not: an empty
-  /// one, one whose requests reached the network, and — by construction —
-  /// anything [confirmSide] did not call a result. Everything else a replay
+  /// Only a result is filed, and not every result. Four are not: one that
+  /// did not finish, an empty one, one whose requests reached the network,
+  /// and — by construction — anything [confirmSide] did not call a result. Everything else a replay
   /// reads is in its key — under `FakeAsync`, with the clock pinned and the
   /// network off or answered from a committed recording, two replays of one
   /// key draw the same frames. A `live` request is the one input nothing can
@@ -485,6 +485,9 @@ class ScenariosRunner {
     var replay = side.replay;
     if (replay == null ||
         key == null ||
+        // A hang that reproduced is a result to report and not one to serve:
+        // the harness abandoned the rest of the file with it.
+        !replay.complete ||
         replay.steps.isEmpty ||
         replay.steps.any(_reachedNetwork)) {
       return side;

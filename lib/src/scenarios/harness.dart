@@ -33,6 +33,7 @@ import 'notification.dart';
 import 'profile.dart';
 import 'selector.dart';
 import 'settle.dart';
+import 'progress.dart';
 import 'stall.dart';
 import 'report.dart';
 import 'reel.dart';
@@ -1343,6 +1344,7 @@ Future<Map<String, Object?>> _runOne(
     }
     ScenarioRunStep record(ScenarioRunStep step) {
       steps.add(step);
+      markScenarioProgress();
       // Announced the moment it exists — the artifacts are already on disk —
       // so a host drawing the flow can fill it in while the scenario still
       // runs. The response at the end stays the complete report: streaming is
@@ -1670,25 +1672,40 @@ Future<Map<String, Object?>> _runOne(
     );
   });
 
-  // What the scenario declared, over `flutter test`'s own default —
-  // `scenario(timeout: Timeout(…))`, and `Timeout.none` to opt out entirely.
-  var deadline = live.test.metadata.timeout.apply(_defaultScenarioTimeout);
+  // What the scenario declared — `scenario(timeout: Timeout(…))`, and
+  // `Timeout.none` to opt out entirely — as a progress deadline rather than a
+  // budget: see `progress.dart`. Read on every check, because a scenario's
+  // body declares its own only once it starts; until then, and for a test
+  // that is not a scenario, it is what the test's metadata says, where
+  // `Timeout.none` is the harness having switched `test_api`'s timer off.
+  scenarioDeclaredTimeout = null;
+  Duration? declaredTimeout() {
+    var metadata = live.test.metadata.timeout;
+    var timeout =
+        scenarioDeclaredTimeout ??
+        (metadata == Timeout.none
+            ? const Timeout(_defaultScenarioTimeout)
+            : metadata);
+    return timeout.apply(_defaultScenarioTimeout);
+  }
+
   var watch = Stopwatch()..start();
   String? timedOut;
   // Anything the previous scenario's watchdog left is that scenario's, and it
   // may not be quoted at this one.
   scenarioAsyncStall = null;
+  var deadline = ProgressDeadline(timeout: declaredTimeout);
   try {
-    var running = live.run();
-    await (deadline == null ? running : running.timeout(deadline));
-  } on TimeoutException {
+    await Future.any([live.run(), deadline.stalled]);
+  } on ScenarioStall catch (stall) {
     // The body is suspended somewhere past the last capture, and what the
     // app printed and did on the way there is the evidence. So the step it
     // never took is taken for it — failed, the diagnosis as its failure,
     // those events on it, no picture — which is the one case where inventing
     // a step is right: the flow really did reach a place nothing photographed.
-    timedOut = _captureTimeout(steps, deadline: deadline!, previous: previous);
+    timedOut = _captureTimeout(steps, stall: stall, previous: previous);
   } finally {
+    deadline.cancel();
     await records.cancel();
     await messages.cancel();
     // Whatever the app did after the last capture goes with it: there is no
@@ -1755,7 +1772,7 @@ Future<Map<String, Object?>> _runOne(
 /// the failed step.
 String _captureTimeout(
   List<ScenarioRunStep> steps, {
-  required Duration deadline,
+  required ScenarioStall stall,
   String? previous,
 }) {
   // The capture the body was still holding — the automatic step waiting to
@@ -1777,7 +1794,11 @@ String _captureTimeout(
   var inFlight = scenarioVerbInFlight;
   var where = inFlight ?? scenarioLastVerb;
   var message = stallDiagnosis(
-    deadline: deadline,
+    deadline: stall.timeout,
+    kind: stall.kind,
+    elapsed: stall.elapsed,
+    overdue: stall.work,
+    landingTracked: scenarioLandingTrackedWork,
     watchdog: scenarioAsyncStall,
     microtasks: microtasks,
     inFlight: inFlight,
@@ -1826,7 +1847,8 @@ String _captureTimeout(
   return message;
 }
 
-/// How long one scenario may take before the run gives up on it.
+/// How long one scenario may go without progress before the run gives up on
+/// it — see `progress.dart` for what counts.
 ///
 /// `package:test`'s own default, and reached through
 /// [scenarioDefaultTimeout] — `testWidgets` stamps the binding's ten minutes

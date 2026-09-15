@@ -28,6 +28,7 @@ import 'motion.dart';
 import 'network.dart';
 import 'notification.dart';
 import 'profile.dart';
+import 'progress.dart';
 import 'real_work.dart';
 import 'run_args.dart';
 import 'run_listener.dart';
@@ -159,9 +160,16 @@ void scenario(
   testWidgets(
     name,
     skip: skip,
-    timeout: timeout ?? scenarioDefaultTimeout,
+    // Under the harness the declared timeout is a progress deadline the
+    // harness keeps itself, and `test_api`'s own timer — which knows nothing
+    // about progress — is switched off so it cannot fire first. A bare
+    // `flutter test` has no harness, and keeps the timeout as written.
+    timeout: scenarioDefaultTimeout == null ? timeout : Timeout.none,
     tags: tags,
     (tester) async {
+      if (scenarioDefaultTimeout case var fallback?) {
+        scenarioDeclaredTimeout = timeout ?? fallback;
+      }
       // Always pinned to something, and to [pinnedClockOrigin] unless somebody
       // said otherwise — a run whose date is "whenever it happened" cannot be
       // compared with the next one, which is what every surface reading these
@@ -2057,8 +2065,8 @@ class ScenarioTester {
       // announced itself as they go — otherwise fake time runs the transition
       // out in a few real milliseconds and every frame of the movie behind the
       // step is a hole — and the landing below spends what is left.
-      // No ceiling on tracked work here: the scenario's own deadline is the
-      // ceiling, and its message names what was still pending.
+      // No ceiling on tracked work here: the scenario's deadline holds one
+      // per tracked future, and its message names what was still pending.
       var budget = RealWorkBudget(trackedWait: null);
       settled = await policy.apply(
         tester,
@@ -2100,6 +2108,7 @@ class ScenarioTester {
     } finally {
       if (inFlight != null) scenarioLastVerb = inFlight;
       scenarioVerbInFlight = null;
+      markScenarioProgress();
     }
     _framesAtLastStep = _frames;
     await _afterStep(
