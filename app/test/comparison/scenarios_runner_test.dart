@@ -683,6 +683,24 @@ void main() {
       );
     });
 
+    // Two failing replays compared as steps say `failed` whatever they failed
+    // on, so a reproduced regression never agreed with itself here and was
+    // reported as not compared.
+    test('a failure that reproduces beside a guessed landing is still the '
+        'verdict', () async {
+      source
+        ..failOn = 'test/shop.dart#Checkout'
+        ..guessed['test/shop.dart#Checkout:head'] = 9;
+
+      var results = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+
+      expect(results.items.single.compared, isTrue);
+      expect(results.items.single.state, ComparedState.broke);
+    });
+
     test('a guessed landing with nothing different costs nothing', () async {
       source.guessed['test/shop.dart#Checkout:head'] = 9;
 

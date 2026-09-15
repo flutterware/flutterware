@@ -99,9 +99,11 @@ class ScenarioStall implements Exception {
 /// - [scenarioProgressMarks] moving — a verb returned, a step was recorded;
 /// - a tracked future completing, or one still pending under its ceiling;
 /// - **the isolate being busy.** The check is a periodic timer on the same
-///   isolate as the body, and a check that fires late fired late because the
-///   isolate was working — a mount, a pump, a capture's encode. A stall is an
-///   *idle* isolate, waiting on something that never comes.
+///   isolate as the body, and a check a second or more late fired late because
+///   the isolate was working — a mount, a pump, a capture's encode. Lateness
+///   shorter than that is a loaded machine's scheduling as often as it is
+///   work, so it is taken off the idle time instead of resetting it. A stall
+///   is an *idle* isolate, waiting on something that never comes.
 ///
 /// Frames are not progress: a spinner schedules them forever.
 ///
@@ -152,6 +154,9 @@ class ProgressDeadline {
   /// Stops watching. Idempotent.
   void cancel() => _timer?.cancel();
 
+  /// How late a check has to come to count as the isolate having worked.
+  static const _busy = Duration(seconds: 1);
+
   static Duration Function() _stopwatch() {
     var watch = Stopwatch()..start();
     return () => watch.elapsed;
@@ -162,8 +167,18 @@ class ProgressDeadline {
   @visibleForTesting
   void check() {
     var now = _now();
-    // Late by a whole tick or more: the isolate was busy, which is work.
-    if (now - _lastTick >= tick * 2) _lastProgress = now;
+    // A check that came late came late because the isolate was working — or
+    // because a loaded machine scheduled it late, which is not work at all.
+    // A second or more is work: a mount, a pump, an encode. Anything shorter
+    // is only taken off the idle time rather than resetting it, so a waiting
+    // isolate on a starved host still reaches its deadline, a little later,
+    // instead of being called busy on every tick until the hard ceiling.
+    var late = now - _lastTick - tick;
+    if (late >= _busy) {
+      _lastProgress = now;
+    } else if (late > Duration.zero) {
+      _lastProgress += late;
+    }
     _lastTick = now;
 
     var marks = _marks();

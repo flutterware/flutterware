@@ -2669,6 +2669,10 @@ class ScenarioTester {
       // appending these would multiply a shared prefix once per branch.
       appEventBuffer?.discard();
       _recorder?.discard();
+      // What landed on the way to a step an earlier replay captured belongs
+      // to that step. Left to ride, it was credited to the next step this
+      // replay emits — a branch's first step, which guessed at nothing.
+      _guessedSinceLastCapture = null;
       _lastCaptureFresh = false;
       _lastPosition = position;
       _pendingBranch = null;
@@ -2694,6 +2698,7 @@ class ScenarioTester {
       // and left alone they pad the next step's movie and eat its frame
       // budget. The events keep riding, as a skipped shot's always have.
       _recorder?.discard();
+      _guessedSinceLastCapture = null;
       _state.emitted[position] = _state.stepCount;
       _lastPosition = position;
       return;

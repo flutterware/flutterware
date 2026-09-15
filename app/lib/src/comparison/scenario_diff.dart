@@ -115,13 +115,50 @@ class ScenarioReplay {
   ];
 }
 
-/// Whether two replays of one side did the same thing: the same failures, and
-/// nothing between their steps that a comparison would call a change.
-bool replaysAgree(ScenarioReplay a, ScenarioReplay b) =>
-    a.complete == b.complete &&
-    a.failures.length == b.failures.length &&
-    compareScenarioReplays(scenario: '', base: a, head: b).state ==
-        ComparedState.same;
+/// Whether two replays of one side did the same thing: both finished or both
+/// hung, the same failures, and nothing between their steps that a comparison
+/// would call a change.
+///
+/// Failures are compared as failures, not through the steps. A comparison of
+/// two failing runs says `failed` whatever they failed on, so asked that way a
+/// reproduced failure never agreed with itself — and a regression in a
+/// scenario with a guessed landing was reported as not compared. A hang's
+/// sentence carries how long things had been pending, so two hangs agree
+/// whatever they say.
+bool replaysAgree(ScenarioReplay a, ScenarioReplay b) {
+  if (a.complete != b.complete) return false;
+  var aFailures = a.failures;
+  var bFailures = b.failures;
+  if (aFailures.length != bFailures.length) return false;
+  if (a.complete) {
+    for (var i = 0; i < aFailures.length; i++) {
+      if (!_sameFailure(aFailures[i], bFailures[i])) return false;
+    }
+  }
+  List<ScenarioStepShot> withoutFailures(ScenarioReplay replay) => [
+    for (var shot in replay.steps)
+      shot.failure == null
+          ? shot
+          : ScenarioStepShot(
+              step: shot.step,
+              rgba: shot.rgba,
+              width: shot.width,
+              height: shot.height,
+              tree: shot.tree,
+              treeFormat: shot.treeFormat,
+              texts: shot.texts,
+              events: shot.events,
+              frame: shot.frame,
+              guessed: shot.guessed,
+            ),
+  ];
+  return compareScenarioSteps(
+        scenario: '',
+        base: withoutFailures(a),
+        head: withoutFailures(b),
+      ).state ==
+      ComparedState.same;
+}
 
 /// The sentence a side whose pictures depended on the machine gets when two
 /// replays of it disagreed.

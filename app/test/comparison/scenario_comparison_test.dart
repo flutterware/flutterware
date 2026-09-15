@@ -433,6 +433,43 @@ void main() {
     });
   });
 
+  group('two replays of one side', () {
+    ScenarioReplay replay({
+      String? failure,
+      bool complete = true,
+      int px = 0,
+    }) => ScenarioReplay([
+      shot(1, name: 'Cart', pixels: px),
+      if (failure != null) shot(2, parent: 1, failure: failure),
+    ], complete: complete);
+
+    test('agree when they fail the same way', () {
+      expect(
+        replaysAgree(
+          replay(failure: 'nothing matches "Pay" in _W#1a2b3'),
+          replay(failure: 'nothing matches "Pay" in _W#9f8e7'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('agree when they both hang, whatever the sentence says', () {
+      expect(
+        replaysAgree(
+          replay(failure: 'no progress (for 30.2s)', complete: false),
+          replay(failure: 'no progress (for 31.9s)', complete: false),
+        ),
+        isTrue,
+      );
+    });
+
+    test('disagree when they fail differently, or draw differently', () {
+      expect(replaysAgree(replay(failure: 'a'), replay(failure: 'b')), isFalse);
+      expect(replaysAgree(replay(), replay(failure: 'a')), isFalse);
+      expect(replaysAgree(replay(), replay(px: 255)), isFalse);
+    });
+  });
+
   test('a scenario not compared travels as skipped, with its sentence', () {
     var json = const ScenarioComparison.notCompared(
       scenario: 'test/checkout.dart#Checkout',

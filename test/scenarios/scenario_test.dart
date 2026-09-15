@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutterware/flutter_test.dart';
@@ -234,6 +236,28 @@ void main() {
     broken = captures;
   });
 
+  // A guessed landing on a step an earlier replay captured was credited to
+  // the next step this replay emitted — the second branch's first step.
+  var guessedPrefix = <ScenarioStepCapture>[];
+  scenario('a guess on a recognised prefix step stays with that step', (
+    s,
+  ) async {
+    await s.pumpWidget(const _RootRead(), shot: Shot('Start'));
+    await s.tap('Read', shot: Shot('Read'));
+    await s.split({
+      'once': () async => s.tap('Again', shot: Shot('A')),
+      'twice': () async => s.tap('Again', shot: Shot('B')),
+    });
+    guessedPrefix = captures;
+  });
+
+  test('the second branch above guessed at nothing', () {
+    ScenarioStepCapture named(String name) =>
+        guessedPrefix.firstWhere((c) => c.name == name);
+    expect(named('Read').guessed, isNotNull, reason: 'the setup has to guess');
+    expect(named('B').guessed, isNull);
+  });
+
   test('the break above hangs off the fork, as the second branch', () {
     var start = broken.firstWhere((c) => c.name == 'Start');
     var failed = broken.singleWhere((c) => c.failure != null);
@@ -242,6 +266,40 @@ void main() {
     expect(failed.position, '1#1');
     expect(broken.firstWhere((c) => c.name == 'A').branch, 'once');
   });
+}
+
+/// A read, started by a tap, that lands on the real loop a few turns later
+/// and is announced to nobody — so only a guessed turn draws it.
+class _RootRead extends StatefulWidget {
+  const _RootRead();
+
+  @override
+  State<_RootRead> createState() => _RootReadState();
+}
+
+class _RootReadState extends State<_RootRead> {
+  var _reads = 0;
+
+  void _read() {
+    var done = Completer<void>();
+    Future<void> hops(int left) =>
+        left == 0 ? Future<void>.value() : Future<void>(() => hops(left - 1));
+    Zone.root.run(() => hops(3).then(done.complete));
+    done.future.then((_) {
+      if (mounted) setState(() => _reads++);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Column(
+      children: [
+        Text('Reads: $_reads'),
+        TextButton(onPressed: _read, child: const Text('Read')),
+        TextButton(onPressed: () {}, child: const Text('Again')),
+      ],
+    ),
+  );
 }
 
 class _StillApp extends StatefulWidget {

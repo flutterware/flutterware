@@ -82,6 +82,20 @@ void main() {
     expect(stall, isNull);
   });
 
+  // An idle isolate on a starved host gets its timer late on every tick. Read
+  // as work, that lateness kept a genuine stall alive until the hard ceiling.
+  test('a waiting isolate scheduled late still reaches its deadline', () async {
+    for (var i = 0; i < 20 && stall == null; i++) {
+      now += const Duration(milliseconds: 1500);
+      deadline.check();
+      await pumpEventQueue();
+    }
+
+    expect(stall, isA<ScenarioStall>());
+    expect((stall! as ScenarioStall).kind, ScenarioStallKind.stalled);
+    expect(now, lessThanOrEqualTo(const Duration(seconds: 16)));
+  });
+
   test('tracked work pending is waited for past the timeout', () async {
     pending = [TrackedRealWork('3D model', null)];
 
