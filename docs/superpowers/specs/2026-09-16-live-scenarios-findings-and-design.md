@@ -141,6 +141,20 @@ tester's bounded policies, not `pumpAndSettle`, are the settle in this lane.
     file on `run/launch`, for plugin-bound flows; later); a `waitFor` verb
     (the verbs already settle; `s.settle()` is the bridge).
 
+## Open after the first round
+
+- **Two folders, one package.** The scenarios plugin keys a package's
+  declaration by its path, so a package with a fake-time `test/scenarios`
+  and a live `test/integration` cannot yet declare both. The runner takes a
+  directory and a clock and works for either — the pool test drives the
+  probe app's `test/live` that way — so the missing piece is a declaration
+  keyed by `(path, directory)` and a panel that lists a package's folders.
+  The consumer this was measured on has exactly that shape.
+- **`--time` on a run.** A runner is built for one clock (the generated
+  entrypoint says it), so overriding a folder's clock per run means a second
+  harness for the same path. Not built until someone needs it; the folder
+  and the package say the clock, and they must agree.
+
 ## What this buys the consumer
 
 Their 13 flows, unchanged in body, in 14 seconds from the studio or MCP

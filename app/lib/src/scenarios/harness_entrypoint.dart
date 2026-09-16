@@ -1,6 +1,7 @@
 import 'dart:io';
 
-import 'package:flutterware/flutter_test.dart' show ScenarioTime;
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/time_mode.dart';
 import 'package:path/path.dart' as p;
 
 /// Where the generated harness entrypoint lives, relative to the package.

@@ -549,6 +549,7 @@ class _ScenarioListPaneState extends State<_ScenarioListPane> {
       children: [
         _ListPaneHeader(
           directory: _displayDirectory(),
+          live: core.timeFor(package)?.isReal ?? false,
           scanning: core.isScanning(package),
           onRefresh: () => core.refresh(package),
           onNew: () => unawaited(_newScenario(context, core, package)),
@@ -838,6 +839,7 @@ class _BranchRow extends StatelessWidget {
 class _ListPaneHeader extends StatelessWidget {
   const _ListPaneHeader({
     required this.directory,
+    required this.live,
     required this.scanning,
     required this.onRefresh,
     required this.onNew,
@@ -846,6 +848,11 @@ class _ListPaneHeader extends StatelessWidget {
   });
 
   final String directory;
+
+  /// Whether this folder runs on the real clock. Said beside the directory
+  /// because it changes what a run here *is*: real sockets, one guest per
+  /// scenario, and pictures a comparison leaves alone.
+  final bool live;
 
   /// Whether a scan is in flight — the refresh button's own feedback, and the
   /// only feedback there is: a rescan that finds the same scenarios changes
@@ -880,6 +887,33 @@ class _ListPaneHeader extends StatelessWidget {
               ),
             ),
           ),
+          if (live) ...[
+            const Gap(FwSpacing.xs),
+            Tooltip(
+              message:
+                  'Runs on the real clock with real sockets, one guest per '
+                  'scenario. Pictures are not compared between runs.',
+              waitDuration: const Duration(milliseconds: 500),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: context.colors.accent),
+                  borderRadius: BorderRadius.circular(context.radii.pill),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FwSpacing.xs,
+                    vertical: 1,
+                  ),
+                  child: Text(
+                    'live',
+                    style: context.type.caption.copyWith(
+                      color: context.colors.accent,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           _HeaderButton(
             icon: Icons.refresh,
             tooltip: 'Rescan for scenarios',
