@@ -26,7 +26,7 @@ void main() {
 
       var runner = ScenarioRunner(
         packageRoot: packageRoot,
-        directory: 'test/live',
+        directory: 'integration_test/live',
         flutterSdkRoot: flutterRoot!,
         time: ScenarioTime.real(),
         jobs: 3,
