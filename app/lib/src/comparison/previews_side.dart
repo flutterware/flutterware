@@ -121,6 +121,7 @@ class PreviewsSide implements ComparisonSide {
     required String checkout,
     required List<String> entryIds,
     required Future<void> Function(RenderedEntry frame) onFrame,
+    int guests = 1,
   }) async {
     var packageRoot = _packageRootIn(checkout);
     var byId = {for (var entry in _scan(checkout).entries) entry.id: entry};
@@ -154,72 +155,95 @@ class PreviewsSide implements ComparisonSide {
       flutterSdkRoot: flutterSdkRoot,
       read: () => (entries: wanted, canvases: canvases),
       buildDirectory: buildDirectory,
+      // Read once, and shareable: see `TesterHost.followEdits`.
+      followEdits: false,
     );
+    // One harness, compiled once, and a guest per shard running it. The
+    // entries are dealt round the shards rather than cut into runs, so a
+    // directory of slow demos does not all land on one guest.
+    var count = guests.clamp(1, wanted.length);
+    var shards = [for (var i = 0; i < count; i++) <String>[]];
+    for (var (i, entry) in wanted.indexed) {
+      shards[i % count].add(entry.id);
+    }
+    var runners = [
+      runner,
+      for (var i = 1; i < shards.length; i++)
+        PreviewTestRunner.sharing(runner, guest: i),
+    ];
     var outDir = Directory.systemTemp.createTempSync('fw_comparison_previews');
     // What [onFrame] threw, so the catch below can tell the caller's own
     // failure from the harness's.
     Object? filing;
+
+    Future<void> onRow(PreviewCaptureRow row) async {
+      if (row.compileError case var error?) {
+        failed[row.id] = error;
+        return;
+      }
+      // An entry that compiled and then threw *while building* is a
+      // picture of Flutter's error screen. Two of those compared say
+      // nothing, and one of them compared against a working screen says
+      // "97% changed" when the finding is "this throws now".
+      //
+      // **But only a build error replaces the picture.** A layout
+      // overflow is a complaint about the frame, not the absence of one —
+      // `InspectError.library` is there to tell those apart without
+      // reading the message, and says so.
+      var errors = [for (var error in row.errors) InspectError.fromJson(error)];
+      if (errors.where(_replacesTheFrame).firstOrNull case var fatal?) {
+        failed[row.id] = fatal.exception;
+        return;
+      }
+      var image = row.image;
+      if (image == null) {
+        failed[row.id] = row.failure ?? 'did not render';
+        return;
+      }
+      // A frame taken with announced work still in flight is a picture of
+      // a loading state the entry would have left. Compared, it reads as a
+      // change on whichever side the work happened to be slower; filed, it
+      // is served as that side's picture on every later run. Refused, it
+      // is neither — and the row says what the entry was waiting on.
+      if (row.pending.isNotEmpty) {
+        failed[row.id] = stillWaiting(row.pending);
+        return;
+      }
+      var tree = _tree(row.tree);
+      try {
+        await onFrame(
+          RenderedEntry(
+            entryId: row.id,
+            rgba: File(image).readAsBytesSync(),
+            width: row.width,
+            height: row.height,
+            tree: tree?.root,
+            treeFormat: tree?.format,
+            // The framework's word first: a failure with errors beside it
+            // is usually the test runner restating one of them.
+            complaint: errors.firstOrNull?.exception ?? row.failure,
+          ),
+        );
+      } catch (error) {
+        filing = error;
+        rethrow;
+      }
+    }
+
     try {
-      await runner.capture(
-        entryIds: [for (var entry in wanted) entry.id],
-        outDir: outDir.path,
-        clock: projectClock,
-        onRow: (row) async {
-          if (row.compileError case var error?) {
-            failed[row.id] = error;
-            return;
-          }
-          // An entry that compiled and then threw *while building* is a
-          // picture of Flutter's error screen. Two of those compared say
-          // nothing, and one of them compared against a working screen says
-          // "97% changed" when the finding is "this throws now".
-          //
-          // **But only a build error replaces the picture.** A layout
-          // overflow is a complaint about the frame, not the absence of one —
-          // `InspectError.library` is there to tell those apart without
-          // reading the message, and says so.
-          var errors = [
-            for (var error in row.errors) InspectError.fromJson(error),
-          ];
-          if (errors.where(_replacesTheFrame).firstOrNull case var fatal?) {
-            failed[row.id] = fatal.exception;
-            return;
-          }
-          var image = row.image;
-          if (image == null) {
-            failed[row.id] = row.failure ?? 'did not render';
-            return;
-          }
-          // A frame taken with announced work still in flight is a picture of
-          // a loading state the entry would have left. Compared, it reads as a
-          // change on whichever side the work happened to be slower; filed, it
-          // is served as that side's picture on every later run. Refused, it
-          // is neither — and the row says what the entry was waiting on.
-          if (row.pending.isNotEmpty) {
-            failed[row.id] = stillWaiting(row.pending);
-            return;
-          }
-          var tree = _tree(row.tree);
-          try {
-            await onFrame(
-              RenderedEntry(
-                entryId: row.id,
-                rgba: File(image).readAsBytesSync(),
-                width: row.width,
-                height: row.height,
-                tree: tree?.root,
-                treeFormat: tree?.format,
-                // The framework's word first: a failure with errors beside it
-                // is usually the test runner restating one of them.
-                complaint: errors.firstOrNull?.exception ?? row.failure,
-              ),
-            );
-          } catch (error) {
-            filing = error;
-            rethrow;
-          }
-        },
-      );
+      // The shards wait for the compile: what it quarantines is missing from
+      // the program they all run.
+      if (runners.length > 1) await runner.prepare();
+      await Future.wait([
+        for (var (i, shard) in shards.indexed)
+          runners[i].capture(
+            entryIds: shard,
+            outDir: p.join(outDir.path, '$i'),
+            clock: projectClock,
+            sync: runners.length == 1,
+            onRow: onRow,
+          ),
+      ]);
     } on Object catch (error) {
       // **What the caller's [onFrame] threw is not a compile failure.** It
       // unwinds through the capture loop — the finally below reaps the tester
@@ -240,8 +264,10 @@ class PreviewsSide implements ComparisonSide {
       throw SideDidNotCompile('$error');
     } finally {
       // A `flutter_tester` and its compiler are child processes; nothing else
-      // reaps them.
-      await runner.dispose();
+      // reaps them. The shards first: they run the leader's kernel.
+      for (var shard in runners.reversed) {
+        await shard.dispose();
+      }
       releaseBuildDirectory(
         packageRoot,
         buildDirectory,

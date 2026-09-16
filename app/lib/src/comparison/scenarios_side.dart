@@ -182,6 +182,10 @@ class ScenariosSide {
       ),
       projectClock: projectClock,
       projectNetwork: projectNetwork,
+      // A comparison reads each checkout once: its replays are filed under
+      // keys hashed before the first one started. And it is what lets further
+      // guests share this one's kernel.
+      followEdits: false,
     );
   }
 

@@ -134,6 +134,49 @@ guests, and a runner sized for one build will not hold four of those at once;
 since the scenario half stopped building harnesses it does not need, a package
 a branch did not touch costs milliseconds anyway.
 
+## A runner with cores to spare
+
+By default a comparison renders and replays on one `flutter_tester` per side —
+the base's previews, then the head's — which is the shape of a runner sized
+for one build. `--jobs=<n>` tells it what the machine can take:
+
+```sh
+dart run flutterware compare --report=comparison-report --frames=changed --jobs=4
+```
+
+Each side compiles its harness **once** and starts `n` guests from that
+kernel. The two sides' previews render together, `n` guests each, and `n`
+scenarios replay side by side, each on both sides — so up to `2n` testers at
+once. Packages still go one at a time. The value lands in `index.json` under
+`host.jobs` and in the comment's footer, so a slow run can be told from a
+serial one.
+
+What it buys depends on where the time goes, and not all of it moves. Measured
+2026-09-16 on this repository's studio package — 199 previews and 12 scenarios
+on both sides, cold caches, a 16-core Mac:
+
+| | total | previews | scenarios |
+|---|---|---|---|
+| `--jobs=1` | 118s | 46.6s | 27.3s |
+| `--jobs=4` | 102s | 21.8s | 34.4s |
+| `--jobs=8` | 96s | 22.5s | 28.3s |
+
+- **Previews gain most.** Two things happen at once: the sides stop waiting
+  for each other, and each side's entries are dealt across its guests.
+- **A tester is not one core.** It rasterizes and collects on threads of its
+  own, so replays stop scaling well before the core count: the same twelve
+  replays took 12.0s serial, 7.9s at 4 and 10.0s at 8. Start around a quarter
+  of the cores and measure.
+- **Compiling the harness, building the viewer and checking out the base do
+  not move.** On a small package they are most of the run.
+- **Load never decides a verdict.** A scenario that would have to be replayed
+  again to be believed — a side that failed or was abandoned, or a difference
+  in pictures that depended on the machine — is replayed from the start after
+  the pool has drained, with nothing beside it, and judged from that alone.
+  The verdicts above are identical row for row. The price is paid in the
+  scenarios column: a suite whose scenarios guess at unannounced work replays
+  those twice, which is one more reason to hand that work to `RealWork.run`.
+
 ## Why `--frames=changed`
 
 The page has to carry every picture it shows, because it is read where nobody

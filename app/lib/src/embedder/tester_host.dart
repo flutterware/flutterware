@@ -80,8 +80,54 @@ class TesterHost {
     required this.flutterSdkRoot,
     required this.program,
     required this.lane,
+    this.followEdits = true,
     this.onLog,
-  });
+  }) : _leader = null,
+       guest = 0;
+
+  /// Another guest of [leader]'s program, started from the kernel [leader]
+  /// compiled rather than from a compile of its own.
+  ///
+  /// What makes running several guests of one checkout affordable: a
+  /// `frontend_server` per guest is a compile per guest, where a spawn from a
+  /// finished kernel is only the tester's boot. It shares the leader's asset
+  /// bundle and build directory, and never compiles — so [leader] must not
+  /// [followEdits], or the kernel would be rewritten under the guests reading
+  /// it. [guest] numbers this one's log beside the leader's.
+  ///
+  /// A host rather than a bare [spawnGuest], because what drives it — a
+  /// scenario runner, a preview runner — speaks to a host: one turn at a time,
+  /// and a guest that comes back when it is gone.
+  TesterHost.sharing(TesterHost leader, {required this.guest, this.onLog})
+    : assert(guest > 0),
+      _leader = leader,
+      packageRoot = leader.packageRoot,
+      flutterSdkRoot = leader.flutterSdkRoot,
+      program = leader.program,
+      lane = leader.lane,
+      followEdits = false {
+    if (leader.followEdits) {
+      throw ArgumentError.value(
+        leader,
+        'leader',
+        'a host that follows edits rewrites the kernel it would share',
+      );
+    }
+  }
+
+  final TesterHost? _leader;
+
+  /// Which guest of a shared program this is: 0 for the one that compiles.
+  final int guest;
+
+  /// Whether [sync] brings the guest up to date with the sources on disk.
+  ///
+  /// Off, the host reads its checkout **once**, when it compiles, and a sync
+  /// only replaces a guest that is gone — from that same kernel. That is what
+  /// a comparison wants: its replays are filed under keys hashed from the
+  /// sources before anything started, so a replay of code edited since would
+  /// be filed under the key of code that no longer exists.
+  final bool followEdits;
 
   /// Where every artifact of the default lane lives, relative to the package.
   static const defaultBuildDirectory = defaultBuildRoot;
@@ -170,9 +216,24 @@ class TesterHost {
   /// was read once for the VM-service URI and discarded. What lands here is
   /// what escapes the harness's structured lanes: engine noise, a crash on
   /// the way up, a print from outside any test zone.
-  String get logPath => p.join(_buildDir, '${program.name}.log');
+  String get logPath => p.join(
+    _buildDir,
+    guest == 0 ? '${program.name}.log' : '${program.name}-$guest.log',
+  );
 
   RandomAccessFile? _logFile;
+
+  /// The last guest of this process still starting its engine.
+  ///
+  /// Guests start one after the other because the engine's Metal context,
+  /// started by several testers in the same instant, can leave one of them
+  /// waiting for ever on the lock of the system's shader cache — sampled
+  /// 2026-09-16 at sixteen guests starting at once, the one that never came
+  /// up was in `flock` under `MTLCompilerFSCache::openSync`, before its VM
+  /// had started. The engine's start is a fraction of a second of a guest's;
+  /// what follows it, the harness booting, still runs side by side. Shared by
+  /// every [spawnGuest], so a live pool's guests queue behind a comparison's.
+  static Future<void> _booting = Future.value();
 
   /// Builds everything and leaves a warm guest behind: sources → generated
   /// entrypoint → asset bundle → compile → spawn → connect. Idempotent, and
@@ -209,6 +270,13 @@ class TesterHost {
   }
 
   Future<void> _start() async {
+    if (_leader case var leader?) {
+      await leader.start();
+      _packageConfig = leader._packageConfig;
+      _assetsDir = leader._assetsDir;
+      await _spawnGuest(leader.dillPath);
+      return;
+    }
     _sources = program.sources();
     var entrypoint = program.writeEntrypoint(_sources);
     var packageConfig = _packageConfig = requirePackageConfig(packageRoot);
@@ -411,7 +479,18 @@ class TesterHost {
       tee?.call(line);
     }
 
-    var process = await Process.start(
+    // One engine start at a time — see [_booting]. Held until the guest has
+    // said where its VM service is, which it says only after the engine is up.
+    var booted = Completer<void>();
+    void release() {
+      if (!booted.isCompleted) booted.complete();
+    }
+
+    var turn = _booting;
+    _booting = booted.future;
+    await turn;
+
+    var starting = Process.start(
       _cache.flutterTester,
       [
         '--vm-service-port=0',
@@ -465,6 +544,13 @@ class TesterHost {
       // wherever `fw` happened to be started from.
       workingDirectory: packageRoot,
     );
+    Process process;
+    try {
+      process = await starting;
+    } catch (_) {
+      release();
+      rethrow;
+    }
     onStarted?.call(process);
     recordSpawnedGuest(pid: process.pid, what: program.name);
 
@@ -476,6 +562,7 @@ class TesterHost {
     // owner still running. Checked here rather than at every await above,
     // because this is the only step that leaves something behind.
     if (_disposed) {
+      release();
       process.kill();
       forgetSpawnedGuest(process.pid);
       _guestAlive = false;
@@ -501,6 +588,7 @@ class TesterHost {
           var match = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
           if (match != null && !vmServiceUri.isCompleted) {
             vmServiceUri.complete(match.group(1));
+            release();
           }
           if (line.contains(program.readyLine) && !ready.isCompleted) {
             ready.complete();
@@ -511,6 +599,7 @@ class TesterHost {
         // Every way a guest ends — teardown, a restart, `killGuest`, or the
         // engine falling over on its own — passes through this one line.
         forgetSpawnedGuest(process.pid);
+        release();
         if (!ready.isCompleted) {
           ready.completeError(
             StateError('flutter_tester exited with $code before ready'),
@@ -521,12 +610,16 @@ class TesterHost {
       }),
     );
 
-    await ready.future.timeout(
-      const Duration(minutes: 2),
-      onTimeout: () => throw TimeoutException(
-        'the ${program.name} harness never became ready',
-      ),
-    );
+    try {
+      await ready.future.timeout(
+        const Duration(minutes: 2),
+        onTimeout: () => throw TimeoutException(
+          'the ${program.name} harness never became ready',
+        ),
+      );
+    } finally {
+      release();
+    }
     var vm = await GuestVmService.connect(
       await vmServiceUri.future,
       describeGuest: () => printed.join('\n'),
@@ -592,6 +685,10 @@ class TesterHost {
   /// table can never grow an import it did not start with.
   Future<void> sync() async {
     await start();
+    if (!followEdits) {
+      if (_vm == null || !_guestAlive) await restartGuest();
+      return;
+    }
     var sources = program.sources();
     var sourcesChanged = !const ListEquality<String>().equals(
       sources,
@@ -644,6 +741,15 @@ class TesterHost {
   /// Kills the guest and starts a fresh one from a full kernel, reusing the
   /// warm compiler and the asset bundle. Call inside [exclusive].
   Future<void> restartGuest() async {
+    // A host that does not follow edits respawns what it compiled: the same
+    // program, whatever is on disk now. It has no compiler of its own when it
+    // shares one.
+    if (!followEdits) {
+      await start();
+      await _stopGuest();
+      await _spawnGuest(_leader?.dillPath ?? dillPath);
+      return;
+    }
     // From what is on disk *now*: a restart is the lane that rebuilds the
     // program, and it is reachable without a preceding sync (a dead guest, the
     // restart action), so compiling the previous source set would fail on a
@@ -651,15 +757,7 @@ class TesterHost {
     _sources = program.sources();
     program.writeEntrypoint(_sources);
 
-    await _events?.cancel();
-    _events = null;
-    await _vm?.close();
-    _vm = null;
-    if (_guest case var guest?) {
-      guest.kill();
-      await guest.exitCode;
-    }
-    _guest = null;
+    await _stopGuest();
 
     // The fresh guest reads what is on disk now. ~15ms when nothing moved,
     // which is why every path here re-syncs rather than tracking whether the
@@ -680,6 +778,18 @@ class TesterHost {
     _invalidator!.sweep(compiler.sources);
 
     await _spawnGuest(compiled.dillOutput!);
+  }
+
+  Future<void> _stopGuest() async {
+    await _events?.cancel();
+    _events = null;
+    await _vm?.close();
+    _vm = null;
+    if (_guest case var guest?) {
+      guest.kill();
+      await guest.exitCode;
+    }
+    _guest = null;
   }
 
   /// Kills the guest without replacing it, leaving the compiler warm.

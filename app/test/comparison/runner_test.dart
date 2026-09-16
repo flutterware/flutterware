@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -45,6 +46,7 @@ void main() {
     required String base,
     required String head,
     List<String>? only,
+    int jobs = 1,
   }) => ComparisonRunner(
     sdk: 'test-sdk',
     headRoot: head,
@@ -53,6 +55,7 @@ void main() {
     side: side,
     cache: cache,
     only: only,
+    jobs: jobs,
   ).run();
 
   ComparedItem itemFor(ComparisonResult result, String id) =>
@@ -377,6 +380,57 @@ void main() {
       expect(plan.onlyOnHead, ['demo/new.dart#fresh']);
       expect(plan.onlyOnBase, ['demo/old.dart#gone']);
       expect(side.renderedFor, isEmpty);
+    });
+  });
+
+  group('with jobs', () {
+    Map<String, String> files(String value) => {
+      for (var name in ['a', 'b', 'c']) 'demo/$name.dart': value,
+    };
+    var declared = [
+      for (var name in ['a', 'b', 'c']) 'demo/$name.dart#$name',
+    ];
+
+    test('both sides render at once, each across that many guests', () async {
+      side.declared['*'] = declared;
+      var bothIn = Completer<void>();
+      var asked = 0;
+      // Neither side may start until both have been asked, which a base pass
+      // followed by a head pass never does — hence the deadline.
+      side.gate = (_) async {
+        if (++asked == 2) bothIn.complete();
+        await bothIn.future;
+      };
+
+      await compare(
+        base: checkout('base', files('1')),
+        head: checkout('head', files('2')),
+        jobs: 3,
+      ).timeout(const Duration(seconds: 5));
+
+      expect(side.guestsAsked, [3, 3]);
+    });
+
+    test('the verdict is the one a serial run reaches', () async {
+      side.declared['*'] = declared;
+      side.frame = (entry, checkout) => _frame(
+        entry,
+        value: checkout.endsWith('head') && entry.startsWith('demo/a') ? 9 : 1,
+      );
+      side.fatal['demo/c.dart#c'] = 'threw while building';
+      var base = checkout('base', files('1'));
+      var head = checkout('head', files('2'));
+
+      List<(String, ComparedState)> verdict(ComparisonResult result) => [
+        for (var item in result.items) (item.id, item.state),
+      ];
+
+      var serial = await compare(base: base, head: head);
+      cache = ShotCache(p.join(root.path, 'pooled'));
+      var pooled = await compare(base: base, head: head, jobs: 2);
+
+      expect(verdict(pooled), verdict(serial));
+      expect(pooled.rendered, serial.rendered);
     });
   });
 
@@ -750,12 +804,22 @@ class _FakeSide implements ComparisonSide {
   @override
   Future<Map<String, String>> names(String checkout) async => named;
 
+  /// How many guests each render was allowed, in the order asked.
+  final guestsAsked = <int>[];
+
+  /// Held open at the start of a render, so a test can prove two are in
+  /// flight at once rather than infer it from an order.
+  Future<void> Function(String checkout)? gate;
+
   @override
   Future<Map<String, String>> render({
     required String checkout,
     required List<String> entryIds,
     required Future<void> Function(RenderedEntry frame) onFrame,
+    int guests = 1,
   }) async {
+    guestsAsked.add(guests);
+    await gate?.call(checkout);
     if (uncompilable.contains(checkout)) {
       throw SideDidNotCompile('lib/a.dart:1:1: Error: not found');
     }

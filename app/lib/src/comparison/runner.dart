@@ -55,10 +55,15 @@ abstract interface class ComparisonSide {
   /// megabytes and a catalog is hundreds of them.
   ///
   /// Returns entry id → why nothing was rendered, for the ones that refused.
+  ///
+  /// [guests] is how many renderers of this checkout may run at once. Frames
+  /// then land in no particular order, and [onFrame] may be called for one
+  /// entry while another's is still being filed.
   Future<Map<String, String>> render({
     required String checkout,
     required List<String> entryIds,
     required Future<void> Function(RenderedEntry frame) onFrame,
+    int guests = 1,
   });
 }
 
@@ -310,7 +315,17 @@ class ComparisonRunner {
     this.onPlan,
     this.onProgress,
     this.cancel,
+    this.jobs = 1,
   });
+
+  /// How many renderers each side runs, and whether the two sides render at
+  /// once.
+  ///
+  /// One renders the base and then the head on one guest each, which is what
+  /// a runner sized for one build can take. More renders both sides together,
+  /// each across this many guests of one compiled harness — twice this many
+  /// testers in all.
+  final int jobs;
 
   /// The worktree as it sits on disk, uncommitted and untracked included.
   final String headRoot;
@@ -563,68 +578,89 @@ class ComparisonRunner {
       }
     }
 
-    try {
-      var done = 0;
-      baseFailures = await _renderInto(
-        baseRoot,
-        wantedByBase,
-        keys,
-        isBase: true,
-        onEntry: (id) {
-          cancel?.check();
-          done++;
-          onProgress?.call(
-            'rendering the base side · $done of ${wantedByBase.length}',
-          );
-        },
-      );
-    } on SideDidNotCompile catch (e) {
-      // A side compiled only to draw what the branch *removed* owes the run
-      // nothing: those rows were settled without a picture, and before they
-      // were given one this side was never compiled at all. Refusing here
-      // would turn a comparison that used to succeed into exit 64 for the
-      // sake of an optional frame.
-      if (!wantedByBase.every(plan.onlyOnBase.contains)) {
-        throw ComparisonRefused(
-          'the base checkout does not compile, so there is nothing to compare '
-          'against: ${e.reason}',
+    var baseDone = 0;
+    var headDone = 0;
+    var headStarted = false;
+    void progress() => onProgress?.call(
+      jobs > 1
+          ? 'rendering both sides · ${baseDone + headDone} of $rendered'
+          : headStarted
+          ? 'rendering this side · $headDone of ${wantedByHead.length}'
+          : 'rendering the base side · $baseDone of ${wantedByBase.length}',
+    );
+
+    Future<void> renderBase() async {
+      try {
+        baseFailures = await _renderInto(
+          baseRoot,
+          wantedByBase,
+          keys,
+          isBase: true,
+          onEntry: (id) {
+            cancel?.check();
+            baseDone++;
+            progress();
+            // Rendering beside the head pass, this may be the frame that
+            // entry was waiting on.
+            if (jobs > 1 && cache.has(keys[id]!.head)) resolve(id);
+          },
         );
+      } on SideDidNotCompile catch (e) {
+        // A side compiled only to draw what the branch *removed* owes the run
+        // nothing: those rows were settled without a picture, and before they
+        // were given one this side was never compiled at all. Refusing here
+        // would turn a comparison that used to succeed into exit 64 for the
+        // sake of an optional frame.
+        if (!wantedByBase.every(plan.onlyOnBase.contains)) {
+          throw ComparisonRefused(
+            'the base checkout does not compile, so there is nothing to '
+            'compare against: ${e.reason}',
+          );
+        }
       }
     }
-    cancel?.check();
 
-    // The base pass is over, so entries whose head frame was already cached
-    // are final now — including the ones whose base render just failed.
-    for (var id in toRender) {
-      if (!wantedByHead.contains(id)) resolve(id);
+    Future<void> renderHead() async {
+      headStarted = true;
+      try {
+        headFailures = await _renderInto(
+          headRoot,
+          wantedByHead,
+          keys,
+          isBase: false,
+          onEntry: (id) {
+            cancel?.check();
+            headDone++;
+            progress();
+            // This entry's head frame just landed. Rendered after the base
+            // pass, the base side is final and the row is answerable while
+            // its neighbours are still rendering; rendered beside it, only
+            // when the base frame is already here.
+            if (jobs <= 1 || cache.has(keys[id]!.base)) resolve(id);
+          },
+        );
+      } on SideDidNotCompile catch (e) {
+        // The same rule as the base pass, for what the branch *added*.
+        if (!wantedByHead.every(plan.onlyOnHead.contains)) {
+          throw ComparisonRefused(
+            'this worktree does not compile, so its previews cannot be '
+            'rendered: ${e.reason}',
+          );
+        }
+      }
     }
 
-    try {
-      var done = 0;
-      headFailures = await _renderInto(
-        headRoot,
-        wantedByHead,
-        keys,
-        isBase: false,
-        onEntry: (id) {
-          cancel?.check();
-          done++;
-          onProgress?.call(
-            'rendering this side · $done of ${wantedByHead.length}',
-          );
-          // This entry's head frame just landed and the base side is final:
-          // the row is answerable while its neighbours are still rendering.
-          resolve(id);
-        },
-      );
-    } on SideDidNotCompile catch (e) {
-      // The same rule as the base pass, for what the branch *added*.
-      if (!wantedByHead.every(plan.onlyOnHead.contains)) {
-        throw ComparisonRefused(
-          'this worktree does not compile, so its previews cannot be '
-          'rendered: ${e.reason}',
-        );
+    if (jobs > 1) {
+      await Future.wait([renderBase(), renderHead()]);
+    } else {
+      await renderBase();
+      cancel?.check();
+      // The base pass is over, so entries whose head frame was already cached
+      // are final now — including the ones whose base render just failed.
+      for (var id in toRender) {
+        if (!wantedByHead.contains(id)) resolve(id);
       }
+      await renderHead();
     }
     cancel?.check();
 
@@ -707,6 +743,7 @@ class ComparisonRunner {
     return side.render(
       checkout: checkout,
       entryIds: entryIds,
+      guests: jobs,
       onFrame: (frame) async {
         var key = keys[frame.entryId];
         if (key == null) return;

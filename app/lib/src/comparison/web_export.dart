@@ -93,6 +93,7 @@ class ComparisonWebExporter {
     setBaseHrefIn(p.join(output, 'index.html'), baseHref);
 
     onOutput?.call('[export] encoding the frames');
+    var encoding = Stopwatch()..start();
     index['against'] = against;
     // Said before the frames are collected, because the collection reads it:
     // a reader has to be able to tell a row whose picture was left out from a
@@ -107,6 +108,13 @@ class ComparisonWebExporter {
 
     File(p.join(output, 'index.json'))
         .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(index));
+    // Timed to the end of the index, which is the other thing this step
+    // writes: a run with nothing to encode still has a whole verdict to put
+    // beside the page.
+    onOutput?.call(
+      '[export] encoded $encoded frames and wrote the index in '
+      '${encoding.elapsedMilliseconds}ms',
+    );
 
     return ComparisonWebExport(
       output: output,

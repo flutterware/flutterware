@@ -1568,6 +1568,16 @@ class PreviewsCore extends PluginCore {
                 'and `__VIEWER_URL__` placeholders for the workflow to '
                 'substitute after it hosts the files.',
           ),
+          const ActionParameter(
+            'jobs',
+            'Jobs',
+            kind: ActionParameterKind.integer,
+            required: false,
+            description:
+                'How many previews render and scenarios replay at once on '
+                'each side — up to twice this many `flutter_tester`s. '
+                'Defaults to 1, one guest per side.',
+          ),
         ],
       ),
     ],

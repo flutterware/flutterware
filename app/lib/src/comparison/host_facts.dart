@@ -6,10 +6,11 @@ import '../embedder/tester_host.dart';
 import '../utils/flutter_sdk.dart';
 
 /// The machine this comparison is running on, as the report records it.
-ComparisonHost currentComparisonHost() => ComparisonHost(
+ComparisonHost currentComparisonHost({int jobs = 1}) => ComparisonHost(
   os: Platform.operatingSystem,
   cpus: Platform.numberOfProcessors,
   rasterizer: hostRasterizer(),
+  jobs: jobs,
 );
 
 /// What decides how [sdk] draws on this machine, for a cache key: the SDK's

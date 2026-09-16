@@ -29,7 +29,7 @@ cd app && dart run bin/fw.dart <command>
 | `init` | write the two files this project needs |
 | `app [--release] [--json]` | open the flutterware GUI |
 | `mcp` | serve this project to an agent, over stdio |
-| `compare [--base=<ref>] [--package=<path>] [--entry=<id>] [--export[=<dir>]] [--frames=all\|changed] [--base-href=<path>] [--report=<dir>] [--json]` | what this worktree did to the pictures, against its base |
+| `compare [--base=<ref>] [--package=<path>] [--entry=<id>] [--export[=<dir>]] [--frames=all\|changed] [--base-href=<path>] [--report=<dir>] [--jobs=<n>] [--json]` | what this worktree did to the pictures, against its base |
 | `capture [<address>] -o <file> [--size=WxH] [--theme=light\|dark] [--pixel-ratio=N] [--timeout=<seconds>]` | photograph the GUI window itself, at an address |
 | `render <point> [--as=svg\|png\|pdf] [--args=<json>\|@file] [--size=<w>x<h>] [-o <file>] [--text=<policy>] [--unsupported=<policy>] \| render bundle [--target=lib/renders.dart] [--out=build/render-bundle] [--platform=<linux-x64\|…>] [--json]` | one of the app's render points as a file, or all of them bundled for a server |
 | `version [--json]` | which flutterware this is, and where it came from |
@@ -2550,7 +2550,7 @@ durationMs: int
 What this worktree did to the pictures: renders previews and replays scenarios on both sides of the branch and diffs them — pixels, widget tree, visible texts. Every package either half declares, unless `package` narrows it; a row from a repository with more than one carries the package in its id and in its `package` field. Nothing is blessed: both sides are computed from git on demand, and the skip rule answers entries whose closure nothing touched without rendering anything. Returns the verdict; the artifact at `index` has every row and channel.
 
 ```sh
-fw run previews compare [--base=…] [--package=…] [--entry=…] [--export=…] [--frames=…] [--base-href=…] [--report=…]
+fw run previews compare [--base=…] [--package=…] [--entry=…] [--export=…] [--frames=…] [--base-href=…] [--report=…] [--jobs=…]
 ```
 
 Returns `ComparisonCompareResult`:
@@ -2604,6 +2604,7 @@ verdictGap: String?   # Why the verdict is incomplete, when it is — the senten
 | `frames` | choice | no | — | Which pictures the exported page carries. `changed` writes the findings' frames only — the verdict is untouched, but an unchanged entry has no picture beside it and says so. On a run where the skip rule did not earn its keep that is most of the page. |
 | `base-href` | string | no | — | Where the exported page is mounted. Defaults to `./`, which resolves against the page's own URL and so works at a bucket root and under a per-pull-request prefix alike. Give an absolute `/comparisons/42/` only for a host that serves a directory without redirecting to a trailing slash. |
 | `report` | string | no | — | Write what a pull-request comment needs into this directory: `comment.md`, `mosaic.png`, and the page under `web/`. The comment references images by `__MOSAIC_URL__` and `__VIEWER_URL__` placeholders for the workflow to substitute after it hosts the files. |
+| `jobs` | integer | no | — | How many previews render and scenarios replay at once on each side — up to twice this many `flutter_tester`s. Defaults to 1, one guest per side. |
 
 
 ### `flutterware.dev_stack`

@@ -1,4 +1,5 @@
-import 'scenario_diff.dart';
+import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutterware/comparison_report.dart';
 import 'package:path/path.dart' as p;
@@ -10,6 +11,7 @@ import 'cancel.dart';
 import 'closure.dart';
 import 'import_graph.dart';
 import 'replay_store.dart';
+import 'scenario_diff.dart';
 import 'scenarios_side.dart';
 import 'shot_cache.dart';
 import 'shot_key.dart';
@@ -61,35 +63,38 @@ abstract interface class ScenarioSource {
   Future<void> dispose();
 }
 
-/// The real thing: a [ScenariosSide] with a live runner bound to each checkout.
+/// The real thing: a [ScenariosSide] with live runners bound to each checkout.
 ///
-/// Owns the two runners, so a caller cannot forget to dispose one — which is
-/// two `flutter_tester` processes and a build directory each.
+/// Owns the runners, so a caller cannot forget to dispose one — which is a
+/// `flutter_tester` each and a build directory per checkout.
 class LiveScenarioSource implements ScenarioSource {
   LiveScenarioSource({
     required this.side,
     required this.headRoot,
     required this.baseRoot,
+    this.guests = 1,
   });
 
   final ScenariosSide side;
   final String headRoot;
   final String baseRoot;
 
+  /// How many guests each checkout may run at once — the most replays of one
+  /// side in flight. See [ScenariosRunner.jobs].
+  final int guests;
+
   /// Built on the first ask, because a plan answered from [scan] never asks.
   /// A runner is a claimed build directory before it is anything else, so
   /// making them lazy is what lets a comparison that replays nothing leave
   /// nothing behind in either checkout.
-  ScenarioRunner? _head;
-  ScenarioRunner? _base;
+  late final _head = _RunnerPool(() => side.runnerFor(headRoot), size: guests);
+  late final _base = _RunnerPool(() => side.runnerFor(baseRoot), size: guests);
 
-  ScenarioRunner _runner({required bool base}) => base
-      ? _base ??= side.runnerFor(baseRoot)
-      : _head ??= side.runnerFor(headRoot);
+  _RunnerPool _pool({required bool base}) => base ? _base : _head;
 
   @override
   Future<List<String>> list({required bool base}) =>
-      side.scenarios(_runner(base: base));
+      side.scenarios(_pool(base: base).leader);
 
   @override
   List<String>? scan({required bool base}) =>
@@ -110,28 +115,82 @@ class LiveScenarioSource implements ScenarioSource {
     String id, {
     required bool base,
     required String outDir,
-  }) => side.run(
-    _runner(base: base),
-    id,
-    outDir: p.join(outDir, base ? 'base' : 'head'),
+  }) => _pool(base: base).use(
+    (runner) =>
+        side.run(runner, id, outDir: p.join(outDir, base ? 'base' : 'head')),
   );
 
   @override
   Future<void> dispose() async {
-    // Only the ones that were built. A run answered from the scan alone made
-    // neither, and there is nothing to tear down or release.
-    for (var runner in [_head, _base]) {
-      if (runner == null) continue;
-      await runner.dispose();
-      // The runners built in claimed directories — `runnerFor` says why — and
-      // the claim ends with the runner that held it.
-      releaseBuildDirectory(
-        runner.packageRoot,
-        runner.buildDirectory,
-        root: comparisonBuildRoot,
-      );
+    await _head.dispose();
+    await _base.dispose();
+  }
+}
+
+/// One checkout's guests: the one that compiles, and up to [size] − 1 more
+/// spawned from its kernel as replays in flight ask for them.
+class _RunnerPool {
+  _RunnerPool(this._build, {required this.size});
+
+  final ScenarioRunner Function() _build;
+  final int size;
+
+  ScenarioRunner? _leader;
+  final _all = <ScenarioRunner>[];
+  final _idle = <ScenarioRunner>[];
+  final _waiting = Queue<Completer<ScenarioRunner>>();
+
+  ScenarioRunner get leader {
+    if (_leader case var leader?) return leader;
+    var leader = _leader = _build();
+    _all.add(leader);
+    _idle.add(leader);
+    return leader;
+  }
+
+  Future<T> use<T>(Future<T> Function(ScenarioRunner runner) action) async {
+    var runner = await _take();
+    try {
+      return await action(runner);
+    } finally {
+      if (_waiting.isNotEmpty) {
+        _waiting.removeFirst().complete(runner);
+      } else {
+        _idle.add(runner);
+      }
     }
-    // Not cleared. A null field here means "never built", and a source that
+  }
+
+  Future<ScenarioRunner> _take() {
+    var leader = this.leader;
+    if (_idle.isNotEmpty) return Future.value(_idle.removeLast());
+    if (_all.length < size) {
+      var guest = ScenarioRunner.sharing(leader, guest: _all.length);
+      _all.add(guest);
+      return Future.value(guest);
+    }
+    var waiter = Completer<ScenarioRunner>();
+    _waiting.add(waiter);
+    return waiter.future;
+  }
+
+  Future<void> dispose() async {
+    // Only what was built. A run answered from the scan alone made nothing,
+    // and there is nothing to tear down or release.
+    var leader = _leader;
+    if (leader == null) return;
+    // The guests before the leader: they run its kernel, from its directory.
+    for (var runner in _all.reversed) {
+      await runner.dispose();
+    }
+    // The leader built in a claimed directory — `runnerFor` says why — and
+    // the claim ends with the runner that held it.
+    releaseBuildDirectory(
+      leader.packageRoot,
+      leader.buildDirectory,
+      root: comparisonBuildRoot,
+    );
+    // Not cleared. A null leader here means "never built", and a pool that
     // forgot it had been disposed would answer the next ask by building a
     // fresh runner in a fresh claim rather than by failing.
   }
@@ -187,6 +246,7 @@ class ScenariosRunner {
     this.onPlan,
     this.onProgress,
     this.cancel,
+    this.jobs = 1,
   });
 
   final String headRoot;
@@ -271,6 +331,18 @@ class ScenariosRunner {
   /// Checked between replays — a scenario is a process, and stopping takes
   /// effect at the next one.
   final CancelToken? cancel;
+
+  /// How many scenarios replay at once, each on both sides — so up to twice
+  /// this many testers.
+  ///
+  /// One by default, which is the shape a runner sized for one build wants.
+  /// More never lets load decide a verdict. A scenario whose replays in the
+  /// pool would have to be replayed again to be believed — a side that failed
+  /// or was abandoned, or a difference drawn by work nothing announced — is
+  /// replayed from the start after the pool has drained, with nothing beside
+  /// it, and judged from that alone. The rows keep the plan's order whatever
+  /// order the replays finish in.
+  final int jobs;
 
   /// What has to be replayed, decided without starting anything where the
   /// sources can say.
@@ -509,6 +581,150 @@ class ScenariosRunner {
   /// How many sides this run replayed a second time — see [_confirm].
   var _retries = 0;
 
+  /// Both sides' first replay of [id], or what the store already filed for a
+  /// side.
+  Future<_FirstReplays> _firstReplays(
+    String id, {
+    required ({String base, String head})? key,
+    required String count,
+    required String outDir,
+  }) async {
+    var filedBase = key == null ? null : _store.readReplay(key.base);
+    var filedHead = key == null ? null : _store.readReplay(key.head);
+    var where = switch ((filedBase, filedHead)) {
+      (null, null) => 'on both sides',
+      (null, _) => 'on the base',
+      (_, null) => 'on this side',
+      _ => null,
+    };
+    var name = _nameOf(id);
+    onProgress?.call(
+      where == null
+          ? 'reading "$name" from the cache · $count'
+          : 'replaying "$name" $where · $count',
+    );
+    var firsts = await Future.wait([
+      filedBase == null
+          ? source.shots(id, base: true, outDir: outDir)
+          : Future.value(filedBase),
+      filedHead == null
+          ? source.shots(id, base: false, outDir: outDir)
+          : Future.value(filedHead),
+    ]);
+    return _FirstReplays(
+      id: id,
+      key: key,
+      count: count,
+      filedBase: filedBase,
+      filedHead: filedHead,
+      base: firsts[0],
+      head: firsts[1],
+    );
+  }
+
+  /// The row [first] makes, replaying whatever has to be believed first — or
+  /// null, when that takes a replay and this is not [alone].
+  ///
+  /// Two things replay again, and both are asking whether the machine was the
+  /// cause: a side that failed or was abandoned ([_confirm]), and a difference
+  /// drawn by work nothing announced. Neither is asked beside other replays.
+  Future<({ScenarioComparison comparison, int replayed})?> _conclude(
+    _FirstReplays first, {
+    required bool alone,
+    required String outDir,
+  }) async {
+    var _FirstReplays(:id, :key, :count, :filedBase, :filedHead) = first;
+    var name = _nameOf(id);
+    var sides = [first.base, first.head];
+    if (sides.any((side) => !side.clean)) {
+      if (!alone) return null;
+      onProgress?.call('replaying "$name" again, alone, to confirm · $count');
+    }
+    var retriesBefore = _retries;
+    // One after the other, never together: see [_confirm]. A filed side is
+    // a result already and is not confirmed again.
+    var baseSide = filedBase != null
+        ? ConfirmedSide.result(filedBase)
+        : await _confirm(id, key?.base, first.base, base: true, outDir: outDir);
+    var headSide = filedHead != null
+        ? ConfirmedSide.result(filedHead)
+        : await _confirm(
+            id,
+            key?.head,
+            first.head,
+            base: false,
+            outDir: outDir,
+          );
+    var replayed = _retries - retriesBefore;
+
+    if (baseSide.replay case var base? when headSide.replay != null) {
+      var head = headSide.replay!;
+      var compared = compareScenarioReplays(
+        scenario: id,
+        base: base,
+        head: head,
+      );
+      // A difference in a scenario whose pictures depended on the machine
+      // is not believed until each side has done the same thing twice.
+      // Every side here is fresh: a side with hazards is never filed.
+      if (compared.state.isFinding &&
+          (base.hazards.isNotEmpty || head.hazards.isNotEmpty)) {
+        if (!alone) return null;
+        onProgress?.call(
+          'replaying "$name" again, alone: it drew work nothing announced '
+          '· $count',
+        );
+        var unstable = <String>[];
+        for (var (isBase, replay) in [(true, base), (false, head)]) {
+          if ((isBase ? filedBase : filedHead) != null) continue;
+          var again = await source.shots(id, base: isBase, outDir: outDir);
+          replayed++;
+          if (!replaysAgree(replay, again)) {
+            var side = isBase ? 'the base' : 'this branch';
+            unstable.add(
+              replay.hazards.isNotEmpty
+                  ? unstableHazardSentence(side, replay)
+                  : again.hazards.isNotEmpty
+                  ? unstableHazardSentence(side, again)
+                  : '$side did not replay the same way twice.',
+            );
+          }
+        }
+        if (unstable.isNotEmpty) {
+          return (
+            comparison: ScenarioComparison.notCompared(
+              scenario: id,
+              inconclusive: unstable.map(_capitalized).join(' '),
+              baseErrors: base.failures,
+              headErrors: head.failures,
+              baseMs: base.ms,
+              headMs: head.ms,
+            ),
+            replayed: replayed,
+          );
+        }
+      }
+      return (comparison: compared, replayed: replayed);
+    }
+    return (
+      comparison: ScenarioComparison.notCompared(
+        scenario: id,
+        inconclusive: [
+          ?baseSide.inconclusive,
+          ?headSide.inconclusive,
+        ].map(_capitalized).join(' '),
+        baseErrors: first.base.failures,
+        headErrors: first.head.failures,
+        baseMs: first.base.ms,
+        headMs: first.head.ms,
+      ),
+      replayed: replayed,
+    );
+  }
+
+  static String _nameOf(String id) =>
+      id.contains('#') ? id.substring(id.indexOf('#') + 1) : id;
+
   /// Whether a step's requests went out to a real network — `live` or
   /// `record`, as the funnel answers on each request's event.
   ///
@@ -534,10 +750,10 @@ class ScenariosRunner {
 
   /// Replays what [plan] left and aligns the two runs.
   ///
-  /// One scenario on both sides before the next. A scenario is a process;
-  /// replaying the whole head side and then the whole base side would double
-  /// the time before the first row could be answered, and the first row is what
-  /// a reader is waiting for.
+  /// One scenario on both sides before the next, or [jobs] of them. A
+  /// scenario is a process; replaying the whole head side and then the whole
+  /// base side would double the time before the first row could be answered,
+  /// and the first row is what a reader is waiting for.
   ///
   /// The two sides of one scenario run **together**. They are two harnesses on
   /// two checkouts with a build directory each, so there is nothing to
@@ -555,134 +771,75 @@ class ScenariosRunner {
     var plan = from ?? await this.plan(graph: graph);
     onPlan?.call(plan);
 
-    var items = <ScenarioComparison>[];
-    void report(ScenarioComparison scenario) {
-      items.add(scenario);
+    var settled = <ScenarioComparison>[];
+    for (var scenario in plan.settled) {
+      settled.add(scenario);
       onScenario?.call(scenario);
     }
 
-    for (var settled in plan.settled) {
-      report(settled);
-    }
-    var done = 0;
+    var toRun = plan.toRun;
+    var answered = List<ScenarioComparison?>.filled(toRun.length, null);
+    var deferred = <int>[];
+    var started = 0;
     var replays = 0;
-    for (var id in plan.toRun) {
+
+    Future<void> first(int index) async {
       cancel?.check();
-      done++;
-      var name = id.contains('#') ? id.substring(id.indexOf('#') + 1) : id;
-      var count = '$done of ${plan.toRun.length}';
-      var key = plan.keys[id];
-      var filedBase = key == null ? null : _store.readReplay(key.base);
-      var filedHead = key == null ? null : _store.readReplay(key.head);
-      var where = switch ((filedBase, filedHead)) {
-        (null, null) => 'on both sides',
-        (null, _) => 'on the base',
-        (_, null) => 'on this side',
-        _ => null,
-      };
-      onProgress?.call(
-        where == null
-            ? 'reading "$name" from the cache · $count'
-            : 'replaying "$name" $where · $count',
+      var id = toRun[index];
+      var count = '${++started} of ${toRun.length}';
+      var replay = await _firstReplays(
+        id,
+        key: plan.keys[id],
+        count: count,
+        outDir: outDir,
       );
-      var retriesBefore = _retries;
-      var firsts = await Future.wait([
-        filedBase == null
-            ? source.shots(id, base: true, outDir: outDir)
-            : Future.value(filedBase),
-        filedHead == null
-            ? source.shots(id, base: false, outDir: outDir)
-            : Future.value(filedHead),
-      ]);
-      if (firsts.any((first) => !first.clean)) {
-        onProgress?.call('replaying "$name" again, alone, to confirm · $count');
+      replays += replay.replayed;
+      // With one lane, nothing is ever beside it.
+      var row = await _conclude(replay, alone: jobs <= 1, outDir: outDir);
+      if (row == null) {
+        deferred.add(index);
+        return;
       }
-      // One after the other, never together: see [_confirm]. A filed side is
-      // a result already and is not confirmed again.
-      var baseSide = filedBase != null
-          ? ConfirmedSide.result(filedBase)
-          : await _confirm(
-              id,
-              key?.base,
-              firsts[0],
-              base: true,
-              outDir: outDir,
-            );
-      var headSide = filedHead != null
-          ? ConfirmedSide.result(filedHead)
-          : await _confirm(
-              id,
-              key?.head,
-              firsts[1],
-              base: false,
-              outDir: outDir,
-            );
-      replays +=
-          [filedBase, filedHead].where((side) => side == null).length +
-          (_retries - retriesBefore);
-      if (baseSide.replay case var base? when headSide.replay != null) {
-        var head = headSide.replay!;
-        var compared = compareScenarioReplays(
-          scenario: id,
-          base: base,
-          head: head,
-        );
-        // A difference in a scenario whose pictures depended on the machine
-        // is not believed until each side has done the same thing twice.
-        // Every side here is fresh: a side with hazards is never filed.
-        if (compared.state.isFinding &&
-            (base.hazards.isNotEmpty || head.hazards.isNotEmpty)) {
-          onProgress?.call(
-            'replaying "$name" again, alone: it drew work nothing announced '
-            '· $count',
-          );
-          var unstable = <String>[];
-          for (var (isBase, replay) in [(true, base), (false, head)]) {
-            if ((isBase ? filedBase : filedHead) != null) continue;
-            var again = await source.shots(id, base: isBase, outDir: outDir);
-            replays++;
-            if (!replaysAgree(replay, again)) {
-              var side = isBase ? 'the base' : 'this branch';
-              unstable.add(
-                replay.hazards.isNotEmpty
-                    ? unstableHazardSentence(side, replay)
-                    : again.hazards.isNotEmpty
-                    ? unstableHazardSentence(side, again)
-                    : '$side did not replay the same way twice.',
-              );
-            }
-          }
-          if (unstable.isNotEmpty) {
-            report(
-              ScenarioComparison.notCompared(
-                scenario: id,
-                inconclusive: unstable.map(_capitalized).join(' '),
-                baseErrors: base.failures,
-                headErrors: head.failures,
-                baseMs: base.ms,
-                headMs: head.ms,
-              ),
-            );
-            continue;
-          }
-        }
-        report(compared);
-      } else {
-        report(
-          ScenarioComparison.notCompared(
-            scenario: id,
-            inconclusive: [
-              ?baseSide.inconclusive,
-              ?headSide.inconclusive,
-            ].map(_capitalized).join(' '),
-            baseErrors: firsts[0].failures,
-            headErrors: firsts[1].failures,
-            baseMs: firsts[0].ms,
-            headMs: firsts[1].ms,
-          ),
-        );
+      replays += row.replayed;
+      answered[index] = row.comparison;
+      onScenario?.call(row.comparison);
+    }
+
+    // Lanes taking the next scenario in plan order, so the first rows are
+    // still the first answered.
+    var next = 0;
+    Future<void> lane() async {
+      while (next < toRun.length) {
+        await first(next++);
       }
     }
+
+    await Future.wait([
+      for (var i = 0; i < toRun.length && (i == 0 || i < jobs); i++) lane(),
+    ]);
+
+    // What could not be believed from a replay taken beside others, replayed
+    // from the start with nothing beside it — see [jobs]. From the start, and
+    // not only its second replay: a first replay slowed by its neighbours
+    // compared against a second one that was not is two machines, and would
+    // call a scenario unstable that a serial run finds steady.
+    deferred.sort();
+    for (var index in deferred) {
+      cancel?.check();
+      var id = toRun[index];
+      var replay = await _firstReplays(
+        id,
+        key: plan.keys[id],
+        count: 'again, alone',
+        outDir: outDir,
+      );
+      replays += replay.replayed;
+      var row = (await _conclude(replay, alone: true, outDir: outDir))!;
+      replays += row.replayed;
+      answered[index] = row.comparison;
+      onScenario?.call(row.comparison);
+    }
+    var items = [...settled, ...answered.nonNulls];
 
     return ScenarioResults.of(
       items: items,
@@ -695,4 +852,35 @@ class ScenariosRunner {
       because: plan.because,
     );
   }
+}
+
+/// One scenario's first replay on each side, or what the store filed for a
+/// side.
+class _FirstReplays {
+  _FirstReplays({
+    required this.id,
+    required this.key,
+    required this.count,
+    required this.filedBase,
+    required this.filedHead,
+    required this.base,
+    required this.head,
+  });
+
+  final String id;
+  final ({String base, String head})? key;
+
+  /// `3 of 12`, as the progress says it.
+  final String count;
+
+  /// What the store already held for a side, which is never replayed again.
+  final ScenarioReplay? filedBase;
+  final ScenarioReplay? filedHead;
+
+  final ScenarioReplay base;
+  final ScenarioReplay head;
+
+  /// How many of these were replays rather than read from the store.
+  int get replayed =>
+      [filedBase, filedHead].where((side) => side == null).length;
 }
