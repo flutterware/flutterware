@@ -8,6 +8,11 @@ import 'motion.dart';
 /// a scenario's frames land where a hand-written test's would.
 const _frameInterval = Duration(milliseconds: 100);
 
+/// Under `ScenarioTime.real` every duration here is a **real** one:
+/// `tester.pump(interval)` on the live binding waits the interval on the wall
+/// clock and then a real frame, so `upTo(5s)` reads "until quiet, at most
+/// five real seconds" and `elapse(2s)` costs two real seconds. Nothing in the
+/// policies changes; only what a second is.
 /// How a scenario verb waits for the app to be done before it captures.
 ///
 /// Every verb — `pumpWidget`, `tap`, `enterText`, `screen` — applies the same

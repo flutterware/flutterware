@@ -77,12 +77,15 @@ Three traps for the design:
   body returns, before any `addTearDown`. Animation scaling must be set and
   reset *around the body* inside `runTest`, by the binding.
 
-Two things measured and not yet explained: `debugLayer.toImage` returned a
-blank white PNG after `setSurfaceSize` under the live binding while it drew
-the screen at the default 800×600; and `pumpAndSettle` on a real binding
-follows frames only, so PowerSync subscriptions leak across tests sharing a
-process. Both fall inside the plan's first tasks as tests rather than
-assumptions.
+Two things measured on the hand-rolled probe did **not** reproduce in the
+harness, tested in `test/scenarios/live_lane/live_capture_test.dart` on
+2026-09-16: a capture at a phone size through the harness's own `_emit` is
+not blank (the probe's `setSurfaceSize` + `debugLayer.toImage` was the
+artefact, not the engine), and `landRealWork` needs no bypass — its
+announced-work wait on `ImageCache.pendingImageCount` is exactly what lands a
+network image inside the step that mounts it under the real clock too.
+`pumpAndSettle` on a real binding still follows frames only, which is why the
+tester's bounded policies, not `pumpAndSettle`, are the settle in this lane.
 
 ## Decisions
 
@@ -117,9 +120,9 @@ assumptions.
 6. **Existing settle policies keep their meaning, in real seconds.** Under
    the live binding `tester.pump(interval)` waits a real interval and a real
    frame, so `Settle.upTo(5s)` already reads "until quiet, at most five
-   real seconds". `landRealWork` is skipped — there is no fake zone for real
-   work to be invisible from — and the pinned clock stays pinnable
-   independently of the timers.
+   real seconds". `landRealWork` stays: its wait on announced work is what
+   lands a network image inside its step whichever the clock (measured, see
+   above). The pinned clock stays pinnable independently of the timers.
 7. **A plugin with no host is a named refusal.** A `MissingPluginException`
    under real time fails the scenario with the channel, the method, and the
    two fixes — inject the value, or answer the channel — not with a stack
