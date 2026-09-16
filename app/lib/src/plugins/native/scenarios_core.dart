@@ -13,6 +13,8 @@ import 'package:flutterware/src/inspect/node.dart';
 import 'package:flutterware/src/scenarios/network_mode.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/selector.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/time_mode.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
@@ -272,6 +274,24 @@ class ScenariosCore extends PluginCore {
     for (var config in host.packageConfigs) {
       if (config['path'] == path) {
         if (config['captureScale'] case num scale) return scale.toDouble();
+      }
+    }
+    return null;
+  }
+
+  /// The clock [path]'s scenarios are declared to run on — `real` with its
+  /// animation scale, or null for the fake one. Read from the declaration,
+  /// because the harness has to be *built* for its clock before it can run
+  /// anything, and the folder's own word is checked against it at probe.
+  ScenarioTime? timeFor(String path) {
+    for (var config in host.packageConfigs) {
+      if (config['path'] == path && config['time'] == 'real') {
+        return ScenarioTime.real(
+          animations: switch (config['animations']) {
+            num scale => scale.toDouble(),
+            _ => 0.1,
+          },
+        );
       }
     }
     return null;
@@ -1084,6 +1104,18 @@ class ScenariosCore extends PluginCore {
                   "`runScenarios(network: ...)` and the project's "
                   '`fw.network(...)` said; a `scenario(network: ...)` beats '
                   'all three. The report says which modes ran.',
+            ),
+            const ActionParameter(
+              'jobs',
+              'Jobs',
+              kind: ActionParameterKind.integer,
+              required: false,
+              description:
+                  'How many scenarios a real-time package runs at once, each '
+                  'on its own flutter_tester from the one kernel. Omitted, the '
+                  'smaller of the scenario count and half the cores. Ignored '
+                  'by a fake-time package, which runs one guest whatever the '
+                  'number: FakeAsync is already faster than parallelism.',
             ),
             const ActionParameter(
               'format',
@@ -3408,6 +3440,18 @@ class ScenariosCore extends PluginCore {
       network = parseScenarioNetwork(raw);
     }
 
+    int? jobs;
+    if (arguments['jobs'] case var raw?) {
+      jobs = switch (raw) {
+        int value => value,
+        String value => int.tryParse(value),
+        _ => null,
+      };
+      if (jobs == null || jobs < 1) {
+        throw ArgumentError.value(raw, 'jobs', 'a whole number, at least 1');
+      }
+    }
+
     var steps = arguments['steps'] as String? ?? 'failing';
     if (!const ['failing', 'all', 'none'].contains(steps)) {
       throw ArgumentError.value(steps, 'steps', 'accepted: failing, all, none');
@@ -3527,6 +3571,7 @@ class ScenariosCore extends PluginCore {
             tag: tag,
             axes: assignment,
             unspecifiedDevice: defaultScenarioDeviceId,
+            jobs: jobs,
             captureScale: captureScale ?? captureScaleFor(path),
             captureRaw: format == 'raw',
             // `format: none` wins: it says there are no pixels, and `keyed`
@@ -4427,6 +4472,7 @@ class ScenariosCore extends PluginCore {
     flutterSdkRoot: host.workspace.flutterSdk.root,
     projectClock: host.projectClock,
     projectNetwork: host.projectNetwork,
+    time: timeFor(path),
     onLog: onLog,
   );
 

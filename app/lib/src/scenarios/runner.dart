@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/network_mode.dart';
@@ -8,6 +9,10 @@ import 'package:flutterware/src/scenarios/network_mode.dart';
 import 'package:flutterware/src/scenarios/film_settings.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/pixels.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/selector.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/time_mode.dart';
 import 'package:meta/meta.dart';
 
 import '../embedder/build_directory.dart';
@@ -16,6 +21,7 @@ import '../session/job.dart';
 import 'axes.dart';
 import 'discovery.dart';
 import 'harness_entrypoint.dart';
+import 'live_pool.dart';
 
 /// Which steps a run photographs, as callers of [ScenarioRunner.run] name it.
 // ignore: implementation_imports
@@ -116,6 +122,10 @@ abstract interface class ScenarioRunSource {
     String? tag,
     ScenarioAxes axes = const ScenarioAxes(),
     String? unspecifiedDevice,
+
+    /// How many guests a real-time run keeps busy; null for the runner's
+    /// default. A fake-time run ignores it.
+    int? jobs,
     double? captureScale,
     bool captureRaw = false,
     bool captureNative = false,
@@ -191,10 +201,14 @@ class _ScenarioProgram extends TesterProgram {
     required this.packageRoot,
     required this.directory,
     required this.lane,
+    required this.time,
   });
 
   final String packageRoot;
   final String directory;
+
+  /// The clock the generated entrypoint asks the harness for.
+  final ScenarioTime time;
 
   /// Where the generated entrypoint goes — the host's own lane, so an isolated
   /// runner's harness sits beside its dill rather than on top of the warm
@@ -230,8 +244,12 @@ class _ScenarioProgram extends TesterProgram {
   }
 
   @override
-  String writeEntrypoint(List<String> sources) =>
-      writeHarnessEntrypoint(packageRoot, sources, directory: lane.path);
+  String writeEntrypoint(List<String> sources) => writeHarnessEntrypoint(
+    packageRoot,
+    sources,
+    directory: lane.path,
+    time: time,
+  );
 }
 
 /// Runs a package's scenarios in a directly-spawned `flutter_tester` — see
@@ -255,6 +273,8 @@ class ScenarioRunner implements ScenarioRunSource {
     String buildDirectory = TesterHost.defaultBuildDirectory,
     DateTime? projectClock,
     ScenarioNetwork? projectNetwork,
+    ScenarioTime? time,
+    int? jobs,
     void Function(String line)? onLog,
   }) : this._(
          packageRoot: packageRoot,
@@ -267,6 +287,8 @@ class ScenarioRunner implements ScenarioRunSource {
          ),
          projectClock: projectClock,
          projectNetwork: projectNetwork,
+         time: time ?? ScenarioTime.fake,
+         jobs: jobs,
          onLog: onLog,
        );
 
@@ -277,6 +299,8 @@ class ScenarioRunner implements ScenarioRunSource {
     required BuildLane lane,
     required this.projectClock,
     required this.projectNetwork,
+    required this.time,
+    this.jobs,
     void Function(String line)? onLog,
   }) : _lane = lane,
        _host = TesterHost(
@@ -286,6 +310,7 @@ class ScenarioRunner implements ScenarioRunSource {
            packageRoot: packageRoot,
            directory: directory,
            lane: lane,
+           time: time,
          ),
          lane: lane,
          onLog: onLog,
@@ -297,6 +322,14 @@ class ScenarioRunner implements ScenarioRunSource {
 
   /// Scenario directory relative to [packageRoot].
   final String directory;
+
+  /// The clock this runner's harness was built for. A real-time package runs
+  /// one guest per scenario, [jobs] at a time, from the one kernel.
+  final ScenarioTime time;
+
+  /// How many guests a real-time run keeps busy; null picks the smaller of
+  /// the scenario count and half the machine's cores.
+  final int? jobs;
 
   final BuildLane _lane;
 
@@ -377,6 +410,10 @@ class ScenarioRunner implements ScenarioRunSource {
     String? tag,
     ScenarioAxes axes = const ScenarioAxes(),
     String? unspecifiedDevice,
+
+    /// How many guests a real-time run keeps busy; null for the runner's
+    /// default. A fake-time run ignores it.
+    int? jobs,
     double? captureScale,
     bool captureRaw = false,
     bool captureNative = false,
@@ -431,53 +468,62 @@ class ScenarioRunner implements ScenarioRunSource {
     // getting a guest ready, and a caption still saying so while the scenario
     // is executing is a stale one.
     _host.onLog?.call('[scenarios] running');
+    var args = <String, String>{
+      'out': outDir,
+      'file': ?file,
+      'scenario': ?scenario,
+      'tag': ?tag,
+      if (captureScale != null) 'captureScale': '$captureScale',
+      if (captureRaw) 'captureRaw': 'true',
+      if (captureNative) 'captureNative': 'true',
+      if (pixels != ScenarioPixels.all) 'pixels': pixels.name,
+      if (expandTranslations != null) 'expand': '$expandTranslations',
+      if (narrowestDevice) 'deviceChoice': 'narrowest',
+      // Present only when recording: the interval is what turns motion
+      // capture on, so its absence is the off switch and no run that did
+      // not ask pays for one.
+      if (recordInterval != null) ...{
+        'recordIntervalMs': '${recordInterval.inMilliseconds}',
+        if (recordScale != null) 'recordScale': '$recordScale',
+        'recordMaxFrames': '$recordMaxFrames',
+      },
+      // A film's settings travel whole, because every one of them changes
+      // what the frames *are*: the pace they were pumped at, the size they
+      // were drawn at, and the path through the scenario that produced them.
+      if (film case var film?) ...{
+        'filmDir': film.directory,
+        'filmFps': '${film.fps}',
+        'filmScale': '${film.scale}',
+        if (film.branches.isNotEmpty) 'filmBranches': jsonEncode(film.branches),
+        'filmOpenMs': '${film.open.inMilliseconds}',
+        'filmTravelMs': '${film.travel.inMilliseconds}',
+        'filmAimMs': '${film.aim.inMilliseconds}',
+        'filmPressMs': '${film.press.inMilliseconds}',
+        'filmDwellMs': '${film.dwell.inMilliseconds}',
+        'filmCloseMs': '${film.close.inMilliseconds}',
+        'filmMaxFrames': '${film.maxFrames}',
+        if (!film.pixels) 'filmPixels': 'false',
+        if (filmReel) 'filmReel': 'true',
+      },
+      if (clock ?? projectClock case var origin?)
+        'clock': origin.toIso8601String(),
+      if (network case var reach?) 'network': reach.name,
+      if (projectNetwork case var reach?) 'networkDefault': reach.name,
+      'networkStore': ?networkStore,
+      ...axes.harnessArgs(unspecifiedDevice: unspecifiedDevice),
+    };
+    if (time.isReal) {
+      return _runLive(
+        args,
+        file: file,
+        scenario: scenario,
+        tag: tag,
+        jobs: jobs,
+      );
+    }
     var response = await _host.vm.requireExtension(
       'ext.flutterware.scenarios.run',
-      args: {
-        'out': outDir,
-        'file': ?file,
-        'scenario': ?scenario,
-        'tag': ?tag,
-        if (captureScale != null) 'captureScale': '$captureScale',
-        if (captureRaw) 'captureRaw': 'true',
-        if (captureNative) 'captureNative': 'true',
-        if (pixels != ScenarioPixels.all) 'pixels': pixels.name,
-        if (expandTranslations != null) 'expand': '$expandTranslations',
-        if (narrowestDevice) 'deviceChoice': 'narrowest',
-        // Present only when recording: the interval is what turns motion
-        // capture on, so its absence is the off switch and no run that did
-        // not ask pays for one.
-        if (recordInterval != null) ...{
-          'recordIntervalMs': '${recordInterval.inMilliseconds}',
-          if (recordScale != null) 'recordScale': '$recordScale',
-          'recordMaxFrames': '$recordMaxFrames',
-        },
-        // A film's settings travel whole, because every one of them changes
-        // what the frames *are*: the pace they were pumped at, the size they
-        // were drawn at, and the path through the scenario that produced them.
-        if (film case var film?) ...{
-          'filmDir': film.directory,
-          'filmFps': '${film.fps}',
-          'filmScale': '${film.scale}',
-          if (film.branches.isNotEmpty)
-            'filmBranches': jsonEncode(film.branches),
-          'filmOpenMs': '${film.open.inMilliseconds}',
-          'filmTravelMs': '${film.travel.inMilliseconds}',
-          'filmAimMs': '${film.aim.inMilliseconds}',
-          'filmPressMs': '${film.press.inMilliseconds}',
-          'filmDwellMs': '${film.dwell.inMilliseconds}',
-          'filmCloseMs': '${film.close.inMilliseconds}',
-          'filmMaxFrames': '${film.maxFrames}',
-          if (!film.pixels) 'filmPixels': 'false',
-          if (filmReel) 'filmReel': 'true',
-        },
-        if (clock ?? projectClock case var origin?)
-          'clock': origin.toIso8601String(),
-        if (network case var reach?) 'network': reach.name,
-        if (projectNetwork case var reach?) 'networkDefault': reach.name,
-        'networkStore': ?networkStore,
-        ...axes.harnessArgs(unspecifiedDevice: unspecifiedDevice),
-      },
+      args: args,
     );
     if (response!['error'] case String error) {
       throw StateError('the harness failed:\n$error\n${response['stack']}');
@@ -493,6 +539,77 @@ class ScenarioRunner implements ScenarioRunSource {
     }
     return response.cast<String, Object?>();
   });
+
+  /// A real-time run: every selected scenario on its own guest, [jobs] at a
+  /// time, from the kernel the host just built. The replies are merged into
+  /// the one shape the single-guest path answers with.
+  Future<Map<String, Object?>> _runLive(
+    Map<String, String> args, {
+    String? file,
+    String? scenario,
+    String? tag,
+    int? jobs,
+  }) async {
+    var watch = Stopwatch()..start();
+    var selection = <LiveScenarioRef>[
+      for (var listing in await _listOnHost())
+        if (file == null ||
+            fileSelectors(file).any((one) => selectsFile(one, listing.file)))
+          if (scenario == null || listing.name == scenario)
+            if (tag == null || listing.tags.contains(tag))
+              if (!listing.skip) (file: listing.file, scenario: listing.name),
+    ];
+    var parallel = jobs ?? this.jobs ?? _defaultJobs(selection.length);
+    var pool = LiveScenarioPool(host: _host, jobs: parallel);
+    var replies = await pool.run(
+      selection,
+      (ref) => {...args, 'file': ref.file, 'scenario': ref.scenario},
+    );
+    for (var reply in replies) {
+      if (reply['error'] case String error) {
+        throw StateError('the harness failed:\n$error\n${reply['stack']}');
+      }
+    }
+    return {
+      'ms': watch.elapsedMilliseconds,
+      'scenarios': [
+        for (var reply in replies) ...(reply['scenarios'] as List? ?? const []),
+      ],
+      'time': time.name,
+      'animations': time.animations,
+      'jobs': parallel,
+      'clock': ?replies.map((r) => r['clock']).nonNulls.firstOrNull,
+      // Merged the way the harness reports it: the modes any guest ran under.
+      if (replies.any((r) => r['network'] != null))
+        'network': [
+          ...{
+            for (var reply in replies)
+              ...(reply['network'] as List? ?? const []).cast<Object?>(),
+          },
+        ],
+    };
+  }
+
+  /// What the host's guest declares, straight off the harness — the pool
+  /// fans out over this rather than a scan, so a scenario the scan would not
+  /// see (a non-literal name) still runs.
+  Future<List<ScenarioListing>> _listOnHost() async {
+    var response = await _host.vm.requireExtension(
+      'ext.flutterware.scenarios.list',
+    );
+    return [
+      for (var entry in (response!['scenarios'] as List).cast<Map>())
+        ScenarioListing(
+          file: entry['file'] as String,
+          name: entry['name'] as String,
+          tags: (entry['tags'] as List? ?? const []).cast<String>(),
+          skip: entry['skip'] == true,
+        ),
+    ];
+  }
+
+  static int _defaultJobs(int scenarios) =>
+      scenarios.clamp(1, math.max(1, Platform.numberOfProcessors ~/ 2));
 
   /// Kills the guest out from under the runner, so a test can assert that the
   /// next call notices and respawns rather than talking to a dead service.

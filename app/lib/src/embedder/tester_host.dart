@@ -356,13 +356,7 @@ class TesterHost {
     // still be holding them.
     var log = File(logPath)..parent.createSync(recursive: true);
     var logSink = _logFile = log.openSync(mode: FileMode.write);
-    // The tail the log already holds, in hand: a connect that finds a service
-    // with no isolate asks for it, and pointing that failure at a file it
-    // would have to be told to open is one step more than it needs.
-    var printed = <String>[];
     void tee(String line) {
-      printed.add(line);
-      if (printed.length > 20) printed.removeAt(0);
       try {
         logSink.writeStringSync('$line\n');
       } on FileSystemException {
@@ -370,7 +364,54 @@ class TesterHost {
       }
     }
 
-    var guest = _guest = await Process.start(
+    var guest = await spawnGuest(
+      dill,
+      tee: tee,
+      // Handed over the moment the process exists, so a `dispose` landing
+      // while the guest is still booting finds something to kill.
+      onStarted: (process) => _guest = process,
+    );
+    _vm = guest.vm;
+    _events = guest.events;
+    _lastDill = dill;
+    unawaited(
+      guest.process.exitCode.then((_) {
+        // Identity-checked: a later guest's life is not this listener's to
+        // end.
+        if (identical(_guest, guest.process)) _guestAlive = false;
+      }),
+    );
+  }
+
+  /// The kernel the host's guest was last spawned from — what a pool spawns
+  /// its own guests from, so every one of them runs the one build.
+  String get dillPath =>
+      _lastDill ??
+      (throw StateError('no kernel yet — ensureGuest() builds one'));
+  String? _lastDill;
+
+  /// One more `flutter_tester` from [dill], connected and ready — the same
+  /// spawn the host's own guest gets, minus the host's bookkeeping: its
+  /// life is the caller's, which is what a pool of guests running one
+  /// scenario each needs. Step events still reach [onEvent], so a panel
+  /// filling a flow in does not care which guest produced it.
+  Future<TesterGuest> spawnGuest(
+    String dill, {
+    void Function(String line)? tee,
+    void Function(Process process)? onStarted,
+    String label = 'tester',
+  }) async {
+    // The tail the guest has printed, in hand: a connect that finds a service
+    // with no isolate asks for it, and pointing that failure at a file it
+    // would have to be told to open is one step more than it needs.
+    var printed = <String>[];
+    void keep(String line) {
+      printed.add(line);
+      if (printed.length > 20) printed.removeAt(0);
+      tee?.call(line);
+    }
+
+    var process = await Process.start(
       _cache.flutterTester,
       [
         '--vm-service-port=0',
@@ -424,7 +465,8 @@ class TesterHost {
       // wherever `fw` happened to be started from.
       workingDirectory: packageRoot,
     );
-    recordSpawnedGuest(pid: guest.pid, what: program.name);
+    onStarted?.call(process);
+    recordSpawnedGuest(pid: process.pid, what: program.name);
 
     // **The window this closes.** A cold start is tens of seconds long and
     // every step of it is an await, so a `dispose` — a config reload swapping
@@ -434,45 +476,41 @@ class TesterHost {
     // owner still running. Checked here rather than at every await above,
     // because this is the only step that leaves something behind.
     if (_disposed) {
-      guest.kill();
-      forgetSpawnedGuest(guest.pid);
+      process.kill();
+      forgetSpawnedGuest(process.pid);
       _guestAlive = false;
       throw StateError('the harness was disposed while it was starting');
     }
 
-    guest.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen(
-      (line) {
-        tee(line);
-        onLog?.call('[tester] $line');
-      },
-    );
+    process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+          keep(line);
+          onLog?.call('[$label] $line');
+        });
 
     var vmServiceUri = Completer<String>();
     var ready = Completer<void>();
-    guest.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(
-      (line) {
-        tee(line);
-        onLog?.call('[tester] $line');
-        var match = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
-        if (match != null && !vmServiceUri.isCompleted) {
-          vmServiceUri.complete(match.group(1));
-        }
-        if (line.contains(program.readyLine) && !ready.isCompleted) {
-          ready.complete();
-        }
-      },
-    );
+    process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+          keep(line);
+          onLog?.call('[$label] $line');
+          var match = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
+          if (match != null && !vmServiceUri.isCompleted) {
+            vmServiceUri.complete(match.group(1));
+          }
+          if (line.contains(program.readyLine) && !ready.isCompleted) {
+            ready.complete();
+          }
+        });
     unawaited(
-      guest.exitCode.then((code) {
-        // **Not** identity-checked, unlike the flag below: the handle is this
-        // pid's, whoever the host's current guest is by now. Here rather than
-        // beside each `kill` because every way a guest ends — teardown, a
-        // restart, `killGuest`, or the engine falling over on its own — passes
-        // through this one line.
-        forgetSpawnedGuest(guest.pid);
-        // Identity-checked: a later guest's life is not this listener's to
-        // end.
-        if (identical(_guest, guest)) _guestAlive = false;
+      process.exitCode.then((code) {
+        // Every way a guest ends — teardown, a restart, `killGuest`, or the
+        // engine falling over on its own — passes through this one line.
+        forgetSpawnedGuest(process.pid);
         if (!ready.isCompleted) {
           ready.completeError(
             StateError('flutter_tester exited with $code before ready'),
@@ -489,7 +527,7 @@ class TesterHost {
         'the ${program.name} harness never became ready',
       ),
     );
-    var vm = _vm = await GuestVmService.connect(
+    var vm = await GuestVmService.connect(
       await vmServiceUri.future,
       describeGuest: () => printed.join('\n'),
     );
@@ -498,14 +536,19 @@ class TesterHost {
     unawaited(
       vm
           .developerLog()
-          .forEach((line) => onLog?.call('[tester] log: $line'))
+          .forEach((line) => onLog?.call('[$label] log: $line'))
           .catchError((Object _) {}),
     );
-    if (program.eventStream case var stream?) {
-      _events = vm
-          .extensionEvents(stream)
-          .listen((event) => onEvent?.call(event));
-    }
+    return TesterGuest(
+      process: process,
+      vm: vm,
+      // Cancelled by `TesterGuest.kill`, whose caller owns the guest.
+      events: switch (program.eventStream) {
+        var stream? =>
+          vm.extensionEvents(stream).listen((event) => onEvent?.call(event)),
+        null => null,
+      },
+    );
   }
 
   /// The asset directory the guest reads, assembled by [AssetBundleBuilder] —
@@ -675,6 +718,28 @@ class TesterHost {
     _logFile = null;
     if (_compiler case var compiler?) await compiler.shutdown();
     _compiler = null;
+  }
+}
+
+/// One running `flutter_tester` from a kernel a [TesterHost] compiled.
+///
+/// The host's own guest is one of these under the hood; a live scenario pool
+/// holds several, one scenario each, and ends them itself.
+class TesterGuest {
+  TesterGuest({required this.process, required this.vm, this.events});
+
+  final Process process;
+  final GuestVmService vm;
+
+  /// The step events forwarded to the host's `onEvent`, cancelled with the
+  /// guest.
+  final StreamSubscription<Map<String, Object?>>? events;
+
+  Future<void> kill() async {
+    await events?.cancel();
+    await vm.close();
+    process.kill();
+    await process.exitCode;
   }
 }
 

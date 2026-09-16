@@ -113,12 +113,14 @@ String writeHarnessEntrypoint(
   String packageRoot,
   List<String> files, {
   String directory = 'build/flutterware',
+  ScenarioTime time = ScenarioTime.fake,
 }) {
   var path = p.join(packageRoot, directory, 'scenarios_harness.dart');
   var source = generateHarnessEntrypoint(
     files,
     configs: findTestConfigs(packageRoot, files),
     directory: directory,
+    time: time,
   );
   var file = File(path);
   if (!file.existsSync() || file.readAsStringSync() != source) {
