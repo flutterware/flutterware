@@ -505,7 +505,9 @@ class ScenarioRunner implements ScenarioRunSource {
         if (!film.pixels) 'filmPixels': 'false',
         if (filmReel) 'filmReel': 'true',
       },
-      if (clock ?? projectClock case var origin?)
+      // The project's pin is the fake lane's default; a live run is on the
+      // wall clock unless the run itself names one.
+      if (clock ?? (time.isReal ? null : projectClock) case var origin?)
         'clock': origin.toIso8601String(),
       if (network case var reach?) 'network': reach.name,
       if (projectNetwork case var reach?) 'networkDefault': reach.name,

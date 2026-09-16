@@ -176,7 +176,27 @@ void scenario(
       // captures is for. `--clock now` and `FW_CLOCK=now` are how a run asks
       // for the wall clock back; both resolve to an instant before they get
       // here, so what ran is always a date somebody could write down.
+      //
+      // Except on the real clock, where nothing is compared and the backend
+      // answers with today's dates: there the wall clock is the clock, and a
+      // pin applies only when the run itself asked for one.
+      Future<void> scenarioBody() => _runScenario(
+        tester,
+        description,
+        body,
+        policy,
+        settling,
+        assignment,
+        source,
+        keyboard,
+        shadows,
+        _reachOf(network, folderReach, description, noticeKey),
+        statedNetwork: network != null,
+        noticeKey: noticeKey,
+        edit: edit,
+      );
       var origin = resolvedScenarioClockOrigin;
+      if (origin == null) return scenarioBody();
       // Pinned, but still ticking with FakeAsync: the offset from where this
       // scenario's fake clock started is what `s.wait` moves, so a flow that
       // waits a day still reads a day later — from a date that is the same on
@@ -184,21 +204,7 @@ void scenario(
       var started = tester.binding.clock.now();
       return withClock(
         Clock(() => origin.add(tester.binding.clock.now().difference(started))),
-        () => _runScenario(
-          tester,
-          description,
-          body,
-          policy,
-          settling,
-          assignment,
-          source,
-          keyboard,
-          shadows,
-          _reachOf(network, folderReach, description, noticeKey),
-          statedNetwork: network != null,
-          noticeKey: noticeKey,
-          edit: edit,
-        ),
+        scenarioBody,
       );
     },
   );
@@ -241,13 +247,18 @@ final _frameLocation = RegExp(r'\((.+?\.dart):\d+(?::\d+)?\)\s*$');
 /// What `clock.now()` reads at the start of every scenario: what the runner
 /// asked for, else what the host said, else [pinnedClockOrigin].
 ///
-/// Never null — see [pinnedClockOrigin] for why the default is a date rather
-/// than the wall clock. Read by the harness too, so a run can *report* the
-/// clock it ran under: a pinned date is only safe while it is stated, since an
-/// app with a trial expiry or a seasonal theme sits in a different state under
-/// one and nothing on the screen says why.
-DateTime get resolvedScenarioClockOrigin =>
-    scenarioRunArgs?.clockOrigin ?? _scenarioClockOrigin ?? pinnedClockOrigin;
+/// Null only on the real clock with nobody asking — see [pinnedClockOrigin]
+/// for why the fake-time default is a date rather than the wall clock, and
+/// why a live run has no such default: its backend answers with today, and a
+/// pin would put the app on a day the server disagrees with. Read by the
+/// harness too, so a run can *report* the clock it ran under: a pinned date
+/// is only safe while it is stated, since an app with a trial expiry or a
+/// seasonal theme sits in a different state under one and nothing on the
+/// screen says why.
+DateTime? get resolvedScenarioClockOrigin =>
+    scenarioRunArgs?.clockOrigin ??
+    _scenarioClockOrigin ??
+    (scenarioHarnessTime.isReal ? null : pinnedClockOrigin);
 
 /// What the host said the clock should be, or null when it said nothing —
 /// a dart-define first, then the environment, the same pair

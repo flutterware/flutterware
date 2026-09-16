@@ -49,6 +49,8 @@ void main() {
         'a failing scenario does not poison its neighbours',
       );
       expect(result['time'], 'real');
+      // Unpinned: a live run reports no clock unless it asked for one.
+      expect(result['clock'], isNull);
       expect(result['jobs'], 3);
       // Three 400ms fetches in parallel plus boots: well under the sequential
       // cost, and far under a poisoned-guest cascade that would time out.

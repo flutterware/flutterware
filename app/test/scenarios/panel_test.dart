@@ -59,7 +59,8 @@ void main() {
         },
       ),
     );
-    core.debugInstallRunner('.', _FakeRunner());
+    var runner = _FakeRunner();
+    core.debugInstallRunner('.', runner);
     var plugin = ScenariosPlugin(core);
     var address = ValueNotifier(
       Address(
@@ -83,6 +84,15 @@ void main() {
 
     expect(core.timeFor('.')?.isReal, isTrue);
     expect(find.text('live'), findsOneWidget);
+
+    // Opening a live scenario does not run it: that is somebody's backend.
+    // The page says so, and the Run button is the door.
+    expect(runner.runs, 0);
+    expect(find.text('Runs against your backend'), findsOneWidget);
+    await tester.tap(find.text('Run'));
+    await tester.pump();
+    await tester.pump();
+    expect(runner.runs, 1);
   });
 
   testWidgets('runs on open, draws the flow, selects by address', (

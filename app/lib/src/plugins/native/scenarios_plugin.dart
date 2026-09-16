@@ -1262,6 +1262,11 @@ class _ScenarioPageState extends State<_ScenarioPage> {
   /// picked in the toolbar becomes a fresh run. Compared against the last
   /// *attempt*'s axes, so a failure is not retried in a loop.
   void _maybeRun() {
+    // A live folder runs on somebody's backend, on a wall clock: an account
+    // made, an email sent, rows written. That is a thing to ask for, not a
+    // side effect of opening a page or walking the list — so it waits for
+    // the Run button, and an axis picked in the toolbar waits for it too.
+    if (widget.core.timeFor(widget.package)?.isReal ?? false) return;
     var run = _run;
     if (run == null || (!run.running && run.axes != widget.axes)) {
       _start();
@@ -1724,6 +1729,16 @@ class _ScenarioPageState extends State<_ScenarioPage> {
     if (steps.isEmpty) {
       if (run?.error case var error? when !running) {
         return _RunFailure(error);
+      }
+      if (run == null &&
+          (widget.core.timeFor(widget.package)?.isReal ?? false)) {
+        return EmptyState(
+          icon: Icons.cloud_outlined,
+          title: 'Runs against your backend',
+          message:
+              'A live scenario talks to a real server on a real clock, so it '
+              'runs when you press Run rather than when you open it.',
+        );
       }
       if (running || run == null) {
         // **The centred state, not the strip**, because with nothing on the

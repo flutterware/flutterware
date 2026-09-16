@@ -207,15 +207,30 @@ folder keeps `Shots.auto`: the app's first frame is a step like every
 verb's, and a `screen()` only names the moments worth a name — it adopts
 the picture the verb before it already took, so it costs nothing.
 
+Three rules settled after the port, each from watching it used:
+
+- **The folder lives under `integration_test/`**, not `test/`: by their
+  convention `test/` is what runs with no setup, and this needs a stack.
+  The plugin takes any directory; `flutter test` on that path routes to a
+  device, which is exactly the convention saying so.
+- **A live scenario runs when asked.** Opening its page, or walking the
+  list, does not run it — that is somebody's backend, an account made, an
+  email sent. The page says *Runs against your backend* and the Run button
+  is the door. Fake-time pages still run on open.
+- **A live run is on the wall clock.** The fake lane pins every run to a
+  date so two runs compare; a live run compares with nothing and its
+  backend answers with today, so neither the default pin nor the project's
+  `fw.clock` applies, only a clock the run itself names. The report and the
+  header carry none otherwise.
+- **A comparison never runs a live folder.** Both doors take the fake-time
+  folders only.
+
 ## Open after the second round
 
 - **`--time` on a run.** A runner is built for one clock (the generated
   entrypoint says it), so overriding a folder's clock per run means a second
   harness for the same path. Not built until someone needs it; the folder
   and the package say the clock, and they must agree.
-- **The pinned clock under real time.** A project's `fw.clock` still stamps
-  a live run's report and header; whether it should reach the app on the
-  wall clock is a question the consumer's flows did not ask yet.
 
 ## What this buys the consumer
 

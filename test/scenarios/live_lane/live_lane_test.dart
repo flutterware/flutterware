@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
+import 'package:clock/clock.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -43,5 +44,12 @@ void main() {
       ),
     );
     expect(timeDilation, 0.1);
+  });
+
+  scenario('the clock is the wall clock, unpinned', (s) async {
+    // The fake lane pins every scenario to a date; a live one talks to a
+    // backend that answers with today, so nothing is pinned unless the run
+    // asks — and this run did not.
+    expect(clock.now().difference(DateTime.now()).abs().inSeconds, lessThan(5));
   });
 }
