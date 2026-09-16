@@ -16,6 +16,7 @@ library;
 
 import '../../devices.dart';
 import '../scenarios/time_mode.dart';
+import 'manifest.dart' show foldersConfigKey;
 import 'package.dart';
 import 'plugin.dart';
 
@@ -242,6 +243,9 @@ class Scenarios extends Plugin {
   @override
   Map<String, Object?> get config => {
     'packages': [for (var p in packages) p.toJson()],
+    // A package may keep two suites — a fake-time folder and a real-time
+    // one — and this plugin addresses the second by its directory.
+    foldersConfigKey: true,
   };
 }
 

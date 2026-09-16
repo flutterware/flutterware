@@ -13,14 +13,13 @@ import 'package:flutterware/src/inspect/node.dart';
 import 'package:flutterware/src/scenarios/network_mode.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/selector.dart';
-// ignore: implementation_imports
-import 'package:flutterware/src/scenarios/time_mode.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import '../../delta/branch_delta.dart';
 import '../../delta/branch_delta_controller.dart';
 import '../../delta/delta_painting.dart';
+import '../../embedder/build_directory.dart' show defaultBuildRoot;
 import '../../embedder/tester_phase.dart';
 import '../../inspect/lens.dart';
 import '../../inspect/screen_read.dart';
@@ -222,11 +221,64 @@ class ScenariosCore extends PluginCore {
   /// not dragged back to it. See [scenarioRunnerPhase].
   final _runnerPhases = <String, String>{};
 
-  /// Declared packages, filtered to those the workspace knows about.
+  /// Declared folders, filtered to packages the workspace knows about.
+  ///
+  /// What every surface calls a "package" here is a **folder key**: the
+  /// package path when the package is declared once, which is every project
+  /// but the ones that keep two suites in one app. A package declared twice —
+  /// a fake-time `test/scenarios` and a real-time `test/integration`, say —
+  /// keeps its path for the first declaration and addresses every further one
+  /// by its directory, `app/test/integration`, so `--package=app` and the
+  /// routes a project already has go on meaning what they meant. Each key has
+  /// its own scan, its own listing, its own runner and its own build lane;
+  /// what they share is the package root under them.
   late final List<String> packages = [
-    for (var path in host.packagePaths)
-      if (host.workspace.exists(path)) path,
+    for (var MapEntry(key: key) in _declarations.entries) key,
   ];
+
+  /// The `packages:` entries, keyed as [packages] addresses them.
+  late final Map<String, Map<String, Object?>> _declarations = () {
+    var declared = <String, Map<String, Object?>>{};
+    var seen = <String>{};
+    for (var config in host.packageConfigs) {
+      if (config['path'] case String path when host.workspace.exists(path)) {
+        var key = seen.add(path)
+            ? path
+            : switch (config['directory']) {
+                String directory => p.url.join(path, directory),
+                _ => path,
+              };
+        declared.putIfAbsent(key, () => config);
+      }
+    }
+    return declared;
+  }();
+
+  Map<String, Object?> _declarationFor(String key) =>
+      _declarations[key] ??
+      (throw ArgumentError.value(
+        key,
+        'package',
+        'not declared for this plugin. Declared: ${packages.join(', ')}',
+      ));
+
+  /// The workspace-relative package path behind [key] — the key itself for a
+  /// package declared once, the package's path for a second folder of it.
+  String packagePathFor(String key) => _declarationFor(key)['path']! as String;
+
+  /// Where [key]'s harness builds. The shared warm lane for a package's first
+  /// folder; a second folder of the same package gets a lane of its own,
+  /// because two hosts on one directory are two compilers writing one dill
+  /// and two generators rewriting one entrypoint.
+  String buildDirectoryFor(String key) {
+    var path = packagePathFor(key);
+    if (key == path) return defaultBuildRoot;
+    return p.url.join(
+      defaultBuildRoot,
+      'folders',
+      _configuredDirectoryFor(key)!,
+    );
+  }
 
   /// Where discovery looks for [path]'s scenarios: the declared directory, or
   /// all of `test/` — a scenario is an ordinary widget test and may sit next
@@ -242,10 +294,8 @@ class ScenariosCore extends PluginCore {
       _configuredDirectoryFor(path) ?? defaultScenariosDirectory;
 
   String? _configuredDirectoryFor(String path) {
-    for (var config in host.packageConfigs) {
-      if (config['path'] == path) {
-        if (config['directory'] case String directory) return directory;
-      }
+    if (_declarationFor(path)['directory'] case String directory) {
+      return directory;
     }
     return null;
   }
@@ -256,12 +306,8 @@ class ScenariosCore extends PluginCore {
   /// free text, because a tag the app does not support runs the fallback
   /// locale and produces a picture that is wrong without looking wrong.
   List<String> languagesFor(String path) {
-    for (var config in host.packageConfigs) {
-      if (config['path'] == path) {
-        if (config['languages'] case List<Object?> languages) {
-          return languages.cast<String>();
-        }
-      }
+    if (_declarationFor(path)['languages'] case List<Object?> languages) {
+      return languages.cast<String>();
     }
     return const [];
   }
@@ -271,10 +317,8 @@ class ScenariosCore extends PluginCore {
   /// `capture-scale` on a run still wins; this is the project saying "always
   /// retina" once, in `tool/flutterware.dart`.
   double? captureScaleFor(String path) {
-    for (var config in host.packageConfigs) {
-      if (config['path'] == path) {
-        if (config['captureScale'] case num scale) return scale.toDouble();
-      }
+    if (_declarationFor(path)['captureScale'] case num scale) {
+      return scale.toDouble();
     }
     return null;
   }
@@ -284,23 +328,20 @@ class ScenariosCore extends PluginCore {
   /// because the harness has to be *built* for its clock before it can run
   /// anything, and the folder's own word is checked against it at probe.
   ScenarioTime? timeFor(String path) {
-    for (var config in host.packageConfigs) {
-      if (config['path'] == path && config['time'] == 'real') {
-        return ScenarioTime.real(
-          animations: switch (config['animations']) {
-            num scale => scale.toDouble(),
-            _ => 0.1,
-          },
-        );
-      }
-    }
-    return null;
+    var config = _declarationFor(path);
+    if (config['time'] != 'real') return null;
+    return ScenarioTime.real(
+      animations: switch (config['animations']) {
+        num scale => scale.toDouble(),
+        _ => 0.1,
+      },
+    );
   }
 
   /// The absolute root of [path]'s package — what the step page shortens a
   /// node's source paths against.
   String packageRootFor(String path) =>
-      host.workspace.packageFor(path).directory.path;
+      host.workspace.packageFor(packagePathFor(path)).directory.path;
 
   /// Whether [path] has been scanned (or is scanning) — the laziness rule,
   /// made observable.
@@ -320,10 +361,7 @@ class ScenariosCore extends PluginCore {
   void track(String path) {
     if (_scans.containsKey(path)) return;
     _scans[path] =
-        _scan(
-              packageRoot: host.workspace.packageFor(path).directory.path,
-              directory: scanRootFor(path),
-            )
+        _scan(packageRoot: packageRootFor(path), directory: scanRootFor(path))
             .then<void>((result) {
               _results[path] = result;
               _delta.scanLanded(path, result);
@@ -348,13 +386,14 @@ class ScenariosCore extends PluginCore {
   late final _delta = DeltaPainting<ScenarioScanResult>(
     owner: id,
     filesOf: (path, scan) => {
-      for (var ref in scan.scenarios) worktreeRelative(path, ref.file),
+      for (var ref in scan.scenarios)
+        worktreeRelative(packagePathFor(path), ref.file),
     },
     spansOf: (path, scan) => [
       for (var ref in scan.scenarios)
         EntrySpan(
           id: scenarioChangeKey(ref),
-          file: worktreeRelative(path, ref.file),
+          file: worktreeRelative(packagePathFor(path), ref.file),
           line: ref.line,
           endLine: ref.endLine,
         ),
@@ -529,7 +568,7 @@ class ScenariosCore extends PluginCore {
     ScenarioAxes axes,
   ) async {
     var (package, file, scenario) = key;
-    var packageRoot = host.workspace.packageFor(package).directory.path;
+    var packageRoot = packageRootFor(package);
     var outDir = p.join(
       packageRoot,
       'build',
@@ -674,10 +713,7 @@ class ScenariosCore extends PluginCore {
   /// Replaces the cached scan — what [track] deliberately never does.
   void _rescan(String path) {
     _scans[path] =
-        _scan(
-              packageRoot: host.workspace.packageFor(path).directory.path,
-              directory: scanRootFor(path),
-            )
+        _scan(packageRoot: packageRootFor(path), directory: scanRootFor(path))
             .then<void>((result) {
               _results[path] = result;
               _delta.scanLanded(path, result);
@@ -2630,12 +2666,7 @@ class ScenariosCore extends PluginCore {
     var candidates = <Directory>[];
     for (var path in _requested(arguments)) {
       var runs = Directory(
-        p.join(
-          host.workspace.packageFor(path).directory.path,
-          'build',
-          'flutterware',
-          'scenario_runs',
-        ),
+        p.join(packageRootFor(path), 'build', 'flutterware', 'scenario_runs'),
       );
       if (!runs.existsSync()) continue;
       candidates.addAll(runs.listSync().whereType<Directory>());
@@ -2945,7 +2976,7 @@ class ScenariosCore extends PluginCore {
     var results = <ScenarioShotsPackage>[];
     var total = 0;
     for (var path in paths) {
-      var packageRoot = host.workspace.packageFor(path).directory.path;
+      var packageRoot = packageRootFor(path);
       // Same base as `run`'s `output`: the worktree, unless absolute.
       var output = switch (arguments['output'] as String?) {
         var given? when given.isNotEmpty => _perPackage(
@@ -3518,7 +3549,7 @@ class ScenariosCore extends PluginCore {
     for (var path in paths) {
       var pathAssignments = assignmentsFor[path]!;
       var fannedOut = pathAssignments.length > 1;
-      var packageRoot = host.workspace.packageFor(path).directory.path;
+      var packageRoot = packageRootFor(path);
       var base = switch (output) {
         var given? => _perPackage(given, path, paths),
         _ => p.join(
@@ -3777,10 +3808,7 @@ class ScenariosCore extends PluginCore {
 
   void _sweepRuns(String path, {Set<String> protect = const {}}) {
     try {
-      sweepScenarioRuns(
-        host.workspace.packageFor(path).directory.path,
-        protect: protect,
-      );
+      sweepScenarioRuns(packageRootFor(path), protect: protect);
     } on Object {
       // Housekeeping. A package that cannot be resolved, or a directory
       // somebody else is holding, is not worth failing a finished run over.
@@ -4302,9 +4330,8 @@ class ScenariosCore extends PluginCore {
     var directory = file!.endsWith('/')
         ? file.substring(0, file.length - 1)
         : file;
-    var isDirectory = Directory(
-      p.join(host.workspace.packageFor(path).directory.path, directory),
-    ).existsSync();
+    var isDirectory = Directory(p.join(packageRootFor(path), directory))
+        .existsSync();
     if (isDirectory) {
       var siblings = {
         for (var declared in files)
@@ -4467,9 +4494,10 @@ class ScenariosCore extends PluginCore {
     String path, {
     required void Function(String line) onLog,
   }) => ScenarioRunner(
-    packageRoot: host.workspace.packageFor(path).directory.path,
+    packageRoot: packageRootFor(path),
     directory: scanRootFor(path),
     flutterSdkRoot: host.workspace.flutterSdk.root,
+    buildDirectory: buildDirectoryFor(path),
     projectClock: host.projectClock,
     projectNetwork: host.projectNetwork,
     time: timeFor(path),

@@ -56,6 +56,65 @@ void main() {
   /// and the manifest the host parses back. A manifest does not have to have
   /// come from `Flutterware.configure`, and a reservation enforced on one side
   /// only is a convention rather than a fact.
+  group('a package declared twice', () {
+    test('is refused when the entries are one folder', () {
+      expect(
+        () => Flutterware.configure((fw) {
+          fw.use(
+            Scenarios(
+              packages: [
+                ScenariosPackage(Pkg('app')),
+                ScenariosPackage(Pkg('app')),
+              ],
+            ),
+          );
+        }, emit: (_) {}),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('"app" twice'),
+          ),
+        ),
+      );
+      expect(
+        () => Flutterware.configure((fw) {
+          fw.use(
+            Scenarios(
+              packages: [
+                ScenariosPackage(Pkg('app'), directory: 'test/scenarios'),
+                ScenariosPackage(Pkg('app')),
+              ],
+            ),
+          );
+        }, emit: (_) {}),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('is two folders when each entry names its own directory', () {
+      String? emitted;
+      Flutterware.configure((fw) {
+        fw.use(
+          Scenarios(
+            packages: [
+              ScenariosPackage(Pkg('app'), directory: 'test/scenarios'),
+              ScenariosPackage(
+                Pkg('app'),
+                directory: 'test/integration',
+                time: ScenarioTime.real(),
+              ),
+            ],
+          ),
+        );
+      }, emit: (json) => emitted = json);
+      var manifest = PluginManifest.parse(emitted!);
+      var packages = manifest.plugins.single.config['packages']! as List;
+      expect(packages, hasLength(2));
+      expect((packages[1] as Map)['time'], 'real');
+    });
+  });
+
   group('the shell reserves its own ids', () {
     for (var id in Address.shellOwned) {
       test('`$id` is refused by the config', () {

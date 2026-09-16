@@ -1345,7 +1345,8 @@ class _ScenarioPageState extends State<_ScenarioPage> {
 
   /// What the banner names the app when a notification payload does not —
   /// the package is the closest thing to the project's own name here.
-  String get _appLabel => p.basename(widget.package);
+  String get _appLabel =>
+      p.basename(widget.core.packagePathFor(widget.package));
 
   /// The project's own launcher icon for the banner tile. Once per page: the
   /// live lookup is a directory listing plus image headers, and the page is
