@@ -200,6 +200,7 @@ Future<void> _runHarness(
     networks: folderNetworks,
     settles: folderSettles,
     reels: folderReels,
+    :refusals,
   ) = await _probeFolders(
     configs,
     time,
@@ -210,13 +211,24 @@ Future<void> _runHarness(
     entryIdOf: () => null,
   );
 
+  // A folder on the other clock refuses both doors rather than running on the
+  // wrong one: its scenarios would declare, run and fail in ways that read as
+  // their own bugs — a live fetch that never lands under fake time.
+  developer.ServiceExtensionResponse? refused() => refusals.isEmpty
+      ? null
+      : developer.ServiceExtensionResponse.result(
+          jsonEncode({'refusal': refusals.join('\n\n')}),
+        );
+
   developer.registerExtension('ext.flutterware.scenarios.list', (_, _) async {
+    if (refused() case var refusal?) return refusal;
     return developer.ServiceExtensionResponse.result(
       jsonEncode({'scenarios': _list(scenarioMains, profiles)}),
     );
   });
 
   developer.registerExtension('ext.flutterware.scenarios.run', (_, args) async {
+    if (refused() case var refusal?) return refusal;
     try {
       // The project's own default, under everything: a folder, a run and a
       // scenario each beat it. Read per request rather than once, because a
@@ -495,6 +507,10 @@ class _SpyMessenger extends TestDefaultBinaryMessenger {
 
 /// Asks each folder's `flutter_test_config.dart` what it is for.
 ///
+/// A folder whose clock is not the lane's is not a config error to log and
+/// step past: it lands in `refusals`, one sentence per folder, and the harness
+/// answers every request with them.
+///
 /// The config is *run*, not parsed: it is Dart, it may import its profile from
 /// anywhere, and executing it is the only reading that cannot be wrong. Its
 /// own setup runs too — the same setup `flutter test` gives that folder, which
@@ -508,6 +524,7 @@ Future<
     Map<String, ScenarioNetwork> networks,
     Map<String, Settle> settles,
     Map<String, ScenarioReelEdit> reels,
+    List<String> refusals,
   })
 >
 _probeFolders(
@@ -521,6 +538,7 @@ _probeFolders(
   var networks = <String, ScenarioNetwork>{};
   var settles = <String, Settle>{};
   var reels = <String, ScenarioReelEdit>{};
+  var refusals = <String>[];
   for (var MapEntry(key: directory, value: config) in configs.entries) {
     scenarioProbing = true;
     scenarioProbedProfile = null;
@@ -538,11 +556,8 @@ _probeFolders(
       // from the package's word, and the folder's has to be the same word.
       if (scenarioProbedTime case var folderTime?
           when folderTime.isReal != time.isReal) {
-        throw StateError(
-          'The folder says `runScenarios(time: ${folderTime.name})` and the '
-          'package says `ScenariosPackage(time: ${time.name})`. A lane is a '
-          'process, so both must agree — change one of them.',
-        );
+        refusals.add(_timeMismatchRefusal(directory, folderTime, time));
+        continue;
       }
       if (scenarioProbedProfile case var profile?) {
         profiles[directory] = profile;
@@ -587,7 +602,32 @@ _probeFolders(
     networks: networks,
     settles: settles,
     reels: reels,
+    refusals: refusals,
   );
+}
+
+/// Why a folder on [folderTime] cannot run in a lane on [laneTime], naming
+/// both and the two ways out.
+String _timeMismatchRefusal(
+  String directory,
+  ScenarioTime folderTime,
+  ScenarioTime laneTime,
+) {
+  var folder = directory.isEmpty ? '.' : directory;
+  var config = directory.isEmpty
+      ? 'flutter_test_config.dart'
+      : '$directory/flutter_test_config.dart';
+  var folderSays = folderTime.isReal
+      ? 'ScenarioTime.real()'
+      : 'ScenarioTime.fake';
+  var packageSays = laneTime.isReal
+      ? '`ScenariosPackage(time: ScenarioTime.real())`'
+      : '`ScenariosPackage` sets no real `time:`';
+  return 'Scenario folder `$folder` runs on ${folderTime.name} time '
+      '(`$config` says `runScenarios(time: $folderSays)`), but '
+      "this package's scenarios run on ${laneTime.name} time ($packageSays). "
+      'A lane is one process on one clock: move the folder out of this '
+      "package's scenario directory, or make the two agree.";
 }
 
 /// The profile whose folder contains [file] — the nearest one above it, which
