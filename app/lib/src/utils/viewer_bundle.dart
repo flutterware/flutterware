@@ -71,6 +71,13 @@ class ViewerBundle {
       // loaded nothing until the worker had fetched its files and activated.
       // With this the build still writes the file, empty.
       '--pwa-strategy=none',
+      // No Wasm dry run. `flutter build web` otherwise compiles the whole
+      // program a second time, to Wasm, only to print whether it could have
+      // been — advice about flutterware's own code that nobody reading an
+      // export can act on. Measured 2026-09-16: 22 of the 24 seconds of a
+      // rebuild with nothing changed, and 24.2s → 17.8s cold. dart2js itself
+      // is skipped when nothing moved; the dry run never was.
+      '--no-wasm-dry-run',
       // Offline makes the page carry its own CanvasKit rather than fetch it
       // from Google's CDN — for an artifact read behind a firewall, or after
       // the engine revision it was built against stops being hosted. Without

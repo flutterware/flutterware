@@ -100,6 +100,40 @@ void main() {
     );
   });
 
+  test('where the time went survives a round trip', () {
+    var written = const ComparisonTimings(
+      phases: [
+        ComparisonPhase(name: 'checkout', ms: 1800),
+        ComparisonPhase(
+          name: 'previews.compile',
+          ms: 3200,
+          package: 'app',
+          side: 'base',
+        ),
+      ],
+      unsettledSteps: {'test/a_test.dart#one': 4},
+    );
+    var index = ComparisonIndex.fromJson({
+      'version': comparisonReportVersion,
+      'base': 'abc',
+      'timings': jsonDecode(jsonEncode(written.toJson())),
+    });
+
+    var timings = index.timings!;
+    expect(timings.phases, hasLength(2));
+    expect(timings.named('previews.compile').single.side, 'base');
+    expect(timings.named('previews.compile').single.package, 'app');
+    expect(timings.named('checkout').single.ms, 1800);
+    expect(timings.unsettledSteps, {'test/a_test.dart#one': 4});
+    expect(
+      ComparisonIndex.fromJson({
+        'version': comparisonReportVersion,
+        'base': 'abc',
+      }).timings,
+      isNull,
+    );
+  });
+
   test('a report from a newer flutterware is refused, not half-read', () {
     var future = page('future', {
       ...index(frames: 'relative'),

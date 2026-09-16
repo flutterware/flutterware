@@ -296,7 +296,11 @@ const fwCommands = [
         'per side and the\nbase before the head: the shape of a runner '
         'sized for one build. A\nside replayed again to rule out the machine '
         'still replays alone, after\nthe others. `index.json` records the '
-        'value under `host`.',
+        'value under `host`.\n'
+        '\n'
+        'A run ends with a line saying where its time went, and names the '
+        'scenarios\nwhose steps never settled. The same phases, per package '
+        'and side, are in\n`index.json` under `timings`.',
   ),
   FwCommand(
     'capture',

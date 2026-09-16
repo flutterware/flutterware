@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutterware/comparison_report.dart';
@@ -16,6 +17,7 @@ import 'host_facts.dart';
 import 'base_checkout.dart';
 import 'base_ref.dart';
 import 'pr_report.dart';
+import 'phase_clock.dart';
 import 'previews_side.dart';
 import 'runner.dart';
 import 'scenarios_runner.dart';
@@ -143,6 +145,39 @@ Future<CompareOutcome> runComparison({
   void Function(ComparisonResult result)? onPreviews,
   void Function(ScenarioResults results)? onScenarios,
 }) async {
+  // The page's viewer compiles beside the comparison rather than after it —
+  // see [ComparisonWebExporter.prebuild] — and is stopped if the comparison
+  // never gets as far as the page: a `flutter build web` outlives the process
+  // that started it.
+  var exporter = options.export || options.reportDir != null
+      ? (ComparisonWebExporter(
+          flutterExecutable: session.workspace.flutterSdk.flutter,
+          appToolRoot: session.workspace.appContext.appToolDirectory.path,
+        )..prebuild())
+      : null;
+  try {
+    return await _runComparison(
+      session: session,
+      options: options,
+      exporter: exporter,
+      onProgress: onProgress,
+      onPreviews: onPreviews,
+      onScenarios: onScenarios,
+    );
+  } catch (_) {
+    await exporter?.cancel();
+    rethrow;
+  }
+}
+
+Future<CompareOutcome> _runComparison({
+  required Session session,
+  required CompareOptions options,
+  required ComparisonWebExporter? exporter,
+  void Function(String line)? onProgress,
+  void Function(ComparisonResult result)? onPreviews,
+  void Function(ScenarioResults results)? onScenarios,
+}) async {
   PreviewsCore core;
   try {
     core = session.requireCore(uiCatalogPluginId) as PreviewsCore;
@@ -190,35 +225,39 @@ Future<CompareOutcome> runComparison({
   onProgress?.call(
     'Comparing against ${base.against} (${abbreviatedSha(base.sha)})…',
   );
-  var checkout = await BaseCheckout.ensure(
-    repoRoot: top,
-    sha: base.sha,
-    cacheRoot: BaseCheckout.defaultRoot,
-    resolve: (path) async {
-      // SDK links are machine-made and `.gitignore` hides them, so a fresh
-      // checkout has none. The base is given the SDK this session runs under,
-      // which is the only SDK flutterware has: the one the invocation named.
-      //
-      // Nothing makes the base use the one it pinned instead; the verdict
-      // says so when the two differ — see `SdkPin.caveat`.
-      var link = Link(p.join(path, '.fvm', 'flutter_sdk'));
-      if (!link.existsSync()) {
-        Directory(p.dirname(link.path)).createSync(recursive: true);
-        link.createSync(sdk.root);
-      }
-      // The base is the same resolution as the head, but it is a *different
-      // directory*, and pub resolves per directory.
-      onProgress?.call('Resolving the base checkout…');
-      var result = await Process.run(sdk.flutter, [
-        'pub',
-        'get',
-      ], workingDirectory: path);
-      if (result.exitCode != 0) {
-        throw StateError(
-          'pub get failed in the base checkout:\n${result.stderr}',
-        );
-      }
-    },
+  var clock = PhaseClock();
+  var checkout = await clock.time<BaseCheckout>(
+    'checkout',
+    () => BaseCheckout.ensure(
+      repoRoot: top,
+      sha: base.sha,
+      cacheRoot: BaseCheckout.defaultRoot,
+      resolve: (path) async {
+        // SDK links are machine-made and `.gitignore` hides them, so a fresh
+        // checkout has none. The base is given the SDK this session runs under,
+        // which is the only SDK flutterware has: the one the invocation named.
+        //
+        // Nothing makes the base use the one it pinned instead; the verdict
+        // says so when the two differ — see `SdkPin.caveat`.
+        var link = Link(p.join(path, '.fvm', 'flutter_sdk'));
+        if (!link.existsSync()) {
+          Directory(p.dirname(link.path)).createSync(recursive: true);
+          link.createSync(sdk.root);
+        }
+        // The base is the same resolution as the head, but it is a *different
+        // directory*, and pub resolves per directory.
+        onProgress?.call('Resolving the base checkout…');
+        var result = await Process.run(sdk.flutter, [
+          'pub',
+          'get',
+        ], workingDirectory: path);
+        if (result.exitCode != 0) {
+          throw StateError(
+            'pub get failed in the base checkout:\n${result.stderr}',
+          );
+        }
+      },
+    ),
   );
 
   var shotCache = ShotCache(p.join(flutterwareDir(), 'shots'));
@@ -246,6 +285,7 @@ Future<CompareOutcome> runComparison({
       sdk: renderKeyOf(sdk),
       only: options.entries.isEmpty ? null : options.entries,
       jobs: jobs,
+      clock: clock.within(packageInWorktree, qualify: qualify),
       side: PreviewsSide(
         flutterSdkRoot: sdk.root,
         packagePath: relative(packageInWorktree),
@@ -292,6 +332,7 @@ Future<CompareOutcome> runComparison({
     cache: shotCache,
     qualify: qualify,
     jobs: jobs,
+    clock: clock,
     onProgress: onProgress,
   );
   if (scenarios != null) onScenarios?.call(scenarios);
@@ -321,6 +362,7 @@ Future<CompareOutcome> runComparison({
     headCommit: await BaseRef.headOf(top),
     at: DateTime.now(),
     host: currentComparisonHost(jobs: jobs),
+    clock: clock,
   );
   var index = artifact.writeTo(
     p.join(comparisonDirFor(flutterwareDir(), session.worktree), 'index.json'),
@@ -329,11 +371,8 @@ Future<CompareOutcome> runComparison({
   // The page rides inside the report when both are asked for: a comment that
   // links a viewer wants them hosted together.
   ComparisonWebExport? exported;
-  if (options.export || options.reportDir != null) {
-    var exporter = ComparisonWebExporter(
-      flutterExecutable: sdk.flutter,
-      appToolRoot: session.workspace.appContext.appToolDirectory.path,
-    );
+  if (exporter != null) {
+    var exporting = Stopwatch()..start();
     exported = await exporter.export(
       index: artifact.toJson(),
       cache: shotCache,
@@ -347,29 +386,36 @@ Future<CompareOutcome> runComparison({
       frames: options.frames,
       onOutput: onProgress,
     );
+    if (exporter.viewerCompile case var compile?) clock.add('viewer', compile);
+    clock.add('export', exporting.elapsed - exporter.viewerWait);
   }
-  // Each step after the export is narrated with what it took. They used to
-  // print nothing, so their time was read as the export's: a consumer's run
-  // spent 18s "encoding" a page with no frames in it.
-  var step = Stopwatch()..start();
   PrReport? report;
   if (options.reportDir != null) {
-    report = writePrReport(
-      artifact: artifact,
-      cache: shotCache,
-      against: base.against,
-      head: artifact.headCommit,
-      directory: options.reportDir!,
+    report = clock.timeSync<PrReport>(
+      'report',
+      () => writePrReport(
+        artifact: artifact,
+        cache: shotCache,
+        against: base.against,
+        head: artifact.headCommit,
+        directory: options.reportDir!,
+      ),
     );
-    onProgress?.call('Wrote the report in ${step.elapsedMilliseconds}ms');
   }
 
   // Last, once everything this run wrote has been read back into the outputs:
   // a sweep that ran first would be deciding what to keep without knowing
   // what the run was about to ask for.
-  step.reset();
-  await sweepComparisonLeftovers(flutterwareDir());
-  onProgress?.call('Trimmed the shot cache in ${step.elapsedMilliseconds}ms');
+  await clock.time<void>(
+    'sweep',
+    () => sweepComparisonLeftovers(flutterwareDir()),
+  );
+
+  // Written again, now that the page, the report and the sweep have a time:
+  // the first write had to happen before the page could be built from it.
+  artifact.writeTo(index.path);
+  if (exported != null) _stampTimings(exported.output, clock.timings);
+  onProgress?.call(describeTimings(clock.timings));
 
   return CompareOutcome(
     artifact: artifact,
@@ -378,6 +424,59 @@ Future<CompareOutcome> runComparison({
     exported: exported,
     report: report,
   );
+}
+
+/// Puts [timings] into the exported page's own `index.json`, which was
+/// written before the page's last steps had a time.
+void _stampTimings(String output, ComparisonTimings timings) {
+  var file = File(p.join(output, 'index.json'));
+  try {
+    var index = (jsonDecode(file.readAsStringSync()) as Map)
+        .cast<String, Object?>();
+    index['timings'] = timings.toJson();
+    file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(index));
+  } on FileSystemException {
+    // The page is already whole without it.
+  }
+}
+
+/// One line saying where a comparison's time went: each phase summed over
+/// packages and sides, and the scenarios whose steps never settled.
+///
+/// Summed, so it reads as time *spent* rather than as a timeline — the two
+/// sides of a render run at once under `--jobs`, and the viewer compiles
+/// beside all of it.
+@visibleForTesting
+String describeTimings(ComparisonTimings timings) {
+  var totals = <String, int>{};
+  for (var phase in timings.phases) {
+    totals[phase.name] = (totals[phase.name] ?? 0) + phase.ms;
+  }
+  String seconds(int ms) => '${(ms / 1000).toStringAsFixed(1)}s';
+  var groups = <String, List<String>>{};
+  for (var MapEntry(key: name, value: ms) in totals.entries) {
+    var dot = name.indexOf('.');
+    var group = dot < 0 ? name : name.substring(0, dot);
+    var part = dot < 0 ? null : name.substring(dot + 1);
+    groups
+        .putIfAbsent(group, () => [])
+        .add(part == null ? seconds(ms) : '$part ${seconds(ms)}');
+  }
+  var line =
+      'Time spent: '
+      '${[for (var MapEntry(:key, :value) in groups.entries) '$key ${value.join(', ')}'].join(' · ')}';
+  var unsettled = timings.unsettledSteps.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  if (unsettled.isEmpty) return line;
+  var named = [
+    for (var MapEntry(:key, :value) in unsettled.take(3))
+      '${key.contains('#') ? key.substring(key.indexOf('#') + 1) : key} ($value)',
+  ];
+  var more = unsettled.length > 3 ? ' and ${unsettled.length - 3} more' : '';
+  return '$line\n'
+      '${unsettled.length} scenario${unsettled.length == 1 ? '' : 's'} had '
+      'steps that never settled, each running its whole settle budget: '
+      '${named.join(', ')}$more';
 }
 
 String abbreviatedSha(String sha) => sha.length > 8 ? sha.substring(0, 8) : sha;
@@ -657,6 +756,7 @@ Future<ScenarioResults?> _compareScenarios({
   required ShotCache cache,
   required bool qualify,
   required int jobs,
+  required PhaseClock clock,
   void Function(String line)? onProgress,
 }) async {
   if (core == null || packages.isEmpty) return null;
@@ -679,6 +779,7 @@ Future<ScenarioResults?> _compareScenarios({
         cache: cache,
         qualify: qualify,
         jobs: jobs,
+        clock: clock.within(package, qualify: qualify),
         onProgress: onProgress,
       ),
     ));
@@ -699,6 +800,7 @@ Future<ScenarioResults> _comparePackageScenarios({
   required ShotCache cache,
   required bool qualify,
   required int jobs,
+  required PhaseClock clock,
   void Function(String line)? onProgress,
 }) async {
   var watch = Stopwatch()..start();
@@ -733,6 +835,7 @@ Future<ScenarioResults> _comparePackageScenarios({
             ),
             only: only.isEmpty ? null : only,
             jobs: jobs,
+            clock: clock,
           ).run(
             // Per package, because two packages' `test/scenarios/shop_test.dart`
             // are two different files and one directory would have them writing

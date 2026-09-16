@@ -1,3 +1,5 @@
+import 'phase_clock.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -288,10 +290,16 @@ class ComparisonArtifact {
     this.at,
     this.caveats = const [],
     this.host,
+    this.clock,
   });
 
   /// The machine it ran on — see [ComparisonHost].
   final ComparisonHost? host;
+
+  /// Where the run's time went, read when the artifact is written — so writing
+  /// it again after the page and the report records those too. See
+  /// [ComparisonTimings].
+  final PhaseClock? clock;
 
   final ComparisonResult previews;
 
@@ -375,6 +383,7 @@ class ComparisonArtifact {
     if (narrowed) 'narrowed': true,
     'caveats': ?(caveats.isEmpty ? null : caveats),
     'host': ?host?.toJson(),
+    'timings': ?clock?.timings.toJson(),
     'previews': previews.toJson(),
     'scenarios': ?scenarios?.toJson(),
   };

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutterware/comparison_report.dart';
 import 'package:flutterware_app/src/comparison/cancel.dart';
+import 'package:flutterware_app/src/comparison/phase_clock.dart';
 import 'package:flutterware_app/src/comparison/runner.dart';
 import 'package:flutterware_app/src/comparison/shot_cache.dart';
 import 'package:path/path.dart' as p;
@@ -381,6 +382,33 @@ void main() {
       expect(plan.onlyOnBase, ['demo/old.dart#gone']);
       expect(side.renderedFor, isEmpty);
     });
+  });
+
+  test('the run records where its time went, per side', () async {
+    side.declared['*'] = ['demo/a.dart#a', 'demo/b.dart#b'];
+    var clock = PhaseClock();
+
+    await ComparisonRunner(
+      sdk: 'test-sdk',
+      headRoot: checkout('head', {'demo/a.dart': '2', 'demo/b.dart': '2'}),
+      baseRoot: checkout('base', {'demo/a.dart': '1', 'demo/b.dart': '1'}),
+      baseSha: 'abc123',
+      side: side,
+      cache: cache,
+      clock: clock.within('app', qualify: false),
+    ).run();
+
+    var phases = clock.timings.phases;
+    String where(ComparisonPhase phase) =>
+        [phase.name, ?phase.side, ?phase.package].join(' ');
+    expect(phases.map(where), [
+      'previews.plan app',
+      'previews.compile base app',
+      'previews.render base app',
+      'previews.compile head app',
+      'previews.render head app',
+      'previews.compare app',
+    ]);
   });
 
   group('with jobs', () {
@@ -817,9 +845,11 @@ class _FakeSide implements ComparisonSide {
     required List<String> entryIds,
     required Future<void> Function(RenderedEntry frame) onFrame,
     int guests = 1,
+    void Function(Duration elapsed)? onCompiled,
   }) async {
     guestsAsked.add(guests);
     await gate?.call(checkout);
+    onCompiled?.call(Duration.zero);
     if (uncompilable.contains(checkout)) {
       throw SideDidNotCompile('lib/a.dart:1:1: Error: not found');
     }

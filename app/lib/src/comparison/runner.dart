@@ -9,6 +9,7 @@ import 'package:flutterware/src/inspect/node.dart';
 import 'cancel.dart';
 import 'closure.dart';
 import 'import_graph.dart';
+import 'phase_clock.dart';
 import 'shot_cache.dart';
 import 'shot_key.dart';
 import 'skip.dart';
@@ -59,11 +60,15 @@ abstract interface class ComparisonSide {
   /// [guests] is how many renderers of this checkout may run at once. Frames
   /// then land in no particular order, and [onFrame] may be called for one
   /// entry while another's is still being filed.
+  ///
+  /// [onCompiled] is told how long getting a renderer up took, before the
+  /// first frame — what separates a slow compile from slow entries.
   Future<Map<String, String>> render({
     required String checkout,
     required List<String> entryIds,
     required Future<void> Function(RenderedEntry frame) onFrame,
     int guests = 1,
+    void Function(Duration elapsed)? onCompiled,
   });
 }
 
@@ -71,16 +76,28 @@ abstract interface class ComparisonSide {
 class RenderedEntry {
   RenderedEntry({
     required this.entryId,
-    required this.rgba,
+    this.rgba,
+    this.path,
     required this.width,
     required this.height,
     this.tree,
     this.treeFormat,
     this.complaint,
-  });
+  }) : assert(
+         (rgba == null) != (path == null),
+         'a frame is either in memory or on disk',
+       );
 
   final String entryId;
-  final Uint8List rgba;
+
+  /// The picture, raw rgba — or null when it is still at [path].
+  final Uint8List? rgba;
+
+  /// The raw rgba a renderer left on disk, which the cache takes by moving it
+  /// rather than by reading megabytes in to write them straight back out.
+  /// Nothing else is allowed to read it after [ComparisonSide.render]'s
+  /// `onFrame` returns.
+  final String? path;
   final int width;
   final int height;
   final InspectNode? tree;
@@ -316,7 +333,14 @@ class ComparisonRunner {
     this.onProgress,
     this.cancel,
     this.jobs = 1,
+    this.clock,
   });
+
+  /// Where this half records its phases — see [PhaseClock].
+  final PhaseClock? clock;
+
+  Future<T> _timed<T>(String name, Future<T> Function() work) =>
+      clock?.time<T>(name, work) ?? work();
 
   /// How many renderers each side runs, and whether the two sides render at
   /// once.
@@ -501,8 +525,9 @@ class ComparisonRunner {
   Future<ComparisonResult> run({ComparisonPlan? from}) async {
     var watch = Stopwatch()..start();
     cancel?.check();
-    var plan = from ?? await this.plan();
+    var plan = from ?? await _timed<ComparisonPlan>('previews.plan', this.plan);
     onPlan?.call(plan);
+    var comparing = PhaseTally();
 
     var items = <String, ComparedItem>{};
     void report(ComparedItem item) {
@@ -568,7 +593,7 @@ class ComparisonRunner {
         );
         return;
       }
-      report(_compare(id, key));
+      report(comparing.time<ComparedItem>(() => _compare(id, key)));
     }
 
     // Both frames already in the cache: answerable before anything renders.
@@ -670,6 +695,8 @@ class ComparisonRunner {
       resolve(id);
     }
 
+    clock?.add('previews.compare', comparing.elapsed);
+
     var ordered = items.values.toList()
       ..sort((a, b) {
         var byState = a.state.index.compareTo(b.state.index);
@@ -740,25 +767,55 @@ class ComparisonRunner {
     void Function(String entryId)? onEntry,
   }) async {
     if (entryIds.isEmpty) return const {};
+    var sideName = isBase ? 'base' : 'head';
+    var watch = Stopwatch()..start();
+    var compiled = Duration.zero;
+    try {
+      return await _render(
+        checkout,
+        entryIds,
+        keys,
+        isBase: isBase,
+        onEntry: onEntry,
+        onCompiled: (elapsed) {
+          compiled = elapsed;
+          clock?.add('previews.compile', elapsed, side: sideName);
+        },
+      );
+    } finally {
+      clock?.add('previews.render', watch.elapsed - compiled, side: sideName);
+    }
+  }
+
+  Future<Map<String, String>> _render(
+    String checkout,
+    List<String> entryIds,
+    Map<String, ({String base, String head})> keys, {
+    required bool isBase,
+    required void Function(Duration elapsed) onCompiled,
+    void Function(String entryId)? onEntry,
+  }) {
     return side.render(
       checkout: checkout,
       entryIds: entryIds,
       guests: jobs,
+      onCompiled: onCompiled,
       onFrame: (frame) async {
         var key = keys[frame.entryId];
         if (key == null) return;
-        cache.write(
-          isBase ? key.base : key.head,
-          frame.rgba,
-          ShotRecord(
-            format: 'raw',
-            width: frame.width,
-            height: frame.height,
-            entryId: frame.entryId,
-            complaint: frame.complaint,
-            treeFormat: frame.treeFormat,
-          ),
+        var record = ShotRecord(
+          format: 'raw',
+          width: frame.width,
+          height: frame.height,
+          entryId: frame.entryId,
+          complaint: frame.complaint,
+          treeFormat: frame.treeFormat,
         );
+        if (frame.path case var path?) {
+          cache.adoptFile(isBase ? key.base : key.head, path, record);
+        } else {
+          cache.write(isBase ? key.base : key.head, frame.rgba!, record);
+        }
         if (frame.tree case var tree?) {
           cache.writeTree(isBase ? key.base : key.head, tree.toJson());
         }

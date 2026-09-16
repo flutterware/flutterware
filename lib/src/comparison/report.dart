@@ -385,6 +385,95 @@ class ComparisonHost {
   ].join(' · ');
 }
 
+/// Where one comparison's time went — `index.json`'s `timings`.
+///
+/// Written so that a slow run can be read rather than reconstructed: what was
+/// compiled, rendered, replayed and compared, and how long each took, per
+/// package and per side. Phases can overlap — both sides render at once under
+/// `--jobs`, and the page's viewer compiles beside all of it — so they are not
+/// meant to add up to [ComparisonIndex.ms].
+class ComparisonTimings {
+  const ComparisonTimings({
+    this.phases = const [],
+    this.unsettledSteps = const {},
+  });
+
+  final List<ComparisonPhase> phases;
+
+  /// Scenario id → how many of its steps gave up waiting for the screen to
+  /// settle, in the replays this run made. A step that never settles runs its
+  /// whole settle budget every time it is replayed — an animation that never
+  /// ends, a 3D view that repaints every frame.
+  ///
+  /// Only scenarios with at least one, and only replays this run made: a side
+  /// read from the cache was not replayed, and says nothing here.
+  final Map<String, int> unsettledSteps;
+
+  /// Every phase called [name], in the order they were recorded.
+  Iterable<ComparisonPhase> named(String name) =>
+      phases.where((phase) => phase.name == name);
+
+  Map<String, Object?> toJson() => {
+    'phases': [for (var phase in phases) phase.toJson()],
+    if (unsettledSteps.isNotEmpty) 'unsettledSteps': unsettledSteps,
+  };
+
+  /// Null for a file written before the key existed.
+  static ComparisonTimings? fromJson(Object? json) => json is Map
+      ? ComparisonTimings(
+          phases: [
+            for (var phase in json['phases'] as List? ?? const [])
+              if (phase is Map) ComparisonPhase.fromJson(phase),
+          ],
+          unsettledSteps: {
+            if (json['unsettledSteps'] case Map counts)
+              for (var MapEntry(:key, :value) in counts.entries)
+                if (value is int) '$key': value,
+          },
+        )
+      : null;
+}
+
+/// One timed phase of a comparison.
+///
+/// [name] is one of a small vocabulary: `checkout`, `previews.plan`,
+/// `previews.compile`, `previews.render`, `previews.compare`,
+/// `scenarios.plan`, `scenarios.replay`, `scenarios.compare`,
+/// `scenarios.filing`, `viewer`, `export`, `report`, `sweep`. A reader meeting
+/// a name it does not know should show it rather than drop it.
+class ComparisonPhase {
+  const ComparisonPhase({
+    required this.name,
+    required this.ms,
+    this.package,
+    this.side,
+  });
+
+  final String name;
+  final int ms;
+
+  /// The package it was spent on, where it was spent on one.
+  final String? package;
+
+  /// `base` or `head`, where the phase ran once per side.
+  final String? side;
+
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'ms': ms,
+    'package': ?package,
+    'side': ?side,
+  };
+
+  factory ComparisonPhase.fromJson(Map<Object?, Object?> json) =>
+      ComparisonPhase(
+        name: '${json['name']}',
+        ms: json['ms'] as int? ?? 0,
+        package: json['package'] as String?,
+        side: json['side'] as String?,
+      );
+}
+
 /// A whole `index.json`, read back.
 ///
 /// Parses either file both writers produce, and the object `fw compare --json`
@@ -407,6 +496,7 @@ class ComparisonIndex {
     this.narrowed = false,
     this.caveats = const [],
     this.host,
+    this.timings,
     this.previewsHalf = const ComparedHalf(),
     this.scenariosHalf,
     this.export,
@@ -483,6 +573,10 @@ class ComparisonIndex {
   /// key existed.
   final ComparisonHost? host;
 
+  /// Where its time went — see [ComparisonTimings]. Null for a file written
+  /// before the key existed.
+  final ComparisonTimings? timings;
+
   final ComparedHalf previewsHalf;
 
   /// Absent when the project declares no scenarios at all. A half that tried
@@ -544,6 +638,7 @@ class ComparisonIndex {
         for (var caveat in json['caveats'] as List? ?? const []) '$caveat',
       ],
       host: ComparisonHost.fromJson(json['host']),
+      timings: ComparisonTimings.fromJson(json['timings']),
       previewsHalf: ComparedHalf.fromJson(previews),
       scenariosHalf: scenarios == null
           ? null

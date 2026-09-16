@@ -42,25 +42,81 @@ void main() {
 
   // The page is read once, from a link. The caching worker Flutter is retiring
   // held the page back until it had fetched the page's files and activated.
-  test('the viewer is built with no service worker', () async {
-    var arguments = <String>[];
-    var compile = exporter.debugCompile!;
-    exporter.debugCompile = (given) {
-      arguments.addAll(given);
-      return compile(given);
+  group('a viewer started early', () {
+    Map<String, Object?> index() => {
+      'previews': {'items': <Object?>[]},
     };
 
-    await exporter.export(
-      index: {
-        'previews': {'items': <Object?>[]},
-      },
-      cache: cache,
-      against: 'origin/master',
-      output: p.join(temp.path, 'out'),
-    );
+    test('is the one the export uses, with its lines in order', () async {
+      var compiles = 0;
+      var compile = exporter.debugCompile!;
+      exporter.debugCompile = (given) {
+        compiles++;
+        return compile(given);
+      };
+      exporter.prebuild();
+      var lines = <String>[];
 
-    expect(arguments, contains('--pwa-strategy=none'));
+      await exporter.export(
+        index: index(),
+        cache: cache,
+        against: 'origin/master',
+        output: p.join(temp.path, 'out'),
+        onOutput: lines.add,
+      );
+
+      expect(compiles, 1);
+      expect(exporter.viewerCompile, isNotNull);
+      expect(
+        lines.indexWhere((line) => line.contains('building the viewer')),
+        lessThan(lines.indexWhere((line) => line.contains('copying'))),
+      );
+      expect(File(p.join(temp.path, 'out', 'index.html')).existsSync(), isTrue);
+    });
+
+    // Started before anyone could be told, so it is told at the export — and
+    // not as an unhandled error while the comparison is still running.
+    test('that failed fails the export, where it always did', () async {
+      exporter
+        ..debugCompile = ((_) async => 1)
+        ..prebuild();
+      await Future<void>.delayed(Duration.zero);
+
+      await expectLater(
+        exporter.export(
+          index: index(),
+          cache: cache,
+          against: 'origin/master',
+          output: p.join(temp.path, 'out'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
   });
+
+  test(
+    'the viewer is built with no service worker and no Wasm dry run',
+    () async {
+      var arguments = <String>[];
+      var compile = exporter.debugCompile!;
+      exporter.debugCompile = (given) {
+        arguments.addAll(given);
+        return compile(given);
+      };
+
+      await exporter.export(
+        index: {
+          'previews': {'items': <Object?>[]},
+        },
+        cache: cache,
+        against: 'origin/master',
+        output: p.join(temp.path, 'out'),
+      );
+
+      expect(arguments, contains('--pwa-strategy=none'));
+      expect(arguments, contains('--no-wasm-dry-run'));
+    },
+  );
 
   void file(String key, int value, {int width = 4, int height = 4}) {
     cache.write(
