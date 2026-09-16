@@ -10,9 +10,8 @@ Future<HttpServer> _serve(String body) async {
   var server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((request) async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    request.response
-      ..write(body)
-      ..close();
+    request.response.write(body);
+    await request.response.close();
   });
   addTearDown(() => server.close(force: true));
   return server;
