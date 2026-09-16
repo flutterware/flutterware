@@ -50,6 +50,7 @@ class CompareOptions {
     this.baseHref = defaultBaseHref,
     this.reportDir,
     this.frames = ExportedFrames.all,
+    this.jobs = 1,
   });
 
   /// Overrides the base — anything git can name. Null resolves the project's
@@ -92,6 +93,17 @@ class CompareOptions {
   /// what a branch *did not* touch is a real reader. A pull-request page has
   /// no such reader, which is why the CI recipe names the other one.
   final ExportedFrames frames;
+
+  /// How many previews render and how many scenarios replay at once, **per
+  /// side** — `--jobs`. Each is a `flutter_tester`, so a run with both sides
+  /// busy is up to twice this many.
+  ///
+  /// One is the default and is the serial comparison: one guest per side,
+  /// the base's previews before the head's. More compiles each side's harness
+  /// once and starts the rest of its guests from that kernel, renders both
+  /// sides' previews together, and replays that many scenarios side by side.
+  /// Packages still go one at a time.
+  final int jobs;
 }
 
 /// Everything one comparison concluded, with where it was written.
@@ -216,8 +228,9 @@ Future<CompareOutcome> runComparison({
   // a runner sized for one build — and since the scenario half stopped
   // building a harness it does not need, a package a branch did not touch now
   // costs milliseconds and there is nothing left to overlap on the runs that
-  // matter. A pool belongs with the lockfile narrowing, which is what makes
-  // every package expensive at once.
+  // matter. A machine with cores to spare says so with `--jobs`, which is
+  // spent *inside* a package, where the renders and replays are.
+  var jobs = options.jobs < 1 ? 1 : options.jobs;
   var watch = Stopwatch()..start();
   var previews = <ComparisonResult>[];
   var refusals = <String, String>{};
@@ -232,6 +245,7 @@ Future<CompareOutcome> runComparison({
       cache: shotCache,
       sdk: renderKeyOf(sdk),
       only: options.entries.isEmpty ? null : options.entries,
+      jobs: jobs,
       side: PreviewsSide(
         flutterSdkRoot: sdk.root,
         packagePath: relative(packageInWorktree),
@@ -277,6 +291,7 @@ Future<CompareOutcome> runComparison({
     only: options.entries,
     cache: shotCache,
     qualify: qualify,
+    jobs: jobs,
     onProgress: onProgress,
   );
   if (scenarios != null) onScenarios?.call(scenarios);
@@ -305,7 +320,7 @@ Future<CompareOutcome> runComparison({
     // the comment must agree about which push they describe.
     headCommit: await BaseRef.headOf(top),
     at: DateTime.now(),
-    host: currentComparisonHost(),
+    host: currentComparisonHost(jobs: jobs),
   );
   var index = artifact.writeTo(
     p.join(comparisonDirFor(flutterwareDir(), session.worktree), 'index.json'),
@@ -333,6 +348,10 @@ Future<CompareOutcome> runComparison({
       onOutput: onProgress,
     );
   }
+  // Each step after the export is narrated with what it took. They used to
+  // print nothing, so their time was read as the export's: a consumer's run
+  // spent 18s "encoding" a page with no frames in it.
+  var step = Stopwatch()..start();
   PrReport? report;
   if (options.reportDir != null) {
     report = writePrReport(
@@ -342,12 +361,15 @@ Future<CompareOutcome> runComparison({
       head: artifact.headCommit,
       directory: options.reportDir!,
     );
+    onProgress?.call('Wrote the report in ${step.elapsedMilliseconds}ms');
   }
 
   // Last, once everything this run wrote has been read back into the outputs:
   // a sweep that ran first would be deciding what to keep without knowing
   // what the run was about to ask for.
+  step.reset();
   await sweepComparisonLeftovers(flutterwareDir());
+  onProgress?.call('Trimmed the shot cache in ${step.elapsedMilliseconds}ms');
 
   return CompareOutcome(
     artifact: artifact,
@@ -445,6 +467,16 @@ Future<ComparisonCompareResult> runCompareAction({
   if (baseHrefProblem(baseHref) case var problem?) {
     throw CompareException('`base-href` $problem.');
   }
+  var jobs = switch (arguments['jobs']) {
+    null || '' => 1,
+    int n => n,
+    var named => int.tryParse('$named') ?? 0,
+  };
+  if (jobs < 1) {
+    throw CompareException(
+      '`jobs` takes a whole number from 1, not "${arguments['jobs']}".',
+    );
+  }
   var outcome = await runComparison(
     session: session,
     options: CompareOptions(
@@ -458,6 +490,7 @@ Future<ComparisonCompareResult> runCompareAction({
       baseHref: baseHref,
       reportDir: arguments['report'] as String?,
       frames: frames,
+      jobs: jobs,
     ),
   );
 
@@ -623,6 +656,7 @@ Future<ScenarioResults?> _compareScenarios({
   required List<String> only,
   required ShotCache cache,
   required bool qualify,
+  required int jobs,
   void Function(String line)? onProgress,
 }) async {
   if (core == null || packages.isEmpty) return null;
@@ -644,6 +678,7 @@ Future<ScenarioResults?> _compareScenarios({
         only: only,
         cache: cache,
         qualify: qualify,
+        jobs: jobs,
         onProgress: onProgress,
       ),
     ));
@@ -663,6 +698,7 @@ Future<ScenarioResults> _comparePackageScenarios({
   required List<String> only,
   required ShotCache cache,
   required bool qualify,
+  required int jobs,
   void Function(String line)? onProgress,
 }) async {
   var watch = Stopwatch()..start();
@@ -676,6 +712,7 @@ Future<ScenarioResults> _comparePackageScenarios({
     side: side,
     headRoot: top,
     baseRoot: baseRoot,
+    guests: jobs,
   );
   try {
     try {
@@ -695,6 +732,7 @@ Future<ScenarioResults> _comparePackageScenarios({
               roots: [top, baseRoot],
             ),
             only: only.isEmpty ? null : only,
+            jobs: jobs,
           ).run(
             // Per package, because two packages' `test/scenarios/shop_test.dart`
             // are two different files and one directory would have them writing

@@ -275,11 +275,11 @@ class ScenarioRunner implements ScenarioRunSource {
     ScenarioNetwork? projectNetwork,
     ScenarioTime? time,
     int? jobs,
+    bool followEdits = true,
     void Function(String line)? onLog,
   }) : this._(
          packageRoot: packageRoot,
          directory: directory,
-         flutterSdkRoot: flutterSdkRoot,
          lane: BuildLane(
            packageRoot,
            preferred: buildDirectory,
@@ -289,32 +289,55 @@ class ScenarioRunner implements ScenarioRunSource {
          projectNetwork: projectNetwork,
          time: time ?? ScenarioTime.fake,
          jobs: jobs,
-         onLog: onLog,
+         host: (lane, time) => TesterHost(
+           packageRoot: packageRoot,
+           flutterSdkRoot: flutterSdkRoot,
+           program: _ScenarioProgram(
+             packageRoot: packageRoot,
+             directory: directory,
+             lane: lane,
+             time: time,
+           ),
+           lane: lane,
+           followEdits: followEdits,
+           onLog: onLog,
+         ),
+       );
+
+  /// Another guest running [leader]'s harness, spawned from the kernel
+  /// [leader] compiled — see [TesterHost.sharing]. [leader] must have been
+  /// built with `followEdits: false`.
+  ///
+  /// It builds nothing and claims nothing: its artifacts are [leader]'s, so
+  /// whoever releases [leader]'s build directory does so after disposing
+  /// this.
+  ScenarioRunner.sharing(
+    ScenarioRunner leader, {
+    required int guest,
+    void Function(String line)? onLog,
+  }) : this._(
+         packageRoot: leader.packageRoot,
+         directory: leader.directory,
+         lane: leader._lane,
+         projectClock: leader.projectClock,
+         projectNetwork: leader.projectNetwork,
+         time: leader.time,
+         jobs: leader.jobs,
+         host: (_, _) =>
+             TesterHost.sharing(leader._host, guest: guest, onLog: onLog),
        );
 
   ScenarioRunner._({
     required this.packageRoot,
     required this.directory,
-    required String flutterSdkRoot,
     required BuildLane lane,
     required this.projectClock,
     required this.projectNetwork,
     required this.time,
+    required TesterHost Function(BuildLane lane, ScenarioTime time) host,
     this.jobs,
-    void Function(String line)? onLog,
   }) : _lane = lane,
-       _host = TesterHost(
-         packageRoot: packageRoot,
-         flutterSdkRoot: flutterSdkRoot,
-         program: _ScenarioProgram(
-           packageRoot: packageRoot,
-           directory: directory,
-           lane: lane,
-           time: time,
-         ),
-         lane: lane,
-         onLog: onLog,
-       ) {
+       _host = host(lane, time) {
     _host.onEvent = (event) => onStep?.call(event);
   }
 

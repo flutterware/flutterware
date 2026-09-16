@@ -233,7 +233,7 @@ const fwCommands = [
     usage:
         'compare [--base=<ref>] [--package=<path>] [--entry=<id>] '
         '[--export[=<dir>]] [--frames=all|changed] [--base-href=<path>] '
-        '[--report=<dir>] [--json]',
+        '[--report=<dir>] [--jobs=<n>] [--json]',
     summary: 'what this worktree did to the pictures, against its base',
     details:
         'Renders previews and replays scenarios on both sides of the branch '
@@ -288,7 +288,15 @@ const fwCommands = [
         'a\n`mosaic.png` of the changed entries, and the exported page under '
         '`web/`.\nThe comment references images by `__MOSAIC_URL__` and '
         '`__VIEWER_URL__`\nplaceholders for the workflow to substitute after '
-        'it hosts the files.',
+        'it hosts the files.\n'
+        '\n'
+        '`--jobs=<n>` renders and replays n at a time on each side, so up to '
+        '2n\n`flutter_tester`s at once. Each side compiles its harness once '
+        'and starts\nthe other guests from it. The default, 1, is one guest '
+        'per side and the\nbase before the head: the shape of a runner '
+        'sized for one build. A\nside replayed again to rule out the machine '
+        'still replays alone, after\nthe others. `index.json` records the '
+        'value under `host`.',
   ),
   FwCommand(
     'capture',
@@ -621,6 +629,7 @@ class FwCli {
     var baseHref = defaultBaseHref;
     String? reportDir;
     var frames = ExportedFrames.all;
+    var jobs = 1;
     for (var argument in arguments) {
       if (argument.startsWith('--base=')) {
         baseRef = argument.substring('--base='.length);
@@ -646,6 +655,13 @@ class FwCli {
         baseHref = argument.substring('--base-href='.length);
       } else if (argument.startsWith('--report=')) {
         reportDir = argument.substring('--report='.length);
+      } else if (argument.startsWith('--jobs=')) {
+        var named = argument.substring('--jobs='.length);
+        var parsed = int.tryParse(named);
+        if (parsed == null || parsed < 1) {
+          return fail('--jobs takes a whole number from 1, not "$named".');
+        }
+        jobs = parsed;
       } else if (argument.startsWith('-')) {
         return fail('unknown option "$argument". Try `fw help compare`.');
       }
@@ -669,6 +685,7 @@ class FwCli {
             baseHref: baseHref,
             reportDir: reportDir,
             frames: frames,
+            jobs: jobs,
           ),
           // Progress belongs to a terminal, not to a document: a `--json` run
           // has to be one parseable object from its first byte.

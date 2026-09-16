@@ -992,6 +992,77 @@ void main() {
     }
   });
 
+  // What `fw compare --jobs` stands on: more guests of one checkout without a
+  // compile each.
+  test('guests sharing a kernel run beside the one that compiled it', () async {
+    var flutterRoot = Platform.environment['FLUTTER_ROOT']!;
+    var repoRoot = Directory.current.parent.path;
+    var packageRoot = p.join(repoRoot, 'fixtures', 'probe_app');
+    var outDir = Directory.systemTemp.createTempSync('scenario_sharing').path;
+    var lane = 'build/flutterware/test_sharing';
+
+    var following = ScenarioRunner(
+      packageRoot: packageRoot,
+      directory: 'test/scenarios',
+      flutterSdkRoot: flutterRoot,
+    );
+    expect(
+      () => ScenarioRunner.sharing(following, guest: 1),
+      throwsArgumentError,
+      reason: 'a leader that recompiles would rewrite the kernel it shares',
+    );
+    await following.dispose();
+
+    var leader = ScenarioRunner(
+      packageRoot: packageRoot,
+      directory: 'test/scenarios',
+      flutterSdkRoot: flutterRoot,
+      buildDirectory: lane,
+      followEdits: false,
+    );
+    var guests = [
+      leader,
+      for (var i = 1; i <= 2; i++) ScenarioRunner.sharing(leader, guest: i),
+    ];
+    try {
+      Future<bool> counts(ScenarioRunner runner, String into) async {
+        var report = await runner.run(
+          outDir: p.join(outDir, into),
+          file: 'test/scenarios/counter_test.dart',
+          scenario: 'Counter',
+        );
+        var scenario = (report['scenarios']! as List).single as Map;
+        return scenario['ok'] == true;
+      }
+
+      expect(
+        await Future.wait([
+          for (var (i, runner) in guests.indexed) counts(runner, '$i'),
+        ]),
+        [true, true, true],
+      );
+      expect({for (var runner in guests) runner.logPath}, hasLength(3));
+      expect(
+        Directory(p.join(packageRoot, lane))
+            .listSync()
+            .where((file) => file.path.endsWith('.dill')),
+        hasLength(1),
+        reason: 'one compile, whatever the number of guests',
+      );
+
+      // A guest that is gone comes back from the same kernel — what an
+      // abandoned replay leaves behind.
+      await guests[2].debugKillGuest();
+      expect(await counts(guests[2], 'again'), isTrue);
+    } finally {
+      for (var runner in guests.reversed) {
+        await runner.dispose();
+      }
+      Directory(p.join(packageRoot, lane)).deleteSync(recursive: true);
+      Directory(outDir).deleteSync(recursive: true);
+    }
+  }, timeout: const Timeout(Duration(minutes: 4)));
+
   test('a failed cold start is forgotten, not memoized', () async {
     var flutterRoot = Platform.environment['FLUTTER_ROOT']!;
     var repoRoot = Directory.current.parent.path;

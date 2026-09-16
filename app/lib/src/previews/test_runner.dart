@@ -207,41 +207,49 @@ class PreviewTestRunner {
     required String flutterSdkRoot,
     required PreviewCatalog Function() read,
     String buildDirectory = TesterHost.defaultBuildDirectory,
+    bool followEdits = true,
     void Function(String line)? onLog,
   }) : this._(
-         packageRoot: packageRoot,
-         flutterSdkRoot: flutterSdkRoot,
-         read: read,
-         lane: BuildLane(
-           packageRoot,
-           preferred: buildDirectory,
-           program: previewsProgramName,
+         PreviewProgram(
+           packageRoot: packageRoot,
+           read: read,
+           lane: BuildLane(
+             packageRoot,
+             preferred: buildDirectory,
+             program: previewsProgramName,
+           ),
          ),
-         onLog: onLog,
+         (program) => TesterHost(
+           packageRoot: packageRoot,
+           flutterSdkRoot: flutterSdkRoot,
+           program: program,
+           lane: program.lane,
+           followEdits: followEdits,
+           onLog: onLog,
+         ),
        );
 
-  PreviewTestRunner._({
-    required String packageRoot,
-    required String flutterSdkRoot,
-    required PreviewCatalog Function() read,
-    required BuildLane lane,
+  /// Another guest running [leader]'s harness, spawned from the kernel
+  /// [leader] compiled — see [TesterHost.sharing]. [leader] must have been
+  /// built with `followEdits: false`, and [prepare]d before this captures:
+  /// what the leader's compile quarantined is what this guest's program is
+  /// missing, and it reads that from the leader.
+  PreviewTestRunner.sharing(
+    PreviewTestRunner leader, {
+    required int guest,
     void Function(String line)? onLog,
-  }) : _program = PreviewProgram(
-         packageRoot: packageRoot,
-         read: read,
-         lane: lane,
-       ) {
-    _host = TesterHost(
-      packageRoot: packageRoot,
-      flutterSdkRoot: flutterSdkRoot,
-      program: _program,
-      lane: lane,
-      onLog: onLog,
-    );
-  }
+  }) : this._(
+         leader._program,
+         (_) => TesterHost.sharing(leader._host, guest: guest, onLog: onLog),
+       );
+
+  PreviewTestRunner._(
+    this._program,
+    TesterHost Function(PreviewProgram program) host,
+  ) : _host = host(_program);
 
   final PreviewProgram _program;
-  late final TesterHost _host;
+  final TesterHost _host;
 
   /// Where this runner's artifacts live, relative to [packageRoot] — the lane
   /// it took, which is not always the one it asked for.
@@ -519,6 +527,11 @@ class PreviewTestRunner {
       'rounds of dropping what the compiler blamed',
     );
   }
+
+  /// Compiles the harness and brings a guest up, dropping what the compiler
+  /// blames, without capturing anything — what a [PreviewTestRunner.sharing]
+  /// guest waits on.
+  Future<void> prepare() => _host.exclusive(() => _bringUp(sync: false));
 
   Future<void> dispose() => _host.dispose();
 }

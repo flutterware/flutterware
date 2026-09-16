@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutterware/comparison_report.dart';
+import 'package:flutterware_app/src/comparison/artifact.dart';
 import 'package:flutterware_app/src/comparison/scenario_diff.dart';
 import 'package:flutterware_app/src/comparison/scenario_alignment.dart';
 import 'package:flutterware_app/src/comparison/scenarios_runner.dart';
@@ -43,6 +45,7 @@ void main() {
     required String base,
     required String head,
     String sdk = 'test-sdk',
+    int jobs = 1,
   }) => ScenariosRunner(
     headRoot: head,
     baseRoot: base,
@@ -50,6 +53,7 @@ void main() {
     cache: cache,
     locks: null,
     sdk: sdk,
+    jobs: jobs,
   );
 
   group('the plan', () {
@@ -251,6 +255,87 @@ void main() {
   // used to be paid before a single closure had been hashed — so a branch that
   // touched no scenario paid all of it to be told there was nothing to do.
   // Measured 2026-09-09 on this repo: 60.5s of a 63s comparison.
+  group('with jobs', () {
+    Map<String, String> files(String value) => {
+      for (var name in ['a', 'b', 'c', 'd']) 'test/$name.dart': value,
+    };
+    var declared = [
+      for (var name in ['a', 'b', 'c', 'd'])
+        'test/$name.dart#${name.toUpperCase()}',
+    ];
+
+    /// A replay that yields, so the ones beside it get to start.
+    Future<void> yieldOnce(bool _) => Future<void>.delayed(Duration.zero);
+
+    test('that many scenarios replay at once, both sides each', () async {
+      source.declared = declared;
+      source.gate = yieldOnce;
+
+      await runnerFor(
+        base: checkout('base', files('1')),
+        head: checkout('head', files('2')),
+        jobs: 2,
+      ).run(outDir: root.path);
+
+      var most = source.started.map((start) => start.$2).reduce(max);
+      expect(most, 4);
+      expect(source.replayed, hasLength(8));
+    });
+
+    // A failure beside other replays may be the machine being busy, which is
+    // exactly what a confirmation rules out — so it is not asked there.
+    test('a scenario that failed in the pool replays again alone', () async {
+      source.declared = declared;
+      source.gate = yieldOnce;
+      source.flaky['test/b.dart#B:base'] = 1;
+
+      var results = await runnerFor(
+        base: checkout('base', files('1')),
+        head: checkout('head', files('2')),
+        jobs: 4,
+      ).run(outDir: root.path);
+
+      var tail = source.started.sublist(source.started.length - 2);
+      expect(tail.map((start) => start.$1), [
+        'test/b.dart#B:base',
+        'test/b.dart#B:head',
+      ]);
+      expect(tail.map((start) => start.$2), everyElement(lessThanOrEqualTo(2)));
+      expect(source.replayed, hasLength(10));
+      // Judged from the replays taken alone, where it passed.
+      var b = results.items.singleWhere((i) => i.scenario == 'test/b.dart#B');
+      expect(b.compared, isTrue);
+    });
+
+    test('the verdict is the one a serial run reaches', () async {
+      source.declared = declared;
+      source.failOn = 'test/c.dart#C';
+      source.pixels['test/a.dart#A:head'] = 7;
+      source.gate = yieldOnce;
+      var base = checkout('base', files('1'));
+      var head = checkout('head', files('2'));
+
+      List<(String, ComparedState)> verdict(ScenarioResults results) => [
+        for (var item in results.items) (item.scenario, item.state),
+      ];
+
+      var serial = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: root.path);
+      cache = ShotCache(p.join(root.path, 'pooled'));
+      var pooled = await runnerFor(
+        base: base,
+        head: head,
+        jobs: 3,
+      ).run(outDir: root.path);
+
+      expect(verdict(pooled), verdict(serial));
+      // The scenario that failed is replayed again alone from the start.
+      expect(pooled.replays, serial.replays + 2);
+    });
+  });
+
   group('the scan gate', () {
     test('nothing to replay is answered without listing a harness', () async {
       source.scannedHead = ['test/shop.dart#Checkout'];
@@ -798,6 +883,11 @@ class _FakeSource implements ScenarioSource {
   Future<void> Function(bool base)? gate;
   var waiting = 0;
 
+  /// Replays under way right now, and how many were under way as each one
+  /// started, in the order they started.
+  var inFlight = 0;
+  final started = <(String, int)>[];
+
   @override
   Future<List<String>> list({required bool base}) async {
     listed++;
@@ -854,7 +944,12 @@ class _FakeSource implements ScenarioSource {
   }) async {
     var side = '$id:${base ? 'base' : 'head'}';
     replayed.add(side);
-    await gate?.call(base);
+    started.add((side, ++inFlight));
+    try {
+      await gate?.call(base);
+    } finally {
+      inFlight--;
+    }
     bool spend(Map<String, int> counts) {
       var left = counts[side] ?? 0;
       if (left == 0) return false;

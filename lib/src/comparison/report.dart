@@ -342,7 +342,7 @@ String? _uniformGap(String half, String unit, Iterable<ComparedState> s) {
 /// Facts, not caveats: nothing here says the two sides were measured
 /// differently. Both ran here.
 class ComparisonHost {
-  const ComparisonHost({this.os, this.cpus, this.rasterizer});
+  const ComparisonHost({this.os, this.cpus, this.rasterizer, this.jobs});
 
   /// `macos`, `linux`, `windows`.
   final String? os;
@@ -354,10 +354,15 @@ class ComparisonHost {
   /// a machine with no GPU is a CPU rasterizer — or `skia-software`.
   final String? rasterizer;
 
+  /// How many renders and replays the comparison ran at once — `fw compare
+  /// --jobs`. What tells a run that was slow from one that was serial.
+  final int? jobs;
+
   Map<String, Object?> toJson() => {
     'os': ?os,
     'cpus': ?cpus,
     'rasterizer': ?rasterizer,
+    'jobs': ?jobs,
   };
 
   /// Null for a file written before the key existed.
@@ -366,14 +371,17 @@ class ComparisonHost {
           os: json['os'] as String?,
           cpus: json['cpus'] as int?,
           rasterizer: json['rasterizer'] as String?,
+          jobs: json['jobs'] as int?,
         )
       : null;
 
-  /// One line, for a comment's footer: `linux · 8 CPUs · impeller-vulkan`.
+  /// One line, for a comment's footer:
+  /// `linux · 8 CPUs · impeller-vulkan · 1 job`.
   String get summary => [
     ?os,
     if (cpus case var n?) '$n CPU${n == 1 ? '' : 's'}',
     ?rasterizer,
+    if (jobs case var n?) '$n job${n == 1 ? '' : 's'}',
   ].join(' · ');
 }
 
