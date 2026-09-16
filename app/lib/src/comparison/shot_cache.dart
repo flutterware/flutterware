@@ -94,6 +94,20 @@ class ShotCache {
     }
   }
 
+  /// [adopt], for a caller that never read the picture into memory: where the
+  /// move fails, the file is copied rather than written from bytes.
+  void adoptFile(String key, String sourcePath, ShotRecord record) {
+    var source = File(sourcePath);
+    var path = _pathFor(key);
+    Directory(p.dirname(path)).createSync(recursive: true);
+    File('$path.json').writeAsStringSync(jsonEncode(record.toJson()));
+    try {
+      source.renameSync(path);
+    } on FileSystemException {
+      source.copySync('$path.part').renameSync(path);
+    }
+  }
+
   /// Where [key]'s picture lives, whether or not anything is there.
   String pathOf(String key) => _pathFor(key);
 

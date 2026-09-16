@@ -60,6 +60,82 @@ class ComparisonWebExporter {
   set debugCompile(Future<int> Function(List<String> arguments)? compile) =>
       _bundle.debugCompile = compile;
 
+  /// The viewer's compile, when [prebuild] started it.
+  Future<void>? _viewer;
+  bool? _viewerOffline;
+
+  /// What that compile has said before anyone was listening, and who is
+  /// listening now.
+  final _held = <String>[];
+  void Function(String line)? _forward;
+
+  /// Starts compiling the viewer now, so that [export] finds it done.
+  ///
+  /// The viewer is flutterware's own code and knows nothing of the comparison,
+  /// so nothing makes it wait for one: started beside the renders it costs a
+  /// cold run nothing but the cores it shares, where started after the verdict
+  /// it added its whole compile to the wall clock. What it prints is held and
+  /// handed to [export]'s `onOutput`, so a log still reads in order. A failure
+  /// is not reported here either: [export] rethrows it where it always did.
+  void prebuild({bool offline = false}) {
+    if (_viewer != null) return;
+    _viewerOffline = offline;
+    var watch = Stopwatch()..start();
+    _viewer =
+        _bundle
+            .build(
+              offline: offline,
+              onOutput: (line) {
+                if (_forward case var forward?) {
+                  forward(line);
+                } else {
+                  _held.add(line);
+                }
+              },
+            )
+            .whenComplete(() => viewerCompile = watch.elapsed)
+          ..ignore();
+  }
+
+  /// How long the viewer took to compile, once it has.
+  Duration? viewerCompile;
+
+  /// How long [export] spent waiting for that compile to finish — the part of
+  /// an export's time that belongs to the viewer.
+  var viewerWait = Duration.zero;
+
+  Future<void> _buildViewer({
+    required bool offline,
+    void Function(String line)? onOutput,
+  }) async {
+    var watch = Stopwatch()..start();
+    try {
+      await _awaitViewer(offline: offline, onOutput: onOutput);
+    } finally {
+      viewerWait = watch.elapsed;
+    }
+  }
+
+  Future<void> _awaitViewer({
+    required bool offline,
+    void Function(String line)? onOutput,
+  }) async {
+    if (_viewer case var viewer?) {
+      for (var line in _held) {
+        onOutput?.call(line);
+      }
+      _held.clear();
+      _forward = onOutput;
+      await viewer;
+      // Built for the other kind of page: build again, now that the one in
+      // flight is not writing the same directory.
+      if (_viewerOffline == offline) return;
+    }
+    var watch = Stopwatch()..start();
+    await _bundle.build(offline: offline, onOutput: onOutput);
+    viewerCompile = watch.elapsed;
+  }
+
   /// Writes the page: the viewer bundle, the rewritten `index.json`, and a
   /// PNG per frame the index names.
   ///
@@ -78,7 +154,7 @@ class ComparisonWebExporter {
     void Function(String line)? onOutput,
   }) async {
     var stopwatch = Stopwatch()..start();
-    await _bundle.build(offline: offline, onOutput: onOutput);
+    await _buildViewer(offline: offline, onOutput: onOutput);
     if (_bundle.cancelled) throw StateError('The export was cancelled.');
 
     var outputDir = Directory(output);

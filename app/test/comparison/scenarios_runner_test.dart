@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutterware/comparison_report.dart';
 import 'package:flutterware_app/src/comparison/artifact.dart';
+import 'package:flutterware_app/src/comparison/phase_clock.dart';
 import 'package:flutterware_app/src/comparison/scenario_diff.dart';
 import 'package:flutterware_app/src/comparison/scenario_alignment.dart';
 import 'package:flutterware_app/src/comparison/scenarios_runner.dart';
@@ -255,6 +256,36 @@ void main() {
   // used to be paid before a single closure had been hashed — so a branch that
   // touched no scenario paid all of it to be told there was nothing to do.
   // Measured 2026-09-09 on this repo: 60.5s of a 63s comparison.
+  test('the run records its phases and the steps that never settled', () async {
+    source.declared = ['test/a.dart#A', 'test/b.dart#B'];
+    source.unsettled['test/a.dart#A:head'] = 3;
+    var clock = PhaseClock();
+
+    await ScenariosRunner(
+      headRoot: checkout('head', {'test/a.dart': '2', 'test/b.dart': '2'}),
+      baseRoot: checkout('base', {'test/a.dart': '1', 'test/b.dart': '1'}),
+      source: source,
+      cache: cache,
+      locks: null,
+      sdk: 'test-sdk',
+      clock: clock.within('packages/notes', qualify: true),
+    ).run(outDir: root.path);
+
+    var timings = clock.timings;
+    expect(timings.phases.map((phase) => phase.name), [
+      'scenarios.plan',
+      'scenarios.replay',
+      'scenarios.compare',
+      'scenarios.filing',
+    ]);
+    expect(timings.phases.map((phase) => phase.package).toSet(), {
+      'packages/notes',
+    });
+    // Qualified the way the rows of a several-package comparison are, so the
+    // count can be looked up by the id a reader has.
+    expect(timings.unsettledSteps, {'packages/notes/test/a.dart#A': 3});
+  });
+
   group('with jobs', () {
     Map<String, String> files(String value) => {
       for (var name in ['a', 'b', 'c', 'd']) 'test/$name.dart': value,
@@ -933,6 +964,9 @@ class _FakeSource implements ScenarioSource {
   /// `<id>:<side>` — a race a guessed landing sometimes loses.
   final wobbly = <String, int>{};
 
+  /// How many steps a side's replay says never settled, by `<id>:<side>`.
+  final unsettled = <String, int>{};
+
   /// The pixel value a side draws, by `<id>:<side>`; 0 when not named.
   final pixels = <String, int>{};
 
@@ -967,17 +1001,21 @@ class _FakeSource implements ScenarioSource {
         : abandoned
         ? 'did not finish within 30s'
         : null;
-    return ScenarioReplay([
-      ScenarioStepShot(
-        step: const AlignableStep(index: 1, position: '#1', name: 'Open'),
-        rgba: Uint8List(4 * 4 * 4)..fillRange(0, 4 * 4 * 4, value),
-        width: 4,
-        height: 4,
-        events: events,
-        failure: failure,
-        guessed: guessed[side],
-      ),
-    ], complete: !abandoned);
+    return ScenarioReplay(
+      [
+        ScenarioStepShot(
+          step: const AlignableStep(index: 1, position: '#1', name: 'Open'),
+          rgba: Uint8List(4 * 4 * 4)..fillRange(0, 4 * 4 * 4, value),
+          width: 4,
+          height: 4,
+          events: events,
+          failure: failure,
+          guessed: guessed[side],
+        ),
+      ],
+      complete: !abandoned,
+      unsettled: unsettled[side] ?? 0,
+    );
   }
 
   @override

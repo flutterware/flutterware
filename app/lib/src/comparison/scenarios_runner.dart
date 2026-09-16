@@ -10,6 +10,7 @@ import '../embedder/build_directory.dart';
 import 'cancel.dart';
 import 'closure.dart';
 import 'import_graph.dart';
+import 'phase_clock.dart';
 import 'replay_store.dart';
 import 'scenario_diff.dart';
 import 'scenarios_side.dart';
@@ -247,7 +248,15 @@ class ScenariosRunner {
     this.onProgress,
     this.cancel,
     this.jobs = 1,
+    this.clock,
   });
+
+  /// Where this half records its phases — see [PhaseClock].
+  final PhaseClock? clock;
+
+  /// Every comparison of two replays, and every filing of one, this run made.
+  final _comparing = PhaseTally();
+  final _filing = PhaseTally();
 
   final String headRoot;
   final String baseRoot;
@@ -571,7 +580,9 @@ class ScenariosRunner {
     }
     return ConfirmedSide.result(
       ScenarioReplay(
-        _store.write(key, replay.steps, errors: replay.errors),
+        _filing.time<List<ScenarioStepShot>>(
+          () => _store.write(key, replay.steps, errors: replay.errors),
+        ),
         errors: replay.errors,
         ms: replay.ms,
       ),
@@ -611,6 +622,9 @@ class ScenariosRunner {
           ? source.shots(id, base: false, outDir: outDir)
           : Future.value(filedHead),
     ]);
+    for (var replay in firsts) {
+      clock?.unsettled(id, replay.unsettled);
+    }
     return _FirstReplays(
       id: id,
       key: key,
@@ -659,10 +673,8 @@ class ScenariosRunner {
 
     if (baseSide.replay case var base? when headSide.replay != null) {
       var head = headSide.replay!;
-      var compared = compareScenarioReplays(
-        scenario: id,
-        base: base,
-        head: head,
+      var compared = _comparing.time<ScenarioComparison>(
+        () => compareScenarioReplays(scenario: id, base: base, head: head),
       );
       // A difference in a scenario whose pictures depended on the machine
       // is not believed until each side has done the same thing twice.
@@ -768,8 +780,13 @@ class ScenariosRunner {
   }) async {
     var watch = Stopwatch()..start();
     cancel?.check();
-    var plan = from ?? await this.plan(graph: graph);
+    Future<ScenariosPlan> planning() => this.plan(graph: graph);
+    var plan =
+        from ??
+        await (clock?.time<ScenariosPlan>('scenarios.plan', planning) ??
+            planning());
     onPlan?.call(plan);
+    var replaying = Stopwatch()..start();
 
     var settled = <ScenarioComparison>[];
     for (var scenario in plan.settled) {
@@ -840,6 +857,10 @@ class ScenariosRunner {
       onScenario?.call(row.comparison);
     }
     var items = [...settled, ...answered.nonNulls];
+    clock
+      ?..add('scenarios.replay', replaying.elapsed)
+      ..add('scenarios.compare', _comparing.elapsed)
+      ..add('scenarios.filing', _filing.elapsed);
 
     return ScenarioResults.of(
       items: items,

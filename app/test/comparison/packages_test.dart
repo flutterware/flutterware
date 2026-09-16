@@ -218,4 +218,29 @@ void main() {
     );
     expect(verdictGapOf(), isNull);
   });
+
+  // One line a CI log can be read by: each phase summed over packages and
+  // sides, and the scenarios that spent their whole settle budget.
+  test('the time a comparison spent reads as one line', () {
+    var line = describeTimings(
+      const ComparisonTimings(
+        phases: [
+          ComparisonPhase(name: 'checkout', ms: 1800),
+          ComparisonPhase(name: 'previews.compile', ms: 2000, side: 'base'),
+          ComparisonPhase(name: 'previews.compile', ms: 1500, side: 'head'),
+          ComparisonPhase(name: 'previews.render', ms: 9000, side: 'base'),
+          ComparisonPhase(name: 'viewer', ms: 17800),
+        ],
+        unsettledSteps: {'test/a_test.dart#Spinning fox': 4},
+      ),
+    );
+
+    expect(
+      line,
+      'Time spent: checkout 1.8s · previews compile 3.5s, render 9.0s · '
+      'viewer 17.8s\n'
+      '1 scenario had steps that never settled, each running its whole '
+      'settle budget: Spinning fox (4)',
+    );
+  });
 }

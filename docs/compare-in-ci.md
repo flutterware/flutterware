@@ -47,12 +47,14 @@ comparison:
     - uses: actions/checkout@v4
       with: { fetch-depth: 0 } # the base is the merge base; a shallow clone has none
     - uses: subosito/flutter-action@v2
-    - name: Cache the pictures and the seed kernel
+    - name: Cache the pictures, the seed kernel and flutterware's own build
       uses: actions/cache@v4
       with:
+        # The forty `?` are flutterware's install directory, named by a hash.
         path: |
           ~/.flutterware/shots
           ~/.flutterware/kernels
+          ~/.flutterware/????????????????????????????????????????
         key: fw-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
         restore-keys: fw-${{ runner.os }}-
     - name: Compare
@@ -167,8 +169,10 @@ on both sides, cold caches, a 16-core Mac:
   own, so replays stop scaling well before the core count: the same twelve
   replays took 12.0s serial, 7.9s at 4 and 10.0s at 8. Start around a quarter
   of the cores and measure.
-- **Compiling the harness, building the viewer and checking out the base do
-  not move.** On a small package they are most of the run.
+- **Compiling the harness and checking out the base do not move.** On a small
+  package they are most of the run. (The table predates two changes to the
+  viewer: it now compiles beside the comparison instead of after it, and
+  without Flutter's Wasm dry run.)
 - **Load never decides a verdict.** A scenario that would have to be replayed
   again to be believed — a side that failed or was abandoned, or a difference
   in pictures that depended on the machine — is replayed from the start after
@@ -176,6 +180,27 @@ on both sides, cold caches, a 16-core Mac:
   The verdicts above are identical row for row. The price is paid in the
   scenarios column: a suite whose scenarios guess at unannounced work replays
   those twice, which is one more reason to hand that work to `RealWork.run`.
+
+## Reading a slow run
+
+Every run ends with one line saying where its time went, each phase summed
+over packages and sides — this one from a cold run over this repository's
+studio package at `--jobs=4`:
+
+```text
+Time spent: checkout 1.3s · previews plan 1.3s, compile 20.1s, render 15.1s, compare 1.6s · scenarios plan 4.9s, replay 18.2s, compare 0.7s, filing 1.6s · viewer 17.7s · export 2.0s · report 0.9s · sweep 0.0s
+```
+
+The same phases, per package and per side, are in `index.json` under
+`timings` — `ComparisonIndex.timings` for a script. Phases overlap, so they do
+not add up to the run: under `--jobs` both sides render at once, and the
+page's viewer compiles beside everything else from the start.
+
+A second line names the scenarios whose steps gave up waiting for the screen
+to settle. Each such step runs its whole settle budget on every replay — an
+animation that never ends, or a 3D view left repainting every frame, such as
+flutter_scene's `SceneView` with its default `autoTick: true`. It is not a
+failure, but it is usually the cheapest time to win back.
 
 ## Why `--frames=changed`
 
@@ -214,7 +239,7 @@ to want to see. That is why the default is `all`.
   `timeout:` is how long it may go without progress, not how long it may take,
   so a slow runner stretches a scenario without failing it.
 
-- **The two caches, and what each buys.** `~/.flutterware/shots` holds the
+- **The three caches, and what each buys.** `~/.flutterware/shots` holds the
   rendered pictures and the scenario replays, content-addressed: without it a
   runner renders and replays *both sides of every row, every run*, and with it
   a push whose inputs did not move replays nothing, and a base is replayed
@@ -229,8 +254,13 @@ to want to see. That is why the default is `all`.
   the pub cache — and it is what a cold harness compile starts from instead of
   starting from nothing. Measured on this repository, a scenario harness
   compiled cold took 60s and the same one starting from a seed came up inside
-  a 9s half. The `restore-keys` line matters: a lockfile change should reuse
-  the previous run's cache and write a new one, not start empty.
+  a 9s half. The directory named by a forty-character hash is flutterware
+  itself, unpacked from the pub cache, with the `fw` command and the page's
+  viewer built inside it. Restored, a run skips unpacking and building the
+  command (about 14s) and rebuilds the viewer in about 2s instead of 18s;
+  a new flutterware version or SDK is a new stamp, and it is rebuilt. The
+  `restore-keys` line matters: a lockfile change should reuse the previous
+  run's cache and write a new one, not start empty.
 - **Do not cache `~/.flutterware/bases`.** The base checkout is a real
   `git worktree`, registered inside the repository's own `.git` — which a
   fresh CI checkout does not have, so a restored one is a directory git does

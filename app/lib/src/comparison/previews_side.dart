@@ -13,6 +13,7 @@ import '../previews/devices.dart';
 import '../previews/discovery.dart';
 import '../previews/test_runner.dart';
 import '../embedder/build_directory.dart';
+import '../utils/run_dir.dart';
 import 'runner.dart';
 
 /// The previews of a checkout, as the runner asks about them.
@@ -122,6 +123,7 @@ class PreviewsSide implements ComparisonSide {
     required List<String> entryIds,
     required Future<void> Function(RenderedEntry frame) onFrame,
     int guests = 1,
+    void Function(Duration elapsed)? onCompiled,
   }) async {
     var packageRoot = _packageRootIn(checkout);
     var byId = {for (var entry in _scan(checkout).entries) entry.id: entry};
@@ -171,7 +173,12 @@ class PreviewsSide implements ComparisonSide {
       for (var i = 1; i < shards.length; i++)
         PreviewTestRunner.sharing(runner, guest: i),
     ];
-    var outDir = Directory.systemTemp.createTempSync('fw_comparison_previews');
+    // Beside the shot cache rather than in the system's temporary directory,
+    // which on a CI runner is often another filesystem: a frame on the same
+    // one is filed by a rename, where across two it is copied.
+    var outDir = (Directory(
+      p.join(flutterwareDir(), 'comparisons'),
+    )..createSync(recursive: true)).createTempSync('previews-');
     // What [onFrame] threw, so the catch below can tell the caller's own
     // failure from the harness's.
     Object? filing;
@@ -214,7 +221,7 @@ class PreviewsSide implements ComparisonSide {
         await onFrame(
           RenderedEntry(
             entryId: row.id,
-            rgba: File(image).readAsBytesSync(),
+            path: image,
             width: row.width,
             height: row.height,
             tree: tree?.root,
@@ -231,16 +238,21 @@ class PreviewsSide implements ComparisonSide {
     }
 
     try {
-      // The shards wait for the compile: what it quarantines is missing from
-      // the program they all run.
-      if (runners.length > 1) await runner.prepare();
+      // The compile first, on its own, and the shards after it: what it
+      // quarantines is missing from the program they all run — and timed on
+      // its own, it is what separates a slow compile from slow entries.
+      var compiling = Stopwatch()..start();
+      await runner.prepare();
+      onCompiled?.call(compiling.elapsed);
       await Future.wait([
         for (var (i, shard) in shards.indexed)
           runners[i].capture(
             entryIds: shard,
             outDir: p.join(outDir.path, '$i'),
             clock: projectClock,
-            sync: runners.length == 1,
+            // Already current: the host reads its checkout once, and a sync
+            // would clear what the compile just quarantined.
+            sync: false,
             onRow: onRow,
           ),
       ]);

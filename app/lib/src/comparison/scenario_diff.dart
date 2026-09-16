@@ -73,9 +73,15 @@ class ScenarioReplay {
     this.complete = true,
     this.errors = const [],
     this.ms,
+    this.unsettled = 0,
   });
 
   final List<ScenarioStepShot> steps;
+
+  /// How many steps gave up waiting for the screen to settle — the harness's
+  /// `unsettledCount`. Zero for one read from the cache, which was not
+  /// replayed and cannot say.
+  final int unsettled;
 
   /// How long the replay took, as the harness measured it — null for one
   /// read from the cache.
