@@ -26,6 +26,7 @@ export 'src/scenarios/network.dart'
         scenarioNetworkStorePath,
         scenarioPlaceholderPng;
 export 'src/scenarios/notification.dart' show ScenarioNotification;
+export 'src/scenarios/plugin_refusal.dart' show describePluginFailure;
 export 'src/scenarios/profile.dart'
     show
         ScenarioAssignment,

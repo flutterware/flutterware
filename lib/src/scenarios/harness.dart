@@ -33,6 +33,7 @@ import 'live_binding.dart';
 import 'motion.dart';
 import 'network.dart';
 import 'notification.dart';
+import 'plugin_refusal.dart';
 import 'profile.dart';
 import 'selector.dart';
 import 'settle.dart';
@@ -1957,7 +1958,7 @@ String _digest(List<int> bytes) =>
 /// runs inside the tester, so it can read the flags the tester was given and
 /// finish the sentence.
 String _diagnosed(String failure) => withFlutterGpuDiagnosis(
-  failure,
+  describePluginFailure(failure),
   executableArguments: Platform.executableArguments,
   macOS: Platform.isMacOS,
 );
