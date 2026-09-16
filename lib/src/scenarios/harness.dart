@@ -17,6 +17,8 @@ import 'package:test_api/src/backend/suite.dart';
 import 'package:test_api/src/backend/suite_platform.dart';
 import 'package:test_api/src/backend/test.dart';
 
+export 'time_mode.dart' show ScenarioTime;
+
 import '../bytes.dart';
 import '../flutter_gpu_diagnosis.dart';
 import '../devices.dart';
@@ -27,6 +29,7 @@ import 'async_watchdog.dart';
 import '../app_events/events.dart';
 import 'film.dart';
 import 'fonts.dart';
+import 'live_binding.dart';
 import 'motion.dart';
 import 'network.dart';
 import 'notification.dart';
@@ -41,6 +44,7 @@ import 'run_args.dart';
 import 'scenario.dart';
 import 'scene_stage.dart';
 import 'shots.dart';
+import 'time_mode.dart';
 import 'run_listener.dart';
 import '../inspect/semantics_capture.dart';
 import '../translations/index.dart';
@@ -138,6 +142,7 @@ Future<void> runHarness(
   Map<String, void Function()> scenarioMains, {
   Map<String, Future<void> Function(FutureOr<void> Function())> configs =
       const {},
+  ScenarioTime time = ScenarioTime.fake,
 }) async {
   // The whole harness — including every extension handler, which runs in the
   // zone it was registered in — is guarded: a failing scenario can leak an
@@ -146,7 +151,10 @@ Future<void> runHarness(
   // harness dying because one scenario failed is the one outcome this may
   // never have.
   unawaited(
-    runZonedGuarded(() => _runHarness(scenarioMains, configs), (error, stack) {
+    runZonedGuarded(() => _runHarness(scenarioMains, configs, time), (
+      error,
+      stack,
+    ) {
       stderr.writeln('[harness] uncaught: $error\n$stack');
     }),
   );
@@ -155,8 +163,18 @@ Future<void> runHarness(
 Future<void> _runHarness(
   Map<String, void Function()> scenarioMains,
   Map<String, Future<void> Function(FutureOr<void> Function())> configs,
+  ScenarioTime time,
 ) async {
-  var binding = _HarnessBinding();
+  // A lane is a process: the binding is the one thing chosen here that no
+  // scenario can change afterwards, which is why `time` is a folder's word
+  // and a package's, never a scenario's.
+  var binding = time.isReal
+      ? LiveHarnessBinding(
+          animations: time.animations,
+          wrapMessenger: _SpyMessenger.new,
+        )
+      : _HarnessBinding();
+  scenarioHarnessTime = time;
   // Declared before anything is, because `scenario()` reads it as it declares.
   // Without this the harness's deadline is dead letter: `testWidgets` stamps
   // the binding's ten minutes on every test, `Timeout.apply` honours it, and
@@ -183,6 +201,7 @@ Future<void> _runHarness(
     reels: folderReels,
   ) = await _probeFolders(
     configs,
+    time,
   );
 
   var inspector = GuestInspector(
@@ -492,6 +511,7 @@ Future<
 >
 _probeFolders(
   Map<String, Future<void> Function(FutureOr<void> Function())> configs,
+  ScenarioTime time,
 ) async {
   var profiles = <String, ScenarioProfile>{};
   var shots = <String, Shots>{};
@@ -509,8 +529,20 @@ _probeFolders(
     scenarioProbedNetwork = null;
     scenarioProbedSettle = null;
     scenarioProbedReel = null;
+    scenarioProbedTime = null;
     try {
       await config(() {});
+      // Checked before anything runs rather than discovered as a scenario
+      // that settles in fake seconds on a real clock: the binding was built
+      // from the package's word, and the folder's has to be the same word.
+      if (scenarioProbedTime case var folderTime?
+          when folderTime.isReal != time.isReal) {
+        throw StateError(
+          'The folder says `runScenarios(time: ${folderTime.name})` and the '
+          'package says `ScenariosPackage(time: ${time.name})`. A lane is a '
+          'process, so both must agree — change one of them.',
+        );
+      }
       if (scenarioProbedProfile case var profile?) {
         profiles[directory] = profile;
       }
@@ -543,6 +575,7 @@ _probeFolders(
       scenarioProbedNetwork = null;
       scenarioProbedSettle = null;
       scenarioProbedReel = null;
+      scenarioProbedTime = null;
     }
   }
   return (

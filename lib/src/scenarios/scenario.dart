@@ -289,7 +289,13 @@ ScenarioNetwork _reachOf(
 ) {
   var run = resolvedScenarioNetwork;
   var reach =
-      own ?? run ?? folder ?? scenarioProjectNetwork ?? ScenarioNetwork.off;
+      own ??
+      run ??
+      folder ??
+      scenarioProjectNetwork ??
+      // `off` under the fake clock, `live` under the real one: the
+      // determinism `off` protects is already spent once the timers are real.
+      (scenarioHarnessTime.isReal ? ScenarioNetwork.live : ScenarioNetwork.off);
   if (recordOverriddenMessage(scenario, own, run) case var said?
       when _recordOverridesSaid.add(noticeKey)) {
     stderr.writeln('[flutterware] $said');

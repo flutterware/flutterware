@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutterware/flutter_test.dart' show ScenarioTime;
 import 'package:path/path.dart' as p;
 
 /// Where the generated harness entrypoint lives, relative to the package.
@@ -19,6 +20,7 @@ String generateHarnessEntrypoint(
   List<String> files, {
   List<String> configs = const [],
   String directory = 'build/flutterware',
+  ScenarioTime time = ScenarioTime.fake,
 }) {
   var sorted = [...files]..sort();
   var sortedConfigs = [...configs]..sort();
@@ -49,6 +51,11 @@ String generateHarnessEntrypoint(
       buffer.writeln("    '${p.url.dirname(config)}': c$index.testExecutable,");
     }
     buffer.writeln('  },');
+  }
+  if (time.isReal) {
+    buffer.writeln(
+      '  time: harness.ScenarioTime.real(animations: ${time.animations}),',
+    );
   }
   buffer.writeln(');');
   return buffer.toString();

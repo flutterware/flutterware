@@ -27,7 +27,11 @@ export 'src/scenarios/network.dart'
         scenarioPlaceholderPng;
 export 'src/scenarios/notification.dart' show ScenarioNotification;
 export 'src/scenarios/profile.dart'
-    show ScenarioAssignment, ScenarioProfile, runScenarios;
+    show
+        ScenarioAssignment,
+        ScenarioProfile,
+        ensureLiveScenarioBinding,
+        runScenarios;
 export 'src/scenarios/scenario.dart';
 export 'src/scenarios/settle.dart';
 export 'src/scenarios/shots.dart';
