@@ -140,7 +140,7 @@ Future<CompareOutcome> runComparison({
   var previewsPackages = wantedPackages(core.packages, options.packages);
   var scenariosCore = _scenariosCore(session);
   var scenariosPackages = wantedPackages(
-    scenariosCore?.packages ?? const [],
+    scenariosCore?.comparablePackages ?? const [],
     options.packages,
   );
   if (previewsPackages.isEmpty && scenariosPackages.isEmpty) {
@@ -636,7 +636,8 @@ Future<ScenarioResults?> _compareScenarios({
         session: session,
         core: core,
         package: package,
-        packagePath: relative(package),
+        // The key names a folder; the checkout path is its package's.
+        packagePath: relative(core.packagePathFor(package)),
         top: top,
         baseRoot: baseRoot,
         sdk: sdk,

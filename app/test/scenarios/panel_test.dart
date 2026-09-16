@@ -36,6 +36,65 @@ void main() {
 
   tearDown(() => root.deleteSync(recursive: true));
 
+  testWidgets('a real-time package carries a live badge', (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var core = ScenariosCore(
+      PluginHost(
+        id: scenariosPluginId,
+        label: 'Scenarios',
+        worktree: Worktree(path: root.path),
+        workspace: Workspace(
+          root: root.path,
+          declared: [Pkg('.')],
+          discovered: ['.'],
+          appContext: AppContext(logger: LogClient.print()),
+          flutterSdk: FlutterSdkPath('/tmp/flutter'),
+        ),
+        config: {
+          'packages': [
+            {'path': '.', 'time': 'real', 'animations': 0.1},
+          ],
+        },
+      ),
+    );
+    var runner = _FakeRunner();
+    core.debugInstallRunner('.', runner);
+    var plugin = ScenariosPlugin(core);
+    var address = ValueNotifier(
+      Address(
+        worktree: 'wt',
+        plugin: scenariosPluginId,
+        segments: ['.', 'test', 'scenarios', 'a_test.dart', 'A'],
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme,
+        home: AddressRoot(
+          address: address,
+          onChanged: (a) => address.value = a,
+          child: Builder(builder: plugin.buildPanel),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(core.timeFor('.')?.isReal, isTrue);
+    expect(find.text('live'), findsOneWidget);
+
+    // Opening a live scenario does not run it: that is somebody's backend.
+    // The page says so, and the Run button is the door.
+    expect(runner.runs, 0);
+    expect(find.text('Runs against your backend'), findsOneWidget);
+    await tester.tap(find.text('Run'));
+    await tester.pump();
+    await tester.pump();
+    expect(runner.runs, 1);
+  });
+
   testWidgets('runs on open, draws the flow, selects by address', (
     tester,
   ) async {
@@ -1422,6 +1481,7 @@ class _FakeRunner extends ScenarioRunner {
     String? tag,
     ScenarioAxes axes = const ScenarioAxes(),
     String? unspecifiedDevice,
+    int? jobs,
     double? captureScale,
     bool captureRaw = false,
     ScenarioPixels pixels = ScenarioPixels.all,

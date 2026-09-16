@@ -103,6 +103,7 @@ class RecordedScenarioRunner implements ScenarioRunSource {
     String? tag,
     ScenarioAxes axes = const ScenarioAxes(),
     String? unspecifiedDevice,
+    int? jobs,
     double? captureScale,
     bool captureRaw = false,
     bool captureNative = false,

@@ -216,6 +216,18 @@ written to disk when a destination is configured
 (`SCREENSHOTS_DESTINATION` / `-Dscreenshots-destination`, as the port did) and
 skipped otherwise.
 
+## The live lane (2026-09-16)
+
+A folder may run on the real clock: `runScenarios(time: ScenarioTime.real())`
+in its `flutter_test_config.dart`, mirrored on its `ScenariosPackage`. Same
+`scenario()`, same verbs, same report; the harness picks a
+`LiveTestWidgetsFlutterBinding` instead of FakeAsync, sockets are real,
+animations run at a tenth, the network defaults to `live`, `s.setup(...)`
+records preparatory work as a beat, and the runner spawns one guest per
+scenario from the one kernel (`--jobs`). A live run's pictures are never
+compared. Findings, numbers and decisions:
+`2026-09-16-live-scenarios-findings-and-design.md`.
+
 ## Screenshot policy
 
 - **Auto by default** on every layer-2 action, overridable per call:

@@ -27,6 +27,7 @@ void main() {
         ScenarioCaptureKind.screen => capture.name ?? '${capture.verb}',
         ScenarioCaptureKind.document => 'document ${capture.name}',
         ScenarioCaptureKind.notification => 'notification',
+        ScenarioCaptureKind.setup => 'setup ${capture.name}',
       },
   ];
 

@@ -549,6 +549,7 @@ class _ScenarioListPaneState extends State<_ScenarioListPane> {
       children: [
         _ListPaneHeader(
           directory: _displayDirectory(),
+          live: core.timeFor(package)?.isReal ?? false,
           scanning: core.isScanning(package),
           onRefresh: () => core.refresh(package),
           onNew: () => unawaited(_newScenario(context, core, package)),
@@ -838,6 +839,7 @@ class _BranchRow extends StatelessWidget {
 class _ListPaneHeader extends StatelessWidget {
   const _ListPaneHeader({
     required this.directory,
+    required this.live,
     required this.scanning,
     required this.onRefresh,
     required this.onNew,
@@ -846,6 +848,11 @@ class _ListPaneHeader extends StatelessWidget {
   });
 
   final String directory;
+
+  /// Whether this folder runs on the real clock. Said beside the directory
+  /// because it changes what a run here *is*: real sockets, one guest per
+  /// scenario, and pictures a comparison leaves alone.
+  final bool live;
 
   /// Whether a scan is in flight — the refresh button's own feedback, and the
   /// only feedback there is: a rescan that finds the same scenarios changes
@@ -880,6 +887,33 @@ class _ListPaneHeader extends StatelessWidget {
               ),
             ),
           ),
+          if (live) ...[
+            const Gap(FwSpacing.xs),
+            Tooltip(
+              message:
+                  'Runs on the real clock with real sockets, one guest per '
+                  'scenario. Pictures are not compared between runs.',
+              waitDuration: const Duration(milliseconds: 500),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: context.colors.accent),
+                  borderRadius: BorderRadius.circular(context.radii.pill),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FwSpacing.xs,
+                    vertical: 1,
+                  ),
+                  child: Text(
+                    'live',
+                    style: context.type.caption.copyWith(
+                      color: context.colors.accent,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           _HeaderButton(
             icon: Icons.refresh,
             tooltip: 'Rescan for scenarios',
@@ -1228,6 +1262,11 @@ class _ScenarioPageState extends State<_ScenarioPage> {
   /// picked in the toolbar becomes a fresh run. Compared against the last
   /// *attempt*'s axes, so a failure is not retried in a loop.
   void _maybeRun() {
+    // A live folder runs on somebody's backend, on a wall clock: an account
+    // made, an email sent, rows written. That is a thing to ask for, not a
+    // side effect of opening a page or walking the list — so it waits for
+    // the Run button, and an axis picked in the toolbar waits for it too.
+    if (widget.core.timeFor(widget.package)?.isReal ?? false) return;
     var run = _run;
     if (run == null || (!run.running && run.axes != widget.axes)) {
       _start();
@@ -1311,7 +1350,8 @@ class _ScenarioPageState extends State<_ScenarioPage> {
 
   /// What the banner names the app when a notification payload does not —
   /// the package is the closest thing to the project's own name here.
-  String get _appLabel => p.basename(widget.package);
+  String get _appLabel =>
+      p.basename(widget.core.packagePathFor(widget.package));
 
   /// The project's own launcher icon for the banner tile. Once per page: the
   /// live lookup is a directory listing plus image headers, and the page is
@@ -1689,6 +1729,16 @@ class _ScenarioPageState extends State<_ScenarioPage> {
     if (steps.isEmpty) {
       if (run?.error case var error? when !running) {
         return _RunFailure(error);
+      }
+      if (run == null &&
+          (widget.core.timeFor(widget.package)?.isReal ?? false)) {
+        return EmptyState(
+          icon: Icons.cloud_outlined,
+          title: 'Runs against your backend',
+          message:
+              'A live scenario talks to a real server on a real clock, so it '
+              'runs when you press Run rather than when you open it.',
+        );
       }
       if (running || run == null) {
         // **The centred state, not the strip**, because with nothing on the

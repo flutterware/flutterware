@@ -136,7 +136,8 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
 
   List<String> get _previewsPackages => _previews?.packages ?? const [];
 
-  List<String> get _scenariosPackages => _scenarios?.packages ?? const [];
+  List<String> get _scenariosPackages =>
+      _scenarios?.comparablePackages ?? const [];
 
   /// Whether a row's id carries the package that declared it — the same
   /// question `runComparison` asks, and it has to be asked the same way: the
@@ -397,7 +398,8 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
   ScenariosSide _scenariosSide(String package) => ScenariosSide.of(
     _scenarios!,
     package: package,
-    packagePath: _relative(package),
+    // The key names a folder; the checkout path is its package's.
+    packagePath: _relative(_scenarios!.packagePathFor(package)),
     flutterSdkRoot: flutterSdk.root,
   );
 

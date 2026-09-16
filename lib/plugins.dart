@@ -14,6 +14,7 @@ export 'src/plugins/artifact.dart';
 export 'src/plugins/changes_config.dart';
 export 'src/plugins/child.dart';
 export 'src/plugins/status_badge.dart';
+export 'src/scenarios/time_mode.dart' show ScenarioTime;
 export 'src/plugins/first_party.dart';
 export 'src/plugins/fuzzy.dart';
 export 'src/plugins/guard.dart';

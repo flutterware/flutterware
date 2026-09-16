@@ -176,7 +176,27 @@ void scenario(
       // captures is for. `--clock now` and `FW_CLOCK=now` are how a run asks
       // for the wall clock back; both resolve to an instant before they get
       // here, so what ran is always a date somebody could write down.
+      //
+      // Except on the real clock, where nothing is compared and the backend
+      // answers with today's dates: there the wall clock is the clock, and a
+      // pin applies only when the run itself asked for one.
+      Future<void> scenarioBody() => _runScenario(
+        tester,
+        description,
+        body,
+        policy,
+        settling,
+        assignment,
+        source,
+        keyboard,
+        shadows,
+        _reachOf(network, folderReach, description, noticeKey),
+        statedNetwork: network != null,
+        noticeKey: noticeKey,
+        edit: edit,
+      );
       var origin = resolvedScenarioClockOrigin;
+      if (origin == null) return scenarioBody();
       // Pinned, but still ticking with FakeAsync: the offset from where this
       // scenario's fake clock started is what `s.wait` moves, so a flow that
       // waits a day still reads a day later — from a date that is the same on
@@ -184,21 +204,7 @@ void scenario(
       var started = tester.binding.clock.now();
       return withClock(
         Clock(() => origin.add(tester.binding.clock.now().difference(started))),
-        () => _runScenario(
-          tester,
-          description,
-          body,
-          policy,
-          settling,
-          assignment,
-          source,
-          keyboard,
-          shadows,
-          _reachOf(network, folderReach, description, noticeKey),
-          statedNetwork: network != null,
-          noticeKey: noticeKey,
-          edit: edit,
-        ),
+        scenarioBody,
       );
     },
   );
@@ -241,13 +247,18 @@ final _frameLocation = RegExp(r'\((.+?\.dart):\d+(?::\d+)?\)\s*$');
 /// What `clock.now()` reads at the start of every scenario: what the runner
 /// asked for, else what the host said, else [pinnedClockOrigin].
 ///
-/// Never null — see [pinnedClockOrigin] for why the default is a date rather
-/// than the wall clock. Read by the harness too, so a run can *report* the
-/// clock it ran under: a pinned date is only safe while it is stated, since an
-/// app with a trial expiry or a seasonal theme sits in a different state under
-/// one and nothing on the screen says why.
-DateTime get resolvedScenarioClockOrigin =>
-    scenarioRunArgs?.clockOrigin ?? _scenarioClockOrigin ?? pinnedClockOrigin;
+/// Null only on the real clock with nobody asking — see [pinnedClockOrigin]
+/// for why the fake-time default is a date rather than the wall clock, and
+/// why a live run has no such default: its backend answers with today, and a
+/// pin would put the app on a day the server disagrees with. Read by the
+/// harness too, so a run can *report* the clock it ran under: a pinned date
+/// is only safe while it is stated, since an app with a trial expiry or a
+/// seasonal theme sits in a different state under one and nothing on the
+/// screen says why.
+DateTime? get resolvedScenarioClockOrigin =>
+    scenarioRunArgs?.clockOrigin ??
+    _scenarioClockOrigin ??
+    (scenarioHarnessTime.isReal ? null : pinnedClockOrigin);
 
 /// What the host said the clock should be, or null when it said nothing —
 /// a dart-define first, then the environment, the same pair
@@ -289,7 +300,13 @@ ScenarioNetwork _reachOf(
 ) {
   var run = resolvedScenarioNetwork;
   var reach =
-      own ?? run ?? folder ?? scenarioProjectNetwork ?? ScenarioNetwork.off;
+      own ??
+      run ??
+      folder ??
+      scenarioProjectNetwork ??
+      // `off` under the fake clock, `live` under the real one: the
+      // determinism `off` protects is already spent once the timers are real.
+      (scenarioHarnessTime.isReal ? ScenarioNetwork.live : ScenarioNetwork.off);
   if (recordOverriddenMessage(scenario, own, run) case var said?
       when _recordOverridesSaid.add(noticeKey)) {
     stderr.writeln('[flutterware] $said');
@@ -1789,6 +1806,32 @@ class ScenarioTester {
   /// `screen` after this beat may still name the frame before it, and the
   /// chain stays linear because the position map records the chain's head
   /// rather than the step a name landed on.
+  /// Runs [body] as a step with a duration and no picture.
+  ///
+  /// The body runs in-process, so the network funnel already records its
+  /// exchanges on this step. A consumer's "create an account through the API,
+  /// read the confirmation mail, confirm it" becomes visible on the flow
+  /// without changing. Under the fake clock the body gets a real-async turn,
+  /// the way [runAsync] does, because what a setup awaits is real.
+  ///
+  /// ```dart
+  /// var token = await s.setup('fresh account', () => api.register(...));
+  /// await s.pumpWidget(app(initialToken: token));
+  /// ```
+  Future<T> setup<T>(String name, Future<T> Function() body) async {
+    var watch = Stopwatch()..start();
+    var result = scenarioHarnessTime.isReal
+        ? await body()
+        : (await watchRunAsync(() => tester.runAsync(body))) as T;
+    await _beat(
+      kind: ScenarioCaptureKind.setup,
+      verb: 'setup',
+      name: name,
+      ms: watch.elapsedMilliseconds,
+    );
+    return result;
+  }
+
   Future<void> _beat({
     required ScenarioCaptureKind kind,
     required String verb,
@@ -1798,6 +1841,7 @@ class ScenarioTester {
     String? fileName,
     String? mimeType,
     ScenarioNotification? notification,
+    int? ms,
   }) async {
     var position = '${_state.plan.path}#${++_ordinal}';
     if (!_capturing) return;
@@ -1830,6 +1874,7 @@ class ScenarioTester {
         fileName: fileName,
         mimeType: mimeType,
         notification: notification,
+        ms: ms,
         verb: verb,
         target: null,
         position: position,
@@ -2629,6 +2674,9 @@ class ScenarioTester {
         // that never had one.
         File('$base.notification.json')
             .writeAsBytesSync(pending.notification!.encode());
+      case ScenarioCaptureKind.setup:
+        // Nothing to look at; written anyway, for the reason above.
+        File('$base.setup.json').writeAsStringSync('{"ms": ${pending.ms}}');
     }
   }
 
@@ -3148,6 +3196,7 @@ class _PendingEmit {
     this.fileName,
     this.mimeType,
     this.notification,
+    this.ms,
     this.motion = ScenarioMotionFrames.empty,
     this.motionInterval,
   });
@@ -3182,6 +3231,7 @@ class _PendingEmit {
   final String? fileName;
   final String? mimeType;
   final ScenarioNotification? notification;
+  final int? ms;
   final String? statusBrightness;
   final String? navBrightness;
   final String? verb;
@@ -3234,6 +3284,7 @@ class _PendingEmit {
     fileName: fileName,
     mimeType: mimeType,
     notification: notification,
+    ms: ms,
     statusBrightness: statusBrightness,
     navBrightness: navBrightness,
     verb: verb,

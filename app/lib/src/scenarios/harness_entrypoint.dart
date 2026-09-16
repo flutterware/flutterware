@@ -1,5 +1,7 @@
 import 'dart:io';
 
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/time_mode.dart';
 import 'package:path/path.dart' as p;
 
 /// Where the generated harness entrypoint lives, relative to the package.
@@ -19,6 +21,7 @@ String generateHarnessEntrypoint(
   List<String> files, {
   List<String> configs = const [],
   String directory = 'build/flutterware',
+  ScenarioTime time = ScenarioTime.fake,
 }) {
   var sorted = [...files]..sort();
   var sortedConfigs = [...configs]..sort();
@@ -49,6 +52,11 @@ String generateHarnessEntrypoint(
       buffer.writeln("    '${p.url.dirname(config)}': c$index.testExecutable,");
     }
     buffer.writeln('  },');
+  }
+  if (time.isReal) {
+    buffer.writeln(
+      '  time: harness.ScenarioTime.real(animations: ${time.animations}),',
+    );
   }
   buffer.writeln(');');
   return buffer.toString();
@@ -106,12 +114,14 @@ String writeHarnessEntrypoint(
   String packageRoot,
   List<String> files, {
   String directory = 'build/flutterware',
+  ScenarioTime time = ScenarioTime.fake,
 }) {
   var path = p.join(packageRoot, directory, 'scenarios_harness.dart');
   var source = generateHarnessEntrypoint(
     files,
     configs: findTestConfigs(packageRoot, files),
     directory: directory,
+    time: time,
   );
   var file = File(path);
   if (!file.existsSync() || file.readAsStringSync() != source) {

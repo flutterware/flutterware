@@ -137,7 +137,14 @@ class ScenarioRunDrift {
     this.unanchored = 0,
     this.baseline,
     this.file,
+    this.pixelsIgnored = false,
   });
+
+  /// True when the pixels were left out of the comparison because one of the
+  /// runs was on the real clock: its pictures came off live data and differ
+  /// from the last run's by weather. Said here so a reader of a quiet drift
+  /// knows what quiet covers.
+  final bool pixelsIgnored;
 
   /// Steps both runs captured, both carrying a digest — the denominator.
   final int compared;
@@ -227,6 +234,7 @@ class ScenarioRunDrift {
       // not fragile, and warning about those — most steps in most suites —
       // would train a reader to skip the line that matters.
       if (unanchored > 0) '$unanchored matched by position alone',
+      if (pixelsIgnored) 'pictures not compared (real clock)',
     ].join(' · ');
   }
 
@@ -247,6 +255,7 @@ class ScenarioRunDrift {
       },
       if (baseline != null) 'baseline': baseline,
       if (file != null) 'file': file,
+      if (pixelsIgnored) 'pixelsIgnored': true,
       if (changed.isNotEmpty) ...{
         'changed': changed.length,
         'byFacet': byFacet,
@@ -273,6 +282,7 @@ class ScenarioRunDrift {
         unanchored: json['unanchored'] as int? ?? 0,
         baseline: json['baseline'] as String?,
         file: json['file'] as String?,
+        pixelsIgnored: json['pixelsIgnored'] == true,
         changed: _steps(json['changedSteps']),
         added: _steps(json['addedSteps']),
         removed: _steps(json['removedSteps']),
@@ -285,6 +295,7 @@ class ScenarioRunDrift {
     unanchored: unanchored,
     baseline: baseline,
     file: path,
+    pixelsIgnored: pixelsIgnored,
     changed: changed,
     added: added,
     removed: removed,

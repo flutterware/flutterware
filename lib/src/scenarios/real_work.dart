@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../real_work/tracker.dart';
 import 'asset_bundle.dart';
 import 'motion.dart';
+import 'network.dart' show scenarioLiveRequestsInFlight;
+import 'profile.dart' show scenarioHarnessTime;
 import 'progress.dart';
 import 'settle.dart';
 
@@ -296,8 +298,8 @@ class RealWorkBudget {
     ScenarioAssetBundle? assets, {
     bool untracked = true,
   }) async {
-    while (untracked ? _announced(assets) : RealWork.pending > 0) {
-      if (RealWork.pending > 0) {
+    while (untracked ? _announced(assets) : _promised) {
+      if (_promised) {
         if (trackedWait case var ceiling?
             when _trackedSpent.elapsed >= ceiling) {
           return false;
@@ -339,7 +341,14 @@ class RealWorkBudget {
 bool _announced(ScenarioAssetBundle? assets) =>
     PaintingBinding.instance.imageCache.pendingImageCount > 0 ||
     (assets?.readsInFlight ?? 0) > 0 ||
-    RealWork.pending > 0;
+    _promised;
+
+/// Work the app itself promised — a `RealWork.track` future, or on the real
+/// clock a request out on the wire — waited for as long as it takes, up to the
+/// scenario's deadline, rather than for [realWorkWait].
+bool get _promised =>
+    RealWork.pending > 0 ||
+    (scenarioHarnessTime.isReal && scenarioLiveRequestsInFlight > 0);
 
 /// What [_announced] is counting right now, in the shape a report carries:
 /// the label of every tracked future, and the image decodes and asset reads
@@ -350,6 +359,8 @@ Map<String, Object?> pendingRealWork(ScenarioAssetBundle? assets) {
   return {
     if (RealWork.pending > 0)
       'tracked': [for (var work in RealWork.pendingWork) '$work'],
+    if (scenarioHarnessTime.isReal && scenarioLiveRequestsInFlight > 0)
+      'requests': scenarioLiveRequestsInFlight,
     if (images > 0) 'images': images,
     if (reads > 0) 'assets': reads,
   };

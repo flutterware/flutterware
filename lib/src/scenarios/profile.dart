@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter_test/flutter_test.dart'
+    show LiveTestWidgetsFlutterBinding, TestWidgetsFlutterBinding;
 import 'package:meta/meta.dart';
 
 import '../devices.dart';
 import '../translations/index.dart';
 import 'fonts.dart';
+import 'live_binding.dart';
 import 'network.dart';
 import 'settle.dart';
 import 'shots.dart';
 import 'reel.dart';
+import 'time_mode.dart';
 
 /// What a folder of scenarios is *for* — the devices and languages worth
 /// offering them in.
@@ -197,6 +202,50 @@ ScenarioAssignment? scenarioAmbientAssignment;
 /// back before it ends, which is what keeps the binding's own end-of-test
 /// check on its debug variables happy.
 ///
+/// The clock this process runs scenarios on. Set once — by the harness when
+/// it builds its binding, or by [runScenarios] under bare `flutter test` —
+/// and read by the tester where fake and real time part ways.
+ScenarioTime scenarioHarnessTime = ScenarioTime.fake;
+
+/// The live binding, created once, for a folder that runs on the real clock
+/// under bare `flutter test`. `runScenarios(time: real)` calls it; a config
+/// that initializes a binding itself must call this rather than
+/// `TestWidgetsFlutterBinding.ensureInitialized()`, because a binding already
+/// built is the one the folder gets — and the wrong one is refused here by
+/// name rather than found later as a scenario settling in fake seconds on a
+/// real clock.
+LiveTestWidgetsFlutterBinding ensureLiveScenarioBinding({
+  double animations = 0.1,
+}) {
+  switch (_currentTestBinding()) {
+    case LiveTestWidgetsFlutterBinding live:
+      return live;
+    case null:
+      return LiveHarnessBinding(
+        animations: animations,
+        wrapMessenger: (inner) => inner,
+      );
+    case var other:
+      throw StateError(
+        'runScenarios(time: real) needs the live binding, but '
+        "${other.runtimeType} is already initialized. In this folder's "
+        'flutter_test_config.dart call `ensureLiveScenarioBinding()` instead '
+        'of `TestWidgetsFlutterBinding.ensureInitialized()`, or call neither '
+        '— runScenarios initializes the right one.',
+      );
+  }
+}
+
+/// The test binding, or null before any is initialized — `instance` throws
+/// there, and the throw is the only door the base class leaves.
+TestWidgetsFlutterBinding? _currentTestBinding() {
+  try {
+    return TestWidgetsFlutterBinding.instance;
+  } on FlutterError {
+    return null;
+  }
+}
+
 /// Also loads the project's fonts, once, before anything is declared — the
 /// step `flutter test` otherwise leaves to each project's own
 /// `flutter_test_config.dart`. Without it this lane measures text in the
@@ -211,6 +260,7 @@ Future<void> runScenarios(
   ScenarioNetwork? network,
   Settle? settle,
   ScenarioReelEdit? reel,
+  ScenarioTime? time,
 }) async {
   // Under the flutterware runner this is called to *ask* what the folder is
   // for, not to declare anything: the harness reads the profile here and
@@ -229,10 +279,27 @@ Future<void> runScenarios(
     scenarioProbedKeyboard = keyboard;
     scenarioProbedShadows = shadows;
     scenarioProbedNetwork = network;
+    scenarioProbedTime = time;
     scenarioProbedSettle = settle;
     scenarioProbedReel = reel;
     return;
   }
+
+  // The clock, resolved the way `network` resolves `FW_NETWORK`: the argument,
+  // else the environment, else fake. Under the harness this never runs — the
+  // probe returned above — and the harness said its own clock when it built
+  // its binding. Resolved before the fonts because the binding has to exist
+  // before anything touches the engine.
+  var resolvedTime =
+      time ??
+      switch (Platform.environment['FW_TIME']) {
+        null || '' => null,
+        var raw => parseScenarioTime(raw),
+      };
+  if (resolvedTime?.isReal ?? false) {
+    ensureLiveScenarioBinding(animations: resolvedTime!.animations);
+  }
+  scenarioHarnessTime = resolvedTime ?? ScenarioTime.fake;
 
   // Before the first declaration and after the probe returns: the harness
   // loads its own, and a scenario laid out in the fallback font reports itself
@@ -250,6 +317,7 @@ Future<void> runScenarios(
   scenarioAmbientKeyboard = keyboard;
   scenarioAmbientShadows = shadows;
   scenarioAmbientNetwork = network;
+  scenarioAmbientTime = resolvedTime;
   scenarioAmbientSettle = settle;
   scenarioAmbientReel = reel;
   try {
@@ -311,6 +379,19 @@ ScenarioNetwork? scenarioAmbientNetwork;
 
 /// What the last probed config said its http requests reach.
 ScenarioNetwork? scenarioProbedNetwork;
+
+/// The clock the folder being declared right now runs on, as
+/// `runScenarios(time: …)` said it, or null where it said nothing — which is
+/// [ScenarioTime.fake].
+///
+/// A lane is a process, so unlike the slots above nothing per scenario can
+/// override this; it is read so the folder can be checked against the
+/// binding the harness already built.
+ScenarioTime? scenarioAmbientTime;
+
+/// What the last probed config said about its clock, for the harness to
+/// check against the package's declaration before it runs anything.
+ScenarioTime? scenarioProbedTime;
 
 /// The settle policy the folder being declared right now asked for, or null
 /// where it asked for nothing — which is [Settle.standard].

@@ -4689,6 +4689,12 @@ final resultShapes = <String, ResultShape>{
               'doc': 'What this step is a picture of.',
             },
             <String, Object?>{
+              'name': 'ms',
+              'type': 'int',
+              'optional': true,
+              'doc': 'A `setup` beat\'s wall-clock duration in milliseconds; null elsewhere.',
+            },
+            <String, Object?>{
               'name': 'image',
               'type': 'String',
               'optional': true,
@@ -5085,6 +5091,12 @@ final resultShapes = <String, ResultShape>{
                     'doc': 'What this step is a picture of.',
                   },
                   <String, Object?>{
+                    'name': 'ms',
+                    'type': 'int',
+                    'optional': true,
+                    'doc': 'A `setup` beat\'s wall-clock duration in milliseconds; null elsewhere.',
+                  },
+                  <String, Object?>{
                     'name': 'image',
                     'type': 'String',
                     'optional': true,
@@ -5390,6 +5402,18 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
         'doc': 'What this run recorded that the run before it did not: `compared`, `nameMatched`, the `baseline` it was compared against, and a count plus a capped list of steps under `changed`, `added` and `removed`, each saying in `what` which facets moved.',
       },
+      <String, Object?>{
+        'name': 'time',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The clock this package ran on — `fake` (FakeAsync) or `real` (the wall clock, real sockets).',
+      },
+      <String, Object?>{
+        'name': 'animations',
+        'type': 'double',
+        'optional': true,
+        'doc': 'The ticker scale a `real` run applied — 0.1 by default — or null under the fake clock, where there is nothing to scale.',
+      },
     ],
   }),
   'ScenarioRunResult': ResultShape.fromJson(<String, Object?>{
@@ -5540,6 +5564,12 @@ final resultShapes = <String, ResultShape>{
                           'type': 'String',
                           'optional': true,
                           'doc': 'What this step is a picture of.',
+                        },
+                        <String, Object?>{
+                          'name': 'ms',
+                          'type': 'int',
+                          'optional': true,
+                          'doc': 'A `setup` beat\'s wall-clock duration in milliseconds; null elsewhere.',
                         },
                         <String, Object?>{
                           'name': 'image',
@@ -5846,6 +5876,18 @@ final resultShapes = <String, ResultShape>{
               'optional': true,
               'doc': 'What this run recorded that the run before it did not: `compared`, `nameMatched`, the `baseline` it was compared against, and a count plus a capped list of steps under `changed`, `added` and `removed`, each saying in `what` which facets moved.',
             },
+            <String, Object?>{
+              'name': 'time',
+              'type': 'String',
+              'optional': true,
+              'doc': 'The clock this package ran on — `fake` (FakeAsync) or `real` (the wall clock, real sockets).',
+            },
+            <String, Object?>{
+              'name': 'animations',
+              'type': 'double',
+              'optional': true,
+              'doc': 'The ticker scale a `real` run applied — 0.1 by default — or null under the fake clock, where there is nothing to scale.',
+            },
           ],
         },
       },
@@ -5899,6 +5941,12 @@ final resultShapes = <String, ResultShape>{
         'type': 'String',
         'optional': true,
         'doc': 'What this step is a picture of.',
+      },
+      <String, Object?>{
+        'name': 'ms',
+        'type': 'int',
+        'optional': true,
+        'doc': 'A `setup` beat\'s wall-clock duration in milliseconds; null elsewhere.',
       },
       <String, Object?>{
         'name': 'image',

@@ -199,6 +199,23 @@ void main() {
             .file,
         'out/2-doc.pdf',
       );
+      // A setup beat's duration travels with it.
+      expect(
+        ScenarioRunStep(
+              index: 3,
+              position: '#3',
+              auto: false,
+              kind: ScenarioStepKind.setup,
+              ms: 640,
+            )
+            .locate(
+              root: '/worktree',
+              address: 'fw://main/scenarios/f/s/3',
+              path: (path) => path,
+            )
+            .ms,
+        640,
+      );
       expect(located.root, '/worktree');
       expect(located.address, 'fw://main/scenarios/f/s/1');
       expect(located.verb, 'tap');
@@ -302,6 +319,40 @@ void main() {
         ),
       ],
     );
+
+    test('a setup beat round-trips its kind and its duration', () {
+      var beat = ScenarioRunStep(
+        index: 1,
+        position: '#1',
+        auto: false,
+        name: 'fresh account',
+        kind: ScenarioStepKind.setup,
+        ms: 340,
+      );
+      var read = ScenarioRunStep.fromJson(beat.toJson());
+      expect(read.kind, ScenarioStepKind.setup);
+      expect(read.ms, 340);
+      expect(read.image, isNull);
+    });
+
+    test('a package says its clock only when it is not the fake one', () {
+      var fake = ScenarioRunPackage(path: 'app', output: '/abs/out');
+      expect(fake.toJson().containsKey('time'), isFalse);
+      expect(ScenarioRunPackage.fromJson(fake.toJson()).time, 'fake');
+      expect(ScenarioRunPackage.fromJson(fake.toJson()).isRealTime, isFalse);
+
+      var live = ScenarioRunPackage(
+        path: 'app',
+        output: '/abs/out',
+        time: 'real',
+        animations: 0.1,
+      );
+      var read = ScenarioRunPackage.fromJson(live.toJson());
+      expect(read.time, 'real');
+      expect(read.animations, 0.1);
+      expect(read.isRealTime, isTrue);
+      expect(read.carrying(const []).time, 'real');
+    });
 
     test('is stamped with the version it was written by', () {
       expect(result().toJson()['version'], scenarioRunReportVersion);

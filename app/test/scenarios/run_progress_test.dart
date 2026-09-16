@@ -230,6 +230,7 @@ class _Gated extends ScenarioRunner {
     String? tag,
     ScenarioAxes axes = const ScenarioAxes(),
     String? unspecifiedDevice,
+    int? jobs,
     double? captureScale,
     bool captureRaw = false,
     ScenarioPixels pixels = ScenarioPixels.all,

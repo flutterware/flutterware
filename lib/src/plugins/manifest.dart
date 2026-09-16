@@ -333,24 +333,40 @@ class FlutterwareConfig {
 /// happened before this check is that the first entry won and its result was
 /// emitted once per declaration, which reads as though both had been honoured.
 ///
+/// A plugin whose config says `folders: true` keys on the **folder** instead —
+/// the scenarios plugin, whose package may keep a fake-time `test/scenarios`
+/// beside a real-time `test/integration` and addresses the second by its
+/// directory. For it, two entries are two things when each names its own
+/// directory; two for one folder, or a second that names none, are still the
+/// fault above.
+///
 /// Refused rather than merged, for the reason a duplicate plugin id is: a
 /// silent resolution loses one of two answers, and this one loses it while
 /// showing you a copy of the other.
 String? _duplicatePackagePath(Map<String, Object?> config) {
-  var seen = <String>{};
+  var byFolder = config[foldersConfigKey] == true;
+  var seen = <String, Set<String?>>{};
   for (var entry in (config['packages'] as List? ?? const [])) {
     if (entry is! Map) continue;
     if (entry['path'] case String path) {
-      if (!seen.add(path)) return path;
+      var folders = seen.putIfAbsent(path, () => {});
+      var directory = byFolder ? entry['directory'] as String? : null;
+      if (!folders.add(directory)) return path;
+      if (folders.length > 1 && folders.contains(null)) return path;
     }
   }
   return null;
 }
 
+/// The config key a plugin sets to `true` when it addresses a package's
+/// folders apart, which is what lets one package be declared once per folder.
+const foldersConfigKey = 'folders';
+
 /// Names the way out as well as the fault, because "declared twice" on its own
 /// reads as a typo and the case that gets here usually is not one: it is a
 /// request for two configurations of one package. That is a reasonable thing to
-/// want, and the plugin's own options are where it is expressed.
+/// want, and the plugin's own options are where it is expressed — or, for a
+/// plugin that keys on folders, a `directory` on each entry.
 String _duplicatePackageMessage(String pluginId, String path) =>
     'Plugin "$pluginId" declares package "$path" twice. A package may be '
     'named once per plugin — put every option for it in one entry.';

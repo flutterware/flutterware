@@ -26,12 +26,18 @@ export 'src/scenarios/network.dart'
         scenarioNetworkStorePath,
         scenarioPlaceholderPng;
 export 'src/scenarios/notification.dart' show ScenarioNotification;
+export 'src/scenarios/plugin_refusal.dart' show describePluginFailure;
 export 'src/scenarios/profile.dart'
-    show ScenarioAssignment, ScenarioProfile, runScenarios;
+    show
+        ScenarioAssignment,
+        ScenarioProfile,
+        ensureLiveScenarioBinding,
+        runScenarios;
 export 'src/scenarios/scenario.dart';
 export 'src/scenarios/settle.dart';
 export 'src/scenarios/shots.dart';
 export 'src/scenarios/staging.dart' show DeviceStaging;
+export 'src/scenarios/time_mode.dart' show ScenarioTime;
 export 'src/scenarios/target.dart' show Target, describeTarget, finderForTarget;
 export 'src/translations/index.dart'
     show

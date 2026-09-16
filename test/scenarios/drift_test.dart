@@ -27,12 +27,14 @@ ScenarioRunResult _run(
   List<ScenarioRunStep> steps, {
   Map<String, String>? axes,
   String output = 'build/out',
+  String time = 'fake',
 }) => ScenarioRunResult(
   packages: [
     ScenarioRunPackage(
       path: 'packages/app',
       output: output,
       axes: axes,
+      time: time,
       scenarios: [
         ScenarioRunOutcome(
           file: 'test/scenarios/shop_test.dart',
@@ -57,6 +59,23 @@ void main() {
     expect(drift.isEmpty, isTrue);
     expect(drift.compared, 2);
     expect(drift.summary, isNull);
+  });
+
+  test('two runs on the real clock never differ by pixels', () {
+    var drift = compareScenarioRuns(
+      _run([
+        _step('#1', digest: 'aaaa', name: 'Menu', settled: true),
+      ], time: 'real'),
+      _run([
+        _step('#1', digest: 'bbbb', name: 'Menu', settled: false),
+      ], time: 'real'),
+    );
+
+    expect(drift.compared, 1);
+    expect(drift.changed.single.what, [ScenarioDriftFacet.settled]);
+    expect(drift.pixelsIgnored, isTrue);
+    expect(drift.summary, contains('pictures not compared (real clock)'));
+    expect(ScenarioRunDrift.fromJson(drift.toJson()).pixelsIgnored, isTrue);
   });
 
   test('a step whose pixels moved is named, with its shot name', () {

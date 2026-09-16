@@ -43,6 +43,12 @@ const _frameInterval = Duration(milliseconds: 100);
 /// pumps at that sink's finer interval while it does. One seam, and no verb
 /// had to learn anything — a panel recording a transition and a film
 /// recording a whole scenario arrive here as the same hook.
+///
+/// Under `ScenarioTime.real` every duration here is a **real** one:
+/// `tester.pump(interval)` on the live binding waits the interval on the wall
+/// clock and then a real frame, so `upTo(5s)` reads "until quiet, at most
+/// five real seconds" and `elapse(2s)` costs two real seconds. Nothing in the
+/// policies changes; only what a second is.
 sealed class Settle {
   const Settle();
 

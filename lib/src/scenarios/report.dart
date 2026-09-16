@@ -226,6 +226,8 @@ class ScenarioRunPackage {
     int? skipped,
     int? unsettledCount,
     this.scenariosElided = 0,
+    this.time = 'fake',
+    this.animations,
   }) : passed = passed ?? scenarios.where((s) => s.ok && !s.skipped).length,
        failed = failed ?? scenarios.where((s) => !s.ok).length,
        skipped = skipped ?? scenarios.where((s) => s.skipped).length,
@@ -254,6 +256,9 @@ class ScenarioRunPackage {
         skipped: json['skipped'] as int?,
         unsettledCount: json['unsettledCount'] as int?,
         scenariosElided: _int(json['scenariosElided'], 0),
+        // Absent on every report from before there was a second clock.
+        time: json['time'] as String? ?? 'fake',
+        animations: (json['animations'] as num?)?.toDouble(),
       );
 
   final String path;
@@ -325,6 +330,17 @@ class ScenarioRunPackage {
   /// as a short run.
   final int scenariosElided;
 
+  /// The clock this package ran on — `fake` (FakeAsync) or `real` (the wall
+  /// clock, real sockets). A `real` run's pictures came off live data, which
+  /// is why a comparison leaves them alone; see `compareScenarioRuns`.
+  final String time;
+
+  /// The ticker scale a `real` run applied — 0.1 by default — or null under
+  /// the fake clock, where there is nothing to scale.
+  final double? animations;
+
+  bool get isRealTime => time == 'real';
+
   /// This package with [keep] in place of its scenarios, and its counts left
   /// as they were — they describe the run, not the copy.
   ScenarioRunPackage carrying(List<ScenarioRunOutcome> keep) =>
@@ -343,6 +359,8 @@ class ScenarioRunPackage {
         skipped: skipped,
         unsettledCount: unsettledCount,
         scenariosElided: scenariosElided + scenarios.length - keep.length,
+        time: time,
+        animations: animations,
       );
 
   /// Set when the package could not be run at all — the harness did not
@@ -386,6 +404,8 @@ class ScenarioRunPackage {
     if (log != null) 'log': log,
     if (error != null) 'error': error,
     if (drift != null) 'drift': drift!.toJson(),
+    if (time != 'fake') 'time': time,
+    if (animations != null) 'animations': animations,
   };
 }
 
@@ -648,6 +668,11 @@ enum ScenarioStepKind {
   /// a viewer draws it the way the recipient's phone would, as a banner over
   /// the nearest screen before it.
   notification,
+
+  /// Work done before the flow — an account created through the API, a
+  /// database seeded — captured for its duration and its exchanges, never its
+  /// pixels. `s.setup(...)`.
+  setup,
 }
 
 /// One captured step: what it is a picture of, its sibling legs on disk, and
@@ -668,6 +693,7 @@ class ScenarioRunStep {
         kind: switch (json['kind']) {
           'document' => ScenarioStepKind.document,
           'notification' => ScenarioStepKind.notification,
+          'setup' => ScenarioStepKind.setup,
           _ => ScenarioStepKind.screen,
         },
         image: json['image'] as String?,
@@ -678,6 +704,7 @@ class ScenarioRunStep {
         file: json['file'] as String?,
         mimeType: json['mimeType'] as String?,
         bytes: json['bytes'] as int?,
+        ms: json['ms'] as int?,
         notification: switch (json['notification']) {
           Map notification => ScenarioNotification(
             body: '${notification['body'] ?? ''}',
@@ -740,6 +767,7 @@ class ScenarioRunStep {
     this.mimeType,
     this.bytes,
     this.notification,
+    this.ms,
     this.keys,
     this.texts = const [],
     this.address = '',
@@ -847,6 +875,9 @@ class ScenarioRunStep {
   /// both ends of the wire — a viewer supplies what it leaves out (the app's
   /// own icon, the banner's "now", the brightness the run was in).
   final ScenarioNotification? notification;
+
+  /// A `setup` beat's wall-clock duration in milliseconds; null elsewhere.
+  final int? ms;
 
   /// The translation keys on this screen, and the words that belonged to no
   /// catalog — relative like [image]. Null when no catalog was wired up,
@@ -1114,6 +1145,7 @@ class ScenarioRunStep {
     auto: auto,
     tags: tags,
     kind: kind,
+    ms: ms,
     image: switch (image) {
       var image? => path(image),
       null => null,
@@ -1188,6 +1220,7 @@ class ScenarioRunStep {
     // the size it has always been — and so a reader written before there was
     // anything but screens reads one correctly by ignoring the key.
     if (kind != ScenarioStepKind.screen) 'kind': kind.name,
+    if (ms != null) 'ms': ms,
     if (image != null) 'image': image,
     if (format != null) 'format': format,
     if (width != null) 'width': width,
@@ -1450,6 +1483,12 @@ ScenarioRunDrift compareScenarioRuns(
   var unanchored = 0;
 
   var shared = _scenarios(before).intersection(_scenarios(after));
+  // A run on the real clock drew its pictures off live data, so two of them
+  // differ by weather. Everything the pixels do not carry — status bar tint,
+  // keyboard height, whether a step settled — is still compared.
+  var live =
+      before.packages.any((p) => p.isRealTime) ||
+      after.packages.any((p) => p.isRealTime);
 
   var old = <String, _Compared>{};
   for (var step in _walk(before)) {
@@ -1470,7 +1509,7 @@ ScenarioRunDrift compareScenarioRuns(
     compared++;
     if (step.pairing == _Pairing.name) nameMatched++;
     if (step.pairing == _Pairing.position) unanchored++;
-    var moved = was.difference(step.record!);
+    var moved = was.difference(step.record!, pixels: !live);
     if (moved.isNotEmpty) changed.add(step.drift.movedIn(moved));
   }
 
@@ -1487,6 +1526,7 @@ ScenarioRunDrift compareScenarioRuns(
     nameMatched: nameMatched,
     unanchored: unanchored,
     baseline: baseline ?? before.packages.firstOrNull?.output,
+    pixelsIgnored: live,
     changed: changed,
     added: added,
     removed: removed,
@@ -1540,8 +1580,8 @@ class _Compared {
   /// Which of [ScenarioDriftFacet] disagree between this and [other], in the
   /// order the facets are declared, so two reports of the same drift read the
   /// same way.
-  List<String> difference(_Compared other) => [
-    if (step.digest != other.step.digest) ScenarioDriftFacet.pixels,
+  List<String> difference(_Compared other, {required bool pixels}) => [
+    if (pixels && step.digest != other.step.digest) ScenarioDriftFacet.pixels,
     if (step.statusBrightness != other.step.statusBrightness)
       ScenarioDriftFacet.statusBrightness,
     if (step.navBrightness != other.step.navBrightness)
