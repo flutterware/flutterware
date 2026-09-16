@@ -316,10 +316,7 @@ class _BeatNode extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            step.name ??
-                (step.kind == ScenarioStepKind.notification
-                    ? 'notification'
-                    : 'document'),
+            step.name ?? scenarioBeatFallbackName(step),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             // The step label's size, in the accent that says "not a screen".

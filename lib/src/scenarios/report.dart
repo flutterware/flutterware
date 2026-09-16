@@ -1145,6 +1145,7 @@ class ScenarioRunStep {
     auto: auto,
     tags: tags,
     kind: kind,
+    ms: ms,
     image: switch (image) {
       var image? => path(image),
       null => null,

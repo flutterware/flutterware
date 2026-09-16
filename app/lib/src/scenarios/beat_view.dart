@@ -69,6 +69,15 @@ class ScenarioBeatShot extends StatelessWidget {
     // came out wider than the screens it sat between.
     var canvas = Size(device?.width ?? 800, device?.height ?? 600);
     var width = canvas.width * 0.86;
+    if (step.kind == ScenarioStepKind.setup) {
+      return SizedBox(
+        width: canvas.width,
+        height: canvas.height,
+        child: Center(
+          child: _SetupCard(step: step, width: width),
+        ),
+      );
+    }
     return SizedBox(
       width: canvas.width,
       height: canvas.height,
@@ -78,6 +87,128 @@ class ScenarioBeatShot extends StatelessWidget {
           width: width,
           height: math.min(width * 1.35, canvas.height * 0.9),
         ),
+      ),
+    );
+  }
+}
+
+/// What a beat is called when the scenario gave it no name.
+String scenarioBeatFallbackName(ScenarioRunStep step) => switch (step.kind) {
+  ScenarioStepKind.notification => 'notification',
+  ScenarioStepKind.setup => 'setup',
+  _ => 'document',
+};
+
+/// A setup beat's facts: how long the preparatory work took and how much of
+/// it went over the wire — `154 ms · 4 exchanges`. Empty when neither is
+/// known.
+String scenarioSetupFacts(ScenarioRunStep step) {
+  var exchanges = step.eventChannels?['network'] ?? 0;
+  return [
+    if (step.ms case var ms?) '$ms ms',
+    if (exchanges == 1)
+      '1 exchange'
+    else if (exchanges > 1)
+      '$exchanges exchanges',
+  ].join(' · ');
+}
+
+/// Preparatory work as a card: the name, its facts, and the exchanges it
+/// made — a `setup` beat has no picture, because nothing was on screen for
+/// it, and what a reader wants from it is what it did to the backend.
+///
+/// A card rather than a sheet: a sheet is a document, and the folded corner
+/// says so at the strip's half-scale. This is a list of requests, and reads
+/// as one.
+class _SetupCard extends StatelessWidget {
+  const _SetupCard({required this.step, required this.width});
+
+  final ScenarioRunStep step;
+  final double width;
+
+  /// How many exchange lines the card shows before it counts the rest.
+  static const _shown = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    var titles = step.eventTitles ?? const <String>[];
+    var facts = scenarioSetupFacts(step);
+    return Container(
+      width: width,
+      decoration: BoxDecoration(
+        color: colors.bg,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(context.radii.radiusLarge),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(FwSpacing.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.build_outlined,
+                size: FwIconSize.lg,
+                color: colors.mut,
+              ),
+              const Gap(FwSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      step.name ?? 'setup',
+                      style: context.type.heading,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (facts.isNotEmpty) ...[
+                      const Gap(FwSpacing.xs),
+                      Text(
+                        facts,
+                        style: context.type.caption.copyWith(
+                          color: colors.mut2,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Gap(FwSpacing.lg),
+          const Divider(height: 1),
+          const Gap(FwSpacing.lg),
+          if (titles.isEmpty)
+            Text('Nothing went over the wire.', style: context.type.bodyMuted)
+          else ...[
+            for (var title in titles.take(_shown))
+              Padding(
+                padding: const EdgeInsets.only(bottom: FwSpacing.xs),
+                child: Text(
+                  title,
+                  style: context.type.mono.copyWith(fontSize: 12, height: 1.5),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            if (titles.length > _shown)
+              Text(
+                '+${titles.length - _shown} more',
+                style: context.type.bodyMuted,
+              ),
+          ],
+        ],
       ),
     );
   }
@@ -545,20 +676,22 @@ class ScenarioBeatPage extends StatelessWidget {
               const Gap(FwSpacing.lg),
               Expanded(
                 child: Text(
-                  step.name ??
-                      (step.notification != null ? 'notification' : 'document'),
+                  step.name ?? scenarioBeatFallbackName(step),
                   style: context.type.heading,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // A document's facts. A notification has none — it is three
-              // strings and they are all on screen already — so the line is
-              // absent rather than empty.
-              if ([
-                    if (step.file case var file?) p.basename(file),
-                    ?step.mimeType,
-                    if (step.bytes case var bytes?) scenarioBeatSize(bytes),
-                  ].join(' · ')
+              // A document's facts, or a setup beat's. A notification has
+              // none — it is three strings and they are all on screen
+              // already — so the line is absent rather than empty.
+              if (switch (step.kind) {
+                    ScenarioStepKind.setup => scenarioSetupFacts(step),
+                    _ => [
+                      if (step.file case var file?) p.basename(file),
+                      ?step.mimeType,
+                      if (step.bytes case var bytes?) scenarioBeatSize(bytes),
+                    ].join(' · '),
+                  }
                   case var facts when facts.isNotEmpty)
                 Text(
                   facts,

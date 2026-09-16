@@ -199,6 +199,23 @@ void main() {
             .file,
         'out/2-doc.pdf',
       );
+      // A setup beat's duration travels with it.
+      expect(
+        ScenarioRunStep(
+              index: 3,
+              position: '#3',
+              auto: false,
+              kind: ScenarioStepKind.setup,
+              ms: 640,
+            )
+            .locate(
+              root: '/worktree',
+              address: 'fw://main/scenarios/f/s/3',
+              path: (path) => path,
+            )
+            .ms,
+        640,
+      );
       expect(located.root, '/worktree');
       expect(located.address, 'fw://main/scenarios/f/s/1');
       expect(located.verb, 'tap');
