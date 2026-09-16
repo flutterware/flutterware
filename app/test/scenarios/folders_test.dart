@@ -86,6 +86,9 @@ void main() {
     expect(subject.timeFor('app/test/integration')?.isReal, isTrue);
     expect(subject.timeFor('app/test/integration')?.animations, 0.5);
 
+    // A comparison runs the fake-time folder and never the live one.
+    expect(subject.comparablePackages, ['app']);
+
     // The first folder is untouched by the second.
     expect(subject.scanRootFor('app'), 'test/scenarios');
     expect(subject.buildDirectoryFor('app'), 'build/flutterware');

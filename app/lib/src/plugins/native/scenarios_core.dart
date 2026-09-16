@@ -236,6 +236,15 @@ class ScenariosCore extends PluginCore {
     for (var MapEntry(key: key) in _declarations.entries) key,
   ];
 
+  /// The folders a comparison may run: the fake-time ones. A real-time folder
+  /// runs against a live backend on a wall clock, so two runs of it differ by
+  /// weather — and a comparison's base side would have to bring the stack up
+  /// for a checkout that is not even the user's. It is not compared.
+  List<String> get comparablePackages => [
+    for (var key in packages)
+      if (timeFor(key) == null) key,
+  ];
+
   /// The `packages:` entries, keyed as [packages] addresses them.
   late final Map<String, Map<String, Object?>> _declarations = () {
     var declared = <String, Map<String, Object?>>{};
