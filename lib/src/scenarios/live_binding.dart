@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,6 +32,21 @@ class LiveHarnessBinding extends LiveTestWidgetsFlutterBinding {
   @override
   TestDefaultBinaryMessenger createBinaryMessenger() =>
       wrapMessenger(super.createBinaryMessenger());
+
+  /// The view is the surface, as it is under the automated binding.
+  ///
+  /// `LiveTestWidgetsFlutterBinding` lays the tree out on an 800×600 test
+  /// surface whatever the view's size, and paints that surface into the view
+  /// through a fit-and-centre matrix — it was written for a test watched on
+  /// a device's screen. The harness stages a device the other way round: it
+  /// sets the view's physical size, exactly as a widget test does, and every
+  /// capture and every hit test reads the view. Under the matrix a phone-sized
+  /// step came back as an 800×600 picture with the app shrunk into its lower
+  /// half, and a tap at a widget's centre landed on whatever the matrix put
+  /// there instead. Measured on a consumer's welcome screen, 2026-09-16.
+  @override
+  ViewConfiguration createViewConfigurationFor(RenderView renderView) =>
+      ViewConfiguration.fromView(renderView.flutterView);
 
   // A hot reload schedules a warm-up frame; outside a test that frame
   // asserts. The same guard the fake-time binding carries.

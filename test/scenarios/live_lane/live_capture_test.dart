@@ -99,6 +99,10 @@ void main() {
         .toList();
     expect(pngs, hasLength(1), reason: 'the screen was written once');
     var decoded = await decodeImageFromList(pngs.single.readAsBytesSync());
+    // The staged phone, not `flutter_test`'s 800×600 surface fitted into it:
+    // the live binding paints its default surface through a centring matrix
+    // unless the harness binding says the view is the surface.
+    expect((decoded.width, decoded.height), (375, 812));
     var bytes = await decoded.toByteData();
     var colours = <int>{};
     for (var i = 0; i < bytes!.lengthInBytes; i += 4) {
