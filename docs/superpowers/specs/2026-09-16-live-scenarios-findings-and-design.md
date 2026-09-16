@@ -87,6 +87,18 @@ network image inside the step that mounts it under the real clock too.
 `pumpAndSettle` on a real binding still follows frames only, which is why the
 tester's bounded policies, not `pumpAndSettle`, are the settle in this lane.
 
+One thing the probe could not show and the first end-to-end run did: **a
+request out on the wire is not announced work.** A `FutureBuilder` over an
+API call schedules no frame while the call is out, so a step settled in
+115ms with the spinner on screen and a 400ms answer still coming. Under the
+fake clock the same body is impossible — nothing is on the wire — and on a
+device the consumer's hand-rolled `waitFor` polled for it. The funnel every
+live request goes through now counts requests from open until their headers
+are in, and `landRealWork` waits on that count the way it waits on a tracked
+future: for as long as it takes, up to the scenario's deadline. Measured:
+the step now returns after the answer, and their `waitFor` has nothing left
+to do.
+
 ## Decisions
 
 1. **A scenario is a script; a lane is where it runs.** Same `scenario()`,
@@ -120,9 +132,10 @@ tester's bounded policies, not `pumpAndSettle`, are the settle in this lane.
 6. **Existing settle policies keep their meaning, in real seconds.** Under
    the live binding `tester.pump(interval)` waits a real interval and a real
    frame, so `Settle.upTo(5s)` already reads "until quiet, at most five
-   real seconds". `landRealWork` stays: its wait on announced work is what
-   lands a network image inside its step whichever the clock (measured, see
-   above). The pinned clock stays pinnable independently of the timers.
+   real seconds". `landRealWork` stays, and learns one more kind of announced
+   work: a live request between open and headers-in, waited for like a
+   tracked future (measured, see above). The pinned clock stays pinnable
+   independently of the timers.
 7. **A plugin with no host is a named refusal.** A `MissingPluginException`
    under real time fails the scenario with the channel, the method, and the
    two fixes — inject the value, or answer the channel — not with a stack

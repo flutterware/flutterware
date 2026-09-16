@@ -44,6 +44,41 @@ void main() {
     expect(loaded, isTrue, reason: 'the step waited for the real decode');
   });
 
+  scenario('a request out on the wire is waited for, not photographed', (
+    s,
+  ) async {
+    var server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      request.response.write('landed');
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+    Future<String> fetch() async {
+      var client = HttpClient();
+      var response = await client
+          .getUrl(Uri.parse('http://127.0.0.1:${server.port}/'))
+          .then((r) => r.close());
+      var body = await response
+          .transform(const SystemEncoding().decoder)
+          .join();
+      client.close();
+      return body;
+    }
+
+    var sw = Stopwatch()..start();
+    await s.pumpWidget(
+      MaterialApp(
+        home: FutureBuilder<String>(
+          future: fetch(),
+          builder: (_, snap) => Text(snap.data ?? 'loading'),
+        ),
+      ),
+    );
+    expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(300));
+    expect(find.text('landed'), findsOneWidget);
+  });
+
   scenario('a capture at a phone size is not blank', (s) async {
     await s.pumpWidget(
       MaterialApp(

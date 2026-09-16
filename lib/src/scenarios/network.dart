@@ -26,6 +26,14 @@ export 'network_store.dart'
 /// `FW_NETWORK`, exactly as it says the clock with `FW_CLOCK`.
 ScenarioNetwork? scenarioProjectNetwork;
 
+/// Live requests opened through the funnel whose response headers are not in
+/// yet. Announced work on the real clock: a `FutureBuilder` over an API call
+/// schedules no frame while the call is out, so a settle that follows frames
+/// alone photographs the spinner. `landRealWork` waits on this the way it
+/// waits on a decode, for as long as the request takes — the app's own
+/// promise, bounded by the scenario's deadline rather than a guess.
+int scenarioLiveRequestsInFlight = 0;
+
 /// Every mode a scenario in this run actually ran under.
 ///
 /// Filled as each body starts, read by the harness when the walk is over, and
@@ -556,10 +564,21 @@ class _FunnelClient implements HttpClient {
         // [_newRealClient]. The sink is the caller's to close, which is what
         // `close_sinks` cannot see from here.
         // ignore: close_sinks
-        var request = await Zone.root.run(
-          () => policy._client.openUrl(method, url),
-        );
-        return _LiveRequest(policy, verb, url, request);
+        // Announced from here until the response's headers are in, so a
+        // settle on the real clock waits for the request the way it waits
+        // for an image decode — see `landRealWork`.
+        scenarioLiveRequestsInFlight++;
+        try {
+          return _LiveRequest(
+            policy,
+            verb,
+            url,
+            await Zone.root.run(() => policy._client.openUrl(method, url)),
+          );
+        } catch (_) {
+          scenarioLiveRequestsInFlight--;
+          rethrow;
+        }
     }
   }
 
@@ -1011,6 +1030,10 @@ class _LiveRequest implements HttpClientRequest {
   final ScenarioNetworkPolicy _policy;
   final HttpClientRequest _inner;
 
+  /// Whether the response's headers are in — the point this request stops
+  /// being announced work.
+  var _closed = false;
+
   @override
   final String method;
   @override
@@ -1020,6 +1043,8 @@ class _LiveRequest implements HttpClientRequest {
   Future<HttpClientResponse> close() async {
     try {
       var response = await Zone.root.run(_inner.close);
+      _closed = true;
+      scenarioLiveRequestsInFlight--;
       if (_policy.mode != ScenarioNetwork.record) {
         _policy._record(
           ScenarioRequest(
@@ -1058,6 +1083,9 @@ class _LiveRequest implements HttpClientRequest {
       // run and every replay after it draw the same picture.
       return _StubResponse(_Stub.of(recording));
     } on Object catch (error) {
+      // Counted down once, whichever line above threw: a refused connect
+      // never reached the decrement, a failed drain already did.
+      if (!_closed) scenarioLiveRequestsInFlight--;
       _policy._record(
         ScenarioRequest(
           method: method,
