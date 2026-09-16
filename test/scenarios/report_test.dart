@@ -303,6 +303,25 @@ void main() {
       ],
     );
 
+    test('a package says its clock only when it is not the fake one', () {
+      var fake = ScenarioRunPackage(path: 'app', output: '/abs/out');
+      expect(fake.toJson().containsKey('time'), isFalse);
+      expect(ScenarioRunPackage.fromJson(fake.toJson()).time, 'fake');
+      expect(ScenarioRunPackage.fromJson(fake.toJson()).isRealTime, isFalse);
+
+      var live = ScenarioRunPackage(
+        path: 'app',
+        output: '/abs/out',
+        time: 'real',
+        animations: 0.1,
+      );
+      var read = ScenarioRunPackage.fromJson(live.toJson());
+      expect(read.time, 'real');
+      expect(read.animations, 0.1);
+      expect(read.isRealTime, isTrue);
+      expect(read.carrying(const []).time, 'real');
+    });
+
     test('is stamped with the version it was written by', () {
       expect(result().toJson()['version'], scenarioRunReportVersion);
     });

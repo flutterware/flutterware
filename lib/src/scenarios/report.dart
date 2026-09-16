@@ -226,6 +226,8 @@ class ScenarioRunPackage {
     int? skipped,
     int? unsettledCount,
     this.scenariosElided = 0,
+    this.time = 'fake',
+    this.animations,
   }) : passed = passed ?? scenarios.where((s) => s.ok && !s.skipped).length,
        failed = failed ?? scenarios.where((s) => !s.ok).length,
        skipped = skipped ?? scenarios.where((s) => s.skipped).length,
@@ -254,6 +256,9 @@ class ScenarioRunPackage {
         skipped: json['skipped'] as int?,
         unsettledCount: json['unsettledCount'] as int?,
         scenariosElided: _int(json['scenariosElided'], 0),
+        // Absent on every report from before there was a second clock.
+        time: json['time'] as String? ?? 'fake',
+        animations: (json['animations'] as num?)?.toDouble(),
       );
 
   final String path;
@@ -325,6 +330,17 @@ class ScenarioRunPackage {
   /// as a short run.
   final int scenariosElided;
 
+  /// The clock this package ran on — `fake` (FakeAsync) or `real` (the wall
+  /// clock, real sockets). A `real` run's pictures came off live data, which
+  /// is why a comparison leaves them alone; see `compareScenarioRuns`.
+  final String time;
+
+  /// The ticker scale a `real` run applied — 0.1 by default — or null under
+  /// the fake clock, where there is nothing to scale.
+  final double? animations;
+
+  bool get isRealTime => time == 'real';
+
   /// This package with [keep] in place of its scenarios, and its counts left
   /// as they were — they describe the run, not the copy.
   ScenarioRunPackage carrying(List<ScenarioRunOutcome> keep) =>
@@ -343,6 +359,8 @@ class ScenarioRunPackage {
         skipped: skipped,
         unsettledCount: unsettledCount,
         scenariosElided: scenariosElided + scenarios.length - keep.length,
+        time: time,
+        animations: animations,
       );
 
   /// Set when the package could not be run at all — the harness did not
@@ -386,6 +404,8 @@ class ScenarioRunPackage {
     if (log != null) 'log': log,
     if (error != null) 'error': error,
     if (drift != null) 'drift': drift!.toJson(),
+    if (time != 'fake') 'time': time,
+    if (animations != null) 'animations': animations,
   };
 }
 
@@ -1450,6 +1470,12 @@ ScenarioRunDrift compareScenarioRuns(
   var unanchored = 0;
 
   var shared = _scenarios(before).intersection(_scenarios(after));
+  // A run on the real clock drew its pictures off live data, so two of them
+  // differ by weather. Everything the pixels do not carry — status bar tint,
+  // keyboard height, whether a step settled — is still compared.
+  var live =
+      before.packages.any((p) => p.isRealTime) ||
+      after.packages.any((p) => p.isRealTime);
 
   var old = <String, _Compared>{};
   for (var step in _walk(before)) {
@@ -1470,7 +1496,7 @@ ScenarioRunDrift compareScenarioRuns(
     compared++;
     if (step.pairing == _Pairing.name) nameMatched++;
     if (step.pairing == _Pairing.position) unanchored++;
-    var moved = was.difference(step.record!);
+    var moved = was.difference(step.record!, pixels: !live);
     if (moved.isNotEmpty) changed.add(step.drift.movedIn(moved));
   }
 
@@ -1487,6 +1513,7 @@ ScenarioRunDrift compareScenarioRuns(
     nameMatched: nameMatched,
     unanchored: unanchored,
     baseline: baseline ?? before.packages.firstOrNull?.output,
+    pixelsIgnored: live,
     changed: changed,
     added: added,
     removed: removed,
@@ -1540,8 +1567,8 @@ class _Compared {
   /// Which of [ScenarioDriftFacet] disagree between this and [other], in the
   /// order the facets are declared, so two reports of the same drift read the
   /// same way.
-  List<String> difference(_Compared other) => [
-    if (step.digest != other.step.digest) ScenarioDriftFacet.pixels,
+  List<String> difference(_Compared other, {required bool pixels}) => [
+    if (pixels && step.digest != other.step.digest) ScenarioDriftFacet.pixels,
     if (step.statusBrightness != other.step.statusBrightness)
       ScenarioDriftFacet.statusBrightness,
     if (step.navBrightness != other.step.navBrightness)

@@ -4503,6 +4503,8 @@ class ScenariosCore extends PluginCore {
       axes: recordAxes ? axes.toParams() : null,
       log: log,
       ms: report['ms'] as int? ?? 0,
+      time: report['time'] as String? ?? 'fake',
+      animations: (report['animations'] as num?)?.toDouble(),
       scenarios: [
         for (var entry
             in (report['scenarios']! as List).cast<Map<String, Object?>>())

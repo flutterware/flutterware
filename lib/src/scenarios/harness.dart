@@ -1124,6 +1124,11 @@ Future<Map<String, Object?>> _run(
     'ms': watch.elapsedMilliseconds,
     'scenarios': outcomes,
     if (clockOrigin != null) 'clock': clockOrigin!.toIso8601String(),
+    // Which clock, said by the side that built the binding: a reader of the
+    // report must know whether these pictures are comparable to the last.
+    'time': scenarioHarnessTime.name,
+    if (scenarioHarnessTime.isReal)
+      'animations': scenarioHarnessTime.animations,
     if (scenarioNetworkModesRun.isNotEmpty)
       'network': [
         for (var mode in ScenarioNetwork.values)
