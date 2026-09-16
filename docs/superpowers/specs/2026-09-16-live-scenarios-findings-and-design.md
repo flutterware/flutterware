@@ -154,19 +154,58 @@ to do.
     file on `run/launch`, for plugin-bound flows; later); a `waitFor` verb
     (the verbs already settle; `s.settle()` is the bridge).
 
-## Open after the first round
+## The second round: the consumer's own suite through the lane (2026-09-16)
 
-- **Two folders, one package.** The scenarios plugin keys a package's
-  declaration by its path, so a package with a fake-time `test/scenarios`
-  and a live `test/integration` cannot yet declare both. The runner takes a
-  directory and a clock and works for either — the pool test drives the
-  probe app's `test/live` that way — so the missing piece is a declaration
-  keyed by `(path, directory)` and a panel that lists a package's folders.
-  The consumer this was measured on has exactly that shape.
+The first round measured copies under `flutter test`. This one pointed the
+consumer at this checkout, declared a second folder beside their fake-time
+one, ported three of the registration flows to the scenario grammar and ran
+them through the CLI and the studio. What it took:
+
+- **Two folders, one package.** The plugin keys everything by a *folder
+  key*: the package path for the first declaration, `path/directory` for
+  every further one — `mobile_app/test/integration` — so the addresses and
+  `--package=` a project already has keep meaning what they meant. The
+  manifest, which refuses a package declared twice, admits it for a plugin
+  whose config says `folders: true` and whose entries each name their own
+  directory. Each folder has its own scan, listing, runner and **build
+  lane** (`build/flutterware/folders/<directory>`), because two hosts on one
+  directory are two compilers writing one dill. The rail lists both; the
+  live one wears its pill.
+- **The live binding's surface was not the view.**
+  `LiveTestWidgetsFlutterBinding` lays the tree out on an 800×600 surface
+  and paints it into the view through a fit-and-centre matrix — written for
+  a test watched on a device. Staged at a phone size, every capture came
+  back 800×600 with the app shrunk into its lower half, and a tap at a
+  widget's centre landed where the matrix put it, refused as "would not
+  reach". The harness binding now takes the view's own configuration, as the
+  automated binding does; the capture test asserts the phone's pixels.
+- **A setup beat's duration was dropped** between the harness record and the
+  report (`locate` copied every field but that one), and the flow view drew
+  it as a blank document. It is now a card: the name, `174 ms · 4 exchanges`,
+  and the exchanges themselves — which is what a reader wants from work
+  that had no screen.
+- **The bodies changed only where the grammar is stricter than a raw
+  tester**, and each refusal named the fix: a checkbox *row*'s centre is its
+  link text (tap the `Checkbox`), a hint belongs to a field's decoration (tap
+  the field), `textContaining` on a button's label matched more than the
+  button (use the exact string, as the fake-time suite already does). Their
+  hand-rolled `waitFor` reduces to a settle plus an expectation.
+
+Measured: three flows, one kernel, three guests, **12.7s in-harness, 15.7s
+wall** from the CLI with a warm lane, and a single scenario re-run in
+**4s** end to end. The studio runs the same folder from its panel.
+
+## Open after the second round
+
 - **`--time` on a run.** A runner is built for one clock (the generated
   entrypoint says it), so overriding a folder's clock per run means a second
   harness for the same path. Not built until someone needs it; the folder
   and the package say the clock, and they must agree.
+- **The pinned clock under real time.** A project's `fw.clock` still stamps
+  a live run's report and header; whether it should reach the app on the
+  wall clock is a question the consumer's flows did not ask yet.
+- **The remaining ten flows.** Three of thirteen are ported; the other ten
+  follow the same three edits.
 
 ## What this buys the consumer
 
