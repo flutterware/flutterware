@@ -195,6 +195,18 @@ Measured: three flows, one kernel, three guests, **12.7s in-harness, 15.7s
 wall** from the CLI with a warm lane, and a single scenario re-run in
 **4s** end to end. The studio runs the same folder from its panel.
 
+The other ten followed. **All thirteen: 23.5s in-harness, 28.7s wall, six
+guests**, 222 steps captured — against 11–17 minutes on the device build.
+Every label in the port is a translation key, as the fake-time suite's are
+(the original mixed keys with English literals, which held only because it
+ran English only); the country name is the picker's own data. Two more
+grammar findings on the way: a dropdown pre-filled by an invitation makes
+its label a floating decoration (tap the field's widget), and its menu
+repeats the selected value, so the menu entry is the *last* match. The
+folder keeps `Shots.auto`: the app's first frame is a step like every
+verb's, and a `screen()` only names the moments worth a name — it adopts
+the picture the verb before it already took, so it costs nothing.
+
 ## Open after the second round
 
 - **`--time` on a run.** A runner is built for one clock (the generated
@@ -204,8 +216,6 @@ wall** from the CLI with a warm lane, and a single scenario re-run in
 - **The pinned clock under real time.** A project's `fw.clock` still stamps
   a live run's report and header; whether it should reach the app on the
   wall clock is a question the consumer's flows did not ask yet.
-- **The remaining ten flows.** Three of thirteen are ported; the other ten
-  follow the same three edits.
 
 ## What this buys the consumer
 
