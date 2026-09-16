@@ -96,19 +96,18 @@ void main() {
     expect(subject.languagesFor('app'), ['en']);
   });
 
-  test('a key nobody declared is refused with the declared ones', () {
+  test('a key nobody declares reads as a bare package, never a throw', () {
+    // A page keyed by a folder the config dropped, between a reload and its
+    // rebuild: defaults under a build, and the refusal stays with actions.
     var subject = core([
       {'path': 'app', 'directory': 'test/scenarios'},
     ]);
     expect(
-      () => subject.scanRootFor('app/test/integration'),
-      throwsA(
-        isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          contains('Declared: app'),
-        ),
-      ),
+      subject.packagePathFor('app/test/integration'),
+      'app/test/integration',
     );
+    expect(subject.scanRootFor('app/test/integration'), 'test');
+    expect(subject.timeFor('app/test/integration'), isNull);
+    expect(subject.languagesFor('app/test/integration'), isEmpty);
   });
 }

@@ -263,17 +263,17 @@ class ScenariosCore extends PluginCore {
     return declared;
   }();
 
+  /// [key]'s entry, or nothing for a key nobody declares — a page keyed by a
+  /// folder the config no longer has, between a reload and its rebuild, reads
+  /// defaults rather than throwing under a build. Actions refuse an
+  /// undeclared package in [_requested], where the caller can be told.
   Map<String, Object?> _declarationFor(String key) =>
-      _declarations[key] ??
-      (throw ArgumentError.value(
-        key,
-        'package',
-        'not declared for this plugin. Declared: ${packages.join(', ')}',
-      ));
+      _declarations[key] ?? const {};
 
   /// The workspace-relative package path behind [key] — the key itself for a
   /// package declared once, the package's path for a second folder of it.
-  String packagePathFor(String key) => _declarationFor(key)['path']! as String;
+  String packagePathFor(String key) =>
+      _declarationFor(key)['path'] as String? ?? key;
 
   /// Where [key]'s harness builds. The shared warm lane for a package's first
   /// folder; a second folder of the same package gets a lane of its own,
