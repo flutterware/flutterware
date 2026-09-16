@@ -8,7 +8,7 @@ import 'notification.dart';
 
 /// What a step is a picture *of* — the tester's half of
 /// `ScenarioStepKind`, so the capture and the report cannot drift apart.
-enum ScenarioCaptureKind { screen, document, notification }
+enum ScenarioCaptureKind { screen, document, notification, setup }
 
 /// One captured step, handed from [ScenarioTester]'s capture to whoever is
 /// listening — the harness, when a scenario runs under the flutterware
@@ -34,6 +34,7 @@ class ScenarioStepCapture {
     this.fileName,
     this.mimeType,
     this.notification,
+    this.ms,
     this.verb,
     this.target,
     this.aim,
@@ -108,6 +109,10 @@ class ScenarioStepCapture {
   /// What [payload] is — `application/pdf`, `text/plain`. What a viewer
   /// switches on; a missing one means "offer it as a download".
   final String? mimeType;
+
+  /// How long a [ScenarioCaptureKind.setup] beat's body took, in wall-clock
+  /// milliseconds — the one number a beat that draws nothing has to show.
+  final int? ms;
 
   /// The push a [ScenarioCaptureKind.notification] step is.
   final ScenarioNotification? notification;

@@ -1407,6 +1407,7 @@ Future<Map<String, Object?>> _runOne(
       int? payloadBytes,
       String? digest,
       ScenarioNotification? notification,
+      int? ms,
     }) => ScenarioRunStep(
       index: capture.index,
       position: capture.position,
@@ -1420,6 +1421,7 @@ Future<Map<String, Object?>> _runOne(
       mimeType: mimeType,
       bytes: payloadBytes,
       notification: notification,
+      ms: ms,
       verb: capture.verb,
       target: capture.target,
       aim: capture.aim,
@@ -1475,6 +1477,9 @@ Future<Map<String, Object?>> _runOne(
             notification: capture.notification,
           ),
         );
+        return;
+      case ScenarioCaptureKind.setup:
+        record(beat(ScenarioStepKind.setup, ms: capture.ms));
         return;
       case ScenarioCaptureKind.screen:
         break;

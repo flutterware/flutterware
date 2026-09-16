@@ -303,6 +303,21 @@ void main() {
       ],
     );
 
+    test('a setup beat round-trips its kind and its duration', () {
+      var beat = ScenarioRunStep(
+        index: 1,
+        position: '#1',
+        auto: false,
+        name: 'fresh account',
+        kind: ScenarioStepKind.setup,
+        ms: 340,
+      );
+      var read = ScenarioRunStep.fromJson(beat.toJson());
+      expect(read.kind, ScenarioStepKind.setup);
+      expect(read.ms, 340);
+      expect(read.image, isNull);
+    });
+
     test('a package says its clock only when it is not the fake one', () {
       var fake = ScenarioRunPackage(path: 'app', output: '/abs/out');
       expect(fake.toJson().containsKey('time'), isFalse);

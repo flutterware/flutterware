@@ -668,6 +668,11 @@ enum ScenarioStepKind {
   /// a viewer draws it the way the recipient's phone would, as a banner over
   /// the nearest screen before it.
   notification,
+
+  /// Work done before the flow — an account created through the API, a
+  /// database seeded — captured for its duration and its exchanges, never its
+  /// pixels. `s.setup(...)`.
+  setup,
 }
 
 /// One captured step: what it is a picture of, its sibling legs on disk, and
@@ -688,6 +693,7 @@ class ScenarioRunStep {
         kind: switch (json['kind']) {
           'document' => ScenarioStepKind.document,
           'notification' => ScenarioStepKind.notification,
+          'setup' => ScenarioStepKind.setup,
           _ => ScenarioStepKind.screen,
         },
         image: json['image'] as String?,
@@ -698,6 +704,7 @@ class ScenarioRunStep {
         file: json['file'] as String?,
         mimeType: json['mimeType'] as String?,
         bytes: json['bytes'] as int?,
+        ms: json['ms'] as int?,
         notification: switch (json['notification']) {
           Map notification => ScenarioNotification(
             body: '${notification['body'] ?? ''}',
@@ -760,6 +767,7 @@ class ScenarioRunStep {
     this.mimeType,
     this.bytes,
     this.notification,
+    this.ms,
     this.keys,
     this.texts = const [],
     this.address = '',
@@ -867,6 +875,9 @@ class ScenarioRunStep {
   /// both ends of the wire — a viewer supplies what it leaves out (the app's
   /// own icon, the banner's "now", the brightness the run was in).
   final ScenarioNotification? notification;
+
+  /// A `setup` beat's wall-clock duration in milliseconds; null elsewhere.
+  final int? ms;
 
   /// The translation keys on this screen, and the words that belonged to no
   /// catalog — relative like [image]. Null when no catalog was wired up,
@@ -1208,6 +1219,7 @@ class ScenarioRunStep {
     // the size it has always been — and so a reader written before there was
     // anything but screens reads one correctly by ignoring the key.
     if (kind != ScenarioStepKind.screen) 'kind': kind.name,
+    if (ms != null) 'ms': ms,
     if (image != null) 'image': image,
     if (format != null) 'format': format,
     if (width != null) 'width': width,
