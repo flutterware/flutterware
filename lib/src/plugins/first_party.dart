@@ -15,6 +15,7 @@
 library;
 
 import '../../devices.dart';
+import '../scenarios/time_mode.dart';
 import 'package.dart';
 import 'plugin.dart';
 
@@ -250,6 +251,7 @@ class ScenariosPackage extends PluginPackage {
     this.directory,
     this.languages,
     this.captureScale,
+    this.time,
   });
 
   /// Where this package keeps its scenarios, relative to the package. When
@@ -269,12 +271,20 @@ class ScenariosPackage extends PluginPackage {
   /// `capture-scale` argument still wins.
   final double? captureScale;
 
+  /// The folder's clock. `ScenarioTime.real()` runs it on the wall clock with
+  /// real sockets, one guest per scenario. Must agree with the folder's own
+  /// `runScenarios(time: …)`; the harness refuses at probe when they differ.
+  /// Null is [ScenarioTime.fake].
+  final ScenarioTime? time;
+
   @override
   Map<String, Object?> toJson() => {
     ...super.toJson(),
     if (directory != null) 'directory': directory,
     if (languages != null) 'languages': languages,
     if (captureScale != null) 'captureScale': captureScale,
+    if (time case var time?) 'time': time.name,
+    if (time case ScenarioTimeReal(:var animations)) 'animations': animations,
   };
 
   static List<ScenariosPackage> each(List<Pkg> packages) => [

@@ -10,6 +10,7 @@ import 'network.dart';
 import 'settle.dart';
 import 'shots.dart';
 import 'reel.dart';
+import 'time_mode.dart';
 
 /// What a folder of scenarios is *for* — the devices and languages worth
 /// offering them in.
@@ -211,6 +212,7 @@ Future<void> runScenarios(
   ScenarioNetwork? network,
   Settle? settle,
   ScenarioReelEdit? reel,
+  ScenarioTime? time,
 }) async {
   // Under the flutterware runner this is called to *ask* what the folder is
   // for, not to declare anything: the harness reads the profile here and
@@ -229,6 +231,7 @@ Future<void> runScenarios(
     scenarioProbedKeyboard = keyboard;
     scenarioProbedShadows = shadows;
     scenarioProbedNetwork = network;
+    scenarioProbedTime = time;
     scenarioProbedSettle = settle;
     scenarioProbedReel = reel;
     return;
@@ -250,6 +253,7 @@ Future<void> runScenarios(
   scenarioAmbientKeyboard = keyboard;
   scenarioAmbientShadows = shadows;
   scenarioAmbientNetwork = network;
+  scenarioAmbientTime = time;
   scenarioAmbientSettle = settle;
   scenarioAmbientReel = reel;
   try {
@@ -311,6 +315,19 @@ ScenarioNetwork? scenarioAmbientNetwork;
 
 /// What the last probed config said its http requests reach.
 ScenarioNetwork? scenarioProbedNetwork;
+
+/// The clock the folder being declared right now runs on, as
+/// `runScenarios(time: …)` said it, or null where it said nothing — which is
+/// [ScenarioTime.fake].
+///
+/// A lane is a process, so unlike the slots above nothing per scenario can
+/// override this; it is read so the folder can be checked against the
+/// binding the harness already built.
+ScenarioTime? scenarioAmbientTime;
+
+/// What the last probed config said about its clock, for the harness to
+/// check against the package's declaration before it runs anything.
+ScenarioTime? scenarioProbedTime;
 
 /// The settle policy the folder being declared right now asked for, or null
 /// where it asked for nothing — which is [Settle.standard].
