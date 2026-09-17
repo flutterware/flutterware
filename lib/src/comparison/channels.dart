@@ -16,6 +16,22 @@ import 'tree_diff.dart';
 String comparedIdIn(String package, String id) =>
     package.isEmpty ? id : '$package/$id';
 
+/// [ids] as a filter over the ids inside [package]: each one as given, plus the
+/// id inside [package] of any that [comparedIdIn] qualified with it.
+///
+/// For narrowing a run to ids a report handed back. Keeping both forms is what
+/// makes it exact without knowing the entries: an id inside [package] passes
+/// `contains` on the result precisely when it was named plainly or as
+/// `comparedIdIn(package, id)` — so a plain id still narrows every package,
+/// and a qualified one only its own.
+List<String> idsNamedIn(String package, Iterable<String> ids) => [
+  for (var id in ids) ...[
+    id,
+    if (package.isNotEmpty && id.startsWith('$package/'))
+      id.substring(package.length + 1),
+  ],
+];
+
 /// One thing compared, on every channel that had something to say.
 ///
 /// Channels rather than "a picture plus some extras." Pixels have a
