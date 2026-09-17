@@ -28,6 +28,8 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'shell.dart';
 
+import 'package:flutterware_probes/root_zone_scene.dart';
+
 @Preview(name: 'Phone rig probe', wrapper: wrapInApp)
 Widget phoneRigProbe() => const PhoneRigProbe();
 
@@ -48,7 +50,7 @@ class _PhoneRigProbeState extends State<PhoneRigProbe> {
   final _t = ValueNotifier(Duration.zero);
   late final _playhead = _RigPlayhead(phoneRigDuration, _t);
   late final String _playheadId;
-  final _scene = fs.Scene();
+  final _scene = rootZoneScene();
   fs.WidgetComponent? _screen;
   Object? _error;
   var _ready = false;
@@ -68,11 +70,11 @@ class _PhoneRigProbeState extends State<PhoneRigProbe> {
   /// fail (no bundle, wrong target, unreadable) this is.
   Future<void> _initialize() async {
     try {
-      // Skipped once ready, and not as an optimisation: the memoized future
-      // belongs to the zone of the FIRST mount, and under a harness that
-      // runs each entry in its own fake-async zone an `await` on it from a
-      // later mount never resumes — the same trap `ScenarioAssetBundle`
-      // exists for, arriving through a dependency's static cache.
+      // Skipped once ready. The memoized future behind it would strand a
+      // later mount if it belonged to an earlier entry's fake-async zone —
+      // the trap `ScenarioAssetBundle` exists for, arriving through a
+      // dependency's static cache — which is why every `Scene` here is built
+      // by `rootZoneScene`, and the gate alone is not enough.
       if (!fs.Scene.isReadyToRender) {
         // Tracked, so a walk waits for the engine rather than photographing
         // the frame before it — see `RealWork`.

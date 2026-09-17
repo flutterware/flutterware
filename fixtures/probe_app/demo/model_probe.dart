@@ -29,6 +29,8 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'shell.dart';
 
+import 'package:flutterware_probes/root_zone_scene.dart';
+
 @Preview(name: 'Model probe', wrapper: wrapInApp)
 Widget modelProbe() => const ModelProbe();
 
@@ -71,7 +73,7 @@ class _ModelProbeState extends State<ModelProbe> {
   final _t = ValueNotifier(Duration.zero);
   late final _playhead = _ModelPlayhead(this);
   late final String _playheadId;
-  final _scene = fs.Scene();
+  final _scene = rootZoneScene();
   fs.WidgetComponent? _screen;
   fs.AnimationClip? _open;
   Object? _error;
@@ -116,8 +118,8 @@ class _ModelProbeState extends State<ModelProbe> {
     String asset, {
     required bool built,
   }) async {
-    // Gated on the flag, never awaited when ready: the memoized future
-    // belongs to the first mount's zone (spec § 1, trap 2).
+    // Skipped once ready. The memoized futures behind it belong to the root
+    // zone, because every `Scene` here is built by `rootZoneScene`.
     if (!fs.Scene.isReadyToRender) {
       await fs.loadBaseShaderLibrary();
       await fs.Scene.initializeStaticResources();
