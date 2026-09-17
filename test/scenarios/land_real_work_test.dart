@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/real_work/tracker.dart';
 import 'package:flutterware/src/scenarios/real_work.dart';
@@ -59,10 +60,23 @@ void main() {
   testWidgets('work only a guessed turn found is reported with its turn', (
     tester,
   ) async {
+    // `MaterialApp` tells the platform its title, and under the stock binding
+    // those replies come back on the real loop whenever the engine gets to
+    // them — on a CI runner, on the very turn the read lands, which reads that
+    // turn as a platform reply and drops the guess. Answered here, nothing is
+    // pending and the turn is the read's alone; a reply sharing it is
+    // `a turn that only delivered a platform reply is not a guess`'s case.
+    var messenger = tester.binding.defaultBinaryMessenger
+      ..setMockMethodCallHandler(SystemChannels.platform, (_) async => null);
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
     await tester.pumpWidget(const MaterialApp(home: _UntrackedRead()));
     const policy = Settle.standard;
     var budget = RealWorkBudget();
     var settled = await policy.apply(tester);
+
+    expect(messenger.pendingMessageCount, 0);
 
     var result = await landRealWork(
       tester,
