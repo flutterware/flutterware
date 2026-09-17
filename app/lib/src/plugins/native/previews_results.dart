@@ -762,6 +762,7 @@ class CatalogAuditEntry {
     this.compileError,
     this.device,
     this.errors = const [],
+    this.stillWaitingOn,
   });
 
   final String id;
@@ -786,6 +787,12 @@ class CatalogAuditEntry {
   final String? device;
 
   final List<CatalogRenderError> errors;
+
+  /// What the entry had announced and not finished when the audit stopped
+  /// waiting — a tracked load by its label, image decodes, asset reads — or
+  /// absent when everything landed. The comparison refuses a frame like this,
+  /// so it is broken here too: its picture is of a screen still loading.
+  final String? stillWaitingOn;
 
   Map<String, Object?> toJson() => _$CatalogAuditEntryToJson(this);
 }

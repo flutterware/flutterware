@@ -548,6 +548,12 @@ final resultShapes = <String, ResultShape>{
           ],
         },
       },
+      <String, Object?>{
+        'name': 'stillWaitingOn',
+        'type': 'String',
+        'optional': true,
+        'doc': 'What the entry had announced and not finished when the audit stopped waiting — a tracked load by its label, image decodes, asset reads — or absent when everything landed.',
+      },
     ],
   }),
   'CatalogAuditFailure': ResultShape.fromJson(<String, Object?>{
@@ -627,6 +633,12 @@ final resultShapes = <String, ResultShape>{
                   },
                 ],
               },
+            },
+            <String, Object?>{
+              'name': 'stillWaitingOn',
+              'type': 'String',
+              'optional': true,
+              'doc': 'What the entry had announced and not finished when the audit stopped waiting — a tracked load by its label, image decodes, asset reads — or absent when everything landed.',
             },
           ],
         },

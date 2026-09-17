@@ -97,6 +97,21 @@ class PreviewProgram extends TesterProgram {
   ];
 }
 
+/// What [pending] names, the way a reader should see it: each tracked load by
+/// the label the app gave it, then what the framework was still decoding and
+/// reading. [PreviewCaptureRow.pending] and [PreviewAuditRow.pending] are both
+/// in this shape.
+String pendingWorkOf(Map<String, Object?> pending) {
+  String count(int n, String noun) => n == 1 ? '1 $noun' : '$n ${noun}s';
+  var waitingOn = [
+    if (pending['tracked'] case List tracked)
+      for (var label in tracked) '`$label`',
+    if (pending['images'] case int images) count(images, 'image decode'),
+    if (pending['assets'] case int reads) count(reads, 'asset read'),
+  ];
+  return waitingOn.isEmpty ? 'work it announced' : waitingOn.join(', ');
+}
+
 /// What one entry said when the harness rendered it.
 class PreviewAuditRow {
   const PreviewAuditRow({
@@ -104,7 +119,25 @@ class PreviewAuditRow {
     this.compileError,
     this.failure,
     this.errors = const [],
+    this.pending = const {},
   });
+
+  /// The row the harness reported for [id], as its reply spells it.
+  factory PreviewAuditRow.fromHarness(
+    String id,
+    Map<Object?, Object?> reported,
+  ) => PreviewAuditRow(
+    id: id,
+    failure: reported['failure'] as String?,
+    errors: [
+      for (var error in (reported['errors'] as List? ?? const []))
+        if (error case Map fields) fields.cast<String, Object?>(),
+    ],
+    pending: switch (reported['pending']) {
+      Map found => found.cast<String, Object?>(),
+      _ => const {},
+    },
+  );
 
   final String id;
 
@@ -119,6 +152,14 @@ class PreviewAuditRow {
   /// `InspectErrors.toJson` wrote it.
   final List<Map<String, Object?>> errors;
 
+  /// What the entry had announced and not finished when the harness stopped
+  /// waiting, in the shape [PreviewCaptureRow.pending] carries it. Always
+  /// empty from a harness that predates the field.
+  ///
+  /// Not ok: the comparison refuses such a frame, so an audit that passed it
+  /// would call green what the comparison cannot check.
+  final Map<String, Object?> pending;
+
   /// [errors] minus the ones that indict the lane rather than the entry.
   ///
   /// `flutter_test` answers **every** HTTP request with 400, so a preview of
@@ -131,7 +172,11 @@ class PreviewAuditRow {
       if (error['network'] != true) error,
   ];
 
-  bool get ok => compileError == null && failure == null && indicting.isEmpty;
+  bool get ok =>
+      compileError == null &&
+      failure == null &&
+      indicting.isEmpty &&
+      pending.isEmpty;
 }
 
 /// One entry rendered and photographed, as [PreviewTestRunner.capture] hands
@@ -294,14 +339,7 @@ class PreviewTestRunner {
           PreviewAuditRow(id: entry.key, compileError: entry.value),
       for (var row in reported.entries)
         if (row.value case Map reported)
-          PreviewAuditRow(
-            id: row.key,
-            failure: reported['failure'] as String?,
-            errors: [
-              for (var error in (reported['errors'] as List? ?? const []))
-                if (error case Map fields) fields.cast<String, Object?>(),
-            ],
-          ),
+          PreviewAuditRow.fromHarness(row.key, reported),
     ];
   });
 
