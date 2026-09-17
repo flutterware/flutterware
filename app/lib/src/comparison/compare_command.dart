@@ -441,7 +441,8 @@ void _stampTimings(String output, ComparisonTimings timings) {
 }
 
 /// One line saying where a comparison's time went: each phase summed over
-/// packages and sides, and the scenarios whose steps never settled.
+/// packages and sides, the scenarios whose steps never settled, and those
+/// that differed only beside other replays.
 ///
 /// Summed, so it reads as time *spent* rather than as a timeline — the two
 /// sides of a render run at once under `--jobs`, and the viewer compiles
@@ -465,18 +466,34 @@ String describeTimings(ComparisonTimings timings) {
   var line =
       'Time spent: '
       '${[for (var MapEntry(:key, :value) in groups.entries) '$key ${value.join(', ')}'].join(' · ')}';
+  String nameOf(String id) =>
+      id.contains('#') ? id.substring(id.indexOf('#') + 1) : id;
+  String listed(Iterable<String> names, int count) =>
+      '${names.join(', ')}${count > 3 ? ' and ${count - 3} more' : ''}';
+  String scenarios(int count) => '$count scenario${count == 1 ? '' : 's'}';
+
   var unsettled = timings.unsettledSteps.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  if (unsettled.isEmpty) return line;
-  var named = [
-    for (var MapEntry(:key, :value) in unsettled.take(3))
-      '${key.contains('#') ? key.substring(key.indexOf('#') + 1) : key} ($value)',
-  ];
-  var more = unsettled.length > 3 ? ' and ${unsettled.length - 3} more' : '';
-  return '$line\n'
-      '${unsettled.length} scenario${unsettled.length == 1 ? '' : 's'} had '
-      'steps that never settled, each running its whole settle budget: '
-      '${named.join(', ')}$more';
+  var pooledOnly = timings.pooledOnlyDifferences;
+  var lines = [line];
+  if (unsettled.isNotEmpty) {
+    var named = [
+      for (var MapEntry(:key, :value) in unsettled.take(3))
+        '${nameOf(key)} ($value)',
+    ];
+    lines.add(
+      '${scenarios(unsettled.length)} had steps that never settled, each '
+      'running its whole settle budget: ${listed(named, unsettled.length)}',
+    );
+  }
+  if (pooledOnly.isNotEmpty) {
+    lines.add(
+      '${scenarios(pooledOnly.length)} differed beside other replays and not '
+      'alone, so replayed serially: '
+      '${listed(pooledOnly.take(3).map(nameOf), pooledOnly.length)}',
+    );
+  }
+  return lines.join('\n');
 }
 
 String abbreviatedSha(String sha) => sha.length > 8 ? sha.substring(0, 8) : sha;

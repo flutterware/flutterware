@@ -173,13 +173,18 @@ on both sides, cold caches, a 16-core Mac:
   package they are most of the run. (The table predates two changes to the
   viewer: it now compiles beside the comparison instead of after it, and
   without Flutter's Wasm dry run.)
-- **Load never decides a verdict.** A scenario that would have to be replayed
-  again to be believed — a side that failed or was abandoned, or a difference
-  in pictures that depended on the machine — is replayed from the start after
-  the pool has drained, with nothing beside it, and judged from that alone.
-  The verdicts above are identical row for row. The price is paid in the
-  scenarios column: a suite whose scenarios guess at unannounced work replays
-  those twice, which is one more reason to hand that work to `RealWork.run`.
+- **Load never decides a verdict.** A scenario whose replays in the pool are
+  not clean and identical on both sides — a side that failed or was
+  abandoned, or any difference at all — is replayed from the start after the
+  pool has drained, with nothing beside it, and judged from that alone. Any
+  difference, and not only one in pictures that depended on the machine: on a
+  real suite at `--jobs=8`, a stream fed by real I/O fired earlier on one side
+  and the step's events changed order with nothing else changing. The
+  verdicts above are identical row for row. The price is paid in the scenarios
+  column, once per finding: usually a handful of rows, but a change that moves
+  every scenario replays each of them again, serially. And a suite whose
+  scenarios guess at unannounced work replays those twice, which is one more
+  reason to hand that work to `RealWork.run`.
 
 ## Reading a slow run
 
@@ -201,6 +206,15 @@ to settle. Each such step runs its whole settle budget on every replay — an
 animation that never ends, or a 3D view left repainting every frame, such as
 flutter_scene's `SceneView` with its default `autoTick: true`. It is not a
 failure, but it is usually the cheapest time to win back.
+
+A third line, under `--jobs`, names the scenarios that differed when replayed
+beside others and not when replayed alone — `timings.pooledOnlyDifferences`.
+Their rows are the alone replay's verdict, so nothing is wrong in the report;
+the line says what the machine's load reached. Such a scenario records work
+that lands on the real event loop — a stream fed by real I/O, an untracked
+read — and it pays a serial replay on every comparison that runs it with
+`--jobs`. The time those serial replays took is `scenarios.alone`, apart from
+`scenarios.replay`.
 
 ## Why `--frames=changed`
 
@@ -235,7 +249,11 @@ to want to see. That is why the default is `all`.
   already says where that is: each step that found such work only by turning
   the real event loop records the turn as `guessed`, and the run ends with a
   line naming those steps. A comparison that finds a difference in one of
-  those scenarios replays both sides once more before it believes it. A scenario's
+  those scenarios replays both sides once more before it believes it, and so
+  does a difference that is only events changing order: a side whose two
+  replays log them in a different order is timing, and a step whose events
+  only moved among those is reported the same, with a note naming them. An
+  order both sides keep is a change. A scenario's
   `timeout:` is how long it may go without progress, not how long it may take,
   so a slow runner stretches a scenario without failing it.
 

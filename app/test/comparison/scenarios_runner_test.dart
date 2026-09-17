@@ -362,8 +362,88 @@ void main() {
       ).run(outDir: root.path);
 
       expect(verdict(pooled), verdict(serial));
-      // The scenario that failed is replayed again alone from the start.
-      expect(pooled.replays, serial.replays + 2);
+      // The scenario that failed and the one that changed are each replayed
+      // again alone from the start.
+      expect(pooled.replays, serial.replays + 4);
+    });
+
+    // Measured on a real suite: a watched query fed by real I/O fired earlier
+    // on one side of a busy host, and the step's events changed order with
+    // nothing else changing.
+    test('a difference only the pool drew is replayed alone, and is not '
+        'reported', () async {
+      source.declared = declared;
+      source.gate = yieldOnce;
+      source.wobbly['test/b.dart#B:head'] = 1;
+
+      var results = await runnerFor(
+        base: checkout('base', files('1')),
+        head: checkout('head', files('2')),
+        jobs: 4,
+      ).run(outDir: root.path);
+
+      var tail = source.started.sublist(source.started.length - 2);
+      expect(tail.map((start) => start.$1), [
+        'test/b.dart#B:base',
+        'test/b.dart#B:head',
+      ]);
+      expect(tail.map((start) => start.$2), everyElement(lessThanOrEqualTo(2)));
+      expect(source.replayed, hasLength(10));
+      expect(
+        results.items.map((item) => item.state),
+        everyElement(ComparedState.same),
+      );
+    });
+
+    test('what differed only in the pool is recorded, and the alone replays '
+        'are timed apart', () async {
+      source.declared = declared;
+      source.gate = yieldOnce;
+      source.wobbly['test/b.dart#B:head'] = 1;
+      source.pixels['test/c.dart#C:head'] = 7;
+      source.flaky['test/d.dart#D:base'] = 1;
+      var clock = PhaseClock();
+
+      await ScenariosRunner(
+        headRoot: checkout('head', files('2')),
+        baseRoot: checkout('base', files('1')),
+        source: source,
+        cache: cache,
+        locks: null,
+        sdk: 'test-sdk',
+        jobs: 4,
+        clock: clock.within('packages/notes', qualify: true),
+      ).run(outDir: root.path);
+
+      var timings = clock.timings;
+      // Not C, which changed alone too, nor D, which failed rather than
+      // differed.
+      expect(timings.pooledOnlyDifferences, ['packages/notes/test/b.dart#B']);
+      expect(timings.phases.map((phase) => phase.name), [
+        'scenarios.plan',
+        'scenarios.replay',
+        'scenarios.alone',
+        'scenarios.compare',
+        'scenarios.filing',
+      ]);
+    });
+
+    test('a difference drawn in the pool is never filed', () async {
+      source.declared = declared;
+      source.gate = yieldOnce;
+      source.wobbly['test/b.dart#B:head'] = 1;
+      var base = checkout('base', files('1'));
+      var head = checkout('head', files('2'));
+
+      await runnerFor(base: base, head: head, jobs: 4).run(outDir: root.path);
+
+      expect(
+        source.replayed.where((side) => side.startsWith('test/b.dart#B')),
+        hasLength(4),
+        reason:
+            'the alone replay replays both sides rather than reading the '
+            "pool's back",
+      );
     });
   });
 
@@ -817,6 +897,120 @@ void main() {
       expect(results.items.single.state, ComparedState.broke);
     });
 
+    group('events that only changed order', () {
+      setUp(() {
+        source.events = [
+          {'channel': 'db', 'title': 'select count(*) from unread_messages'},
+          {'channel': 'db', 'title': 'select * from orders'},
+        ];
+      });
+
+      test('are the same when a side does not keep its order, and say '
+          'so', () async {
+        source.reversed['test/shop.dart#Checkout:head'] = 1;
+
+        var results = await runnerFor(
+          base: base,
+          head: head,
+        ).run(outDir: root.path);
+
+        var scenario = results.items.single;
+        expect(scenario.state, ComparedState.same);
+        expect(
+          scenario.items.single.note,
+          allOf(
+            startsWith(
+              'events changed order between two replays of this '
+              'branch',
+            ),
+            contains('db select'),
+          ),
+        );
+        expect(source.replayed, hasLength(4), reason: 'each side once more');
+      });
+
+      // An auth call now made after a data fetch, under FakeAsync: the code
+      // moved it, and every replay says so.
+      test('are a change when both sides keep their order', () async {
+        source.reversed['test/shop.dart#Checkout:head'] = 99;
+
+        var results = await runnerFor(
+          base: base,
+          head: head,
+        ).run(outDir: root.path);
+
+        expect(results.items.single.state, ComparedState.changed);
+        expect(results.items.single.items.single.note, isNull);
+        expect(source.replayed, hasLength(4));
+      });
+
+      test('that hold are a change, beside ones that do not', () async {
+        Map<String, Object?> event(String channel, String title) => {
+          'channel': channel,
+          'title': title,
+        };
+        var (auth, items) = (
+          event('network', 'POST /auth'),
+          event('network', 'GET /items'),
+        );
+        var (count, badge) = (
+          event('db', 'select count(*) from unread_messages'),
+          event('db', 'select * from badges'),
+        );
+        source
+          ..events = [auth, items, count, badge]
+          ..sequences['test/shop.dart#Checkout:head'] = [
+            [items, auth, badge, count],
+            [items, auth, count, badge],
+          ];
+
+        var results = await runnerFor(
+          base: base,
+          head: head,
+        ).run(outDir: root.path);
+
+        expect(results.items.single.state, ComparedState.changed);
+        expect(source.replayed, hasLength(4));
+      });
+
+      test('beside any other difference are a change, and replay nothing '
+          'more', () async {
+        source
+          ..reversed['test/shop.dart#Checkout:head'] = 1
+          ..pixels['test/shop.dart#Checkout:head'] = 7;
+
+        var results = await runnerFor(
+          base: base,
+          head: head,
+        ).run(outDir: root.path);
+
+        expect(results.items.single.state, ComparedState.changed);
+        expect(source.replayed, hasLength(2));
+      });
+
+      test('are asked of a filed side too, whose order may be the load of the '
+          'run that filed it', () async {
+        source
+          ..reversed['test/shop.dart#Checkout:base'] = 1
+          ..reversed['test/shop.dart#Checkout:head'] = 1;
+        await runnerFor(base: base, head: head).run(outDir: root.path);
+        source.replayed.clear();
+        File(p.join(head, 'test/shop.dart')).writeAsStringSync('3');
+
+        var results = await runnerFor(
+          base: base,
+          head: head,
+        ).run(outDir: root.path);
+
+        expect(results.items.single.state, ComparedState.same);
+        expect(source.replayed, [
+          'test/shop.dart#Checkout:head',
+          'test/shop.dart#Checkout:base',
+          'test/shop.dart#Checkout:head',
+        ]);
+      });
+    });
+
     test('a guessed landing with nothing different costs nothing', () async {
       source.guessed['test/shop.dart#Checkout:head'] = 9;
 
@@ -964,6 +1158,14 @@ class _FakeSource implements ScenarioSource {
   /// `<id>:<side>` — a race a guessed landing sometimes loses.
   final wobbly = <String, int>{};
 
+  /// Sides that log [events] in reverse this many more times, by
+  /// `<id>:<side>` — a stream fed by real I/O firing earlier on a busy host.
+  final reversed = <String, int>{};
+
+  /// The events each successive replay of a side logs, by `<id>:<side>` —
+  /// the last one for every replay after. Overrides [events].
+  final sequences = <String, List<List<Map<String, Object?>>>>{};
+
   /// How many steps a side's replay says never settled, by `<id>:<side>`.
   final unsettled = <String, int>{};
 
@@ -1008,7 +1210,11 @@ class _FakeSource implements ScenarioSource {
           rgba: Uint8List(4 * 4 * 4)..fillRange(0, 4 * 4 * 4, value),
           width: 4,
           height: 4,
-          events: events,
+          events: switch (sequences[side]) {
+            var sequence? when sequence.isNotEmpty =>
+              sequence.length == 1 ? sequence.single : sequence.removeAt(0),
+            _ => spend(reversed) ? events.reversed.toList() : events,
+          },
           failure: failure,
           guessed: guessed[side],
         ),

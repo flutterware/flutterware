@@ -527,7 +527,9 @@ class EventChannel {
     // moved. FakeAsync makes a transition's ordering deterministic, so an auth
     // call that now happens after a data fetch is a real finding rather than a
     // flake, and reporting it as one removal plus one addition of the same
-    // string is the nonsense the alignment exists to avoid.
+    // string is the nonsense the alignment exists to avoid. An event fed by
+    // real I/O is not under FakeAsync, and its order can be the host's; `fw
+    // compare` asks a second replay before believing a step that only moved.
     var stillBase = <(int, Map<String, Object?>)>[];
     var byKey = <String, List<(int, Map<String, Object?>)>>{};
     for (var entry in unpairedHead) {

@@ -6,12 +6,20 @@ import 'package:flutterware/comparison_report.dart';
 /// was handed to — see [within] — so a runner that knows nothing of packages
 /// still files its phases under the right one.
 class PhaseClock {
-  PhaseClock() : this._(<ComparisonPhase>[], <String, int>{}, null, false);
+  PhaseClock()
+    : this._(<ComparisonPhase>[], <String, int>{}, <String>[], null, false);
 
-  PhaseClock._(this._phases, this._unsettled, this.package, this._qualify);
+  PhaseClock._(
+    this._phases,
+    this._unsettled,
+    this._pooledOnly,
+    this.package,
+    this._qualify,
+  );
 
   final List<ComparisonPhase> _phases;
   final Map<String, int> _unsettled;
+  final List<String> _pooledOnly;
 
   /// What every phase recorded through this view is filed under.
   final String? package;
@@ -23,7 +31,7 @@ class PhaseClock {
   /// The same clock, filing under [package]. [qualify] is the comparison's
   /// own answer to whether its ids carry their package — see `comparedIdIn`.
   PhaseClock within(String package, {required bool qualify}) =>
-      PhaseClock._(_phases, _unsettled, package, qualify);
+      PhaseClock._(_phases, _unsettled, _pooledOnly, package, qualify);
 
   void add(String name, Duration elapsed, {String? side}) => _phases.add(
     ComparisonPhase(
@@ -60,15 +68,21 @@ class PhaseClock {
   /// keeping the most any replay of it had.
   void unsettled(String scenario, int count) {
     if (count <= 0) return;
-    var id = _qualify && package != null
-        ? comparedIdIn(package!, scenario)
-        : scenario;
+    var id = _qualified(scenario);
     if (count > (_unsettled[id] ?? 0)) _unsettled[id] = count;
   }
+
+  /// Records that [scenario] differed beside other replays and not alone —
+  /// see [ComparisonTimings.pooledOnlyDifferences].
+  void pooledOnly(String scenario) => _pooledOnly.add(_qualified(scenario));
+
+  String _qualified(String scenario) =>
+      _qualify && package != null ? comparedIdIn(package!, scenario) : scenario;
 
   ComparisonTimings get timings => ComparisonTimings(
     phases: List.unmodifiable(_phases),
     unsettledSteps: Map.unmodifiable(_unsettled),
+    pooledOnlyDifferences: List.unmodifiable(_pooledOnly),
   );
 }
 
