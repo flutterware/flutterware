@@ -1,5 +1,27 @@
 ## Unreleased
 
+- **`fw compare --jobs` no longer reports a difference only the pool drew.**
+  Only a failed side or a difference beside a guessed landing was replayed
+  alone before being believed; any other difference was reported straight from
+  replays taken beside others. Measured at `--jobs=8` on a real suite: a
+  watched query fed by real I/O fired earlier on one side, and a step whose
+  pixels, tree and texts were identical was reported as changed. Every
+  difference found in the pool is now replayed from the start, alone, before
+  it is reported, and nothing is cached from the pool's replay of it. The
+  scenarios whose difference did not hold alone are named in
+  `timings.pooledOnlyDifferences` and on a line after the run's time, and the
+  serial replays are timed as `scenarios.alone`.
+
+- **A step whose events only changed order is asked twice before it is a
+  change.** Under `FakeAsync` a moved event is the code's doing, but an event
+  fed by real I/O — a watched database query — can fire earlier on a loaded
+  host, and the step read as changed with identical pixels, tree and texts. A
+  finding that is only events moving now replays each side once more. Events
+  that swap places between a side's two replays are that side's timing; a
+  step whose moves are explained by them alone is reported the same, with a
+  note naming the events. A move both sides reproduce is still a change,
+  including beside events whose order does not hold.
+
 - **A comparison that cannot write a picture says so, instead of blaming the
   code.** Any failure while filing a rendered preview — a full disk on a CI
   runner, measured — was reported as "the base checkout does not compile".

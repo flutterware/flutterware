@@ -396,6 +396,7 @@ class ComparisonTimings {
   const ComparisonTimings({
     this.phases = const [],
     this.unsettledSteps = const {},
+    this.pooledOnlyDifferences = const [],
   });
 
   final List<ComparisonPhase> phases;
@@ -409,6 +410,15 @@ class ComparisonTimings {
   /// read from the cache was not replayed, and says nothing here.
   final Map<String, int> unsettledSteps;
 
+  /// Scenario ids that differed when replayed beside others under `--jobs`,
+  /// and were not a finding once replayed again alone — so were reported as
+  /// the alone replay found them.
+  ///
+  /// The machine's load reached what these scenarios record: work on the real
+  /// event loop that lands earlier or later on a busy host. Each costs a
+  /// serial replay on every comparison that runs it with `--jobs`.
+  final List<String> pooledOnlyDifferences;
+
   /// Every phase called [name], in the order they were recorded.
   Iterable<ComparisonPhase> named(String name) =>
       phases.where((phase) => phase.name == name);
@@ -416,6 +426,8 @@ class ComparisonTimings {
   Map<String, Object?> toJson() => {
     'phases': [for (var phase in phases) phase.toJson()],
     if (unsettledSteps.isNotEmpty) 'unsettledSteps': unsettledSteps,
+    if (pooledOnlyDifferences.isNotEmpty)
+      'pooledOnlyDifferences': pooledOnlyDifferences,
   };
 
   /// Null for a file written before the key existed.
@@ -430,6 +442,10 @@ class ComparisonTimings {
               for (var MapEntry(:key, :value) in counts.entries)
                 if (value is int) '$key': value,
           },
+          pooledOnlyDifferences: [
+            for (var id in json['pooledOnlyDifferences'] as List? ?? const [])
+              if (id is String) id,
+          ],
         )
       : null;
 }
@@ -438,8 +454,8 @@ class ComparisonTimings {
 ///
 /// [name] is one of a small vocabulary: `checkout`, `previews.plan`,
 /// `previews.compile`, `previews.render`, `previews.compare`,
-/// `scenarios.plan`, `scenarios.replay`, `scenarios.compare`,
-/// `scenarios.filing`, `viewer`, `export`, `report`, `sweep`. A reader meeting
+/// `scenarios.plan`, `scenarios.replay`, `scenarios.alone`,
+/// `scenarios.compare`, `scenarios.filing`, `viewer`, `export`, `report`, `sweep`. A reader meeting
 /// a name it does not know should show it rather than drop it.
 class ComparisonPhase {
   const ComparisonPhase({

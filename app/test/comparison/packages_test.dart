@@ -232,6 +232,7 @@ void main() {
           ComparisonPhase(name: 'viewer', ms: 17800),
         ],
         unsettledSteps: {'test/a_test.dart#Spinning fox': 4},
+        pooledOnlyDifferences: ['test/b_test.dart#Unread badge'],
       ),
     );
 
@@ -240,7 +241,9 @@ void main() {
       'Time spent: checkout 1.8s · previews compile 3.5s, render 9.0s · '
       'viewer 17.8s\n'
       '1 scenario had steps that never settled, each running its whole '
-      'settle budget: Spinning fox (4)',
+      'settle budget: Spinning fox (4)\n'
+      '1 scenario differed beside other replays and not alone, so replayed '
+      'serially: Unread badge',
     );
   });
 }

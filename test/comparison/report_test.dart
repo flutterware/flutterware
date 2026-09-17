@@ -112,6 +112,7 @@ void main() {
         ),
       ],
       unsettledSteps: {'test/a_test.dart#one': 4},
+      pooledOnlyDifferences: ['test/a_test.dart#two'],
     );
     var index = ComparisonIndex.fromJson({
       'version': comparisonReportVersion,
@@ -125,6 +126,7 @@ void main() {
     expect(timings.named('previews.compile').single.package, 'app');
     expect(timings.named('checkout').single.ms, 1800);
     expect(timings.unsettledSteps, {'test/a_test.dart#one': 4});
+    expect(timings.pooledOnlyDifferences, ['test/a_test.dart#two']);
     expect(
       ComparisonIndex.fromJson({
         'version': comparisonReportVersion,

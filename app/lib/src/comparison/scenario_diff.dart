@@ -166,6 +166,175 @@ bool replaysAgree(ScenarioReplay a, ScenarioReplay b) {
       ComparedState.same;
 }
 
+/// The events whose order is all that differs in [comparison], as
+/// `<subchannel> <title>` — empty when nothing differs, null when anything
+/// else does.
+///
+/// A moved event is a finding by default: under `FakeAsync` an auth call now
+/// made after a data fetch moved because the code did. An event fed by real
+/// I/O moves because the host did, and the delta cannot tell the two apart;
+/// two replays of one side can. See `ScenariosRunner`.
+Set<String>? reorderedEvents(ScenarioComparison comparison) {
+  if (comparison.branches.isNotEmpty) return null;
+  var moved = <String>{};
+  for (var item in comparison.items) {
+    if (item.state == ComparedState.same) continue;
+    var events = _reorderedIn(item);
+    if (events == null) return null;
+    moved.addAll(events);
+  }
+  return moved;
+}
+
+/// What [reorderedEvents] says of one step that is not the same.
+Set<String>? _reorderedIn(ComparedItem item) {
+  if (item.state != ComparedState.changed ||
+      (item.pixels?.changed ?? false) ||
+      (item.tree?.significant ?? false) ||
+      item.texts != null) {
+    return null;
+  }
+  var events = item.events;
+  if (events == null || events.deltasDropped > 0) return null;
+  bool app(String subchannel) => subchannel != EventChannel.systemSubchannel;
+  if ([
+    ...events.added,
+    ...events.removed,
+  ].map(EventChannel.subchannelOf).any(app)) {
+    return null;
+  }
+  var moved = <String>{};
+  for (var delta in events.deltas.where((delta) => app(delta.subchannel))) {
+    if (delta.kind != EventDeltaKind.moved) return null;
+    moved.add('${delta.subchannel} ${delta.title}');
+  }
+  return moved;
+}
+
+/// The events two replays of one side logged in a different order, as
+/// `<subchannel> <title>`: every event that swapped places with another in
+/// some step, and not only the one a diff happens to call moved — of two
+/// events that swapped, either can be.
+Set<String> unsteadyEvents(ScenarioReplay a, ScenarioReplay b) {
+  var unsteady = <String>{};
+  var bByIndex = {for (var shot in b.steps) shot.step.index: shot};
+  for (var shot in a.steps) {
+    var other = bByIndex[shot.step.index];
+    if (other == null) continue;
+    var first = _appEventKeys(shot.events);
+    var second = _appEventKeys(other.events);
+    var rank = <String, int>{};
+    for (var (i, key) in second.indexed) {
+      rank.putIfAbsent(key, () => i);
+    }
+    for (var i = 0; i < first.length; i++) {
+      for (var j = i + 1; j < first.length; j++) {
+        var (x, y) = (rank[first[i]], rank[first[j]]);
+        if (x != null && y != null && x > y) {
+          unsteady
+            ..add(first[i])
+            ..add(first[j]);
+        }
+      }
+    }
+  }
+  return unsteady;
+}
+
+List<String> _appEventKeys(List<Map<String, Object?>> events) => [
+  for (var event in events)
+    if (event['channel'] case var channel
+        when channel != EventChannel.systemSubchannel)
+      '${channel ?? ''} ${event['title'] ?? ''}',
+];
+
+/// [compared] — the comparison of [base] and [head] — with each step whose
+/// only difference is the order of [unsteady] events reported as the same,
+/// and saying why. [sides] are the sides whose two replays disagreed on that
+/// order.
+///
+/// A step is let off only when leaving the [unsteady] events out of both
+/// sides makes it the same: a request that moved after a data fetch, beside
+/// a query that never fires at the same moment, is still a change.
+ScenarioComparison withUnsteadyOrder(
+  ScenarioComparison compared, {
+  required ScenarioReplay base,
+  required ScenarioReplay head,
+  required Set<String> unsteady,
+  required List<String> sides,
+}) {
+  ScenarioReplay without(ScenarioReplay replay) => ScenarioReplay(
+    [
+      for (var shot in replay.steps)
+        ScenarioStepShot(
+          step: shot.step,
+          rgba: shot.rgba,
+          width: shot.width,
+          height: shot.height,
+          tree: shot.tree,
+          treeFormat: shot.treeFormat,
+          texts: shot.texts,
+          events: [
+            for (var event in shot.events)
+              if (!unsteady.contains(
+                '${event['channel'] ?? ''} ${event['title'] ?? ''}',
+              ))
+                event,
+          ],
+          failure: shot.failure,
+          frame: shot.frame,
+          guessed: shot.guessed,
+        ),
+    ],
+    complete: replay.complete,
+    errors: replay.errors,
+    ms: replay.ms,
+    unsettled: replay.unsettled,
+  );
+  var steady = {
+    for (var item in compareScenarioReplays(
+      scenario: compared.scenario,
+      base: without(base),
+      head: without(head),
+    ).items)
+      item.id: item.state,
+  };
+  var items = [
+    for (var item in compared.items)
+      if (item.state != ComparedState.same ? _reorderedIn(item) : null
+          case var moved?
+          when moved.isNotEmpty && steady[item.id] == ComparedState.same)
+        ComparedItem(
+          id: item.id,
+          state: ComparedState.same,
+          label: item.label,
+          pixels: item.pixels,
+          tree: item.tree,
+          events: item.events,
+          shots: item.shots,
+          package: item.package,
+          note:
+              'events changed order between two replays of '
+              '${sides.join(' and ')}, so their order here is the '
+              "machine's rather than the branch's: ${moved.join(', ')}",
+        )
+      else
+        item,
+  ];
+  return ScenarioComparison(
+    scenario: compared.scenario,
+    items: items,
+    branches: compared.branches,
+    state: _verdict(items, const ScenarioAlignment(pairs: [], branches: [])),
+    frames: compared.frames,
+    package: compared.package,
+    baseErrors: compared.baseErrors,
+    headErrors: compared.headErrors,
+    baseMs: compared.baseMs,
+    headMs: compared.headMs,
+  );
+}
+
 /// The sentence a side whose pictures depended on the machine gets when two
 /// replays of it disagreed.
 String unstableHazardSentence(String side, ScenarioReplay replay) {

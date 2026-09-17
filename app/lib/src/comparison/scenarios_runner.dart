@@ -346,11 +346,12 @@ class ScenariosRunner {
   ///
   /// One by default, which is the shape a runner sized for one build wants.
   /// More never lets load decide a verdict. A scenario whose replays in the
-  /// pool would have to be replayed again to be believed — a side that failed
-  /// or was abandoned, or a difference drawn by work nothing announced — is
-  /// replayed from the start after the pool has drained, with nothing beside
-  /// it, and judged from that alone. The rows keep the plan's order whatever
-  /// order the replays finish in.
+  /// pool are anything but clean and the same on both sides — a side that
+  /// failed or was abandoned, or any difference at all — is replayed from the
+  /// start after the pool has drained, with nothing beside it, and judged
+  /// from that alone. Findings are usually the rare rows, so this costs
+  /// little; a change that moves every scenario pays for it serially. The
+  /// rows keep the plan's order whatever order the replays finish in.
   final int jobs;
 
   /// What has to be replayed, decided without starting anything where the
@@ -592,6 +593,10 @@ class ScenariosRunner {
   /// How many sides this run replayed a second time — see [_confirm].
   var _retries = 0;
 
+  /// Scenarios deferred by [_conclude] because their pool replays differed,
+  /// as opposed to because a side was not clean.
+  final _differedInPool = <String>{};
+
   /// Both sides' first replay of [id], or what the store already filed for a
   /// side.
   Future<_FirstReplays> _firstReplays(
@@ -639,9 +644,17 @@ class ScenariosRunner {
   /// The row [first] makes, replaying whatever has to be believed first — or
   /// null, when that takes a replay and this is not [alone].
   ///
-  /// Two things replay again, and both are asking whether the machine was the
-  /// cause: a side that failed or was abandoned ([_confirm]), and a difference
-  /// drawn by work nothing announced. Neither is asked beside other replays.
+  /// Three things replay again, and all are asking whether the machine was the
+  /// cause: a side that failed or was abandoned ([_confirm]), a difference
+  /// drawn by work nothing announced, and a difference that is only events
+  /// changing order. None is asked beside other replays.
+  ///
+  /// Beside other replays, nothing different is believed either. Load moves
+  /// more than a guessed landing: a stream fed by real I/O fires earlier on a
+  /// busy host, and the events it logs change order with nothing else
+  /// changing. So a pool replay that finds anything is not concluded from, and
+  /// it is compared **before** [_confirm] files it — filed, the replay taken
+  /// alone would read it back instead of replaying it.
   Future<({ScenarioComparison comparison, int replayed})?> _conclude(
     _FirstReplays first, {
     required bool alone,
@@ -653,6 +666,18 @@ class ScenariosRunner {
     if (sides.any((side) => !side.clean)) {
       if (!alone) return null;
       onProgress?.call('replaying "$name" again, alone, to confirm · $count');
+    } else if (!alone) {
+      var pooled = _comparing.time<ScenarioComparison>(
+        () => compareScenarioReplays(
+          scenario: id,
+          base: first.base,
+          head: first.head,
+        ),
+      );
+      if (pooled.state.isFinding) {
+        _differedInPool.add(id);
+        return null;
+      }
     }
     var retriesBefore = _retries;
     // One after the other, never together: see [_confirm]. A filed side is
@@ -676,23 +701,53 @@ class ScenariosRunner {
       var compared = _comparing.time<ScenarioComparison>(
         () => compareScenarioReplays(scenario: id, base: base, head: head),
       );
-      // A difference in a scenario whose pictures depended on the machine
-      // is not believed until each side has done the same thing twice.
-      // Every side here is fresh: a side with hazards is never filed.
-      if (compared.state.isFinding &&
-          (base.hazards.isNotEmpty || head.hazards.isNotEmpty)) {
-        if (!alone) return null;
+      // Two differences are not believed until each side has done the same
+      // thing twice: one in a scenario whose pictures depended on the
+      // machine, and one that is only events changing order — see
+      // [reorderedEvents]. This is alone: a finding in the pool was deferred
+      // above.
+      var hazardous = base.hazards.isNotEmpty || head.hazards.isNotEmpty;
+      var reordered = compared.state.isFinding
+          ? reorderedEvents(compared)
+          : null;
+      if (compared.state.isFinding && (hazardous || reordered != null)) {
         onProgress?.call(
-          'replaying "$name" again, alone: it drew work nothing announced '
-          '· $count',
+          hazardous
+              ? 'replaying "$name" again, alone: it drew work nothing '
+                    'announced · $count'
+              : 'replaying "$name" again, alone: only its events changed '
+                    'order · $count',
         );
         var unstable = <String>[];
+        var unsteady = <String>{};
+        var unsteadySides = <String>[];
         for (var (isBase, replay) in [(true, base), (false, head)]) {
-          if ((isBase ? filedBase : filedHead) != null) continue;
+          // A side with hazards is never filed, so a filed side is skipped
+          // only for them. An order a filed side recorded may be the load of
+          // the run that filed it, and is asked again like a fresh one.
+          if (reordered == null && (isBase ? filedBase : filedHead) != null) {
+            continue;
+          }
           var again = await source.shots(id, base: isBase, outDir: outDir);
           replayed++;
           if (!replaysAgree(replay, again)) {
             var side = isBase ? 'the base' : 'this branch';
+            if (reordered != null) {
+              var drift = reorderedEvents(
+                _comparing.time<ScenarioComparison>(
+                  () => compareScenarioReplays(
+                    scenario: id,
+                    base: replay,
+                    head: again,
+                  ),
+                ),
+              );
+              if (drift != null) {
+                unsteady.addAll(unsteadyEvents(replay, again));
+                unsteadySides.add(side);
+                continue;
+              }
+            }
             unstable.add(
               replay.hazards.isNotEmpty
                   ? unstableHazardSentence(side, replay)
@@ -711,6 +766,18 @@ class ScenariosRunner {
               headErrors: head.failures,
               baseMs: base.ms,
               headMs: head.ms,
+            ),
+            replayed: replayed,
+          );
+        }
+        if (unsteady.isNotEmpty) {
+          return (
+            comparison: withUnsteadyOrder(
+              compared,
+              base: base,
+              head: head,
+              unsteady: unsteady,
+              sides: unsteadySides,
             ),
             replayed: replayed,
           );
@@ -840,6 +907,8 @@ class ScenariosRunner {
     // not only its second replay: a first replay slowed by its neighbours
     // compared against a second one that was not is two machines, and would
     // call a scenario unstable that a serial run finds steady.
+    clock?.add('scenarios.replay', replaying.elapsed);
+    var alone = Stopwatch()..start();
     deferred.sort();
     for (var index in deferred) {
       cancel?.check();
@@ -855,11 +924,14 @@ class ScenariosRunner {
       replays += row.replayed;
       answered[index] = row.comparison;
       onScenario?.call(row.comparison);
+      if (_differedInPool.contains(id) && !row.comparison.state.isFinding) {
+        clock?.pooledOnly(id);
+      }
     }
     var items = [...settled, ...answered.nonNulls];
+    if (deferred.isNotEmpty) clock?.add('scenarios.alone', alone.elapsed);
     clock
-      ?..add('scenarios.replay', replaying.elapsed)
-      ..add('scenarios.compare', _comparing.elapsed)
+      ?..add('scenarios.compare', _comparing.elapsed)
       ..add('scenarios.filing', _filing.elapsed);
 
     return ScenarioResults.of(
