@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware/flutter_test.dart' show ScenarioTime;
 import 'package:flutterware_app/src/scenarios/authoring.dart';
 import 'package:flutterware_app/src/scenarios/axes.dart';
 import 'package:flutterware_app/src/scenarios/harness_entrypoint.dart';
@@ -1236,6 +1237,55 @@ void main() {
     timeout: const Timeout(Duration(minutes: 4)),
   );
 
+  // The folder's clock is the folder's word, and the package's lane is a
+  // process already built on the other one. Run anyway, a real-time folder's
+  // live fetches never land on the fake clock and its scenarios fail as though
+  // the app were broken.
+  for (var (folderTime, laneTime) in [
+    ('ScenarioTime.real()', ScenarioTime.fake),
+    ('ScenarioTime.fake', ScenarioTime.real()),
+  ]) {
+    test('a folder on ${folderTime.contains('real') ? 'real' : 'fake'} time is '
+        'refused by a ${laneTime.name}-time package, naming both', () async {
+      var flutterRoot = Platform.environment['FLUTTER_ROOT']!;
+      var repoRoot = Directory.current.parent.path;
+      var outDir = Directory.systemTemp.createTempSync('scenario_clock').path;
+      var directory = 'test/scenarios_clock_${laneTime.name}';
+      var dir = Directory(p.join(repoRoot, directory))
+        ..createSync(recursive: true);
+      File(p.join(dir.path, 'flutter_test_config.dart'))
+          .writeAsStringSync(_clockConfigSource(folderTime));
+      File(p.join(dir.path, 'clock_test.dart'))
+          .writeAsStringSync(_scratchSource('clock'));
+
+      var runner = ScenarioRunner(
+        packageRoot: repoRoot,
+        directory: directory,
+        flutterSdkRoot: flutterRoot,
+        time: laneTime,
+      );
+      var folderName = laneTime.isReal ? 'fake' : 'real';
+      var refusal = isA<ActionRefusal>().having(
+        (r) => r.message,
+        'message',
+        allOf(
+          contains('`$directory`'),
+          contains('runs on $folderName time'),
+          contains('`$directory/flutter_test_config.dart`'),
+          contains("this package's scenarios run on ${laneTime.name} time"),
+        ),
+      );
+      try {
+        await expectLater(runner.list(), throwsA(refusal));
+        await expectLater(runner.run(outDir: outDir), throwsA(refusal));
+      } finally {
+        await runner.dispose();
+        dir.deleteSync(recursive: true);
+        Directory(outDir).deleteSync(recursive: true);
+      }
+    }, timeout: const Timeout(Duration(minutes: 4)));
+  }
+
   test('the entrypoint file is left alone when its content is right', () {
     var root = Directory.systemTemp.createTempSync('scenario_entrypoint');
     try {
@@ -1370,6 +1420,16 @@ void main() {
     await s.tap('Tap');
   });
 }
+''';
+
+String _clockConfigSource(String time) =>
+    '''
+import 'dart:async';
+
+import 'package:flutterware/flutter_test.dart';
+
+Future<void> testExecutable(FutureOr<void> Function() testMain) =>
+    runScenarios(testMain, time: $time);
 ''';
 
 String _scratchSource(String label) =>

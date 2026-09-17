@@ -405,12 +405,12 @@ class ScenarioRunner implements ScenarioRunSource {
   @override
   Future<List<ScenarioListing>> list() => _host.exclusive(() async {
     await _host.ensureGuest();
-    var response = await _host.vm.requireExtension(
-      'ext.flutterware.scenarios.list',
+    var response = _refuseIfAsked(
+      await _host.vm.requireExtension('ext.flutterware.scenarios.list'),
     );
     return [
       for (var entry
-          in (response!['scenarios']! as List).cast<Map<String, Object?>>())
+          in (response['scenarios']! as List).cast<Map<String, Object?>>())
         ScenarioListing.fromJson(entry),
     ];
   });
@@ -546,11 +546,13 @@ class ScenarioRunner implements ScenarioRunSource {
         jobs: jobs,
       );
     }
-    var response = await _host.vm.requireExtension(
-      'ext.flutterware.scenarios.run',
-      args: args,
+    var response = _refuseIfAsked(
+      await _host.vm.requireExtension(
+        'ext.flutterware.scenarios.run',
+        args: args,
+      ),
     );
-    if (response!['error'] case String error) {
+    if (response['error'] case String error) {
       throw StateError('the harness failed:\n$error\n${response['stack']}');
     }
     // A scenario blew its deadline, so its body is still in there holding the
@@ -591,6 +593,7 @@ class ScenarioRunner implements ScenarioRunSource {
       (ref) => {...args, 'file': ref.file, 'scenario': ref.scenario},
     );
     for (var reply in replies) {
+      _refuseIfAsked(reply);
       if (reply['error'] case String error) {
         throw StateError('the harness failed:\n$error\n${reply['stack']}');
       }
@@ -619,11 +622,11 @@ class ScenarioRunner implements ScenarioRunSource {
   /// fans out over this rather than a scan, so a scenario the scan would not
   /// see (a non-literal name) still runs.
   Future<List<ScenarioListing>> _listOnHost() async {
-    var response = await _host.vm.requireExtension(
-      'ext.flutterware.scenarios.list',
+    var response = _refuseIfAsked(
+      await _host.vm.requireExtension('ext.flutterware.scenarios.list'),
     );
     return [
-      for (var entry in (response!['scenarios'] as List).cast<Map>())
+      for (var entry in (response['scenarios']! as List).cast<Map>())
         ScenarioListing(
           file: entry['file'] as String,
           name: entry['name'] as String,
@@ -631,6 +634,13 @@ class ScenarioRunner implements ScenarioRunSource {
           skip: entry['skip'] == true,
         ),
     ];
+  }
+
+  /// The harness's own refusal — a folder it will not run, said at probe —
+  /// raised as one, rather than read as a report with nothing in it.
+  static Map<String, Object?> _refuseIfAsked(Map<String, Object?>? response) {
+    if (response!['refusal'] case String refusal) throw ActionRefusal(refusal);
+    return response;
   }
 
   static int _defaultJobs(int scenarios) =>
