@@ -2404,6 +2404,9 @@ class PreviewsCore extends PluginCore {
               for (var error in indicting)
                 _asRenderError(InspectError.fromJson(error)),
             ],
+            stillWaitingOn: row.pending.isEmpty
+                ? null
+                : pendingWorkOf(row.pending),
           ),
         );
       }

@@ -29,6 +29,8 @@ import 'package:flutterware/scene_authoring.dart';
 import 'package:flutterware/real_work.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'root_zone_scene.dart';
+
 /// What the app hands every scene view.
 final Map<String, SceneKindRenderer> scene3dRenderers = {
   view3dKind.name: (context, node, child) => _View3D(node, child),
@@ -109,7 +111,7 @@ class _Placed {
 }
 
 class _View3DState extends State<_View3D> {
-  final _scene = fs.Scene();
+  final _scene = rootZoneScene();
 
   /// The window's sun, in the scene while `light` is above zero.
   fs.Node? _sun;

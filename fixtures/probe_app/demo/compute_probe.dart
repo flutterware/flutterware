@@ -1,9 +1,11 @@
 // Does an isolate answer a second test body in one warm harness process?
 //
 // The 3D model probe's runtime import unpacks its primitives through
-// `compute`, and it landed in the first body of a harness and never in any
-// later one, root zone or not. This is that question with nothing else in
-// it: a `compute` in `initState`, tracked, and a green box once it answers.
+// `compute`, and the import landed in the first body of a harness and never in
+// a later one. `compute` was suspected and is not the cause: it answers every
+// body. The stall was a memoized flutter_scene future — see
+// `lib/root_zone_scene.dart`. This keeps the question on its own: a `compute`
+// in `initState`, tracked, and a green box once it answers.
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widget_previews.dart';

@@ -912,6 +912,11 @@ void _declare(
               // looked exactly like one that finished.
               if (pending.isNotEmpty) 'pending': pending,
             };
+          } else if (pending.isNotEmpty) {
+            // No picture was asked for — an audit — and the same wait gave up
+            // all the same. Without this the audit passed an entry the
+            // comparison refuses to compare.
+            captured?[entry.id] = {'pending': pending};
           }
         } finally {
           FlutterError.onError = previous;

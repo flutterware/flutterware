@@ -19,6 +19,8 @@ import 'package:flutter_scene/scene.dart' as fs;
 import 'package:flutterware/real_work.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'root_zone_scene.dart';
+
 class ModelView extends StatefulWidget {
   const ModelView({
     super.key,
@@ -53,7 +55,7 @@ class ModelView extends StatefulWidget {
 }
 
 class _ModelViewState extends State<ModelView> {
-  final _scene = fs.Scene();
+  final _scene = rootZoneScene();
   fs.Node? _model;
 
   /// Where the orbit looks: the model's bounds centre once it is loaded, so

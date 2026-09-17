@@ -163,6 +163,7 @@ Map<String, dynamic> _$CatalogAuditEntryToJson(CatalogAuditEntry instance) =>
       'compileError': ?instance.compileError,
       'device': ?instance.device,
       'errors': instance.errors.map((e) => e.toJson()).toList(),
+      'stillWaitingOn': ?instance.stillWaitingOn,
     };
 
 Map<String, dynamic> _$CatalogAuditFailureToJson(

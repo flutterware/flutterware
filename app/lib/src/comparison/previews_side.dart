@@ -322,17 +322,8 @@ class PreviewsSide implements ComparisonSide {
 
   /// The row's note for a frame captured while [pending] was in flight, in
   /// the shape `PreviewCaptureRow.pending` carries it.
-  static String stillWaiting(Map<String, Object?> pending) {
-    String count(int n, String noun) => n == 1 ? '1 $noun' : '$n ${noun}s';
-    var waitingOn = [
-      if (pending['tracked'] case List tracked)
-        for (var label in tracked) '`$label`',
-      if (pending['images'] case int images) count(images, 'image decode'),
-      if (pending['assets'] case int reads) count(reads, 'asset read'),
-    ];
-    if (waitingOn.isEmpty) waitingOn.add('work it announced');
-    return 'still waiting on ${waitingOn.join(', ')} when it was captured';
-  }
+  static String stillWaiting(Map<String, Object?> pending) =>
+      'still waiting on ${pendingWorkOf(pending)} when it was captured';
 
   String _packageRootIn(String checkout) =>
       p.normalize(p.join(checkout, packagePath));

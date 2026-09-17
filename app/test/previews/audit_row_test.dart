@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware_app/src/plugins/native/previews_results.dart';
 import 'package:flutterware_app/src/previews/test_runner.dart';
 
 /// The audit's verdict on one rendered entry — in particular that a failed
@@ -39,6 +40,51 @@ void main() {
     expect(row.ok, isFalse);
     expect(row.indicting, hasLength(1));
     expect('${row.indicting.single['exception']}', contains('RenderFlex'));
+  });
+
+  // The comparison refuses a frame taken while announced work was in flight.
+  // An audit that passed the same entry called green what nothing can check.
+  test('work still in flight when the harness stopped waiting is broken', () {
+    var row = const PreviewAuditRow(
+      id: 'demo/a.dart#A.new',
+      pending: {
+        'tracked': ['model import'],
+      },
+    );
+    expect(row.ok, isFalse);
+    expect(pendingWorkOf(row.pending), '`model import`');
+  });
+
+  test('the harness reply carries it, and an older one reads as none', () {
+    var row = PreviewAuditRow.fromHarness('demo/a.dart#A.new', {
+      'errors': <Object?>[],
+      'pending': {'images': 2},
+    });
+    expect(row.pending, {'images': 2});
+    expect(row.ok, isFalse);
+
+    var older = PreviewAuditRow.fromHarness('demo/a.dart#A.new', {
+      'errors': <Object?>[],
+    });
+    expect(older.pending, isEmpty);
+    expect(older.ok, isTrue);
+  });
+
+  test('the audit entry says what it was waiting on, and only then', () {
+    var waiting = CatalogAuditEntry(
+      id: 'demo/a.dart#A.new',
+      address: 'fw:///x',
+      compiles: true,
+      stillWaitingOn: pendingWorkOf({'images': 2}),
+    );
+    expect(waiting.toJson()['stillWaitingOn'], '2 image decodes');
+
+    var landed = CatalogAuditEntry(
+      id: 'demo/a.dart#A.new',
+      address: 'fw:///x',
+      compiles: true,
+    );
+    expect(landed.toJson().containsKey('stillWaitingOn'), isFalse);
   });
 
   test('a failure or compile error is never excused by the mark', () {

@@ -2508,6 +2508,7 @@ entries: List<CatalogAuditEntry>   # Only the ones with something to say.
     library: String?   # `widgets library`, `rendering library` — which tells a layout overflow from a failed image load without reading the message.
     context: String?   # What the framework was doing: `during layout`, `while painting`.
     count: int   # How many times this exact error was reported.
+  stillWaitingOn: String?   # What the entry had announced and not finished when the audit stopped waiting — a tracked load by its label, image decodes, asset reads — or absent when everything landed.
 unreachable: List<CatalogAuditFailure>   # Packages that could not be audited at all, which is not the same as a package whose entries are fine.
   package: String
   error: String
