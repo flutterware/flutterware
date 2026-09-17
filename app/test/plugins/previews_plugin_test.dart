@@ -656,6 +656,67 @@ Widget added() => const Placeholder();
     expect(catalog().invoke('describe'), throwsArgumentError);
   });
 
+  group('an id a comparison of several packages reports', () {
+    // A comparison that spans packages puts the package in front of every id,
+    // and those ids are what a reader copies out of its report.
+    PreviewsCore twoPackages() {
+      write('packages/gallery/demo/card.dart', '''
+@Preview(name: 'Card')
+Widget card() => const Placeholder();
+''');
+      write('packages/forms/demo/field.dart', '''
+@Preview(name: 'Field')
+Widget field() => const Placeholder();
+''');
+      return catalog(packages: ['packages/gallery', 'packages/forms']);
+    }
+
+    test('describes the entry in the package it names', () async {
+      var described =
+          (await twoPackages().invoke(
+                'describe',
+                arguments: {'entry': 'packages/forms/demo/field.dart#field'},
+              ))!
+              as CatalogEntryDescription;
+
+      expect(described.package, 'packages/forms');
+      expect(described.id, 'demo/field.dart#field');
+      expect(
+        described.address,
+        '${twoPackages().addressFor('packages/forms', 'demo/field.dart#field')}',
+      );
+    });
+
+    test("the entry's own id still works", () async {
+      var described =
+          (await twoPackages().invoke(
+                'describe',
+                arguments: {'entry': 'demo/field.dart#field'},
+              ))!
+              as CatalogEntryDescription;
+
+      expect(described.package, 'packages/forms');
+    });
+
+    test('has to name the package the entry is in', () async {
+      expect(
+        twoPackages().invoke(
+          'describe',
+          arguments: {'entry': 'packages/gallery/demo/field.dart#field'},
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            // Listed the way a comparison prints them, so the list shows which
+            // package each is in.
+            contains('packages/forms/demo/field.dart#field'),
+          ),
+        ),
+      );
+    });
+  });
+
   test('entries refuses a package the plugin does not declare', () async {
     expect(
       catalog().invoke('entries', arguments: {'package': 'nope'}),

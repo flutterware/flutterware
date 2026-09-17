@@ -8,6 +8,8 @@ import 'package:meta/meta.dart';
 // The tree types, not the umbrella: same rule as `headless_catalog.dart`, and
 // for the same reason — `node.dart` is plain Dart and `ui_catalog.dart` is not.
 // ignore: implementation_imports
+import 'package:flutterware/src/comparison/channels.dart' show comparedIdIn;
+// ignore: implementation_imports
 import 'package:flutterware/src/inspect/error.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/inspect/log.dart';
@@ -2219,13 +2221,13 @@ class PreviewsCore extends PluginCore {
   Future<CatalogEntryDescription> _describe(
     Map<String, Object?> arguments,
   ) async {
-    var entryId = arguments['entry'];
-    if (entryId is! String || entryId.isEmpty) {
-      throw ArgumentError.value(entryId, 'entry', 'required');
+    var requested = arguments['entry'];
+    if (requested is! String || requested.isEmpty) {
+      throw ArgumentError.value(requested, 'entry', 'required');
     }
     if (_scans.isEmpty && _failures.isEmpty) await computeAll();
 
-    var packagePath = _packageHolding(entryId);
+    var (package: packagePath, :entryId) = _locate(requested);
     var entry = _scans[packagePath]!.entries.firstWhere((e) => e.id == entryId);
 
     CatalogEntryDescription describe({
@@ -2473,17 +2475,40 @@ class PreviewsCore extends PluginCore {
     return null;
   }
 
-  /// Which declared package holds [entryId].
-  String _packageHolding(String entryId) => packages.firstWhere(
-    (path) => _scans[path]?.entries.any((e) => e.id == entryId) ?? false,
-    orElse: () => throw ArgumentError.value(
-      entryId,
+  /// Which declared package holds the entry [id] names, and its id there.
+  ///
+  /// [id] is either the entry's own id or the one a comparison reports, which
+  /// puts the package in front when a run spans several — see [comparedIdIn].
+  /// Both are matched exactly against what the scan found, so the second form
+  /// is whatever a comparison wrote and nothing a guess could reach.
+  ({String package, String entryId}) _locate(String id) {
+    for (var path in packages) {
+      if (_scans[path]?.entries.any((e) => e.id == id) ?? false) {
+        return (package: path, entryId: id);
+      }
+    }
+    for (var path in packages) {
+      for (var entry in _scans[path]?.entries ?? const <CatalogEntry>[]) {
+        if (comparedIdIn(path, entry.id) == id) {
+          return (package: path, entryId: entry.id);
+        }
+      }
+    }
+    // In the form a comparison would print, so the list says which package
+    // each id is in rather than suggesting they all come from the first.
+    var known = [
+      for (var path in packages)
+        for (var entry in _scans[path]?.entries ?? const <CatalogEntry>[])
+          packages.length > 1 ? comparedIdIn(path, entry.id) : entry.id,
+    ];
+    throw ArgumentError.value(
+      id,
       'entry',
       'no entry with that id. Known: '
-          '${entries.map((e) => e.id).take(10).join(', ')}'
-          '${entries.length > 10 ? ', …' : ''}',
-    ),
-  );
+          '${known.take(10).join(', ')}'
+          '${known.length > 10 ? ', … (${known.length} in all)' : ''}',
+    );
+  }
 
   /// One rendered build, and every projection of it that was asked for.
   ///
@@ -2515,17 +2540,17 @@ class PreviewsCore extends PluginCore {
     // here.
     var want = _InspectRequest.of(arguments);
     if (_scans.isEmpty && _failures.isEmpty) await computeAll();
-    var packagePath = _packageHolding(want.entryId);
+    var (package: packagePath, :entryId) = _locate(want.entryId);
     // Read again, now that the package the entry belongs to is known and its
     // declared framing can be applied. The first pass is what makes a typo in a
     // flag cost nothing — it runs before the scan — and the package default
     // cannot be looked up until the scan says which package this is. Parsing
     // twice is a few string splits against a compile and a render.
     want = _InspectRequest.of(
-      arguments,
+      {...arguments, 'entry': entryId},
       fallback: defaultFramingFor(
         packagePath,
-        entry: _entryPathOf(packagePath, want.entryId),
+        entry: _entryPathOf(packagePath, entryId),
       ),
     );
 
@@ -2988,14 +3013,14 @@ class PreviewsCore extends PluginCore {
   /// from a previous call should not have to know that the process it is
   /// talking to is a fresh one.
   Future<Artifact> _screenshot(Map<String, Object?> arguments) async {
-    var entryId = arguments['entry'];
-    if (entryId is! String || entryId.isEmpty) {
-      throw ArgumentError.value(entryId, 'entry', 'required');
+    var requested = arguments['entry'];
+    if (requested is! String || requested.isEmpty) {
+      throw ArgumentError.value(requested, 'entry', 'required');
     }
 
     if (_scans.isEmpty && _failures.isEmpty) await computeAll();
 
-    var packagePath = _packageHolding(entryId);
+    var (package: packagePath, :entryId) = _locate(requested);
     var packageRoot = p.join(host.worktree.path, packagePath);
     var entry = _scans[packagePath]!.entries.firstWhere((e) => e.id == entryId);
 

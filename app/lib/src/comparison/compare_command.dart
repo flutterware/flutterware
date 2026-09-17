@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutterware/comparison_report.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/comparison/channels.dart' show idsNamedIn;
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
@@ -283,7 +285,9 @@ Future<CompareOutcome> _runComparison({
       baseSha: base.sha,
       cache: shotCache,
       sdk: renderKeyOf(sdk),
-      only: options.entries.isEmpty ? null : options.entries,
+      only: options.entries.isEmpty
+          ? null
+          : idsNamedIn(packageInWorktree, options.entries),
       jobs: jobs,
       clock: clock.within(packageInWorktree, qualify: qualify),
       side: PreviewsSide(
@@ -801,7 +805,7 @@ Future<ScenarioResults?> _compareScenarios({
         top: top,
         baseRoot: baseRoot,
         sdk: sdk,
-        only: only,
+        only: idsNamedIn(package, only),
         cache: cache,
         qualify: qualify,
         jobs: jobs,

@@ -1,4 +1,6 @@
 import 'package:flutterware/comparison_report.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/comparison/channels.dart' show idsNamedIn;
 import 'package:flutterware_app/src/comparison/artifact.dart';
 import 'package:flutterware_app/src/comparison/compare_command.dart';
 import 'package:flutterware_app/src/comparison/runner.dart';
@@ -57,6 +59,21 @@ void main() {
         expect(row.package, 'app');
       },
     );
+
+    test('an id handed back narrows its own package and no other', () {
+      var ids = [
+        'packages/gallery/demo/card.dart#card',
+        'demo/plain.dart#plain',
+      ];
+
+      var gallery = idsNamedIn('packages/gallery', ids);
+      expect(gallery, contains('demo/card.dart#card'));
+      expect(gallery, contains('demo/plain.dart#plain'));
+
+      var forms = idsNamedIn('packages/forms', ids);
+      expect(forms, isNot(contains('demo/card.dart#card')));
+      expect(forms, contains('demo/plain.dart#plain'));
+    });
 
     test('a scenario is addressed the same way', () {
       var scenario = const ScenarioComparison.notRun(
