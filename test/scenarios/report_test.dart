@@ -14,6 +14,7 @@ void main() {
     String? target,
     bool unchanged = false,
     bool settled = true,
+    List<String> stillTicking = const [],
   }) => ScenarioRunStep(
     index: index,
     position: '#$index',
@@ -28,6 +29,7 @@ void main() {
     target: target,
     unchanged: unchanged,
     settled: settled,
+    stillTicking: stillTicking,
   );
 
   group('a step', () {
@@ -235,19 +237,37 @@ void main() {
                   steps: [
                     step(index: 1),
                     step(index: 2, unchanged: true),
-                    step(index: 3, settled: false),
+                    step(
+                      index: 3,
+                      settled: false,
+                      stillTicking: ['Spinner (lib/a.dart:3)'],
+                    ),
+                    step(
+                      index: 4,
+                      settled: false,
+                      stillTicking: [
+                        'Spinner (lib/a.dart:3)',
+                        '_PulseState.initState (lib/a.dart:9)',
+                      ],
+                    ),
                   ],
                 ),
               ),
             ) as Map).cast<String, Object?>()
             ..remove('stepCount')
             ..remove('unchangedCount')
-            ..remove('unsettledCount');
+            ..remove('unsettledCount')
+            ..remove('stillTicking');
       var back = ScenarioRunOutcome.fromJson(wire);
 
-      expect(back.stepCount, 3);
+      expect(back.stepCount, 4);
       expect(back.unchangedCount, 1);
-      expect(back.unsettledCount, 1);
+      expect(back.unsettledCount, 2);
+      expect(back.steps.last.stillTicking, hasLength(2));
+      expect(back.stillTicking, [
+        'Spinner (lib/a.dart:3)',
+        '_PulseState.initState (lib/a.dart:9)',
+      ]);
     });
 
     test('trusts the counts on a trimmed copy', () {
@@ -259,6 +279,7 @@ void main() {
         stepCount: 2,
         unchangedCount: 1,
         unsettledCount: 2,
+        stillTicking: ['CircularProgressIndicator (lib/orders.dart:42)'],
       ).withoutSteps();
 
       var back = ScenarioRunOutcome.fromJson(
@@ -271,6 +292,10 @@ void main() {
       // The number the summary exists to carry: with no steps to count, a
       // recount would read zero and say the run was still.
       expect(back.unsettledCount, 2);
+      // And what to open about it, which no step left behind could say.
+      expect(back.stillTicking, [
+        'CircularProgressIndicator (lib/orders.dart:42)',
+      ]);
     });
 
     test('carries its errors and translations', () {

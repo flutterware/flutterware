@@ -17,6 +17,7 @@ import '../../scenarios/web_export_dialog.dart';
 import '../../scenarios/artifacts.dart';
 import '../../scenarios/artifacts_io.dart';
 import '../../scenarios/beat_view.dart';
+import '../../scenarios/step_status.dart' show ambientHint;
 import '../../scenarios/axes.dart';
 import '../../scenarios/browsing.dart';
 import '../../scenarios/discovery.dart';
@@ -1526,17 +1527,7 @@ class _ScenarioPageState extends State<_ScenarioPage> {
           if (_unsettled(run) case var unsettled when unsettled > 0) ...[
             const Gap(FwSpacing.md),
             Tooltip(
-              message: unsettled == 1
-                  ? 'One step was captured with the app still animating — '
-                        'the settle budget ran out with frames still '
-                        'scheduled. A spinner or a looping animation does '
-                        'that, and the picture is of a moving screen. Amber '
-                        'in the flow below.'
-                  : '$unsettled steps were captured with the app still '
-                        'animating — the settle budget ran out with frames '
-                        'still scheduled. A spinner or a looping animation '
-                        'does that, and their pictures are of moving '
-                        'screens. Amber in the flow below.',
+              message: _unsettledTooltip(run, unsettled),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1662,6 +1653,29 @@ class _ScenarioPageState extends State<_ScenarioPage> {
   /// mid-flight this suite photographs.
   int _unsettled(ScenarioPanelRun? run) =>
       run?.steps.where((step) => !step.settled && step.waited).length ?? 0;
+
+  String _unsettledTooltip(ScenarioPanelRun? run, int unsettled) {
+    var what = unsettled == 1
+        ? 'One step was captured with the app still animating — the settle '
+              'budget ran out with frames still scheduled, and the picture is '
+              'of a moving screen.'
+        : '$unsettled steps were captured with the app still animating — the '
+              'settle budget ran out with frames still scheduled, and their '
+              'pictures are of moving screens.';
+    var ticking = _stillTicking(run);
+    if (ticking.isEmpty) {
+      return '$what A spinner or a looping animation does that. Amber in the '
+          'flow below.';
+    }
+    return '$what\n\nStill ticking:\n'
+        '${ticking.map((line) => '• $line').join('\n')}\n\n'
+        '$ambientHint Amber in the flow below.';
+  }
+
+  /// What kept those steps moving, once each — off the streamed steps for the
+  /// reason [_unsettled] is.
+  List<String> _stillTicking(ScenarioPanelRun? run) =>
+      stillTickingOf(run?.steps ?? const []);
 
   /// What to say about where this run's requests went, or null for a run that
   /// made none go anywhere.

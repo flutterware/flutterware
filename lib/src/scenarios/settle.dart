@@ -348,6 +348,8 @@ ScenarioStillAnimating stillAnimating(
   Settle policy, {
   String? verb,
   String? target,
+  List<String> ticking = const [],
+  bool ambient = false,
 }) {
   var did = [?verb, ?target].join(' ').trim();
   var budget = switch (policy) {
@@ -362,12 +364,23 @@ ScenarioStillAnimating stillAnimating(
     if (tracked.isNotEmpty)
       'tracked real work pending: ${tracked.map((w) => '`$w`').join(', ')}',
   ];
+  if (ambient) {
+    return ScenarioStillAnimating(
+      '${did.isEmpty ? 'the step' : '`$did`'} left an `Ambient` on screen. '
+      'Under a scenario its motion is frozen, so the screen settled — but '
+      '`Settle.strict` is about the loader being there, not about the frames '
+      'it costs, and a picture with a spinner in it fails here frozen or not. '
+      'If the loader is the point of this picture, say so on the verb: '
+      '`settle: Settle.standard`.',
+    );
+  }
   return ScenarioStillAnimating(
     '${did.isEmpty ? 'the step' : '`$did`'} left the screen still '
     "animating: a frame was still scheduled$budget and after the step's "
     'real work had landed. `Settle.strict` makes that a failure where '
     '`Settle.standard` records `settled: false` and moves on. '
     '${still.isEmpty ? 'Nothing announced is still in flight, so what keeps asking for frames is on the captured step — a spinner, a looping animation, a caret in a focused field on an iOS device.' : 'Still in flight: ${still.join('; ')}.'} '
+    '${ticking.isEmpty ? '' : 'Still ticking: ${ticking.join(', ')}. '}'
     'If the animation is the point of this picture, say so on the verb: '
     '`settle: Settle.standard`, or `Settle.frames(n)` for a fixed way in.',
   );

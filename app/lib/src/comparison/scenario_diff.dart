@@ -74,6 +74,7 @@ class ScenarioReplay {
     this.errors = const [],
     this.ms,
     this.unsettled = 0,
+    this.stillTicking = const [],
   });
 
   final List<ScenarioStepShot> steps;
@@ -82,6 +83,10 @@ class ScenarioReplay {
   /// `unsettledCount`. Zero for one read from the cache, which was not
   /// replayed and cannot say.
   final int unsettled;
+
+  /// What kept asking for frames on those steps — the harness's
+  /// `stillTicking`. Empty for one read from the cache.
+  final List<String> stillTicking;
 
   /// How long the replay took, as the harness measured it — null for one
   /// read from the cache.

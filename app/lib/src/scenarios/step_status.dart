@@ -40,6 +40,13 @@ Color scenarioStepTone(BuildContext context, ScenarioRunStep step) {
   return colors.mut;
 }
 
+/// Where the names of what kept ticking point: the fix for motion that only
+/// says "busy", which is most of it.
+const ambientHint =
+    'If it only says "busy" — a spinner, a shimmer, a pulsing dot — wrap it '
+    'in `Ambient` (package:flutterware/ambient.dart): a scenario then draws it '
+    'standing still and the step settles.';
+
 /// What a step reports above its picture — the error it broke on, or the note
 /// that the app was still animating when the capture was taken. Nothing at all
 /// in the healthy case, which is almost every step.
@@ -60,12 +67,18 @@ class ScenarioStepNotice extends StatelessWidget {
         Icons.error_outline,
         failure,
       ),
-      ScenarioRunStep(settled: false, waited: true) => (
+      ScenarioRunStep(settled: false, waited: true, :var stillTicking) => (
         colors.amber,
         Icons.motion_photos_on_outlined,
-        'Still animating when this was captured — the settle budget ran out '
-            'with frames still scheduled. A spinner or a looping animation '
-            'does that; the picture is of a moving screen.',
+        stillTicking.isEmpty
+            ? 'Still animating when this was captured — the settle budget ran '
+                  'out with frames still scheduled. A spinner or a looping '
+                  'animation does that; the picture is of a moving screen.'
+            : 'Still animating when this was captured — the settle budget ran '
+                  'out with frames still scheduled, and the picture is of a '
+                  'moving screen.\n\nStill ticking:\n'
+                  '${stillTicking.map((line) => '• $line').join('\n')}\n\n'
+                  '$ambientHint',
       ),
       ScenarioRunStep(landed: false) => (
         colors.amber,

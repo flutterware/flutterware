@@ -397,6 +397,7 @@ class ComparisonTimings {
     this.phases = const [],
     this.unsettledSteps = const {},
     this.pooledOnlyDifferences = const [],
+    this.stillTicking = const {},
   });
 
   final List<ComparisonPhase> phases;
@@ -419,6 +420,16 @@ class ComparisonTimings {
   /// serial replay on every comparison that runs it with `--jobs`.
   final List<String> pooledOnlyDifferences;
 
+  /// Scenario id → what kept asking for frames on the steps
+  /// [unsettledSteps] counts: `CircularProgressIndicator
+  /// (lib/src/orders/status_cell.dart:42)`, `_PulseState.initState
+  /// (package:app/src/pulse.dart:18)` — see `ScenarioRunOutcome.stillTicking`.
+  ///
+  /// The count says what a scenario costs; this says what to open. A scenario
+  /// in [unsettledSteps] can be missing here when its harness ran without
+  /// asserts, which is what the names are read from.
+  final Map<String, List<String>> stillTicking;
+
   /// Every phase called [name], in the order they were recorded.
   Iterable<ComparisonPhase> named(String name) =>
       phases.where((phase) => phase.name == name);
@@ -428,6 +439,7 @@ class ComparisonTimings {
     if (unsettledSteps.isNotEmpty) 'unsettledSteps': unsettledSteps,
     if (pooledOnlyDifferences.isNotEmpty)
       'pooledOnlyDifferences': pooledOnlyDifferences,
+    if (stillTicking.isNotEmpty) 'stillTicking': stillTicking,
   };
 
   /// Null for a file written before the key existed.
@@ -446,6 +458,11 @@ class ComparisonTimings {
             for (var id in json['pooledOnlyDifferences'] as List? ?? const [])
               if (id is String) id,
           ],
+          stillTicking: {
+            if (json['stillTicking'] case Map named)
+              for (var MapEntry(:key, :value) in named.entries)
+                if (value is List) '$key': [...value.whereType<String>()],
+          },
         )
       : null;
 }

@@ -152,6 +152,34 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) =>
 A scenario's own `settle:` still wins, and so does a verb's — `settle:
 Settle.standard` on the one `tap` whose picture is meant to show the spinner.
 
+### Motion that says nothing
+
+A step that never settles runs its whole budget on every replay, and the
+run names what kept it going: `settled: false` on the step comes with
+`stillTicking`, and the GUI's *"still animating"* notice lists the same —
+`CircularProgressIndicator (lib/src/orders/status_cell.dart:42)` for a
+framework widget, by the line of the app that built it, or the frame that
+started an animation of the app's own.
+
+Most of it is a spinner, a shimmer or a pulsing dot, and the phase it is at
+carries no information. Say so in the app, once, where the loader is built:
+
+```dart
+import 'package:flutterware/ambient.dart';
+
+Ambient(child: CircularProgressIndicator())
+```
+
+Outside a scenario `Ambient` builds its child and nothing else. Inside one,
+nothing under it schedules a frame, and every Material progress indicator
+without a controller of its own is drawn at one fixed phase — so the step
+settles, and the picture is the same on every run and every machine. Anything
+else under it freezes at its own start.
+
+`Settle.strict` is not relaxed by it: a step that ends with an `Ambient` on
+screen still fails there. Freezing makes the picture deterministic; it does
+not make a loader on screen acceptable where the suite says it is not.
+
 ### A post-frame callback nothing schedules a frame for
 
 `WidgetsBinding.instance.addPostFrameCallback` does not request a frame — it

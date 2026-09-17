@@ -21,6 +21,7 @@ import 'aim.dart';
 import 'asset_bundle.dart';
 import 'async_watchdog.dart';
 import 'film.dart';
+import '../ambient/ambient.dart';
 import '../app_events/events.dart';
 import '../devices.dart';
 import 'keyboard.dart';
@@ -36,6 +37,7 @@ import 'settle.dart';
 import 'reel.dart';
 import 'stage.dart';
 import 'stall.dart';
+import 'still_ticking.dart';
 import 'shots.dart';
 import 'staging.dart';
 import 'target.dart';
@@ -486,6 +488,8 @@ Future<void> _runScenario(
   // And what a deadline would quote: the previous scenario's unanswered
   // sends and last verb are its own.
   resetStallFacts();
+  // What an earlier scenario's last step found still ticking is its own.
+  _tickingSinceLastCapture.clear();
   // The iOS caret blinks through an `AnimationController`, not a timer, so on
   // an iOS-staged device every screen with a focused field is asking for a
   // frame forever, and no settle policy can tell that from a spinner.
@@ -591,6 +595,9 @@ Future<void> _runScenario(
     );
     priorOnError?.call(details);
   };
+  // For the body only, cleared in the `finally`: a plain widget test later in
+  // the same file gets the app's motion as the app wrote it.
+  ambientFrozen = true;
   try {
     // The split-replay loop: the body runs once per path through its
     // `split`s, depth-first — a body with none runs once. Every replay
@@ -697,6 +704,7 @@ Future<void> _runScenario(
         stderr.writeln('[flutterware] the film could not be written: $error');
       }
     }
+    ambientFrozen = false;
     // Unconditional, because the chain above is: the binding asserts at the
     // end that it got its own handler back.
     FlutterError.onError = priorOnError;
@@ -724,6 +732,11 @@ int _overflowsSinceLastCapture = 0;
 /// since the last capture — see `landRealWork`'s `guessed` — drained per step
 /// into [ScenarioStepCapture.guessed] the way the overflows are.
 int? _guessedSinceLastCapture;
+
+/// What kept asking for frames where a waiting settle gave up since the last
+/// capture — see [whatKeepsTicking] — drained per step into
+/// [ScenarioStepCapture.stillTicking] the way [_guessedSinceLastCapture] is.
+final _tickingSinceLastCapture = <String>{};
 
 /// Under a budget probe, an overflow is the *measurement*, not a failure.
 ///
@@ -2204,8 +2217,23 @@ class ScenarioTester {
       // a screen that *stays* animating, and a decode still on its way is
       // not that. The throw takes the ordinary failure path below, so the
       // failed step carries the frame that was still moving.
-      if (policy.failsWhenUnsettled && !settled) {
-        throw stillAnimating(policy, verb: verb, target: target);
+      // Only where a policy waited: a frame still scheduled after
+      // `Settle.none` is what the author asked to photograph.
+      var ticking = !settled && policy.waits
+          ? whatKeepsTicking()
+          : const <String>[];
+      _tickingSinceLastCapture.addAll(ticking);
+      // A frozen [Ambient] schedules nothing, so the settle above is quiet
+      // around it — and strict is about the loader on screen, not about the
+      // frames it would have cost.
+      if (policy.failsWhenUnsettled && (!settled || ambientOnScreen)) {
+        throw stillAnimating(
+          policy,
+          verb: verb,
+          target: target,
+          ticking: ticking,
+          ambient: settled,
+        );
       }
     } catch (error) {
       // The verb that broke captures its own frame; `scenario`'s catch is the
@@ -2566,6 +2594,11 @@ class ScenarioTester {
     _overflowsSinceLastCapture = 0;
     pending.guessed = _deeper(pending.guessed, _guessedSinceLastCapture);
     _guessedSinceLastCapture = null;
+    pending.stillTicking = {
+      ...pending.stillTicking,
+      ..._tickingSinceLastCapture,
+    }.toList();
+    _tickingSinceLastCapture.clear();
     // The events belong to the step wearing the name rather than to whichever
     // step captures next: they happened on the way to *this* frame, and this
     // frame is the pending capture. Rolling them forward — what a
@@ -2718,6 +2751,7 @@ class ScenarioTester {
       // to that step. Left to ride, it was credited to the next step this
       // replay emits — a branch's first step, which guessed at nothing.
       _guessedSinceLastCapture = null;
+      _tickingSinceLastCapture.clear();
       _lastCaptureFresh = false;
       _lastPosition = position;
       _pendingBranch = null;
@@ -2744,6 +2778,7 @@ class ScenarioTester {
       // budget. The events keep riding, as a skipped shot's always have.
       _recorder?.discard();
       _guessedSinceLastCapture = null;
+      _tickingSinceLastCapture.clear();
       _state.emitted[position] = _state.stepCount;
       _lastPosition = position;
       return;
@@ -3079,6 +3114,7 @@ class ScenarioTester {
         segment: _segment,
         overflowErrors: _overflowsSinceLastCapture,
         guessed: _guessedSinceLastCapture,
+        stillTicking: _tickingSinceLastCapture.toList(),
         frames: _frames,
         // What the screen lost to a keyboard when this was photographed. Read
         // here with the texts and the overlay style, for the reason written on
@@ -3090,6 +3126,7 @@ class ScenarioTester {
       // does.
       _overflowsSinceLastCapture = 0;
       _guessedSinceLastCapture = null;
+      _tickingSinceLastCapture.clear();
     });
     if (adopted) {
       _adoptOntoPending(
@@ -3181,6 +3218,7 @@ class _PendingEmit {
     this.segment = 0,
     this.overflowErrors = 0,
     this.guessed,
+    this.stillTicking = const [],
     this.keyboard,
     this.aim,
     this.kind = ScenarioCaptureKind.screen,
@@ -3263,6 +3301,10 @@ class _PendingEmit {
   /// adoption extends this step with.
   int? guessed;
 
+  /// See [ScenarioStepCapture.stillTicking] — everything over the stretch an
+  /// adoption extends this step with.
+  List<String> stillTicking;
+
   /// How tall the software keyboard was when this frame was taken, in logical
   /// pixels — null when it was down, which is nearly every step.
   final double? keyboard;
@@ -3302,6 +3344,7 @@ class _PendingEmit {
     failure: failure,
     overflowErrors: overflowErrors,
     guessed: guessed,
+    stillTicking: stillTicking,
     keyboard: keyboard,
   );
 }

@@ -409,6 +409,11 @@ class ScenarioRunPackage {
   };
 }
 
+/// Every step's [ScenarioRunStep.stillTicking], once each, in step order —
+/// what [ScenarioRunOutcome.stillTicking] says of a scenario.
+List<String> stillTickingOf(Iterable<ScenarioRunStep> steps) =>
+    {for (var step in steps) ...step.stillTicking}.toList();
+
 /// One scenario's verdict, and the steps it captured on the way to it.
 class ScenarioRunOutcome {
   factory ScenarioRunOutcome.fromJson(Map<String, Object?> json) {
@@ -437,6 +442,10 @@ class ScenarioRunOutcome {
         json['guessedCount'],
         steps.where((step) => step.guessed != null).length,
       ),
+      stillTicking: switch (json['stillTicking']) {
+        List lines => [...lines.whereType<String>()],
+        _ => stillTickingOf(steps),
+      },
       errors: _listOf(json['errors'], ScenarioRunError.fromJson),
       translations: _translationsOrNull(json['translations']),
       stepsElided: _int(json['stepsElided'], 0),
@@ -456,6 +465,7 @@ class ScenarioRunOutcome {
     this.unchangedCount = 0,
     this.unsettledCount = 0,
     this.guessedCount = 0,
+    this.stillTicking = const [],
     this.errors = const [],
     this.translations,
     this.stepsElided = 0,
@@ -533,6 +543,14 @@ class ScenarioRunOutcome {
   /// in the branch. Carried beside [unsettledCount] for the reason it is.
   final int guessedCount;
 
+  /// What kept asking for frames on the steps counted in [unsettledCount] —
+  /// every step's [ScenarioRunStep.stillTicking], once each.
+  ///
+  /// Carried beside the count for the reason [unsettledCount] is: the summary
+  /// is the copy a reader gets, and a trimmed one has no steps to read it
+  /// from.
+  final List<String> stillTicking;
+
   /// The failure, when [ok] is false. The last captured step is the frame
   /// just before it.
   final List<ScenarioRunError> errors;
@@ -578,6 +596,7 @@ class ScenarioRunOutcome {
     unchangedCount: unchangedCount,
     unsettledCount: unsettledCount,
     guessedCount: guessedCount,
+    stillTicking: stillTicking,
     errors: errors,
     translations: translations,
     stepsElided: stepCount - keep.length,
@@ -613,6 +632,7 @@ class ScenarioRunOutcome {
         unchangedCount: unchangedCount,
         unsettledCount: unsettledCount,
         guessedCount: guessedCount,
+        stillTicking: stillTicking,
         errors: errors,
         stepsElided: stepCount - keep.length,
       );
@@ -642,6 +662,7 @@ class ScenarioRunOutcome {
     'unchangedCount': unchangedCount,
     'unsettledCount': unsettledCount,
     if (guessedCount > 0) 'guessedCount': guessedCount,
+    if (stillTicking.isNotEmpty) 'stillTicking': stillTicking,
     if (stepsElided > 0) 'stepsElided': stepsElided,
     if (errors.isNotEmpty) 'errors': errors,
     if (translations != null) 'translations': translations,
@@ -746,6 +767,10 @@ class ScenarioRunStep {
         waited: json['waited'] as bool? ?? true,
         landed: json['landed'] as bool? ?? true,
         guessed: json['guessed'] as int?,
+        stillTicking: [
+          for (var line in json['stillTicking'] as List? ?? const [])
+            if (line is String) line,
+        ],
         digest: json['digest'] as String?,
         strayFrames: _int(json['strayFrames'], 0),
         keyboard: (json['keyboard'] as num?)?.toDouble(),
@@ -797,6 +822,7 @@ class ScenarioRunStep {
     this.waited = true,
     this.landed = true,
     this.guessed,
+    this.stillTicking = const [],
     this.digest,
     this.strayFrames = 0,
     this.keyboard,
@@ -1075,6 +1101,18 @@ class ScenarioRunStep {
   /// is announced, waited for, and gone from here.
   final int? guessed;
 
+  /// What kept asking for frames when a settle that waited gave up on the way
+  /// to this picture, one line each: `CircularProgressIndicator
+  /// (lib/src/orders/status_cell.dart:42)` for a framework widget, by the line
+  /// of the app that built it; `_PulseState.initState
+  /// (package:app/src/pulse.dart:18)` for an animation the app started, by its
+  /// own frame.
+  ///
+  /// Beside `settled: false`, which says the budget ran out; this says what to
+  /// open. Empty on a settled step, on one parked on purpose, and where the
+  /// harness ran without asserts and the debug stacks it reads do not exist.
+  final List<String> stillTicking;
+
   /// What this step captured, hashed — the pixels for a screen, the payload
   /// for a document. Null where the step wrote no bytes.
   ///
@@ -1201,6 +1239,7 @@ class ScenarioRunStep {
     waited: waited,
     landed: landed,
     guessed: guessed,
+    stillTicking: stillTicking,
     digest: digest,
     strayFrames: strayFrames,
     unchanged: unchanged,
@@ -1262,6 +1301,7 @@ class ScenarioRunStep {
     if (!waited) 'waited': waited,
     if (!landed) 'landed': landed,
     if (guessed != null) 'guessed': guessed,
+    if (stillTicking.isNotEmpty) 'stillTicking': stillTicking,
     if (digest != null) 'digest': digest,
     if (strayFrames > 0) 'strayFrames': strayFrames,
     if (keyboard != null) 'keyboard': keyboard,

@@ -15,6 +15,7 @@ void main() {
     bool waited = true,
     int strayFrames = 0,
     String? failure,
+    List<String> stillTicking = const [],
   }) => ScenarioRunStep(
     index: 1,
     position: '#1',
@@ -34,6 +35,7 @@ void main() {
     waited: waited,
     strayFrames: strayFrames,
     failure: failure,
+    stillTicking: stillTicking,
   );
 
   Future<void> pump(WidgetTester tester, ScenarioRunStep subject) =>
@@ -78,6 +80,32 @@ void main() {
     await pump(tester, step(name: 'Loading', settled: false));
 
     expect(find.textContaining('Still animating'), findsOneWidget);
+  });
+
+  testWidgets('an unsettled step names what kept ticking', (tester) async {
+    await pump(
+      tester,
+      step(
+        name: 'Orders',
+        settled: false,
+        stillTicking: [
+          'CircularProgressIndicator (lib/src/orders/status_cell.dart:42)',
+          '_PulseState.initState (package:app/src/pulse.dart:18)',
+        ],
+      ),
+    );
+
+    expect(
+      find.textContaining(
+        'Still ticking:\n'
+        '• CircularProgressIndicator (lib/src/orders/status_cell.dart:42)\n'
+        '• _PulseState.initState (package:app/src/pulse.dart:18)',
+      ),
+      findsOneWidget,
+    );
+    // The generic guess is for a step that could not say.
+    expect(find.textContaining('A spinner or a looping'), findsNothing);
+    expect(find.textContaining('wrap it in `Ambient`'), findsOneWidget);
   });
 
   testWidgets('a picture parked on purpose is not a warning', (tester) async {

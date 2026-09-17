@@ -1474,6 +1474,7 @@ Future<Map<String, Object?>> _runOne(
       waited: capture.waited,
       landed: capture.landed,
       guessed: capture.guessed,
+      stillTicking: capture.stillTicking,
       digest: digest,
       strayFrames: capture.strayFrames,
       failure: capture.failure,
@@ -1669,6 +1670,7 @@ Future<Map<String, Object?>> _runOne(
       waited: capture.waited,
       landed: capture.landed,
       guessed: capture.guessed,
+      stillTicking: capture.stillTicking,
       // Absent on a pixel-less capture, for the reason `unchanged` is false
       // there: every such step digests the same empty bytes, so a *reported*
       // digest would be a claim about pixels nobody took. `compareScenarioRuns`
@@ -1838,6 +1840,7 @@ Future<Map<String, Object?>> _runOne(
     unchangedCount: steps.where((step) => step.unchanged).length,
     unsettledCount: steps.where((step) => !step.settled && step.waited).length,
     guessedCount: steps.where((step) => step.guessed != null).length,
+    stillTicking: stillTickingOf(steps),
     errors: passed ? const [] : errors,
     translations: read.isNotEmpty ? read : null,
   );

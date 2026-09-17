@@ -113,6 +113,9 @@ void main() {
       ],
       unsettledSteps: {'test/a_test.dart#one': 4},
       pooledOnlyDifferences: ['test/a_test.dart#two'],
+      stillTicking: {
+        'test/a_test.dart#one': ['_PulseState.initState (lib/pulse.dart:18)'],
+      },
     );
     var index = ComparisonIndex.fromJson({
       'version': comparisonReportVersion,
@@ -127,6 +130,9 @@ void main() {
     expect(timings.named('checkout').single.ms, 1800);
     expect(timings.unsettledSteps, {'test/a_test.dart#one': 4});
     expect(timings.pooledOnlyDifferences, ['test/a_test.dart#two']);
+    expect(timings.stillTicking, {
+      'test/a_test.dart#one': ['_PulseState.initState (lib/pulse.dart:18)'],
+    });
     expect(
       ComparisonIndex.fromJson({
         'version': comparisonReportVersion,

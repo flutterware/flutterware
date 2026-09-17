@@ -628,7 +628,7 @@ class ScenariosRunner {
           : Future.value(filedHead),
     ]);
     for (var replay in firsts) {
-      clock?.unsettled(id, replay.unsettled);
+      clock?.unsettled(id, replay.unsettled, stillTicking: replay.stillTicking);
     }
     return _FirstReplays(
       id: id,
