@@ -479,7 +479,7 @@ String describeTimings(ComparisonTimings timings) {
   if (unsettled.isNotEmpty) {
     var named = [
       for (var MapEntry(:key, :value) in unsettled.take(3))
-        '${nameOf(key)} ($value)',
+        '${nameOf(key)} ($value${_ticking(timings.stillTicking[key])})',
     ];
     lines.add(
       '${scenarios(unsettled.length)} had steps that never settled, each '
@@ -494,6 +494,15 @@ String describeTimings(ComparisonTimings timings) {
     );
   }
   return lines.join('\n');
+}
+
+/// `, still ticking: CircularProgressIndicator (lib/orders.dart:42)` — the
+/// first two, since the line names three scenarios and has to stay one line
+/// a log can be read by.
+String _ticking(List<String>? ticking) {
+  if (ticking == null || ticking.isEmpty) return '';
+  var more = ticking.length > 2 ? ' and ${ticking.length - 2} more' : '';
+  return ', still ticking: ${ticking.take(2).join(', ')}$more';
 }
 
 String abbreviatedSha(String sha) => sha.length > 8 ? sha.substring(0, 8) : sha;

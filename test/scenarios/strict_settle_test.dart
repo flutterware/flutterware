@@ -32,6 +32,10 @@ void main() {
               contains('still animating'),
               contains('after 5s of fake time'),
               contains('Settle.strict'),
+              contains(
+                'Still ticking: CircularProgressIndicator '
+                '(test/scenarios/strict_settle_test.dart:',
+              ),
             ),
           ),
         ),

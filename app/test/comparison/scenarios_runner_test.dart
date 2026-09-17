@@ -259,6 +259,12 @@ void main() {
   test('the run records its phases and the steps that never settled', () async {
     source.declared = ['test/a.dart#A', 'test/b.dart#B'];
     source.unsettled['test/a.dart#A:head'] = 3;
+    source.unsettled['test/a.dart#A:base'] = 3;
+    source.stillTicking['test/a.dart#A:head'] = ['Spinner (lib/a.dart:3)'];
+    source.stillTicking['test/a.dart#A:base'] = [
+      'Spinner (lib/a.dart:3)',
+      '_PulseState.initState (lib/a.dart:9)',
+    ];
     var clock = PhaseClock();
 
     await ScenariosRunner(
@@ -284,6 +290,14 @@ void main() {
     // Qualified the way the rows of a several-package comparison are, so the
     // count can be looked up by the id a reader has.
     expect(timings.unsettledSteps, {'packages/notes/test/a.dart#A': 3});
+    // Both sides' answers, once each: a spinner the branch removed is still
+    // what the base spent its budget on.
+    expect(timings.stillTicking, {
+      'packages/notes/test/a.dart#A': [
+        'Spinner (lib/a.dart:3)',
+        '_PulseState.initState (lib/a.dart:9)',
+      ],
+    });
   });
 
   group('with jobs', () {
@@ -1169,6 +1183,9 @@ class _FakeSource implements ScenarioSource {
   /// How many steps a side's replay says never settled, by `<id>:<side>`.
   final unsettled = <String, int>{};
 
+  /// What a side's replay says kept ticking on those steps, by `<id>:<side>`.
+  final stillTicking = <String, List<String>>{};
+
   /// The pixel value a side draws, by `<id>:<side>`; 0 when not named.
   final pixels = <String, int>{};
 
@@ -1221,6 +1238,7 @@ class _FakeSource implements ScenarioSource {
       ],
       complete: !abandoned,
       unsettled: unsettled[side] ?? 0,
+      stillTicking: stillTicking[side] ?? const [],
     );
   }
 

@@ -7,12 +7,20 @@ import 'package:flutterware/comparison_report.dart';
 /// still files its phases under the right one.
 class PhaseClock {
   PhaseClock()
-    : this._(<ComparisonPhase>[], <String, int>{}, <String>[], null, false);
+    : this._(
+        <ComparisonPhase>[],
+        <String, int>{},
+        <String>[],
+        <String, Set<String>>{},
+        null,
+        false,
+      );
 
   PhaseClock._(
     this._phases,
     this._unsettled,
     this._pooledOnly,
+    this._stillTicking,
     this.package,
     this._qualify,
   );
@@ -20,6 +28,7 @@ class PhaseClock {
   final List<ComparisonPhase> _phases;
   final Map<String, int> _unsettled;
   final List<String> _pooledOnly;
+  final Map<String, Set<String>> _stillTicking;
 
   /// What every phase recorded through this view is filed under.
   final String? package;
@@ -30,8 +39,14 @@ class PhaseClock {
 
   /// The same clock, filing under [package]. [qualify] is the comparison's
   /// own answer to whether its ids carry their package — see `comparedIdIn`.
-  PhaseClock within(String package, {required bool qualify}) =>
-      PhaseClock._(_phases, _unsettled, _pooledOnly, package, qualify);
+  PhaseClock within(String package, {required bool qualify}) => PhaseClock._(
+    _phases,
+    _unsettled,
+    _pooledOnly,
+    _stillTicking,
+    package,
+    qualify,
+  );
 
   void add(String name, Duration elapsed, {String? side}) => _phases.add(
     ComparisonPhase(
@@ -65,11 +80,19 @@ class PhaseClock {
   }
 
   /// Records that [scenario] had [count] steps give up settling in one replay,
-  /// keeping the most any replay of it had.
-  void unsettled(String scenario, int count) {
+  /// keeping the most any replay of it had, and what [stillTicking] on them
+  /// across every replay.
+  void unsettled(
+    String scenario,
+    int count, {
+    List<String> stillTicking = const [],
+  }) {
     if (count <= 0) return;
     var id = _qualified(scenario);
     if (count > (_unsettled[id] ?? 0)) _unsettled[id] = count;
+    if (stillTicking.isNotEmpty) {
+      _stillTicking.putIfAbsent(id, () => {}).addAll(stillTicking);
+    }
   }
 
   /// Records that [scenario] differed beside other replays and not alone —
@@ -83,6 +106,10 @@ class PhaseClock {
     phases: List.unmodifiable(_phases),
     unsettledSteps: Map.unmodifiable(_unsettled),
     pooledOnlyDifferences: List.unmodifiable(_pooledOnly),
+    stillTicking: {
+      for (var MapEntry(:key, :value) in _stillTicking.entries)
+        key: List.unmodifiable(value),
+    },
   );
 }
 

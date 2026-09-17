@@ -2919,7 +2919,11 @@ class ScenariosCore extends PluginCore {
               if (outcome.unchangedCount > 0)
                 '${outcome.unchangedCount} unchanged',
               if (outcome.unsettledCount > 0)
-                '${outcome.unsettledCount} still animating',
+                [
+                  '${outcome.unsettledCount} still animating',
+                  if (outcome.stillTicking.isNotEmpty)
+                    '(${outcome.stillTicking.join(', ')})',
+                ].join(' '),
               outcome.skipped
                   ? 'skipped'
                   : outcome.ok

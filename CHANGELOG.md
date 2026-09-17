@@ -1,5 +1,32 @@
 ## Unreleased
 
+- **`Ambient`: motion the app declares says nothing is photographed standing
+  still.** `import 'package:flutterware/ambient.dart'` and wrap a spinner, a
+  shimmer or a pulsing dot in `Ambient(child: …)`. Outside a scenario it is
+  its child. Inside one, nothing under it schedules a frame, so the step
+  settles instead of running out its budget — measured on a real suite, one
+  spinner made a scenario ten times slower — and every Material progress
+  indicator without its own controller is drawn at one fixed phase through a
+  stopped `ProgressIndicatorTheme` controller, so the picture does not depend
+  on how many frames a step pumped. A ticker mode alone is not enough: it
+  freezes an indeterminate indicator at the start of its cycle, which draws a
+  dot. `Settle.strict` still fails a step that ends with an `Ambient` on
+  screen. A step that names what kept ticking now points at it.
+
+- **A step that never settles says what kept it moving.** A scenario whose
+  steps ran out their settle budget was only counted — measured on a real
+  suite, one indeterminate spinner in a list row made a scenario ten times
+  slower, and finding it took a hunt. The run now reads what is still asking
+  for frames from the framework's debug stacks when a waiting settle gives up:
+  a framework widget by the line of the app that built it,
+  `CircularProgressIndicator (lib/src/orders/status_cell.dart:42)`, and an
+  animation the app started by its own frame. It is on each step and each
+  outcome as `stillTicking`; on the step page's "still animating" notice and
+  the scenario page's badge; in `fw compare`'s `timings.stillTicking` and on
+  its "never settled" line; and in the message a `Settle.strict` step fails
+  with. A settle that was told not to wait — `Settle.none`, `frames`,
+  `elapse` — names nothing.
+
 - **`fw compare --jobs` no longer reports a difference only the pool drew.**
   Only a failed side or a difference beside a guessed landing was replayed
   alone before being believed; any other difference was reported straight from

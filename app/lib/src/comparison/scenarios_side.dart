@@ -225,6 +225,10 @@ class ScenariosSide {
       complete: complete,
       ms: outcome['ms'] as int?,
       unsettled: outcome['unsettledCount'] as int? ?? 0,
+      stillTicking: [
+        for (var line in (outcome['stillTicking'] as List?) ?? const [])
+          if (line is String) line,
+      ],
       // The outcome's own word, not only its steps': a scenario can fail
       // without capturing anything, and a replay read as steps alone called
       // that an empty run.

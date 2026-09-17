@@ -4881,6 +4881,12 @@ final resultShapes = <String, ResultShape>{
               'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
             },
             <String, Object?>{
+              'name': 'stillTicking',
+              'type': 'List<String>',
+              'optional': true,
+              'doc': 'What kept asking for frames when a settle that waited gave up on the way to this picture, one line each: `CircularProgressIndicator (lib/src/orders/status_cell.dart:42)` for a framework widget, by the line of the app that built it; `_PulseState.initState (package:app/src/pulse.dart:18)` for an animation the app started, by its own frame.',
+            },
+            <String, Object?>{
               'name': 'digest',
               'type': 'String',
               'optional': true,
@@ -4933,6 +4939,12 @@ final resultShapes = <String, ResultShape>{
         'type': 'int',
         'optional': true,
         'doc': 'How many steps drew work nothing announced, found only by turning the real event loop — see [ScenarioRunStep.guessed].',
+      },
+      <String, Object?>{
+        'name': 'stillTicking',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'What kept asking for frames on the steps counted in [unsettledCount] — every step\'s [ScenarioRunStep.stillTicking], once each.',
       },
       <String, Object?>{
         'name': 'stepsElided',
@@ -5286,6 +5298,12 @@ final resultShapes = <String, ResultShape>{
                     'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
                   },
                   <String, Object?>{
+                    'name': 'stillTicking',
+                    'type': 'List<String>',
+                    'optional': true,
+                    'doc': 'What kept asking for frames when a settle that waited gave up on the way to this picture, one line each: `CircularProgressIndicator (lib/src/orders/status_cell.dart:42)` for a framework widget, by the line of the app that built it; `_PulseState.initState (package:app/src/pulse.dart:18)` for an animation the app started, by its own frame.',
+                  },
+                  <String, Object?>{
                     'name': 'digest',
                     'type': 'String',
                     'optional': true,
@@ -5339,6 +5357,12 @@ final resultShapes = <String, ResultShape>{
               'type': 'int',
               'optional': true,
               'doc': 'How many steps drew work nothing announced, found only by turning the real event loop — see [ScenarioRunStep.guessed].',
+            },
+            <String, Object?>{
+              'name': 'stillTicking',
+              'type': 'List<String>',
+              'optional': true,
+              'doc': 'What kept asking for frames on the steps counted in [unsettledCount] — every step\'s [ScenarioRunStep.stillTicking], once each.',
             },
             <String, Object?>{
               'name': 'stepsElided',
@@ -5761,6 +5785,12 @@ final resultShapes = <String, ResultShape>{
                           'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
                         },
                         <String, Object?>{
+                          'name': 'stillTicking',
+                          'type': 'List<String>',
+                          'optional': true,
+                          'doc': 'What kept asking for frames when a settle that waited gave up on the way to this picture, one line each: `CircularProgressIndicator (lib/src/orders/status_cell.dart:42)` for a framework widget, by the line of the app that built it; `_PulseState.initState (package:app/src/pulse.dart:18)` for an animation the app started, by its own frame.',
+                        },
+                        <String, Object?>{
                           'name': 'digest',
                           'type': 'String',
                           'optional': true,
@@ -5813,6 +5843,12 @@ final resultShapes = <String, ResultShape>{
                     'type': 'int',
                     'optional': true,
                     'doc': 'How many steps drew work nothing announced, found only by turning the real event loop — see [ScenarioRunStep.guessed].',
+                  },
+                  <String, Object?>{
+                    'name': 'stillTicking',
+                    'type': 'List<String>',
+                    'optional': true,
+                    'doc': 'What kept asking for frames on the steps counted in [unsettledCount] — every step\'s [ScenarioRunStep.stillTicking], once each.',
                   },
                   <String, Object?>{
                     'name': 'stepsElided',
@@ -6115,6 +6151,12 @@ final resultShapes = <String, ResultShape>{
         'type': 'int',
         'optional': true,
         'doc': 'The turn of the real event loop on which work nothing announced landed and was drawn into this step — the deepest, when several did — or null when nothing had to be guessed at.',
+      },
+      <String, Object?>{
+        'name': 'stillTicking',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'What kept asking for frames when a settle that waited gave up on the way to this picture, one line each: `CircularProgressIndicator (lib/src/orders/status_cell.dart:42)` for a framework widget, by the line of the app that built it; `_PulseState.initState (package:app/src/pulse.dart:18)` for an animation the app started, by its own frame.',
       },
       <String, Object?>{
         'name': 'digest',

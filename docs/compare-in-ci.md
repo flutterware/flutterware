@@ -207,6 +207,14 @@ animation that never ends, or a 3D view left repainting every frame, such as
 flutter_scene's `SceneView` with its default `autoTick: true`. It is not a
 failure, but it is usually the cheapest time to win back.
 
+Each scenario on that line says what was still ticking when its budget ran
+out, read from the framework's debug stacks: `Orders (4, still ticking:
+CircularProgressIndicator (lib/src/orders/status_cell.dart:42))`. A framework
+widget is named by the line of the app that built it, and an animation the app
+started itself by the frame that started it. `index.json` carries every name
+under `timings.stillTicking`, and each scenario's outcome under
+`stillTicking`.
+
 A third line, under `--jobs`, names the scenarios that differed when replayed
 beside others and not when replayed alone — `timings.pooledOnlyDifferences`.
 Their rows are the alone replay's verdict, so nothing is wrong in the report;

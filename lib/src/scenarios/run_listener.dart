@@ -49,6 +49,7 @@ class ScenarioStepCapture {
     this.failure,
     this.overflowErrors = 0,
     this.guessed,
+    this.stillTicking = const [],
     this.keyboard,
   });
 
@@ -219,6 +220,10 @@ class ScenarioStepCapture {
   /// or null when nothing needed guessing at. A hazard: see
   /// `ScenarioRunStep.guessed`.
   final int? guessed;
+
+  /// What kept asking for frames when a waiting settle gave up on the way to
+  /// this frame — see `ScenarioRunStep.stillTicking`.
+  final List<String> stillTicking;
 }
 
 /// The tree behind one capture, and the semantics behind it.
