@@ -35,6 +35,32 @@ class BranchDelta {
   final List<String> path;
 }
 
+/// Hands out a flow's step ids, each of them once.
+///
+/// A step's id is its path through the flow, and a path repeats: `tap "Next"`
+/// three times is three steps under one spelling, and a finder whose identity
+/// hash was taken out — `widget with key [GlobalKey#]` — is every question of a
+/// form under one. Measured on a real 54-scenario suite, 51 of them repeated
+/// an id, and one flow had 17 for its 101 steps. Everything that addresses a
+/// step goes through its id, so everything was wrong at once: *Next* on the
+/// second `tap "Next"` opened the first and never got past it, a link to any
+/// of them landed on the first, and the frames — a map by id — kept the last
+/// one written, so every step of a group showed one picture.
+///
+/// The first keeps its path, so an id that was already unique is unchanged;
+/// each repeat says which one it is — `tap "Next" (2)`.
+class StepIds {
+  final _taken = <String>{};
+
+  String claim(String path) {
+    if (_taken.add(path)) return path;
+    for (var n = 2; ; n++) {
+      var id = '$path ($n)';
+      if (_taken.add(id)) return id;
+    }
+  }
+}
+
 /// One scenario's two runs, compared.
 class ScenarioComparison {
   const ScenarioComparison({
@@ -227,9 +253,16 @@ class ScenarioComparison {
   static ScenarioComparison fromJson(Map<String, Object?> json) {
     var items = <ComparedItem>[];
     var frames = <String, ({FrameRef? base, FrameRef? head})>{};
+    // Claimed again on the way in: a file written before ids were unique
+    // repeats them, and a reader that trusts it walks in circles. One that was
+    // written since comes through unchanged.
+    var ids = StepIds();
     for (var step in json['steps'] as List? ?? const []) {
       var map = (step as Map).cast<String, Object?>();
-      var item = ComparedItem.fromJson(map);
+      var item = ComparedItem.fromJson({
+        ...map,
+        'id': ids.claim(map['id'] as String? ?? ''),
+      });
       items.add(item);
       var pair = map['frames'] as Map<String, Object?>?;
       if (pair != null) {

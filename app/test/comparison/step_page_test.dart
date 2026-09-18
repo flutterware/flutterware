@@ -241,6 +241,39 @@ void main() {
 
     expect(find.text('No changes on any channel'), findsOne);
   });
+
+  // The page used to argue with itself here: a `changed` chip and a sentence
+  // in a failure's red, over *no changes on any channel*.
+  testWidgets('a step found another way says the test changed, not the app', (
+    tester,
+  ) async {
+    const note = 'the test finds its target another way';
+    await pump(
+      tester,
+      const ComparedItem(
+        id: 'tap key [GlobalKey#]',
+        state: ComparedState.same,
+        note: note,
+        retargeted: (base: "key 'pay'", head: 'key [GlobalKey#]'),
+      ),
+    );
+
+    expect(find.text('No changes on any channel'), findsNothing);
+    expect(find.textContaining('Only the test changed here'), findsOne);
+    var colors = tester.element(find.text(note)).colors;
+    expect(tester.widget<Text>(find.text(note)).style!.color, colors.ink2);
+  });
+
+  testWidgets('a failure keeps its note in red', (tester) async {
+    await pump(
+      tester,
+      ComparedItem.of(id: 'Pay', headRendered: false, note: 'threw'),
+      shots: pair(head: false),
+    );
+
+    var colors = tester.element(find.text('threw')).colors;
+    expect(tester.widget<Text>(find.text('threw')).style!.color, colors.red);
+  });
 }
 
 class _NoStore implements ShotStore {

@@ -12,7 +12,7 @@ import 'package:flutterware_app/src/ui/theme.dart';
 
 import 'app_theme.dart';
 
-/// The seven shapes of finding the detail page has to render, drawn against
+/// The eight shapes of finding the detail page has to render, drawn against
 /// the real [StepPage] at the width it ships at.
 ///
 /// Step 1 of `2026-08-31-comparison-detail-page-design.md`'s method: enumerate
@@ -226,6 +226,39 @@ Widget state7Added() => _State(
     state: ComparedState.added,
   ),
   base: false,
+);
+
+/// The test moved and the app did not: the step's finder went from an index
+/// to a key, and both runs drew the same frame. The state that was designed
+/// last and read worst — a `changed` chip over *no changes on any channel*,
+/// under two 150-character finder descriptions in a failure's red.
+@Preview(
+  name: 'Step page · 8 · found another way',
+  group: 'Comparison states',
+  wrapper: wrapInAppTheme,
+)
+Widget state8Retargeted() => const _State(
+  item: ComparedItem(
+    id:
+        'tap widget with type "AnswerChip" descending from widget with key '
+        '[GlobalKey#] (ignoring all but first)',
+    label:
+        'tap widget with type "AnswerChip" descending from widget with key '
+        '[GlobalKey#] (ignoring all but first)',
+    state: ComparedState.same,
+    note:
+        'the test finds its target another way, and the step did the same '
+        'thing: … type "Question" (ignoring all but index 10) … → '
+        '… key [GlobalKey#] …',
+    retargeted: (
+      base:
+          'widget with type "AnswerChip" descending from widget with type '
+          '"Question" (ignoring all but index 10) (ignoring all but first)',
+      head:
+          'widget with type "AnswerChip" descending from widget with key '
+          '[GlobalKey#] (ignoring all but first)',
+    ),
+  ),
 );
 
 class _State extends StatefulWidget {

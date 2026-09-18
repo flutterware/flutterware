@@ -316,6 +316,7 @@ ScenarioComparison withUnsteadyOrder(
           pixels: item.pixels,
           tree: item.tree,
           events: item.events,
+          retargeted: item.retargeted,
           shots: item.shots,
           package: item.package,
           note:
@@ -492,14 +493,18 @@ ScenarioComparison compareScenarioSteps({
 
   var items = <ComparedItem>[];
   var frames = <String, ({FrameRef? base, FrameRef? head})>{};
+  var ids = StepIds();
   for (var pair in alignment.pairs) {
-    frames[pair.path] = (
+    // Claimed once and used for both, so a step's frames are filed under the
+    // id its item carries — a path alone repeats, see [StepIds].
+    var id = ids.claim(pair.path);
+    frames[id] = (
       base: pair.base == null ? null : baseByIndex[pair.base!.index]?.frame,
       head: pair.head == null ? null : headByIndex[pair.head!.index]?.frame,
     );
     items.add(switch (pair.delta) {
       StepDelta.added => _unpaired(
-        pair.path,
+        id,
         pair.head!.label,
         headByIndex[pair.head!.index]?.failure,
         state: ComparedState.added,
@@ -508,7 +513,7 @@ ScenarioComparison compareScenarioSteps({
             : ComparedState.failed,
       ),
       StepDelta.removed => _unpaired(
-        pair.path,
+        id,
         pair.base!.label,
         baseByIndex[pair.base!.index]?.failure,
         state: ComparedState.removed,
@@ -517,6 +522,7 @@ ScenarioComparison compareScenarioSteps({
             : ComparedState.failed,
       ),
       StepDelta.matched || StepDelta.retargeted => _compare(
+        id,
         pair,
         baseByIndex[pair.base!.index]!,
         headByIndex[pair.head!.index]!,
@@ -558,6 +564,7 @@ ComparedItem _unpaired(
 );
 
 ComparedItem _compare(
+  String id,
   AlignedPair pair,
   ScenarioStepShot base,
   ScenarioStepShot head,
@@ -567,7 +574,7 @@ ComparedItem _compare(
   // one measures the wrong thing.
   if (base.failure != null || head.failure != null) {
     return ComparedItem.of(
-      id: pair.path,
+      id: id,
       label: pair.head!.label,
       baseRendered: base.failure == null,
       headRendered: head.failure == null,
@@ -579,7 +586,7 @@ ComparedItem _compare(
     if (head.guessed case var turn?) 'this branch (turn $turn)',
   ];
   var item = ComparedItem.of(
-    id: pair.path,
+    id: id,
     label: pair.head!.label,
     // Said beside a change it may have caused: this step drew work nothing
     // announced, so its picture depended on the machine as well as the code.
@@ -604,37 +611,108 @@ ComparedItem _compare(
     baseEvents: base.events,
     headEvents: head.events,
   );
-  if (item.state == ComparedState.same && item.note != null) {
-    item = ComparedItem(
-      id: item.id,
-      state: item.state,
-      label: item.label,
-      pixels: item.pixels,
-      tree: item.tree,
-      texts: item.texts,
-      events: item.events,
-    );
-  }
-  // A retarget is a change whatever the channels found: the same step now
-  // names something else, and two identical pictures are the *reason* it is
-  // worth saying rather than a reason to stay quiet.
-  if (pair.delta == StepDelta.retargeted && item.state == ComparedState.same) {
-    return ComparedItem(
-      id: item.id,
-      state: ComparedState.changed,
-      label: item.label,
-      pixels: item.pixels,
-      tree: item.tree,
-      // Named *and* explained: "retargeted" is this model's word, not a
-      // word a reader arrives with, and the whole point of the note is that
-      // two identical pictures still deserve a sentence.
-      note:
-          'retargeted — same step, but it aimed at something else: '
-          '${pair.base!.target} → ${pair.head!.target}',
-    );
-  }
-  return item;
+  var changed = item.state != ComparedState.same;
+  var notes = [
+    // The guess explains a difference, so beside none it explains nothing.
+    if (changed) ?item.note,
+    if (pair.delta == StepDelta.retargeted)
+      _retargetNote(pair.base!, pair.head!, changed: changed),
+  ];
+  var aimed = (base: pair.base!.target, head: pair.head!.target);
+  return ComparedItem(
+    id: item.id,
+    state: item.state,
+    label: item.label,
+    pixels: item.pixels,
+    tree: item.tree,
+    texts: item.texts,
+    events: item.events,
+    note: notes.isEmpty ? null : notes.join('\n'),
+    retargeted: switch (aimed) {
+      (base: var was?, head: var now?)
+          when pair.delta == StepDelta.retargeted && was != now =>
+        (base: was, head: now),
+      _ => null,
+    },
+  );
 }
+
+/// What to say about a step the two runs spell differently.
+///
+/// **The channels decide the state, and this only explains it.** A retarget
+/// used to be a change whatever the channels found, on the reasoning that two
+/// identical pictures were the reason to speak. They are — and they are also
+/// the proof that the step did the same thing, which makes it a fact about the
+/// test file rather than about the app. Counted as a change, one helper that
+/// went from finding a question by index to finding it by key put 221 steps
+/// and four whole flows of a real suite among the findings, around the one
+/// flow that had changed.
+///
+/// Where the step *did* change it is said as well, and there it earns its
+/// place: the difference may be the widget the step now reaches.
+///
+/// Only what differs of the two targets is printed — see [differingPart].
+String _retargetNote(
+  AlignableStep base,
+  AlignableStep head, {
+  required bool changed,
+}) {
+  // A `Shot` name given or taken away moves the signature and leaves the
+  // target where it was, and "finds its target another way: was X, now X" is
+  // worse than saying nothing.
+  var renamed = base.target == head.target;
+  var spelled = renamed
+      ? (base: base.label, head: head.label)
+      : differingPart(base.target ?? 'nothing', head.target ?? 'nothing');
+  var (was, now) = (spelled.base, spelled.head);
+  var what = renamed
+      ? 'the test names this step another way'
+      : 'the test finds its target another way';
+  return changed
+      ? '$what as well, so a difference here can be the widget it reached '
+            'rather than the branch: $was → $now'
+      : '$what, and the step did the same thing: $was → $now';
+}
+
+/// What differs of two targets, with `…` where words they share were left out.
+///
+/// A finder describes itself at length and a retarget usually moves a few
+/// words of it: two 150-character descriptions that differ in the middle,
+/// printed whole, leave the reader to diff them by eye. By words rather than
+/// by characters, so `key 'pay'` against `key 'pay_now'` is not reported as
+/// `_now` — and not at all for targets short enough to read at a glance.
+({String base, String head}) differingPart(String base, String head) {
+  if (base.length <= _glance && head.length <= _glance) {
+    return (base: base, head: head);
+  }
+  var was = base.split(' ');
+  var now = head.split(' ');
+  var shorter = was.length < now.length ? was.length : now.length;
+  var lead = 0;
+  while (lead < shorter && was[lead] == now[lead]) {
+    lead++;
+  }
+  var trail = 0;
+  while (trail < shorter - lead &&
+      was[was.length - 1 - trail] == now[now.length - 1 - trail]) {
+    trail++;
+  }
+  // Words only one side has leave the other with nothing to print, so each
+  // gets back the word either side of the gap.
+  if (lead + trail == shorter) {
+    if (lead > 0) lead--;
+    if (trail > 0) trail--;
+  }
+  String part(List<String> words) => [
+    if (lead > 0) '…',
+    ...words.sublist(lead, words.length - trail),
+    if (trail > 0) '…',
+  ].join(' ');
+  return (base: part(was), head: part(now));
+}
+
+/// The longest target that is printed whole.
+const _glance = 48;
 
 /// One note for a matched pair that failed: both messages when both sides
 /// failed differently, since "head's message" alone hid what the base broke

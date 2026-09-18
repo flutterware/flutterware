@@ -50,11 +50,13 @@ class ComparedItem {
     this.texts,
     this.events,
     this.note,
+    this.retargeted,
     this.shots,
     this.package,
   });
 
-  /// What was compared: an entry id, or a step's path through its flow.
+  /// What was compared: an entry id, or a step's path through its flow — made
+  /// unique within it, see `StepIds`.
   final String id;
 
   /// Which package declared it, worktree-relative — `app`,
@@ -80,6 +82,19 @@ class ComparedItem {
   /// Why it is in the state it is, when the state alone does not say: which
   /// file made it worth rendering, or which side failed to render.
   final String? note;
+
+  /// What the step aimed at on each side, when the test names its target
+  /// another way than it did — a renamed key, a finder by key where there was
+  /// one by index. Null for every step aimed the way it was, and for an entry.
+  ///
+  /// **A fact about the test, not about the app**, which is why it is no
+  /// [state]: the channels say what the app did, and a step that is found
+  /// differently and drew the same picture did the same thing. It is recorded
+  /// because it is the explanation a reader needs in the one case where it
+  /// matters — a step that *did* change may have changed because it now
+  /// reaches another widget — and it is a field rather than a sentence in
+  /// [note] so that a reader which is not a person can tell the two apart.
+  final ({String base, String head})? retargeted;
 
   /// Where the two frames are filed, as `ShotCache` keys.
   ///
@@ -107,6 +122,7 @@ class ComparedItem {
         texts: texts,
         events: events,
         note: note,
+        retargeted: retargeted,
         shots: shots,
         package: package,
       );
@@ -117,6 +133,9 @@ class ComparedItem {
     'package': ?package,
     'label': ?label,
     'note': ?note,
+    'retargeted': ?(retargeted == null
+        ? null
+        : {'base': retargeted!.base, 'head': retargeted!.head}),
     'shots': ?(shots == null
         ? null
         : {'base': shots!.base, 'head': shots!.head}),
@@ -139,6 +158,9 @@ class ComparedItem {
     var shots = json['shots'] as Map<String, Object?>?;
     var base = shots?['base'] as String?;
     var head = shots?['head'] as String?;
+    var retargeted = json['retargeted'] as Map<String, Object?>?;
+    var aimedBase = retargeted?['base'] as String?;
+    var aimedHead = retargeted?['head'] as String?;
     return ComparedItem(
       id: json['id'] as String? ?? '',
       state:
@@ -147,6 +169,9 @@ class ComparedItem {
       package: json['package'] as String?,
       label: json['label'] as String?,
       note: json['note'] as String?,
+      retargeted: aimedBase == null || aimedHead == null
+          ? null
+          : (base: aimedBase, head: aimedHead),
       shots: base == null || head == null ? null : (base: base, head: head),
       pixels: switch (channels['pixels']) {
         Map<String, Object?> pixels => PixelChannel.fromJson(pixels),

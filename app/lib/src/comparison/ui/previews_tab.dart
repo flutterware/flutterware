@@ -494,7 +494,6 @@ class _Detail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -522,7 +521,9 @@ class _Detail extends StatelessWidget {
             ),
             child: Text(
               note,
-              style: context.type.caption.copyWith(color: colors.red),
+              style: context.type.caption.copyWith(
+                color: item.state.noteColorIn(context),
+              ),
             ),
           ),
         FindingBody(

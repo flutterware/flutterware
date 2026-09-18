@@ -195,7 +195,9 @@ class _FindingRow extends StatelessWidget {
                       // One line. A compile failure's note is the compiler's
                       // whole output, and the detail page is where it belongs.
                       note.split('\n').first,
-                      style: context.type.micro.copyWith(color: colors.red),
+                      style: context.type.micro.copyWith(
+                        color: finding.state.noteColorIn(context),
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],

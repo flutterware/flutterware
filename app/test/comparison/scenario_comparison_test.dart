@@ -484,16 +484,186 @@ void main() {
     expect(back.baseErrors, ['boom']);
   });
 
-  // Two identical pictures are the *reason* a retarget is worth saying, not a
-  // reason to stay quiet: the same step now names something else.
-  test('a retargeted step is reported even when nothing moved', () {
+  // The channels decide the state and the retarget only explains it: two
+  // identical pictures are the proof the step did the same thing, so it is a
+  // fact about the test file. Counted as a change, one helper that went from
+  // an index to a key put four whole flows of a real suite among the findings.
+  test('a step found another way that drew the same thing is the same', () {
     var result = compare(
       [shot(1, verb: 'tap', target: "key 'pay'")],
       [shot(1, verb: 'tap', target: "key 'pay_now'")],
     );
 
-    expect(result.items.single.state, ComparedState.changed);
-    expect(result.items.single.note, contains("key 'pay' → key 'pay_now'"));
+    var step = result.items.single;
+    expect(result.state, ComparedState.same);
+    expect(step.state, ComparedState.same);
+    expect(step.note, contains('the test finds its target another way'));
+    expect(step.note, contains("key 'pay' → key 'pay_now'"));
+    expect(step.retargeted, (base: "key 'pay'", head: "key 'pay_now'"));
+  });
+
+  // Here it earns its place: the difference may be the widget it now reaches.
+  test('a step found another way that also changed says both', () {
+    var result = compare(
+      [shot(1, verb: 'tap', target: "key 'pay'")],
+      [shot(1, verb: 'tap', target: "key 'pay_now'", pixels: 255)],
+    );
+
+    var step = result.items.single;
+    expect(step.state, ComparedState.changed);
+    expect(step.pixels!.changed, isTrue);
+    expect(step.note, contains('can be the widget it reached'));
+    expect(step.retargeted, isNotNull);
+  });
+
+  // A `Shot` name taken away moves the signature and leaves the target where
+  // it was: "aimed at something else: X → X" is what this used to print.
+  test('a renamed step with the same target is not called retargeted', () {
+    var result = compare(
+      [shot(1, name: 'Pay', verb: 'tap', target: "key 'pay'")],
+      [shot(1, verb: 'tap', target: "key 'pay'")],
+    );
+
+    var step = result.items.single;
+    expect(step.retargeted, isNull);
+    expect(step.note, contains('names this step another way'));
+    expect(step.note, contains("Pay → tap key 'pay'"));
+  });
+
+  test('a retarget survives the json, as a field', () {
+    var result = compare(
+      [shot(1, verb: 'tap', target: "key 'pay'")],
+      [shot(1, verb: 'tap', target: "key 'pay_now'")],
+    );
+
+    var read = ScenarioComparison.fromJson(result.toJson());
+
+    expect(read.items.single.retargeted, (
+      base: "key 'pay'",
+      head: "key 'pay_now'",
+    ));
+  });
+
+  group('differingPart', () {
+    test('leaves out the words two long targets share', () {
+      var (:base, :head) = differingPart(
+        'widget with type "Chip" descending from widget with type "Question" '
+            '(ignoring all but index 10) (ignoring all but first)',
+        'widget with type "Chip" descending from widget with key [GlobalKey#] '
+            '(ignoring all but first)',
+      );
+
+      expect(base, '… type "Question" (ignoring all but index 10) …');
+      expect(head, '… key [GlobalKey#] …');
+    });
+
+    // By words: `_now` alone would be the character-wise answer.
+    test('prints a short target whole', () {
+      expect(differingPart("key 'pay'", "key 'pay_now'"), (
+        base: "key 'pay'",
+        head: "key 'pay_now'",
+      ));
+    });
+
+    // Words only one side has would leave the other side printing nothing.
+    test('gives an insertion the words either side of it', () {
+      var shared = 'widget with type "Chip" descending from widget with type';
+      var (:base, :head) = differingPart(
+        '$shared "Question" (first)',
+        '$shared "Question" (index 3) (first)',
+      );
+
+      expect(base, '… "Question" (first)');
+      expect(head, '… "Question" (index 3) (first)');
+    });
+  });
+
+  // Measured on a real 54-scenario suite: 51 repeated a step id, and one flow
+  // had 17 of them for its 101 steps. *Next* walked in a circle, a link to any
+  // repeat opened the first, and every step of a group showed one picture.
+  group('step ids', () {
+    FrameRef ref(String path) => FrameRef(path: path, width: 8, height: 8);
+
+    ScenarioStepShot next(int index, {int? parent}) => ScenarioStepShot(
+      step: AlignableStep(
+        index: index,
+        position: '#$index',
+        parent: parent,
+        verb: 'tap',
+        target: '"Next"',
+      ),
+      rgba: frame(0),
+      width: 8,
+      height: 8,
+      tree: null,
+      frame: ref('frames/$index.rgba'),
+    );
+
+    test('a repeated step gets an id of its own, and its own frames', () {
+      var run = [next(1), next(2, parent: 1), next(3, parent: 2)];
+
+      var result = compare(run, run);
+
+      expect(
+        [for (var item in result.items) item.id],
+        ['tap "Next"', 'tap "Next" (2)', 'tap "Next" (3)'],
+      );
+      // The label is what a reader sees, and it does not grow a number.
+      expect({for (var item in result.items) item.label}, {'tap "Next"'});
+      expect(
+        [for (var item in result.items) result.frames[item.id]!.head!.path],
+        ['frames/1.rgba', 'frames/2.rgba', 'frames/3.rgba'],
+      );
+    });
+
+    test('survive the json', () {
+      var run = [next(1), next(2, parent: 1)];
+
+      var read = ScenarioComparison.fromJson(compare(run, run).toJson());
+
+      expect(
+        [for (var item in read.items) item.id],
+        ['tap "Next"', 'tap "Next" (2)'],
+      );
+      expect(read.frames['tap "Next" (2)']!.head!.path, 'frames/2.rgba');
+    });
+
+    // A file written before ids were unique: a reader that trusts it loops.
+    test('are claimed again when a file repeats them', () {
+      var read = ScenarioComparison.fromJson({
+        'id': 'test/checkout.dart#Checkout',
+        'state': 'same',
+        'steps': [
+          for (var path in ['frames/1.rgba', 'frames/2.rgba'])
+            {
+              'id': 'tap "Next"',
+              'state': 'same',
+              'frames': {
+                'head': {'path': path, 'width': 8, 'height': 8},
+              },
+            },
+        ],
+      });
+
+      expect(
+        [for (var item in read.items) item.id],
+        ['tap "Next"', 'tap "Next" (2)'],
+      );
+      expect(read.frames['tap "Next"']!.head!.path, 'frames/1.rgba');
+      expect(read.frames['tap "Next" (2)']!.head!.path, 'frames/2.rgba');
+    });
+
+    // An authored name can end in a number of its own.
+    test('never hand out one a step already has', () {
+      var ids = StepIds();
+
+      expect(
+        [
+          for (var path in ['Next', 'Next (2)', 'Next']) ids.claim(path),
+        ],
+        ['Next', 'Next (2)', 'Next (3)'],
+      );
+    });
   });
 
   test('the json carries the steps, the branches and the verdict', () {

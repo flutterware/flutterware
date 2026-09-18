@@ -393,6 +393,32 @@ Two things reasoning had wrong (`08db2c68`):
   one share nothing but a gap; pairing them on that turns a renamed `Shot`
   into a claim about what the app did.
 
+### 7b-ter. What a real suite corrected
+
+Measured on a consumer's 54-scenario suite, on a branch where one test helper
+went from finding a form's question by index to finding it by key:
+
+- **A retarget is a fact about the test, so it is not a state.** It was
+  `changed` whatever the channels found, on the reasoning that two identical
+  pictures are the reason to speak. They are also the proof the step did the
+  same thing. Counted as a change, that one helper put 221 steps and four whole
+  flows among the findings, around the one flow that had changed. The channels
+  decide the state now; the retarget is a note under it and a `retargeted`
+  field in `index.json` — and it is said on a step that *did* change too, where
+  it matters most: the difference may be the widget the step now reaches.
+- **A step's path is not an id.** `tap "Next"` three times is one path, and a
+  finder with its identity hash taken out — `widget with key [GlobalKey#]` — is
+  every question of a form under one: 51 of the 54 scenarios repeated an id,
+  and one flow had 17 for 101 steps. Everything addresses a step by its id, so
+  *Next* walked in a circle, a link opened the first of the group, and the
+  frames map kept one picture per group. Ids are claimed once each now —
+  `tap "Next" (2)` — by the writer, and again by the reader for a file that
+  predates it.
+- **Print what differs.** Two 150-character finder descriptions that differ in
+  the middle, printed whole in a failure's red, read as an error nobody could
+  parse. The note prints the words that differ, and a note is red only under a
+  failure.
+
 ### 7c. Axes — always the default
 
 A scenario's folder profile offers devices and languages, and a comparison takes
