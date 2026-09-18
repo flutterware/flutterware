@@ -182,7 +182,7 @@ void scenario(
       // Except on the real clock, where nothing is compared and the backend
       // answers with today's dates: there the wall clock is the clock, and a
       // pin applies only when the run itself asked for one.
-      Future<void> scenarioBody() => _runScenario(
+      Future<void> scenarioBody(_PinnedClock? pinned) => _runScenario(
         tester,
         description,
         body,
@@ -196,20 +196,46 @@ void scenario(
         statedNetwork: network != null,
         noticeKey: noticeKey,
         edit: edit,
+        pinned: pinned,
       );
       var origin = resolvedScenarioClockOrigin;
-      if (origin == null) return scenarioBody();
-      // Pinned, but still ticking with FakeAsync: the offset from where this
-      // scenario's fake clock started is what `s.wait` moves, so a flow that
-      // waits a day still reads a day later — from a date that is the same on
-      // every run.
-      var started = tester.binding.clock.now();
-      return withClock(
-        Clock(() => origin.add(tester.binding.clock.now().difference(started))),
-        scenarioBody,
-      );
+      if (origin == null) return scenarioBody(null);
+      var pinned = _PinnedClock(origin, tester.binding.clock);
+      return withClock(Clock(pinned.now), () => scenarioBody(pinned));
     },
   );
+}
+
+/// The scenario's pinned clock: [origin] plus the fake time since it started.
+///
+/// Pinned, but still ticking with FakeAsync: the offset from where this
+/// scenario's fake clock started is what `s.wait` moves, so a flow that waits
+/// a day still reads a day later — from a date that is the same on every run.
+class _PinnedClock {
+  _PinnedClock(this.origin, this._fake) : _started = _fake.now();
+
+  final DateTime origin;
+  final Clock _fake;
+  DateTime _started;
+
+  /// What the body read on entering its first run.
+  DateTime? _replayStart;
+
+  DateTime now() => origin.add(_fake.now().difference(_started));
+
+  /// Called as each run of the body begins. Every run after the first starts
+  /// at the instant the first one did.
+  ///
+  /// A split replays the body from the top, and each replay is one path
+  /// through it. Left running, the clock carried over the fake time of every
+  /// branch replayed before: a record the body created at `clock.now()` got a
+  /// later date in each branch, and a change to how long one branch took moved
+  /// the dates of every branch after it — reported as a change on steps the
+  /// branch never touched.
+  void startRun() {
+    var at = _replayStart ??= now();
+    _started = _fake.now().subtract(at.difference(origin));
+  }
 }
 
 /// The test file a `scenario()` call was made from, `/`-separated and relative
@@ -452,6 +478,7 @@ Future<void> _runScenario(
   required bool statedNetwork,
   required String noticeKey,
   ScenarioReelEdit? edit,
+  _PinnedClock? pinned,
 }) async {
   // The runner's assignment wins, like its args do below: the declaration
   // captured the ambient one, which under the runner is null — and a body
@@ -621,6 +648,7 @@ Future<void> _runScenario(
         network.resetForReplay();
       }
       first = false;
+      pinned?.startRun();
       var s = ScenarioTester._(
         tester,
         description,

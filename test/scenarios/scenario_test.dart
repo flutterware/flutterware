@@ -215,6 +215,25 @@ void main() {
     expect(branched[2].parent, branched[0].index);
   });
 
+  // A body that stamps a record with `clock.now()` before it splits: measured
+  // on a consumer suite, a change to how long one branch took moved the dates
+  // on every branch after it, and the comparison reported steps the change
+  // never touched.
+  var branchStarts = <DateTime>[];
+  scenario('every branch starts at the instant the first run did', (s) async {
+    branchStarts.add(clock.now());
+    await s.pumpWidget(const _StillApp(), shot: Shot('Start'));
+    await s.split({
+      'long': () async =>
+          s.wait(const Duration(minutes: 5), settle: Settle.none),
+      'short': () async => s.screen('B'),
+    });
+  });
+
+  test('both branches above started at the pin', () {
+    expect(branchStarts, [pinnedClockOrigin, pinnedClockOrigin]);
+  });
+
   // A consumer's timeout while the next branch's replay re-mounted the app
   // was filed as a child of the previous branch's last step: that branch grew
   // a step its source does not contain, and the branch that never ran was

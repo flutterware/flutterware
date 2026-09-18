@@ -317,6 +317,10 @@ state the fork was reached with. Steps before the fork are captured once and
 shared; the flow graph fans out where the app does. Splits nest, and a failure
 inside one names the branch that reached it.
 
+Each replay starts the pinned clock where the first run did, so a record the
+body dates with `clock.now()` has the same date in every branch, however long
+the branches before it took.
+
 Because the body replays, anything a branch needs freshly built belongs in the
 body — `setUp` runs once per scenario, not once per path.
 
