@@ -153,7 +153,9 @@ class StepPage extends StatelessWidget {
             ),
             child: Text(
               note,
-              style: context.type.caption.copyWith(color: colors.red),
+              style: context.type.caption.copyWith(
+                color: item.state.noteColorIn(context),
+              ),
             ),
           ),
         FindingBody(

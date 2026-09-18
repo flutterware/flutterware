@@ -1,5 +1,22 @@
 ## Unreleased
 
+- **`fw compare`: a step the test finds another way is no longer a change, and
+  every step has an id of its own.** A step whose finder moved — a renamed
+  key, a question found by key where it was found by index — was reported
+  `changed` whatever the two runs drew. Measured on a real suite, one test
+  helper put 221 steps and four whole flows among the findings, around the one
+  flow that had changed. The channels decide now: drawn the same, the step is
+  `same`, with a note printing only the words of the target that differ and a
+  `retargeted: {base, head}` field in `index.json`; drawn differently, it is
+  `changed` and says the difference may be the widget it now reaches. On the
+  step page a note is red only under a failure. Separately, a step's id was its
+  label, and labels repeat — `tap "Next"` three times, or every question of a
+  form under `widget with key [GlobalKey#]`: 51 of that suite's 54 scenarios
+  repeated one. *Next* walked in a circle, a link opened the first of the
+  group, and every step of a group showed one picture. A repeat now says which
+  one it is — `tap "Next" (2)` — and a page reading an older `index.json` does
+  the same on the way in.
+
 - **`Ambient`: motion the app declares says nothing is photographed standing
   still.** `import 'package:flutterware/ambient.dart'` and wrap a spinner, a
   shimmer or a pulsing dot in `Ambient(child: …)`. Outside a scenario it is

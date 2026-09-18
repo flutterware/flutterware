@@ -23,6 +23,23 @@ extension ComparedStateLook on ComparedState {
     };
   }
 
+  /// The colour of the sentence under a verdict — its `note`.
+  ///
+  /// Red for a failure and for nothing else. A note was a failure's message
+  /// when there was one kind of note, so every one of them was drawn in red;
+  /// since then a note is as often an explanation — *the test finds its target
+  /// another way*, under a step that came out the same — and an explanation in
+  /// red reads as the error it is there to rule out.
+  Color noteColorIn(BuildContext context) {
+    var colors = context.colors;
+    return switch (this) {
+      ComparedState.broke ||
+      ComparedState.failed ||
+      ComparedState.wasBroken => colors.red,
+      _ => colors.ink2,
+    };
+  }
+
   /// How it reads in a row. `wasBroken` is the one that does not spell itself.
   String get word => switch (this) {
     ComparedState.broke => 'broke',

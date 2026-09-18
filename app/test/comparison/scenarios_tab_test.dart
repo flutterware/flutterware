@@ -267,6 +267,37 @@ void main() {
     expect(picked, isEmpty);
   });
 
+  // `tap "Next"` three times is three steps under one label, and the walk
+  // goes through the id: *Next* on the second one used to name the first
+  // step to carry that label and open it, and the one after sent it back — on
+  // a real 101-step flow the arrows never got past step 11.
+  testWidgets('a repeated step walks on rather than back to the first', (
+    tester,
+  ) async {
+    var picked = <String>[];
+    var scenarios = [
+      ScenarioComparison.fromJson({
+        'id': 'test/cart_test.dart#Checkout',
+        'state': 'same',
+        'steps': [
+          for (var _ in [1, 2, 3])
+            {'id': 'tap "Next"', 'label': 'tap "Next"', 'state': 'same'},
+        ],
+      }),
+    ];
+
+    await pump(
+      tester,
+      scenarios,
+      selected: 'test/cart_test.dart#Checkout/tap "Next" (2)',
+      onSelect: picked.add,
+    );
+    expect(find.text('Step 2 of 3 · Checkout'), findsOneWidget);
+
+    await tester.tap(find.byKey(stepNextKey));
+    expect(picked, ['test/cart_test.dart#Checkout/tap "Next" (3)']);
+  });
+
   // A scenario is named by whoever wrote it, and a name with a `/` in it —
   // `scenario('Contacts & collaboration / Create group')` — used to be cut in
   // half by the address parse. The flow still drew, because the lookup for the

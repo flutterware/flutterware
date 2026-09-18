@@ -181,7 +181,14 @@ class FindingBody extends StatelessWidget {
                 ? ChannelLines(item, onRule: onRule)
                 : Center(
                     child: Text(
-                      'No changes on any channel',
+                      // A step found another way is here *because* of that,
+                      // and "no changes" under it reads as the page arguing
+                      // with itself. Which side of the line changed is the
+                      // whole answer.
+                      item.retargeted == null
+                          ? 'No changes on any channel'
+                          : 'Only the test changed here — the app drew the '
+                                'same thing on every channel',
                       style: context.type.body.copyWith(color: colors.mut),
                     ),
                   ),

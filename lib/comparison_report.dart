@@ -76,5 +76,5 @@ export 'src/comparison/pixel_diff.dart' show DiffRect, PixelDiff;
 export 'src/comparison/report.dart';
 export 'src/comparison/report_io.dart';
 export 'src/comparison/scenario_comparison.dart'
-    show BranchDelta, ScenarioComparison;
+    show BranchDelta, ScenarioComparison, StepIds;
 export 'src/comparison/tree_diff.dart' show TreeDelta, TreeDeltaKind, TreeDiff;
