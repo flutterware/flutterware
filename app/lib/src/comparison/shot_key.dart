@@ -78,7 +78,11 @@ class ShotKey {
   /// (`pubspecPixelDigest`) rather than as bytes, and a lockfile entry without
   /// its `dependency:` kind. Nothing about the pictures changed — the keys
   /// did, as at v9.
-  static const revision = 'v13';
+  /// v14 — every `split` branch of a scenario starts its pinned clock where
+  /// the first run did. A v13 replay of a later branch read the fake time of
+  /// the branches replayed before it, so anything it dated with `clock.now()`
+  /// is drawn with an earlier date now.
+  static const revision = 'v14';
 
   /// [closure] is a [SourceClosure.fingerprint]; [sdk] identifies the SDK both
   /// sides are rendered with; [axes] and [knobs] are whatever was applied.

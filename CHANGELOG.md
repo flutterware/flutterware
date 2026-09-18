@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **Scenarios: every `split` branch starts at the instant the first run did.**
+  A split replays the body from the top, but the pinned clock kept running
+  across replays, so each branch read the fake time of every branch before it.
+  A record the body stamped with `clock.now()` got a later date in each branch,
+  and a change to how long one branch took moved the dates on every branch
+  after it. Measured on a real suite: the branches before them got a little
+  faster, and the comparison reported eleven steps in three later branches,
+  each showing times one second earlier. The clock now goes back to where the first run started
+  at the top of each replay. `ShotKey.revision` is `v14`.
+
 - **`fw compare`: a step the test finds another way is no longer a change, and
   every step has an id of its own.** A step whose finder moved — a renamed
   key, a question found by key where it was found by index — was reported
