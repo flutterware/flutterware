@@ -36,7 +36,8 @@ void main() {
           '#1      main (file:///elsewhere/test/pay_test.dart:12:3)\n',
         ),
       ),
-      '/elsewhere/test/pay_test.dart',
+      // Outside the package, so absolute, and as the platform spells it.
+      p.join(p.separator, 'elsewhere', 'test', 'pay_test.dart'),
     );
   });
 

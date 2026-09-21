@@ -5,6 +5,8 @@
 /// tree lives in `guest_inspect.dart` and is the only Flutter in here.
 library;
 
+import 'package:path/path.dart' as p;
+
 import '../utils/identity_hash.dart';
 
 /// Where a widget's constructor was called.
@@ -49,17 +51,21 @@ class InspectSource {
   /// The worktree wins when both could apply. A path inside the checkout is
   /// one the reader can open, and `app/lib/src/shell/shell_view.dart` says
   /// where it *is* where a package URI only says what it belongs to.
+  ///
+  /// The relative path is a name, so it reads with `/` on every host — the
+  /// same file says the same thing from a Mac, a Windows box and the web
+  /// export. An absolute one stays as the platform spells it: that one is for
+  /// opening.
   String describe({String? relativeTo}) {
     var path = Uri.tryParse(file)?.toFilePath() ?? file;
     // Non-empty, because the web export passes `''` — every path starts with
     // the empty string, so the old test matched, stripped nothing, and then
     // ate the leading slash on its way out.
-    if (relativeTo != null && relativeTo.isNotEmpty) {
-      if (path.startsWith(relativeTo)) {
-        path = path.substring(relativeTo.length);
-        if (path.startsWith('/')) path = path.substring(1);
-        return '$path:$line:$column';
-      }
+    if (relativeTo != null &&
+        relativeTo.isNotEmpty &&
+        p.isWithin(relativeTo, path)) {
+      var name = p.url.joinAll(p.split(p.relative(path, from: relativeTo)));
+      return '$name:$line:$column';
     }
     return '${_packageUri(path) ?? path}:$line:$column';
   }
@@ -75,7 +81,7 @@ class InspectSource {
   /// exactly like an ordinary directory, and guessing a package name off it
   /// would put a confident wrong label on a real file. Those stay absolute.
   static String? _packageUri(String path) {
-    var parts = path.split('/');
+    var parts = p.split(path);
     for (var i = 0; i < parts.length; i++) {
       var at = switch (parts[i]) {
         'packages' || 'git' => i + 1,
