@@ -169,8 +169,12 @@ a test expectation.
   `C--Users-…`, so the agent column is always empty.
 - **Frames and URIs.** `test/inspect/node_test.dart` (8) and
   `test/scenarios/declaring_file_test.dart` (1) **(M)** — fixture URIs are POSIX.
-  Whether the product folds a real `file:///C:/…` correctly is the thing to
-  check before deciding these are test-only.
+  Checked: mostly the product. `InspectSource.describe` stripped the worktree
+  only before a `/` and split on `/` to recognise a package cache, so on
+  Windows nothing was shortened and no SDK path folded to `package:`;
+  `scenarioDeclaringFile` joined an absolute path's native root with `/`
+  (`C:\/elsewhere/…`). The fixtures were wrong only where they expected an
+  *absolute* path in POSIX spelling. **Fixed**, by the rule below.
 
 **The rule this wants** — decided, see §4.2: a path that is a *name* —
 compared, keyed, reported, addressed — is POSIX, and the conversion to a
@@ -257,17 +261,23 @@ Ordered so each step gives the next one a signal. Each is PR-sized.
 ### Step 1 — The repo is workable on Windows
 
 - Land the MCP launch change: `.mcp.json` → `fvm dart run flutterware mcp`,
-  `tool/mcp_server.sh` deleted, `fw.exe` in the launcher, CLAUDE.md. **Written
-  and verified, uncommitted.**
-- `.gitattributes`, renormalised.
-- The `prepare_submit` workaround, and the fix sent to `project_tools`.
+  `tool/mcp_server.sh` deleted, `fw.exe` in the launcher, CLAUDE.md. **Done**
+  ([#370](https://github.com/flutterware/flutterware/pull/370)).
+- `.gitattributes`, renormalised. **Done.** It was also all the pre-commit
+  hook needed: under Git for Windows' bash it finds the pinned SDK, builds and
+  formats unchanged once it is checked out LF.
+- The `prepare_submit` workaround, and the fix sent to `project_tools`. The
+  workaround is **done**.
+- Windows notes in `CONTRIBUTING.md`. **Done.**
 
 **Done when** `prepare_submit` completes on Windows and `git status` is clean
 after `pub get` and a test run.
 
 ### Step 2 — The suites tell the truth on Windows
 
-- `.exe` in the test helpers that locate `dart`.
+- `.exe` in the test helpers that locate `dart`. **Done.**
+- A Windows CI job for both suites: the root suite and the formatter block,
+  the app suite reports and uploads its JSON. **Done** (*Suites on Windows*).
 - Replace shell fakes (`true`, `sleep`, `chmod`, `touch`, `#!/bin/sh`) with
   Dart scripts spawned through the real `dart`, so one fake serves every OS.
 - POSIX literals that become process keys or expectations → `p.join`, except
@@ -275,7 +285,8 @@ after `pub get` and a test run.
 - Lanes that are genuinely macOS-only (the `gpu` tag, the embedder guest) say
   so with a skip reason.
 
-**Done when** the root suite is green and every remaining app-suite failure
+**Done when** the root suite is green (it is, with the font match and the two
+frame fixes pulled forward from step 3) and every remaining app-suite failure
 is one of the product bugs in steps 3–6. Run the app suite on CI or file by
 file; see §5.
 
@@ -285,8 +296,8 @@ file; see §5.
   launcher icon, scene, assets, identity and `scenarios read` onto it. Audit
   the rest of the 77 `p.relative(` calls.
 - The depfile parser (`manifest_loader.dart:328`), the font match
-  (`fonts.dart:91`), case-insensitive worktree equality, and the agent
-  directory encoding.
+  (`fonts.dart:91`, **done**), case-insensitive worktree equality, and the
+  agent directory encoding.
 
 **Done when** those app tests pass with their expectations unchanged, and
 `tool/flutterware.dart` compiles once.
