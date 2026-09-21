@@ -1047,7 +1047,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: ebe1bc96212294a8afbb67f4c00c7ad1f5d68cdf
+      resolved-ref: "89c607252edf3d72caff9c50f56280063c74f00a"
       url: "https://github.com/xvrh/project_tools.dart.git"
     source: git
     version: "1.0.0"

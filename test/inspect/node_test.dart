@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutterware/src/inspect/error.dart';
 import 'package:flutterware/src/inspect/node.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 /// The wire format, which is the half of inspection that needs no guest.
@@ -117,7 +118,7 @@ void main() {
       );
       expect(
         source.describe(relativeTo: '/repo'),
-        '/sdk/flutter/widgets.dart:1:1',
+        '${_absolute(['sdk', 'flutter', 'widgets.dart'])}:1:1',
       );
     });
 
@@ -176,7 +177,7 @@ void main() {
       );
       expect(
         source.describe(relativeTo: '/repo'),
-        '/Users/x/projects/sibling/lib/thing.dart:9:3',
+        '${_absolute(['Users', 'x', 'projects', 'sibling', 'lib', 'thing.dart'])}:9:3',
       );
     });
 
@@ -212,7 +213,7 @@ void main() {
           line: 1,
           column: 1,
         ).describe(relativeTo: ''),
-        '/a/b.dart:1:1',
+        '${_absolute(['a', 'b.dart'])}:1:1',
       );
     });
   });
@@ -695,3 +696,9 @@ void _ambientSentinel() {
     });
   });
 }
+
+/// An absolute path as this platform spells it: `/a/b.dart` on macOS and
+/// Linux, `\a\b.dart` on Windows. A relative path is a name and reads with `/`
+/// everywhere; an absolute one is for opening, so it stays native.
+String _absolute(List<String> segments) =>
+    p.joinAll([p.separator, ...segments]);

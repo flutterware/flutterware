@@ -239,7 +239,8 @@ class _PinnedClock {
 }
 
 /// The test file a `scenario()` call was made from, `/`-separated and relative
-/// to the package when it sits under it, or null when the frame says nothing.
+/// to the package when it sits under it, the absolute path as the platform
+/// spells it when it does not, or null when the frame says nothing.
 ///
 /// Read off the declaring stack because nothing else can say it: a bare
 /// `flutter test` tells a test nothing about which file it is, and a scenario
@@ -261,9 +262,10 @@ String? scenarioDeclaringFile(StackTrace stack) {
     if (uri == null || uri.scheme != 'file') return null;
     var path = uri.toFilePath();
     var root = Directory.current.path;
-    return p.url.joinAll(
-      p.split(p.isWithin(root, path) ? p.relative(path, from: root) : path),
-    );
+    // Joined with `/`, an absolute path kept its root as the platform spells
+    // it and gained a slash after it: `C:\/elsewhere/…` on Windows.
+    if (!p.isWithin(root, path)) return path;
+    return p.url.joinAll(p.split(p.relative(path, from: root)));
   }
   return null;
 }

@@ -31,3 +31,31 @@ lints) is still enforced by CI, not the hook.
 If dependencies aren't resolved yet, or the pinned SDK isn't installed, the
 hook skips itself gracefully and lets the commit through — run
 `fvm install && fvm flutter pub get` to enable it.
+
+## Windows
+
+Windows support is in progress.
+[The plan](docs/superpowers/specs/2026-09-14-windows-support-plan.md) says
+what works, what does not yet, and the order it gets fixed in. What a
+contributor needs today:
+
+- **Developer Mode** (Settings → System → For developers). `flutter pub get`
+  links each plugin's Windows sources into
+  `windows/flutter/ephemeral/.plugin_symlinks`, and Windows creates symlinks
+  only for an elevated process or with Developer Mode on.
+- **fvm from Git Bash is `fvm.bat`.** PowerShell and cmd find `fvm` by its
+  bare name; Git Bash does not run a batch file that way. SDKs land in
+  `%USERPROFILE%\fvm\versions`, which is where the pre-commit hook looks.
+- **Line endings are LF.** `.gitattributes` checks every file out LF whatever
+  `core.autocrlf` says — Git for Windows defaults it to `true`. A clone made
+  before that file existed still has CRLF files on disk; with nothing
+  uncommitted, `git rm -rq --cached . && git reset --hard` rewrites them once.
+- **The pre-commit hook** runs under Git for Windows' bash unchanged; set
+  `core.hooksPath` as above.
+- **Building the studio** is a Windows desktop build, so it needs Visual Studio
+  with the *Desktop development with C++* workload. The tests, the formatter
+  and the MCP server do not.
+- **Tests.** The root suite is green on Windows, and CI's *Suites on Windows*
+  job blocks on it. The app suite still has known Windows failures, which the
+  same job reports without blocking — run the app test files you touch one by
+  one.

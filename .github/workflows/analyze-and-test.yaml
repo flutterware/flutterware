@@ -94,7 +94,7 @@ jobs:
 
       - name: "and finds it when started by package name"
         # The same resolution, from the other way this package is started: by
-        # name rather than by file. `.mcp.json` runs `dart run
+        # name rather than by file. `.mcp.json` used to run `dart run
         # flutterware_app:mcp`, whose `Platform.script` is a snapshot under
         # `.dart_tool/pub/bin/` — two directories above which is nothing, so the
         # step above stayed green while every previews and motion action over
@@ -321,6 +321,64 @@ jobs:
         with:
           name: phone-rig-probe-frames
           path: app/build/phone_rig_probe
+
+  suites_windows:
+    name: Suites on Windows
+    # Nothing ran either test suite on Windows before this job, and a Windows
+    # checkout could not even format: `prepare_submit` looped forever on a
+    # path git spells `C:/…` and `dart:io` spells `C:\…`, and Git for Windows'
+    # CRLF checkout left every tool-rewritten file looking modified. See
+    # `docs/superpowers/specs/2026-09-14-windows-support-plan.md`.
+    #
+    # The formatter and the root suite block: both are green on Windows now,
+    # and a checkout is all they need. The app suite does not block yet —
+    # measured 2026-09-14 on a Windows laptop, 210 of the tests that ran
+    # failed, most on shell fakes (`true`, `sleep`, `chmod`) and on process
+    # handling that assumes POSIX signals — the plan's steps 2 and 4. It runs
+    # here so that number is visible on every PR and its JSON is one download
+    # away, and it blocks once the plan's steps 2–4 have brought it to zero.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Read the pinned Flutter version
+        id: pin
+        shell: bash
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          if [ -z "$version" ]; then echo "::error::.fvmrc names no Flutter version"; exit 1; fi
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.pin.outputs.version }}
+          channel: ${{ steps.pin.outputs.channel }}
+      - run: flutter --version
+      - run: flutter pub get
+      # Bounded, because the failure this guards against is a hang, not a red.
+      - run: dart tool/prepare_submit.dart
+        timeout-minutes: 10
+      # After `pub get` rewrote the plugin registrants and the formatter ran:
+      # the two things that used to leave a Windows checkout dirty.
+      - name: "check for uncommitted changes"
+        run: |
+          git diff --exit-code --stat -- . ':(exclude)*pubspec.lock' \
+          || (echo "##[error] found changed files on Windows — a CRLF checkout, or a tool writing a different line ending" \
+              && exit 1)
+        shell: bash
+      - run: flutter test
+        timeout-minutes: 20
+      - name: The app suite, reported rather than enforced
+        continue-on-error: true
+        timeout-minutes: 60
+        run: flutter test --file-reporter json:build/app-suite-windows.json
+        working-directory: app
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-suite-windows
+          path: app/build/app-suite-windows.json
+          if-no-files-found: ignore
 
   studio_demo:
     name: Studio demo

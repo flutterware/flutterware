@@ -1,0 +1,12 @@
+# LF everywhere, in the index and in every checkout, whatever the machine's
+# `core.autocrlf` says. Git for Windows defaults that to `true`, which checks
+# out CRLF: `hooks/pre-commit` then dies on `set -e\r`, a test comparing a
+# rendered doc with the one on disk fails on the line endings alone, and every
+# file a tool rewrites with LF (`pub get`'s plugin registrants, `.fvmrc`) shows
+# as modified with no difference to show.
+* text=auto eol=lf
+
+# cmd.exe reads batch files by line, and misparses labels and multi-line blocks
+# in one with bare LFs.
+*.bat text eol=crlf
+*.cmd text eol=crlf

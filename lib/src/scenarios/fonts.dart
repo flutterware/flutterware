@@ -85,10 +85,13 @@ Future<void> _loadDefaults() async {
   var dir = Directory('$root/bin/cache/artifacts/material_fonts');
   if (!dir.existsSync()) return;
   var files = dir.listSync().whereType<File>().where((file) {
-    var name = file.uri.pathSegments.last;
+    // Lowercased: the Windows SDK ships `roboto-regular.ttf` where macOS and
+    // Linux ship `Roboto-Regular.ttf`, and a case-sensitive match found no
+    // faces there, so default text measured in the test font's boxes.
+    var name = file.uri.pathSegments.last.toLowerCase();
     // Not `RobotoCondensed-*`: a different family, and nothing's
     // default.
-    return name.startsWith('Roboto-') && name.endsWith('.ttf');
+    return name.startsWith('roboto-') && name.endsWith('.ttf');
   }).toList()..sort((a, b) => a.path.compareTo(b.path));
   if (files.isEmpty) return;
   var faces = [for (var file in files) file.readAsBytesSync()];
