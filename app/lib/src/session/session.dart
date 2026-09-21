@@ -149,8 +149,8 @@ class Session {
   ///   root, and this is exactly the case where that is true, because it is the
   ///   case where the script *is* a source file.
   /// - **Resolved from this package's own URI.** For `dart run
-  ///   flutterware_app:fw` and `dart run flutterware_app:mcp` — the form
-  ///   `.mcp.json` uses — where `Platform.script` is a *snapshot* under
+  ///   flutterware_app:fw` and `dart run flutterware_app:mcp`, where
+  ///   `Platform.script` is a *snapshot* under
   ///   `.dart_tool/pub/bin/`, two directories above which is `.dart_tool` and
   ///   not a package at all. Measured, on `a911609e`:
   ///   `…/.dart_tool/pub/bin/flutterware_app/mcp.dart-<sdk>.snapshot`.

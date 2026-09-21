@@ -65,7 +65,17 @@ void main(List<String> arguments) async {
       : workingCopyPath(packageRoot);
 
   var appPath = p.join(root, 'app');
-  var cliExecutable = p.join(appPath, 'build', 'cli', 'bundle', 'bin', 'fw');
+  // `dart build cli` writes `fw.exe` on Windows. Spawning the bare name finds
+  // it anyway, because Windows appends the suffix itself, so a path without it
+  // failed only [_isFresh] — silently, as a CLI rebuild on every run.
+  var cliExecutable = p.join(
+    appPath,
+    'build',
+    'cli',
+    'bundle',
+    'bin',
+    Platform.isWindows ? 'fw.exe' : 'fw',
+  );
   var sdkRoot = findFlutterSdkRoot(Platform.resolvedExecutable);
   var gui = sdkRoot == null
       ? null
