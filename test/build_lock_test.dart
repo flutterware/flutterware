@@ -9,9 +9,10 @@ import 'package:test/test.dart';
 /// Same reason and same walk as `build_output_test.dart`: under `flutter test`
 /// [Platform.resolvedExecutable] is `flutter_tester`, which cannot run a script.
 final _dart = () {
+  var name = Platform.isWindows ? 'dart.exe' : 'dart';
   var directory = File(Platform.resolvedExecutable).parent;
   while (true) {
-    var candidate = File(p.join(directory.path, 'dart-sdk', 'bin', 'dart'));
+    var candidate = File(p.join(directory.path, 'dart-sdk', 'bin', name));
     if (candidate.existsSync()) return candidate.path;
     var parent = directory.parent;
     if (parent.path == directory.path) return Platform.resolvedExecutable;

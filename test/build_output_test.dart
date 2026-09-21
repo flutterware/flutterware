@@ -17,9 +17,10 @@ import 'package:test/test.dart';
 /// the SDK at `<flutter>/bin/cache/dart-sdk/`. The same trick, and the same
 /// reason, as `ShapeExtractor.findDartSdk`.
 final _dart = () {
+  var name = Platform.isWindows ? 'dart.exe' : 'dart';
   var directory = File(Platform.resolvedExecutable).parent;
   while (true) {
-    var candidate = File(p.join(directory.path, 'dart-sdk', 'bin', 'dart'));
+    var candidate = File(p.join(directory.path, 'dart-sdk', 'bin', name));
     if (candidate.existsSync()) return candidate.path;
     var parent = directory.parent;
     // Already the Dart SDK's own `dart`, or something we cannot improve on.
