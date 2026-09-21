@@ -202,9 +202,10 @@ renormalising commit.
   `_upperGitIgnores` walks up from a subproject until `current.path ==
   gitRoot.path`. `gitRoot` comes from `git rev-parse` as `C:/Users/…`,
   `current` from `Platform.script` as `C:\Users\…`, so the strings never
-  match and the walk sticks at `C:\`. Workaround here: `DartProject.find(root,
-  gitRoot: root)` in `tool/prepare_submit.dart:9`. Fix upstream: `p.equals`,
-  and stop when a directory is its own parent.
+  match and the walk sticks at `C:\`. **Fixed upstream**
+  ([xvrh/project_tools.dart#9](https://github.com/xvrh/project_tools.dart/pull/9)):
+  `p.equals`, a stop at the filesystem root, and git's answer normalised. This
+  repo resolves the fixed commit, so `prepare_submit` needs no workaround.
 - **Test helpers find `dart-sdk/bin/dart` without `.exe`** and fall back to
   `flutter_tester`: `test/build_output_test.dart`, `test/build_lock_test.dart`
   (4 of the root failures) **(M)**.
@@ -266,8 +267,8 @@ Ordered so each step gives the next one a signal. Each is PR-sized.
 - `.gitattributes`, renormalised. **Done.** It was also all the pre-commit
   hook needed: under Git for Windows' bash it finds the pinned SDK, builds and
   formats unchanged once it is checked out LF.
-- The `prepare_submit` workaround, and the fix sent to `project_tools`. The
-  workaround is **done**.
+- The `prepare_submit` loop, fixed in `project_tools` and resolved here.
+  **Done.**
 - Windows notes in `CONTRIBUTING.md`. **Done.**
 
 **Done when** `prepare_submit` completes on Windows and `git status` is clean
