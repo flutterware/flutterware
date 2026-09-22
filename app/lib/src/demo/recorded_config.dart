@@ -24,3 +24,19 @@ const recordedTranslationCatalogs = [
 const recordedChangesConfig = ChangesConfig(
   attention: ['assets/i18n/*.json', 'pubspec.yaml', 'lib/shop/shop_app.dart'],
 );
+
+/// The demo app's entry points, as its `tool/flutterware.dart` declares
+/// them. The recorder launches [recordedRunEntrypoint] — the shop with its
+/// devbar plugin, which is what gives the App tab something to show.
+const recordedRunEntrypoints = [
+  Entrypoint('lib/main.dart', name: 'Brewline', description: 'The coffee shop'),
+  recordedRunEntrypoint,
+];
+
+const recordedRunEntrypoint = Entrypoint(
+  'lib/shop_devbar.dart',
+  name: 'Brewline (devbar)',
+  description:
+      'The shop, with a plugin that pushes a notification into it — the '
+      'sample for driving an app from the cockpit, `fw` or an agent',
+);

@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/clock.dart';
 import 'package:web/web.dart' as web;
 
 import '../previews/inline_guest.dart';
@@ -36,6 +39,20 @@ export '../previews/inline_guest.dart' show InlinePreviews;
 /// recording copied beside it, which is what
 /// `integration_test/web_demo_test.dart` opens in a real browser.
 void runWebDemo({InlinePreviews? previews}) {
+  // The page runs at the moment the recording was made — the studio's own
+  // scenarios' pinned clock, which every recorded time was moved to — and
+  // then keeps time from there, so a run started two minutes before it
+  // reads as started two minutes ago rather than as many months. The zone
+  // is entered before the binding exists, because the engine calls back into
+  // the zone each callback was registered in, and that is every frame.
+  var opened = Stopwatch()..start();
+  withClock(
+    Clock(() => pinnedClockOrigin.add(opened.elapsed)),
+    () => _run(previews),
+  );
+}
+
+void _run(InlinePreviews? previews) {
   // The same reason the export viewer gives: the engine's default strategy
   // rewrites the URL at boot, and this page has nowhere it wants to go.
   setUrlStrategy(null);

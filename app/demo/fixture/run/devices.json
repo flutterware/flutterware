@@ -1,0 +1,69 @@
+{
+  "updatedAt": "2026-01-01T09:38:48.978206",
+  "devices": [
+    {
+      "id": "iphone-16",
+      "name": "iPhone 16",
+      "platform": "ios",
+      "emulator": true,
+      "category": "mobile",
+      "platformType": "ios",
+      "ephemeral": true,
+      "emulatorId": "apple_ios_simulator",
+      "sdk": "com.apple.CoreSimulator.SimRuntime.iOS-18-1",
+      "isConnected": true,
+      "connectionInterface": "attached",
+      "capabilities": {
+        "hotReload": true,
+        "hotRestart": true,
+        "screenshot": true,
+        "fastStart": false,
+        "flutterExit": true,
+        "hardwareRendering": false,
+        "startPaused": true
+      }
+    },
+    {
+      "id": "chrome",
+      "name": "Chrome",
+      "platform": "web-javascript",
+      "emulator": false,
+      "category": "web",
+      "platformType": "web",
+      "ephemeral": false,
+      "sdk": "Google Chrome 153.0.8010.53",
+      "isConnected": true,
+      "connectionInterface": "attached",
+      "capabilities": {
+        "hotReload": true,
+        "hotRestart": true,
+        "screenshot": false,
+        "fastStart": false,
+        "flutterExit": false,
+        "hardwareRendering": true,
+        "startPaused": true
+      }
+    },
+    {
+      "id": "macos",
+      "name": "macOS",
+      "platform": "darwin",
+      "emulator": false,
+      "category": "desktop",
+      "platformType": "macos",
+      "ephemeral": false,
+      "sdk": "macOS 26.2 25C56 darwin-arm64",
+      "isConnected": true,
+      "connectionInterface": "attached",
+      "capabilities": {
+        "hotReload": true,
+        "hotRestart": true,
+        "screenshot": false,
+        "fastStart": false,
+        "flutterExit": true,
+        "hardwareRendering": true,
+        "startPaused": true
+      }
+    }
+  ]
+}

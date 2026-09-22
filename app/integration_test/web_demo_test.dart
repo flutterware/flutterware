@@ -147,6 +147,34 @@ void main() {
     await screen.settle();
     await screen.shot('dev-stack');
 
+    // The recorded run: its files are fetched whole before the panel reads
+    // them, the Screen tab is the session's last picture, and every step's
+    // thumbnail comes from beside the page.
+    await screen.tap('Run');
+    await screen.tap('Brewline (devbar) · iPhone 16');
+    await screen.waitFor('no launcher — cannot reload');
+    await screen.waitFor('Thanks, Ada!');
+    await screen.settle();
+    await screen.shot('run');
+    await screen.tap('Steps');
+    await screen.waitFor('tap "Large"');
+    await _waitUntil(
+      () => fetched.entries.any(
+        (e) =>
+            e.key.contains('/run/journal/') &&
+            e.key.endsWith('.png') &&
+            e.value == 200,
+      ),
+      what: 'a recorded step picture fetched from beside the page',
+    );
+    await screen.tap('tap "Large"');
+    await screen.settle();
+    await screen.shot('run-step');
+    await screen.tap('App');
+    await screen.waitFor('Your order is ready');
+    await screen.settle();
+    await screen.shot('run-app');
+
     // The recorded translations: the catalogs and the export come from the
     // recording, and so does every picture of a key in place.
     await screen.tap('Translations');

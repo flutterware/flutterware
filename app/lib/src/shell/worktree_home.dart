@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -131,18 +132,29 @@ class _WorktreeHomeState extends State<WorktreeHome> {
   void _watchRuns() {
     _timer?.cancel();
     _timer = null;
-    if (widget._runCore == null) {
+    var core = widget._runCore;
+    if (core == null) {
       _runs = const [];
       return;
     }
-    _scanRuns();
+    unawaited(
+      core.files.ready.then((_) {
+        if (mounted) _scanRuns();
+      }),
+    );
+    // Nothing under a recording moves, so it is read once.
+    if (core.readOnly != null) return;
     _timer = Timer.periodic(const Duration(seconds: 5), (_) => _scanRuns());
   }
 
   void _scanRuns() {
     var core = widget._runCore;
     if (core == null) return;
-    var handles = scanRunHandles(core.runDir, underRoot: widget.worktree.path);
+    var handles = scanRunHandles(
+      core.runDir,
+      underRoot: widget.worktree.path,
+      files: core.files,
+    );
     // Keep what the last probe said about a handle that is still there, so a
     // rescan does not blink every tile back to "checking".
     var known = {
@@ -162,10 +174,12 @@ class _WorktreeHomeState extends State<WorktreeHome> {
     if (_probing) return;
     _probing = true;
     try {
+      var core = widget._runCore;
+      if (core == null) return;
       var probed = <String, RunProbe>{};
       for (var run in _runs) {
         if (run.handle.handlePath case var path?) {
-          probed[path] = await probeRunHandle(run.handle);
+          probed[path] = await core.sources.apps.probe(run.handle);
         }
       }
       if (!mounted) return;
@@ -194,7 +208,7 @@ class _WorktreeHomeState extends State<WorktreeHome> {
         for (var run in _runs)
           if (!(run.probe?.isDead ?? false)) run,
       ],
-      now: DateTime.now(),
+      now: clock.now(),
       stackStrip: stack == null
           ? null
           : DevStackBlock(

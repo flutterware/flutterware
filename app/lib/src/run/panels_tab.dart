@@ -9,11 +9,11 @@ import '../ui/design/tokens.dart';
 import '../inspect/inspect_dock.dart';
 import '../ui/theme.dart';
 import 'channel_client.dart';
-import 'connection.dart';
 import 'database_panel_view.dart';
 import 'flag_memory.dart';
 import 'handle.dart';
 import 'panel_client.dart';
+import 'run_sources.dart';
 import '../ui/loading_state.dart';
 import '../ui/error_state.dart';
 import '../ui/empty_state.dart';
@@ -31,8 +31,8 @@ class PanelsTab extends StatefulWidget {
   const PanelsTab({
     super.key,
     required this.handle,
+    required this.channels,
     required this.memory,
-    this.connect,
   });
 
   final RunHandle handle;
@@ -42,14 +42,15 @@ class PanelsTab extends StatefulWidget {
   final FlagMemory memory;
 
   /// How to reach the app. Injected for the test that drives a fake VM.
-  final Future<RunConnection> Function(String wsUri)? connect;
+  /// Where the app's channels are reached — the machine's, or a recording's.
+  final RunChannels channels;
 
   @override
   State<PanelsTab> createState() => _PanelsTabState();
 }
 
 class _PanelsTabState extends State<PanelsTab> {
-  RunChannelClient? _client;
+  RunAttachment? _client;
   RunPanels? _panels;
   StreamSubscription<void>? _changes;
   StreamSubscription<void>? _feed;
@@ -118,15 +119,14 @@ class _PanelsTabState extends State<PanelsTab> {
       return;
     }
     try {
-      var connection = await (widget.connect ?? RunConnection.connect)(wsUri);
       // One peer id per cockpit pane: an MCP call attached to the same app gets
       // its own queue and its own replay rather than racing this one.
       // The nonce matters: a re-created pane racing its predecessor's async
       // detach must not share a peer id, or the detach tears down the new
       // attachment and every in-flight reply dies with it — found by the
       // database panel's schema read, 2026-08-12.
-      var client = await RunChannelClient.attach(
-        connection,
+      var client = await widget.channels.attach(
+        widget.handle,
         peer: 'cockpit:${widget.handle.key}:${identityHashCode(this)}',
       );
       if (!mounted) {

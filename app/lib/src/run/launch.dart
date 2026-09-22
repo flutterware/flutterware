@@ -11,6 +11,7 @@ import '../utils/flutter_sdk.dart';
 import '../utils/run_dir.dart';
 import 'guest_entrypoint.dart';
 import 'handle.dart';
+import 'run_files.dart';
 
 final _logger = Logger('run_launch');
 
@@ -338,13 +339,10 @@ class LaunchLog {
   /// A log that does not exist yet, is half-written, or has a line from a
   /// tool version this build does not know is not an error — it is a log that
   /// says less than it will in a second.
-  static LaunchLog read(String path) {
-    List<String> lines;
-    try {
-      lines = File(path).readAsLinesSync();
-    } on FileSystemException {
-      return const LaunchLog();
-    }
+  static LaunchLog read(String path, {RunFiles files = const DiskRunFiles()}) {
+    var text = files.readString(path);
+    if (text == null) return const LaunchLog();
+    var lines = const LineSplitter().convert(text);
     String? appId, vmService, error, plain;
     var started = false;
     var stopped = false;
@@ -639,9 +637,9 @@ class RunFailure {
     }
   }
 
-  static RunFailure? tryRead(File file) {
+  static RunFailure? tryParse(String? text) {
     try {
-      var json = jsonDecode(file.readAsStringSync());
+      var json = jsonDecode(text ?? '');
       if (json is! Map) return null;
       var map = json.cast<String, Object?>();
       return RunFailure(
@@ -676,23 +674,14 @@ class RunFailure {
 List<RunFailure> scanRunFailures(
   String runDir, {
   Duration maxAge = const Duration(hours: 12),
+  RunFiles files = const DiskRunFiles(),
 }) {
-  List<FileSystemEntity> entries;
-  try {
-    entries = Directory(runDir).listSync();
-  } on FileSystemException {
-    return [];
-  }
   var failures = <RunFailure>[];
   var now = DateTime.now();
-  for (var entity in entries) {
-    var name = p.basename(entity.path);
-    if (entity is! File ||
-        !name.startsWith('app-') ||
-        !name.endsWith('.failed')) {
-      continue;
-    }
-    var failure = RunFailure.tryRead(entity);
+  for (var path in files.list(runDir)) {
+    var name = p.basename(path);
+    if (!name.startsWith('app-') || !name.endsWith('.failed')) continue;
+    var failure = RunFailure.tryParse(files.readString(path));
     if (failure == null) continue;
     // Old enough to be history rather than news. Left on disk for the sweeper.
     if (now.difference(failure.at) > maxAge) continue;
@@ -708,7 +697,10 @@ List<RunFailure> scanRunFailures(
 /// Returns the handle as it now stands — the same object when the log had
 /// nothing new. Any process may call this; the one that launched the app has
 /// no special standing, and usually is not running any more.
-RunHandle refreshFromLog(RunHandle handle) {
+RunHandle refreshFromLog(
+  RunHandle handle, {
+  RunFiles files = const DiskRunFiles(),
+}) {
   var path = handle.logPath;
   if (path == null) return handle;
   // **The log wins, even when the handle already has an answer.** This used to
@@ -717,7 +709,7 @@ RunHandle refreshFromLog(RunHandle handle) {
   // the app looked dead to everything that probed it. The early return also
   // saved nothing — `_probeAll` reads this same file for every handle on every
   // pass regardless, to show the progress line.
-  var log = LaunchLog.read(path);
+  var log = LaunchLog.read(path, files: files);
   if (log.vmService == null && log.appId == null) return handle;
   if (log.vmService == handle.vmService && log.appId == handle.appId) {
     return handle;

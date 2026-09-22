@@ -176,3 +176,38 @@ const recordedComparisonIndexPath = 'comparison/index.json';
 /// Where one of the comparison's pictures sits: at the relative path the
 /// export gave it, under the same directory as the index.
 String recordedComparisonFilePath(String relative) => 'comparison/$relative';
+
+/// The run dir a recorded run lives in, as the studio sees it: the handle,
+/// the launcher's log, the journal and its pictures are spelled under this,
+/// so the run plugin reads them by the same paths it would on a machine.
+/// Never a directory on disk — `RecordedRunFiles` answers for it.
+const recordedRunDir = '$recordedProjectRoot/run';
+
+/// Where the recording keeps the files of [recordedRunDir]: the same tree,
+/// under `run/`, so `$recordedRunDir/x` is `run/x`.
+String recordedRunFilePath(String relative) => 'run/$relative';
+
+/// Every file of the recorded run dir, relative to it — the listing a
+/// directory walk would have given. The recorded end preloads them all.
+const recordedRunIndexPath = 'run.index.json';
+
+/// What a recorded run's app answered on its channels: the events it
+/// replayed on attach, and the reply to each request the cockpit's App tab
+/// makes, keyed by [recordedChannelRequestKey].
+String recordedRunChannelsPath(String runKey) => 'run.channels/$runKey.json';
+
+/// How a request is filed among a recorded app's answers: its channel, its
+/// method and its parameters as JSON, which is how the App tab sends them.
+String recordedChannelRequestKey(
+  String channel,
+  String method,
+  Map<String, Object?> params,
+) => '$channel/$method ${_canonicalJson(params)}';
+
+String _canonicalJson(Object? value) => switch (value) {
+  Map() =>
+    '{${[for (var key in value.keys.map((k) => '$k').toList()..sort()) '"$key":${_canonicalJson(value[key])}'].join(',')}}',
+  List() => '[${value.map(_canonicalJson).join(',')}]',
+  String() => '"${value.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"',
+  _ => '$value',
+};

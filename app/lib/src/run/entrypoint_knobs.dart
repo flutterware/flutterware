@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
@@ -7,6 +5,7 @@ import 'package:pubspec_parse/pubspec_parse.dart';
 
 import '../utils/enum_lookup.dart';
 import '../utils/parameter_knobs.dart';
+import 'run_files.dart';
 import 'wrapper_import.dart';
 
 /// What an entry point's `main` declares it can be launched with.
@@ -73,12 +72,13 @@ class EntrypointKnobs {
 EntrypointKnobs scanEntrypointKnobs({
   required String packageRoot,
   required String entrypoint,
+  RunFiles files = const DiskRunFiles(),
 }) {
   var file = p.join(packageRoot, entrypoint);
   CompilationUnit unit;
   try {
     unit = parseString(
-      content: File(file).readAsStringSync(),
+      content: files.readString(file)!,
       throwIfDiagnostics: false,
     ).unit;
   } on Object {
@@ -98,7 +98,7 @@ EntrypointKnobs scanEntrypointKnobs({
     main.functionExpression.parameters,
     file: file,
     lookup: EnumLookup(
-      selfPackage: _packageNameOf(packageRoot),
+      selfPackage: _packageNameOf(packageRoot, files: files),
       selfPackageRoot: packageRoot,
     ),
     onSkipped: (parameter, reason) =>
@@ -163,11 +163,13 @@ List<String> _importsOf(
   return imports;
 }
 
-String? _packageNameOf(String packageRoot) {
+String? _packageNameOf(
+  String packageRoot, {
+  RunFiles files = const DiskRunFiles(),
+}) {
   try {
-    return Pubspec.parse(
-      File(p.join(packageRoot, 'pubspec.yaml')).readAsStringSync(),
-    ).name;
+    return Pubspec.parse(files.readString(p.join(packageRoot, 'pubspec.yaml'))!)
+        .name;
   } on Object {
     return null;
   }

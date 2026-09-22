@@ -1,0 +1,15 @@
+{
+  "worktree": "/recording",
+  "worktreeName": "~",
+  "device": "iphone-16",
+  "deviceName": "iPhone 16",
+  "entrypoint": "lib/shop_devbar.dart",
+  "entrypointName": "Brewline (devbar)",
+  "package": ".",
+  "launcherPid": 1,
+  "vmService": "ws://127.0.0.1:0/recording=/ws",
+  "appId": "08a639f6-7d82-4760-b098-7bbd8a212bac",
+  "logPath": "/recording/run/app-57ff3a6b6f68.log",
+  "startedAt": "2026-01-01T09:38:54.890770",
+  "protocol": 1
+}

@@ -1,0 +1,192 @@
+{
+  "received": [
+    {
+      "channel": "push/inbox",
+      "id": 9,
+      "time": "2026-01-01T09:40:05.000",
+      "rid": "push-1",
+      "payload": {
+        "title": "Your order is ready",
+        "body": "A large cappuccino for Ada, at the counter.",
+        "link": "/order",
+        "receivedAt": 1767256805000
+      }
+    }
+  ],
+  "answers": {
+    "panels/list {}": {
+      "panels": [
+        {
+          "id": "push",
+          "label": "Push",
+          "feeds": [
+            {
+              "id": "inbox",
+              "label": "Inbox",
+              "description": "Every notification this run delivered, tapped or not.",
+              "fields": [
+                {
+                  "key": "title",
+                  "label": "Title",
+                  "primary": true
+                },
+                {
+                  "key": "body",
+                  "label": "Body"
+                },
+                {
+                  "key": "link",
+                  "label": "Link"
+                },
+                {
+                  "key": "receivedAt",
+                  "label": "Received",
+                  "kind": "timestamp"
+                }
+              ],
+              "itemActions": [
+                {
+                  "id": "open",
+                  "label": "Open",
+                  "description": "Follows this notification, the way tapping it on a lock screen would — the app navigates."
+                }
+              ]
+            }
+          ],
+          "states": [
+            {
+              "id": "registration",
+              "label": "Registration",
+              "description": "What the app would tell a push backend about itself.",
+              "fields": [
+                {
+                  "key": "token",
+                  "label": "Device token",
+                  "primary": true
+                },
+                {
+                  "key": "permission",
+                  "label": "Permission"
+                },
+                {
+                  "key": "delivered",
+                  "label": "Delivered",
+                  "kind": "number"
+                },
+                {
+                  "key": "links",
+                  "label": "Deep links"
+                }
+              ]
+            }
+          ],
+          "knobs": [
+            {
+              "name": "permission",
+              "kind": "picker",
+              "value": "Granted",
+              "default": "Not determined",
+              "description": "What the OS has told the app. Delivery is refused unless this is granted — the same refusal a real device gives you.",
+              "options": [
+                "Not determined",
+                "Granted",
+                "Denied"
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "id": "send",
+              "label": "Send a notification",
+              "description": "Delivers a push to the running app, exactly as the platform would. Refused when permission is not granted, or when the link points at a screen this app does not have.",
+              "parameters": [
+                {
+                  "id": "title",
+                  "label": "Title",
+                  "kind": "string",
+                  "description": "The bold line — \"Your order is ready\"."
+                },
+                {
+                  "id": "body",
+                  "label": "Body",
+                  "kind": "string",
+                  "required": false,
+                  "description": "The second line, if the notification has one."
+                },
+                {
+                  "id": "link",
+                  "label": "Deep link",
+                  "kind": "choice",
+                  "required": false,
+                  "description": "Where tapping it goes. Omit for an announcement.",
+                  "options": [
+                    {
+                      "value": "/menu",
+                      "label": "The menu"
+                    },
+                    {
+                      "value": "/cart",
+                      "label": "The cart"
+                    },
+                    {
+                      "value": "/order",
+                      "label": "Order confirmation"
+                    },
+                    {
+                      "value": "/drink/cappuccino",
+                      "label": "Cappuccino"
+                    },
+                    {
+                      "value": "/drink/flat-white",
+                      "label": "Flat white"
+                    },
+                    {
+                      "value": "/drink/matcha",
+                      "label": "Matcha latte"
+                    },
+                    {
+                      "value": "/drink/chai",
+                      "label": "Chai latte"
+                    },
+                    {
+                      "value": "/drink/cold-brew",
+                      "label": "Cold brew"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "clear",
+              "label": "Clear the inbox",
+              "description": "Forgets every notification delivered this run.",
+              "danger": true
+            }
+          ]
+        }
+      ]
+    },
+    "push/fw:knobs {}": {
+      "knobs": [
+        {
+          "name": "permission",
+          "kind": "picker",
+          "value": "Granted",
+          "default": "Not determined",
+          "description": "What the OS has told the app. Delivery is refused unless this is granted — the same refusal a real device gives you.",
+          "options": [
+            "Not determined",
+            "Granted",
+            "Denied"
+          ]
+        }
+      ]
+    },
+    "push/fw:state {\"id\":\"registration\"}": {
+      "token": "brewline-demo:f3c8-1d20-9a44",
+      "permission": "Granted",
+      "delivered": 1,
+      "links": "/menu /cart /order /drink/cappuccino /drink/flat-white /drink/matcha /drink/chai /drink/cold-brew"
+    }
+  }
+}

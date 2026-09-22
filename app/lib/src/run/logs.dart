@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import '../utils/daemon/events.dart';
 import '../utils/daemon/protocol.dart';
+import 'run_files.dart';
 
 /// Who said it.
 ///
@@ -80,13 +80,11 @@ List<RunLogLine> readRunLog(
   RunLogSource? only,
   bool errorsOnly = false,
   int? tail,
+  RunFiles files = const DiskRunFiles(),
 }) {
-  List<String> lines;
-  try {
-    lines = File(path).readAsLinesSync();
-  } on FileSystemException {
-    return const [];
-  }
+  var text = files.readString(path);
+  if (text == null) return const [];
+  var lines = const LineSplitter().convert(text);
 
   var result = <RunLogLine>[];
   for (var line in lines) {
@@ -235,7 +233,10 @@ const _appPrefix = 'flutter: ';
 ///   means the offset held here points past the end of a different file. The
 ///   answer is to start again rather than to read garbage.
 class RunLogTail {
-  RunLogTail(this.path, {this.keep = 10000});
+  RunLogTail(this.path, {this.keep = 10000, this.files = const DiskRunFiles()});
+
+  /// Where [path] is read from.
+  final RunFiles files;
 
   /// The launcher's log. Null is allowed and reads as empty — a run whose
   /// launcher has not said where it is writing yet is a normal early state,
@@ -297,33 +298,17 @@ class RunLogTail {
       _provisional = false;
     }
 
-    var file = File(at);
-    int length;
-    try {
-      length = file.lengthSync();
-    } on FileSystemException {
-      return;
-    }
+    var length = files.lengthOf(at);
+    if (length == null) return;
     // Shorter than what was read from it: a different file under the same
     // name, or the same one truncated. Either way the offset is meaningless.
     if (length < _offset) _reset();
 
     if (length > _offset) {
-      RandomAccessFile handle;
-      try {
-        handle = file.openSync();
-      } on FileSystemException {
-        return;
-      }
-      try {
-        handle.setPositionSync(_offset);
-        _pending = [..._pending, ...handle.readSync(length - _offset)];
-        _offset = length;
-      } on FileSystemException {
-        return;
-      } finally {
-        handle.closeSync();
-      }
+      var read = files.readBytes(at, start: _offset);
+      if (read == null) return;
+      _pending = [..._pending, ...read];
+      _offset += read.length;
     }
 
     var lastBreak = _lastBreakIn(_pending);

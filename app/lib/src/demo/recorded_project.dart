@@ -5,8 +5,9 @@
 /// Everything the shell would learn from the machine is answered here instead
 /// — the worktree list git would report, the manifest `tool/flutterware.dart`
 /// would produce, the facts the explorer would probe — and every plugin's core
-/// is the live core over recorded readers (launcher icon, scenarios, server,
-/// dev stack, translations, store, dependencies, splash), or over the preview
+/// is the live core over recorded readers (launcher icon, scenarios, run,
+/// server, dev stack, translations, store, dependencies, splash), or over the
+/// preview
 /// entries compiled into the host. Nothing below runs a process, opens a
 /// socket or walks a directory; the one filesystem touch left, the facts
 /// store, points at a path that is not there and is built to shrug.
@@ -33,6 +34,7 @@ import '../plugins/native/dev_stack_core.dart';
 import '../plugins/native/dev_stack_plugin.dart';
 import '../plugins/native/icon_plugin.dart';
 import '../plugins/native/previews_plugin.dart';
+import '../plugins/native/run_plugin.dart';
 import '../plugins/native/scenarios_plugin.dart';
 import '../plugins/native/server_plugin.dart';
 import '../plugins/native/splash_plugin.dart';
@@ -40,6 +42,7 @@ import '../plugins/native/store_plugin.dart';
 import '../plugins/native/translations_plugin.dart';
 import '../previews/discovery.dart' show ScanResult;
 import '../previews/inline_guest.dart';
+import '../run/run_sources.dart';
 import '../plugins/native_plugin.dart';
 import '../plugins/plugin_core.dart';
 import '../plugins/registry.dart';
@@ -58,6 +61,7 @@ import '../worktrees/watchers.dart';
 import 'recorded_changes.dart';
 import 'recorded_config.dart';
 import 'recorded_dependencies.dart';
+import 'recorded_run.dart';
 import 'recorded_scenarios.dart';
 import 'recorded_server.dart';
 import 'recorded_splash.dart';
@@ -112,6 +116,14 @@ PluginManifest recordedManifest() {
           ],
         ),
       ],
+    ),
+  );
+  // The app, as one session of it was recorded on a simulator — see
+  // `recorded_run.dart` — and its entry points, as the demo app declares
+  // them; see `recorded_config.dart` for why the list lives apart.
+  fw.use(
+    Run(
+      packages: const [RunPackage(root, entrypoints: recordedRunEntrypoints)],
     ),
   );
   // The orders server, as its ring was recorded — see `recorded_server.dart`.
@@ -172,6 +184,9 @@ ShellController recordedShell({
   // One tape answers git for the worktree list, the explorer's facts and the
   // changes screen: the recorder asked all three's questions of one checkout.
   var git = RecordedGit(recording);
+  // One run dir for the plugin and the chrome's device button, so the two
+  // agree about what is running.
+  var runs = recordedRunSources(recording);
   return ShellController(
     appContext: context,
     flutterSdk: flutterSdk ?? FlutterSdkPath('$recordedProjectRoot/flutter'),
@@ -181,11 +196,12 @@ ShellController recordedShell({
     }),
     coreRegistry: PluginCoreRegistry({
       for (var plugin in declared.plugins)
-        plugin.id: _recordedCore(plugin.id, recording, previews),
+        plugin.id: _recordedCore(plugin.id, recording, previews, runs),
     }),
     manifestLoader: RecordedManifestLoader(declared),
     discovery: WorktreeDiscovery(runProcess: git.runProcess),
     changes: recordedChangesSources(recording, git: git),
+    runs: runs,
     worktreeFacts: (root) => WorktreeFactsController(
       repoRoot: root,
       probe: WorktreeFactsProbe(
@@ -219,6 +235,7 @@ PluginCoreFactory _recordedCore(
   String pluginId,
   Recording recording,
   InlinePreviews? previews,
+  RunSources runs,
 ) => switch (pluginId) {
   launcherIconPluginId => (host) => LauncherIconCore(
     host,
@@ -229,6 +246,7 @@ PluginCoreFactory _recordedCore(
     scan: recordedScenarioScan(recording),
     runner: recordedScenarioRunner(recording),
   ),
+  runPluginId => (host) => RunCore(host, sources: runs),
   serverPluginId => (host) => ServerCore(
     host,
     source: RecordedServerSource(recording),
@@ -285,6 +303,9 @@ NativePluginFactory _recordedPanel(
       artifacts: recording,
       appIcon: recordedScenarioAppIcon(recording),
     ),
+  ),
+  runPluginId => panelFor<RunCore>(
+    (core) => RunPlugin(core, image: recordedRunImage(recording)),
   ),
   // The live panel: the recorded source underneath answers every read.
   serverPluginId => panelFor<ServerCore>(ServerPlugin.new),

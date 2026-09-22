@@ -119,6 +119,27 @@ void main() {
     );
   });
 
+  /// The run plugin over one session of the demo app on an iOS simulator:
+  /// the app's last screen with its tree, the steps an agent took to get
+  /// there, one of them opened, the push panel the app reports through its
+  /// devbar, and the launcher's log. Nothing is running — the header says so
+  /// — and every answer is the recording.
+  scenario('A recorded run', (s) async {
+    var shell = recordedShell(recording: recording);
+    await shell.start(recordedProjectRoot);
+    await s.pumpWidget(ShellApp(shell));
+    await s.tap('Run', shot: Shot('The desk'));
+    await s.tap(
+      const Target.containing('Brewline (devbar) · iPhone 16'),
+      shot: Shot('The app, on a phone'),
+    );
+    await s.tap('Steps', shot: Shot('What the agent did'));
+    await s.tap(const Target.containing('tap "Large"'), shot: Shot('One step'));
+    // Before the log: its filters have an `App` of their own.
+    await s.tap('App', shot: Shot('What the app reports'));
+    await s.tap('Logs', shot: Shot("The launcher's log"));
+  });
+
   /// The translations panel over the recorded catalogs and export: every key
   /// with its English and its picture in place, one opened to its frame, the
   /// switch to French, and the filter to what French still lacks. The
@@ -159,9 +180,9 @@ void main() {
     await shell.start(recordedProjectRoot);
     await s.pumpWidget(ShellApp(shell));
     await s.tap('Orders server', shot: Shot('The stack, up'));
-    // The first `Run` is the logs command; the console below fills with
-    // what the script printed.
-    await s.tap(const Target.nth('Run', 0), shot: Shot('Its logs'));
+    // The second `Run` is the logs command — the first is the run plugin's
+    // row in the rail. The console below fills with what the script printed.
+    await s.tap(const Target.nth('Run', 1), shot: Shot('Its logs'));
     await s.tap('Tear down', shot: Shot('Torn down'));
     // The button says `Done` for a second and a half after it succeeded;
     // waiting it out is what a person does before pressing it again.
