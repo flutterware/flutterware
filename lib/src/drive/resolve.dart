@@ -401,6 +401,7 @@ class TargetResolver {
   /// [TargetMessages.propertyMiss]. Null when it cannot, and then the refusal
   /// keeps its guess.
   String? _diagnose(dynamic target) {
+    if (outsideViewOf(target) case var outside?) return outside;
     if (target is! String || target.isEmpty) return null;
     return _nearMiss(target) ?? _propertyMiss(target);
   }

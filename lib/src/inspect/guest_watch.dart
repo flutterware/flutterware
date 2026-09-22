@@ -317,10 +317,7 @@ class GuestWatch {
     // for why an origin plus a raw size is two different spaces. Relative to
     // the demo's root, not the window: the two coincide in an embedder guest
     // and differ for a guest drawn inside its host.
-    return MatrixUtils.transformRect(
-      render.getTransformTo(rootOf()?.renderObject),
-      Offset.zero & render.size,
-    );
+    return boxWithin(render, rootOf()?.renderObject);
   }
 
   /// A hash of the element tree's shape, and how many elements it has.

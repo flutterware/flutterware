@@ -59,7 +59,10 @@ class GuestInspector {
   /// 1 — the first stamped. `Text.rich` and `RichText` describe themselves
   /// by their words, which is why the stamp exists: a tree read before it
   /// carries none, and against one it reported every such node as changed.
-  static const treeFormat = 1;
+  ///
+  /// 2 — boxes in logical pixels on a walk rooted at the view (a run, a
+  /// scenario), where 1 reported them ×devicePixelRatio. See [boxWithin].
+  static const treeFormat = 2;
 
   /// Registers the extensions. Call once, before `runApp`, beside the knobs and
   /// axes ones — an extension has to outlive every entry switch.
@@ -1019,6 +1022,19 @@ bool? _selectedOf(RenderObject? render) {
   return null;
 }
 
+/// [render]'s box in [within]'s coordinates, which are logical pixels.
+///
+/// A root that is the view itself — a run guest's, a scenario's — measures to
+/// the window instead. The view's own paint transform is the device pixel
+/// ratio, and `getTransformTo` applies it when the view is named and skips it
+/// when it is not: naming it reported every box ×3 on a phone, in a space no
+/// `at` and no hit test speaks.
+Rect boxWithin(RenderBox render, RenderObject? within) =>
+    MatrixUtils.transformRect(
+      render.getTransformTo(within is RenderView ? null : within),
+      Offset.zero & render.size,
+    );
+
 /// The geometry of one render object, or null when it has none to report.
 ///
 /// Null rather than zeroes for a widget with no box of its own, and null for
@@ -1038,10 +1054,7 @@ InspectLayout? _layoutOf(RenderObject? render, {RenderObject? within}) {
   // reports a box whose position is on screen and whose size is not. Every
   // number a reader compares (a centre against `at "x,y"`, a width against the
   // screenshot) then quietly disagrees with the picture.
-  var bounds = MatrixUtils.transformRect(
-    render.getTransformTo(within),
-    Offset.zero & render.size,
-  );
+  var bounds = boxWithin(render, within);
   return InspectLayout(
     x: bounds.left,
     y: bounds.top,
