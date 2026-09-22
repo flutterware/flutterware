@@ -191,6 +191,21 @@ class StoreCore extends PluginCore {
     description: _pluginDescription,
     actions: _actions,
     status: _progress == null ? Status.none : Status.info(_progress!.line),
+    // **Always, including for one app** — the store design's §1. A panel
+    // that named its app only once there were two left the ordinary project
+    // looking at "App Store" and "Google Play" with nothing saying whose.
+    // The id is the name `--app` takes, so a rail row, an address and a CLI
+    // flag are one spelling.
+    children: [
+      for (var app in apps)
+        PluginChild(
+          id: nameOf(app),
+          label: nameOf(app),
+          status: _progress?.app == nameOf(app)
+              ? Status.info(_progress!.line)
+              : Status.none,
+        ),
+    ],
     view: PluginView([
       for (var app in apps)
         ViewSection(nameOf(app), [

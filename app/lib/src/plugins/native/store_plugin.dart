@@ -7,11 +7,13 @@ import 'package:flutterware/plugins.dart';
 
 import 'package:flutterware/store_report.dart';
 
+import '../../address/address_scope.dart';
 import '../../store/ui/set_card.dart';
 import '../../store/viewers.dart';
 import '../../store/tree.dart';
 import '../../ui/age.dart';
 import '../../ui/design/design.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/menu.dart';
 import '../../ui/tappable.dart';
 import '../../ui/panel_header.dart';
@@ -68,7 +70,11 @@ class _StorePanel extends StatefulWidget {
 
 class _StorePanelState extends State<_StorePanel> {
   bool _running = false;
-  String? _outcome;
+
+  /// What the last run said, and which app it was about — null for a run over
+  /// all of them. Kept with its app so that moving to another one does not
+  /// carry "12 images written" onto a page that wrote none.
+  ({String? app, String text})? _outcome;
 
   /// The **app's** locale, not the store's slot, because that is what the
   /// declaration spells and what the reader typed. Null until the declaration
@@ -77,13 +83,13 @@ class _StorePanelState extends State<_StorePanel> {
 
   StoreCore get _core => widget.plugin.core;
 
-  List<String> get _locales => {
-    for (var app in _core.apps)
-      for (var listing in app.listings) ...listing.locales.keys,
-  }.toList();
+  List<String> _localesOf(StoreShotsApp app) =>
+      {for (var listing in app.listings) ...listing.locales.keys}.toList();
 
+  /// Runs [action] for [app], or for every declared app when it is null.
   Future<void> _run(
     String action, {
+    String? app,
     Map<String, Object?> arguments = const {},
   }) async {
     setState(() {
@@ -91,24 +97,31 @@ class _StorePanelState extends State<_StorePanel> {
       _outcome = null;
     });
     try {
-      var result = (await _core.invoke(action, arguments: arguments))!;
+      var result = (await _core.invoke(
+        action,
+        arguments: {...arguments, 'app': ?app},
+      ))!;
       if (!mounted) return;
       setState(() {
         _outcome = switch (result) {
-          StoreExportResult(:var count, :var apps) =>
-            apps.map((a) => a.error).nonNulls.firstOrNull ??
+          StoreExportResult(:var count, :var apps) => (
+            app: app,
+            text:
+                apps.map((a) => a.error).nonNulls.firstOrNull ??
                 '$count ${count == 1 ? 'image' : 'images'} written',
+          ),
           _ => null,
         };
       });
     } catch (error) {
-      if (mounted) setState(() => _outcome = '$error');
+      if (mounted) setState(() => _outcome = (app: app, text: '$error'));
     } finally {
       if (mounted) setState(() => _running = false);
     }
   }
 
-  /// The one-click export, with the narrowed forms behind the chevron.
+  /// The one-click export of the app on screen, with the narrowed forms
+  /// behind the chevron.
   ///
   /// **Capture and framing are one thing here**, and the menu says nothing
   /// about the split. It carried a *Re-frame existing screenshots* entry for a
@@ -118,31 +131,52 @@ class _StorePanelState extends State<_StorePanel> {
   /// full export from ~48s to ~26s against a recompose's ~17s. A menu entry
   /// that asks the reader to learn the internals to save nine seconds is a
   /// menu entry that should not be there.
-  Widget _exportButton(BuildContext context, {DateTime? exported}) =>
-      FwSplitButton(
-        label: _running ? 'Exporting…' : 'Export',
-        onPressed: _running ? null : () => _run('export'),
-        entries: [
+  ///
+  /// The per-store entries are this app's listings rather than both stores:
+  /// an app declaring one store was offered the other, and with one declared
+  /// the plain Export already is that export.
+  Widget _exportButton(
+    StoreShotsApp app, {
+    required bool several,
+    DateTime? exported,
+  }) {
+    var name = _core.nameOf(app);
+    var narrowed = [
+      if (app.listings.length > 1)
+        for (var listing in app.listings)
           MenuItem(
-            'Export App Store only',
+            'Export ${listing.storeLabel} only',
             onSelected: _running
                 ? null
-                : () => _run('export', arguments: {'listing': 'app-store'}),
+                : () => _run(
+                    'export',
+                    app: name,
+                    arguments: {'listing': listing.store},
+                  ),
           ),
-          MenuItem(
-            'Export Google Play only',
-            onSelected: _running
-                ? null
-                : () => _run('export', arguments: {'listing': 'play'}),
-          ),
-          const MenuDivider(),
-          MenuItem(
-            'Reveal in Finder',
-            onSelected: exported == null ? null : () => _run('open'),
-          ),
-          MenuItem('Copy CLI command', onSelected: _copyCommand),
-        ],
-      );
+      if (several)
+        MenuItem(
+          'Export all apps',
+          onSelected: _running ? null : () => _run('export'),
+        ),
+    ];
+    return FwSplitButton(
+      label: _running ? 'Exporting…' : 'Export',
+      onPressed: _running ? null : () => _run('export', app: name),
+      entries: [
+        ...narrowed,
+        if (narrowed.isNotEmpty) const MenuDivider(),
+        MenuItem(
+          'Reveal in Finder',
+          onSelected: exported == null ? null : () => _run('open', app: name),
+        ),
+        MenuItem(
+          'Copy CLI command',
+          onSelected: () => _copyCommand(several ? name : null),
+        ),
+      ],
+    );
+  }
 
   /// A thumbnail was clicked: show that image, as large as the window allows.
   void _showShot(String appName, String key, int index) {
@@ -221,11 +255,25 @@ class _StorePanelState extends State<_StorePanel> {
     return null;
   }
 
-  void _copyCommand() {
-    unawaited(
-      Clipboard.setData(const ClipboardData(text: 'fw run store export')),
-    );
-    setState(() => _outcome = 'Command copied');
+  /// The command the Export button runs. `--app` only when there is a choice:
+  /// with one app declared, the bare command is the same export and is the
+  /// one the docs spell.
+  void _copyCommand(String? app) {
+    var command = [
+      'fw run store export',
+      if (app != null) '--app=$app',
+    ].join(' ');
+    unawaited(Clipboard.setData(ClipboardData(text: command)));
+    setState(() => _outcome = (app: app, text: 'Command copied'));
+  }
+
+  /// Where the shots come from — the scenario file, workspace-relative, so it
+  /// reads the same whichever package it is in and pastes into a terminal at
+  /// the root. The package alone when the declaration names no file, and
+  /// nothing for a root package that names none, since `.` says nothing.
+  static String? _sourceOf(StoreShotsApp app) {
+    var parts = [if (app.path != '.') app.path, ?app.file];
+    return parts.isEmpty ? null : parts.join('/');
   }
 
   @override
@@ -234,8 +282,23 @@ class _StorePanelState extends State<_StorePanel> {
     if (apps.isEmpty) {
       return const NoPackagesConfigured(icon: Icons.storefront_outlined);
     }
-    var locales = _locales;
-    var locale = _locale ?? locales.firstOrNull;
+    // The app the address names, or the first declared one when it names
+    // none — which is where selecting the plugin off the rail leaves you.
+    var named = AddressScope.segment(context, 0);
+    var app = named == null
+        ? apps.first
+        : apps.where((a) => _core.nameOf(a) == named).firstOrNull;
+    if (app == null) {
+      // Said rather than repaired: showing the first app under an address
+      // that names another is a page that is wrong without looking wrong.
+      return EmptyState(
+        icon: Icons.storefront_outlined,
+        title: 'No app called $named',
+        message: 'Declared: ${apps.map(_core.nameOf).join(', ')}.',
+      );
+    }
+    var locales = _localesOf(app);
+    var locale = locales.contains(_locale) ? _locale : locales.firstOrNull;
 
     // Subscribed, not merely read. The core narrates by calling
     // `notifyChanged`, which the plugin relays as a `ChangeNotifier`; without
@@ -243,27 +306,23 @@ class _StorePanelState extends State<_StorePanel> {
     // below it sat on the first line it had happened to build with.
     return ListenableBuilder(
       listenable: widget.plugin,
-      builder: (context, _) => _body(context, apps, locales, locale),
+      builder: (context, _) =>
+          _body(context, app, locales, locale, several: apps.length > 1),
     );
   }
 
   Widget _body(
     BuildContext context,
-    List<StoreShotsApp> apps,
+    StoreShotsApp app,
     List<String> locales,
-    String? locale,
-  ) {
-    var manifests = {
-      for (var app in apps) _core.nameOf(app): _core.manifestOf(app),
-    };
-    var exported = manifests.values
-        .map((m) => m.exportedAt)
-        .nonNulls
-        .fold<DateTime?>(
-          null,
-          (best, at) => best == null || at.isAfter(best) ? at : best,
-        );
+    String? locale, {
+    required bool several,
+  }) {
+    var name = _core.nameOf(app);
+    var manifest = _core.manifestOf(app);
+    var exported = manifest.exportedAt;
     var progress = _core.progress;
+    var outcome = _outcome;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -272,17 +331,20 @@ class _StorePanelState extends State<_StorePanel> {
         // space: doubled gutters, a doubled top inset, and a gap under the
         // header on top of the header's own.
         FwPanelHeader(
-          'Store',
+          name,
+          selectableSubtitle: true,
           subtitle: [
-            for (var app in apps)
-              if (apps.length > 1) _core.nameOf(app),
+            ?_sourceOf(app),
             if (progress != null)
               progress.line
             else if (exported == null)
               'never exported'
             else
               'exported ${ageOf(exported)}',
-            if (progress == null) ?_outcome,
+            if (progress == null &&
+                outcome != null &&
+                (outcome.app == null || outcome.app == name))
+              outcome.text,
           ],
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
@@ -295,7 +357,7 @@ class _StorePanelState extends State<_StorePanel> {
                 ),
                 const Gap(FwSpacing.md),
               ],
-              _exportButton(context, exported: exported),
+              _exportButton(app, several: several, exported: exported),
             ],
           ),
         ),
@@ -323,20 +385,17 @@ class _StorePanelState extends State<_StorePanel> {
               FwSpacing.xxxl,
             ),
             children: [
-              for (var app in apps)
-                for (var listing in app.listings)
-                  _ListingBlock(
-                    appName: _core.nameOf(app),
-                    listing: listing,
-                    manifest: manifests[_core.nameOf(app)]!,
-                    image: widget.plugin.image,
-                    locale: locale,
-                    working: progress?.app == _core.nameOf(app)
-                        ? progress?.key
-                        : null,
-                    onShot: _showShot,
-                    onListing: _showListing,
-                  ),
+              for (var listing in app.listings)
+                _ListingBlock(
+                  appName: name,
+                  listing: listing,
+                  manifest: manifest,
+                  image: widget.plugin.image,
+                  locale: locale,
+                  working: progress?.app == name ? progress?.key : null,
+                  onShot: _showShot,
+                  onListing: _showListing,
+                ),
             ],
           ),
         ),

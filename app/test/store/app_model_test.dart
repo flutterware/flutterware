@@ -130,6 +130,24 @@ void main() {
     });
   });
 
+  group('the rail', () {
+    // Including for one app: the panel is titled by the entry it is on, and
+    // a project with one app is the one that most needs telling whose
+    // listing this is.
+    test('one app is one entry', () {
+      var core = coreFor([declared()]);
+      expect(core.report.children.map((c) => (c.id, c.label)), [
+        ('shop', 'shop'),
+      ]);
+    });
+
+    // The id is what `--app` takes, so an address and a flag agree.
+    test('two apps on one package are two entries, by name', () {
+      var core = coreFor([declared(name: 'shop'), declared(name: 'shop-pro')]);
+      expect(core.report.children.map((c) => c.id), ['shop', 'shop-pro']);
+    });
+  });
+
   group('narrowing to one app', () {
     test('a name nobody declared is refused, and the refusal lists them', () {
       var core = coreFor([declared(name: 'shop'), declared(name: 'shop-pro')]);

@@ -509,8 +509,15 @@ because fastlane's iOS tree shares one directory between two classes.
 
 ## 6. The UI
 
-Rail entry **Store**, a sub-entry per package, master–detail — following the
+Rail entry **Store**, a sub-entry per app, master–detail — following the
 launcher icon panel, which is the closest sibling and solved the same problem.
+Per *app* since the 2026-08-27 document's §1, and always, including for one.
+
+*Built 2026-09-22.* Until then the panel stacked every app's listings under a
+title of `Store` and named the apps only once there were two, so a project with
+one app saw *App Store* and *Google Play* with nothing saying whose. The panel
+is now titled by the app, with the scenario file it runs under it, and Export,
+its per-store entries and the locale switch are that app's.
 
 ### Content pane: the sets
 
