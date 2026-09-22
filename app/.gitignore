@@ -1,6 +1,8 @@
 # Miscellaneous
 *.class
 *.log
+# A recorded run's launcher log is part of the demo's recording.
+!demo/fixture/run/*.log
 *.pyc
 *.swp
 .DS_Store

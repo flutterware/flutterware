@@ -1,0 +1,86 @@
+Resolving dependencies in `/recording`...
+Downloading packages...
+  _fe_analyzer_shared 103.0.0 (108.0.0 available)
+  analyzer 13.3.0 (14.4.0 available)
+  android_file_picker 1.0.1 (2.0.0 available)
+  archive 4.0.9 (4.3.0 available)
+  build 4.0.10 (4.0.11 available)
+  build_config 1.3.2 (1.3.3 available)
+  build_daemon 4.1.5 (4.1.6 available)
+  build_runner 2.16.0 (2.16.1 available)
+  built_value 8.12.7 (8.13.0 available)
+  built_value_generator 8.12.7 (8.13.0 available)
+  clock 1.1.2 (1.1.3 available)
+  code_assets 1.2.1 (2.1.0 available)
+  cross_file 0.3.5+4 (0.3.5+5 available)
+  dart_style 3.1.12 (3.1.13 available)
+  dbus 0.7.15 (0.8.0 available)
+  file_picker 12.0.0 (13.1.0 available)
+  file_picker_darwin 1.0.1 (2.1.2 available)
+  file_picker_linux 1.0.1 (2.0.1 available)
+  file_picker_platform_interface 3.0.1 (4.0.0 available)
+  file_picker_web 3.0.1 (4.0.0 available)
+  file_selector_android 0.5.2+9 (0.5.2+11 available)
+  file_selector_ios 0.5.3+5 (0.5.3+6 available)
+  file_selector_linux 0.9.4 (0.9.4+1 available)
+  file_selector_macos 0.9.5 (0.9.5+1 available)
+  file_selector_windows 0.9.3+5 (0.9.3+6 available)
+  flutter_secure_storage 10.3.1 (11.2.0 available)
+  flutter_secure_storage_darwin 0.3.2 (0.4.3 available)
+  flutter_secure_storage_linux 3.0.2 (3.0.3 available)
+  flutter_secure_storage_platform_interface 2.0.3 (2.1.1 available)
+  glob 2.1.3 (2.2.0 available)
+  hooks_runner 1.6.1 (1.6.4 available)
+  html 0.15.6 (0.15.7 available)
+  image 4.9.2 (4.10.1 available)
+  io 1.0.5 (1.1.0 available)
+  jni_flutter 1.0.2 (1.0.3 available)
+  lottie 3.5.1 (3.6.1 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  mime 2.0.0 (2.1.0 available)
+  native_toolchain_c 0.19.3 (0.19.5 available)
+  objective_c 9.5.0 (9.6.0 available)
+  package_config 2.2.0 (3.0.0 available)
+  pdf 3.13.0 (3.13.1 available)
+  platform 3.1.6 (3.2.0 available)
+  pool 1.5.2 (1.5.3 available)
+  process 5.0.5 (5.0.6 available)
+  pub_semver 2.2.0 (2.2.1 available)
+  pubspec_parse 1.5.0 (1.6.0 available)
+  qr 3.0.2 (4.0.0 available)
+  shared_preferences_android 2.4.27 (2.4.28 available)
+  shared_preferences_foundation 2.5.6 (2.5.7 available)
+  source_gen 4.2.4 (4.3.0 available)
+  sqlite3 3.5.2 (3.6.0 available)
+  sqlite3_connection_pool 0.2.9 (0.2.11 available)
+  sqlite_async 0.14.4 (0.14.5 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  stream_transform 2.1.1 (2.1.2 available)
+  test 1.31.1 (1.32.0 available)
+  test_api 0.7.12 (0.7.14 available)
+  test_core 0.6.18 (0.6.20 available)
+  two_dimensional_scrollables 0.5.3 (0.5.4 available)
+  url_launcher_android 6.3.32 (6.3.33 available)
+  url_launcher_ios 6.4.1 (6.4.2 available)
+  url_launcher_linux 3.2.2 (3.2.3 available)
+  url_launcher_macos 3.2.5 (3.2.6 available)
+  url_launcher_windows 3.1.5 (3.1.6 available)
+  vector_math 2.4.2 (2.4.3 available)
+  windows_file_picker 1.0.1 (2.0.0 available)
+  yaml 3.1.3 (3.1.4 available)
+Got dependencies in `/recording`!
+68 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+[{"event":"daemon.connected","params":{"version":"0.6.1","pid":73324}}]
+[{"event":"app.start","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","deviceId":"iphone-16","directory":"/recording","supportsRestart":true,"launchMode":"run","mode":"debug"}}]
+Launching .dart_tool/flutterware/run/shop_devbar_guest.dart on iPhone 16 in debug mode...
+[{"event":"app.progress","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","id":"0","progressId":null,"message":"Running Xcode build...","finished":false}}]
+[{"event":"app.progress","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","id":"0","progressId":null,"finished":true}}]
+Xcode build done.                                            6.5s
+[IMPORTANT:flutter/shell/platform/darwin/graphics/FlutterDarwinContextMetalImpeller.mm(45)] Using the Impeller rendering backend (Metal).
+[{"event":"app.debugPort","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","port":55198,"wsUri":"ws://127.0.0.1:0/recording=/ws","baseUri":"file://~/Library/Developer/CoreSimulator/Devices/iphone-16/data/Containers/Data/Application/953021D1-3810-4F70-8145-2FD09379CB98/tmp/brewlineFqFBeH/~/"}}]
+[{"event":"app.devTools","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","uri":"http://127.0.0.1:0/recording=/devtools/?uri=ws://127.0.0.1:0/recording=/ws"}}]
+[{"event":"app.dtd","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","uri":"ws://127.0.0.1:55197/nzmIC5TnlOI="}}]
+[{"event":"app.progress","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","id":"1","progressId":"devFS.update","message":"Syncing files to device iPhone 16...","finished":false}}]
+[{"event":"app.progress","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac","id":"1","progressId":"devFS.update","finished":true}}]
+[{"event":"app.started","params":{"appId":"08a639f6-7d82-4760-b098-7bbd8a212bac"}}]
