@@ -36,6 +36,11 @@ Finder finderForTarget(dynamic target) {
 /// and where is then the centre of what they found.
 Offset? pointOf(dynamic target) => target is Target ? target.point : null;
 
+/// Why a [Target.at] found nothing, when it is off the screen; null for any
+/// other target, and for a point on the screen.
+String? outsideViewOf(dynamic target) =>
+    target is _At ? target.outsideView : null;
+
 /// How a verb's target reads back to a human — quoted when it is the visible
 /// text the author wrote, bare otherwise.
 ///
@@ -192,15 +197,33 @@ class _At extends Target {
   /// The framework's, not a rectangle comparison: this has to agree with what
   /// a real pointer would touch, so transforms, clips and `IgnorePointer` are
   /// all in play and only the real hit test knows about them.
+  ///
+  /// Never the view itself. A view adds itself to every hit test, including
+  /// one at a point outside it, so taking it would turn "nothing is there"
+  /// into a tap on the root that reports success.
   static RenderObject? _hitAt(double x, double y) {
     var view = WidgetsBinding.instance.renderViews.firstOrNull;
     if (view == null) return null;
     var result = BoxHitTestResult();
     view.hitTest(result, position: Offset(x, y));
     for (var entry in result.path) {
-      if (entry.target case RenderObject render) return render;
+      if (entry.target case RenderObject render when render is! RenderView) {
+        return render;
+      }
     }
     return null;
+  }
+
+  /// Why nothing is at this point, when the answer is that it is off the
+  /// screen — named with the screen's size, because the likely cause is a
+  /// coordinate in physical pixels.
+  String? get outsideView {
+    var view = WidgetsBinding.instance.renderViews.firstOrNull;
+    if (view == null || (Offset.zero & view.size).contains(point)) return null;
+    String n(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
+    return '(${n(x)}, ${n(y)}) is outside the screen, which is '
+        '${n(view.size.width)} × ${n(view.size.height)} logical pixels — the '
+        'space every box in an observation is reported in.';
   }
 
   @override

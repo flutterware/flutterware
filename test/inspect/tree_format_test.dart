@@ -89,6 +89,20 @@ MaterialApp
     Offstage
       Text: Text("Hidden") (offstage)
 ''',
+  // The same words: 2 moved the boxes of a view-rooted walk into logical
+  // pixels, which `guest_layout_test.dart` holds.
+  2: '''
+MaterialApp
+  Column
+    Text: Text("Plain")
+    Text: Text("Rich span")
+    RichText: RichText("Painted")
+    Padding key [<'padded'>]
+      _Local
+        Text: Text("Local")
+    Offstage
+      Text: Text("Hidden") (offstage)
+''',
 };
 
 String _reading(InspectNode root) {

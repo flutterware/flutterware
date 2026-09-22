@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/drive/drive.dart';
+import 'package:flutterware/src/drive/resolve.dart';
 import 'package:flutterware/src/scenarios/target.dart';
 
 /// `{"at": {x, y}}` — the target that says *where* rather than *what*.
@@ -134,6 +135,30 @@ void main() {
     await drive.tap(Target.at(centre.dx, centre.dy), settle: Duration.zero);
 
     expect(sheet, 1);
+    expect(canvas.pressed, isNull);
+  });
+
+  /// A point off the screen reaches nothing but the view, which every hit
+  /// test reports — so resolving to "whatever was hit" tapped the root and
+  /// said `ok`. It is a miss, and the miss names the screen's size, because
+  /// the usual way to get here is a coordinate in physical pixels.
+  testWidgets('a point off the screen is refused, with the screen size', (
+    tester,
+  ) async {
+    var canvas = _Canvas();
+    await tester.pumpWidget(app(canvas.build()));
+    var drive = Drive()..actTimeout = Duration.zero;
+
+    TargetError? refusal;
+    try {
+      await drive.tap(const Target.at(1800, 900), settle: Duration.zero);
+    } on TargetError catch (error) {
+      refusal = error;
+    }
+
+    expect(refusal?.failure, TargetFailure.notFound);
+    expect('$refusal', contains('outside the screen'));
+    expect('$refusal', contains('800 × 600 logical pixels'));
     expect(canvas.pressed, isNull);
   });
 
