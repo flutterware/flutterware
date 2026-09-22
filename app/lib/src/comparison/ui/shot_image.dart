@@ -1,5 +1,6 @@
 import 'package:flutterware/comparison_report.dart';
 import 'package:flutter/material.dart';
+import 'package:flutterware/real_work.dart';
 
 import '../../capture/settle.dart';
 import '../shot_store.dart';
@@ -74,7 +75,11 @@ class ShotPair extends ChangeNotifier implements SettleSource {
     _baseId = baseId;
     _headId = headId;
     _pending++;
-    var loaded = await decode();
+    // Announced as well as counted: [busyWith] is what the studio's own
+    // capture waits on, and a scenario waits on neither — a decode lands on
+    // the engine's threads and schedules no frame, so without this a step
+    // photographs the frames half drawn, and a different half every run.
+    var loaded = await RealWork.track(decode(), label: 'comparison frames');
     _pending--;
     if (_disposed || baseId != _baseId || headId != _headId) {
       // Superseded by a later selection. Disposed here rather than left to fall
