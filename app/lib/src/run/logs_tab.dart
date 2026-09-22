@@ -12,7 +12,6 @@ import '../ui/popover.dart';
 import '../ui/selectable_line.dart';
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
-import 'file_refresh.dart';
 import 'handle.dart';
 import 'logs.dart';
 import 'native/native_logs.dart';
@@ -102,7 +101,7 @@ class _LogsTabState extends State<LogsTab> {
   List<RunLogLine> _shown = const [];
   var _available = 0;
 
-  FileRefresh? _refresh;
+  StreamSubscription<void>? _refresh;
 
   /// The platform log, once it has been asked for.
   ///
@@ -139,9 +138,9 @@ class _LogsTabState extends State<LogsTab> {
   @override
   void initState() {
     super.initState();
-    _log = RunLogTail(widget.logPath);
+    _log = RunLogTail(widget.logPath, files: widget.core.files);
     _reread();
-    _refresh = FileRefresh(widget.logPath, _reread);
+    _watch();
     _scroll.addListener(_watchScroll);
   }
 
@@ -156,9 +155,8 @@ class _LogsTabState extends State<LogsTab> {
     // this tab reads changes and the key does not. Watching the key alone left
     // it tailing the dead run's file for as long as it stayed open.
     if (old.subject != widget.subject || old.logPath != widget.logPath) {
-      _refresh?.dispose();
-      _log = RunLogTail(widget.logPath);
-      _refresh = FileRefresh(widget.logPath, _reread);
+      _log = RunLogTail(widget.logPath, files: widget.core.files);
+      _watch();
       _native = null;
       _following = true;
       _reread();
@@ -169,9 +167,17 @@ class _LogsTabState extends State<LogsTab> {
     }
   }
 
+  void _watch() {
+    unawaited(_refresh?.cancel());
+    var path = widget.logPath;
+    _refresh = path == null
+        ? null
+        : widget.core.files.changes(path).listen((_) => _reread());
+  }
+
   @override
   void dispose() {
-    _refresh?.dispose();
+    unawaited(_refresh?.cancel());
     _scroll.dispose();
     _needle.dispose();
     super.dispose();
@@ -179,7 +185,7 @@ class _LogsTabState extends State<LogsTab> {
 
   /// Not in `build`. A log is a file, the panel rebuilds on every probe and
   /// on every frame of any animation above it, and `RunCore.logOf` says in as
-  /// many words why a panel must not read one from there. [FileRefresh] is
+  /// many words why a panel must not read one from there. the file's change stream is
   /// the right shape: the file changing is what makes this stale.
   void _reread() {
     if (!mounted) return;
@@ -212,7 +218,7 @@ class _LogsTabState extends State<LogsTab> {
     });
   }
 
-  /// Never on [FileRefresh]. The launcher's log file changes constantly while
+  /// Never on the file's change stream. The launcher's log file changes constantly while
   /// an app runs, and this spawns a process: hanging it off the same callback
   /// would fire a `log show` every poll. It runs on request — which is what
   /// selecting the filter is.

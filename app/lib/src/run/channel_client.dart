@@ -26,19 +26,43 @@ final _logger = Logger('run_channels');
 /// Calls are serialized. Two overlapping calls against one peer id would race
 /// for the same queue, and the drain that lost would return frames the winner
 /// had already taken.
-class RunChannelClient {
-  RunChannelClient._(this.connection, this.peerId) {
+/// One attachment to a running app's channels — everything the App tab and
+/// the `panels` actions read and ask. [RunChannelClient] is the live one; a
+/// recording answers the same from what an app once said.
+abstract class RunAttachment {
+  /// Every event seen — the replay, then the live tail.
+  List<InspectorEvent> get received;
+
+  Stream<InspectorEvent> get events;
+
+  Future<Map<String, Object?>> request(
+    String channel,
+    String method, [
+    Map<String, Object?> params,
+  ]);
+
+  Future<Map<String, Object?>?> details(int eventId);
+
+  Future<void> close();
+}
+
+class RunChannelClient implements RunAttachment {
+  RunChannelClient._(this.connection, this.peerId, this._ownsConnection) {
     _session = AttachSession(sendFrame: _enqueue);
   }
 
   /// Attaches, or throws. [peer] distinguishes two attachers against one app —
   /// the GUI and an MCP call each get their own queue and their own replay.
+  ///
+  /// With [ownsConnection], closing the client closes [connection] too — for
+  /// a caller that opened it only to attach.
   static Future<RunChannelClient> attach(
     RunConnection connection, {
     required String peer,
     Duration timeout = const Duration(seconds: 5),
+    bool ownsConnection = false,
   }) async {
-    var client = RunChannelClient._(connection, peer);
+    var client = RunChannelClient._(connection, peer, ownsConnection);
     await connection.listenExtensions();
     client._nudges = connection.extensionEvents
         .where(
@@ -58,6 +82,8 @@ class RunChannelClient {
 
   final RunConnection connection;
 
+  final bool _ownsConnection;
+
   /// This attachment's queue on the app side.
   final String peerId;
 
@@ -75,9 +101,10 @@ class RunChannelClient {
       channel.toString(),
   ];
 
-  /// Every event seen — the replay, then the live tail.
+  @override
   List<InspectorEvent> get received => _session.received;
 
+  @override
   Stream<InspectorEvent> get events => _session.events;
 
   bool get replayComplete => _session.replayComplete;
@@ -87,12 +114,14 @@ class RunChannelClient {
   int get dropped => _dropped;
   var _dropped = 0;
 
+  @override
   Future<Map<String, Object?>> request(
     String channel,
     String method, [
     Map<String, Object?> params = const {},
   ]) => _session.request(channel, method, params);
 
+  @override
   Future<Map<String, Object?>?> details(int eventId) =>
       _session.details(eventId);
 
@@ -134,6 +163,7 @@ class RunChannelClient {
     }
   }
 
+  @override
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
@@ -148,5 +178,6 @@ class RunChannelClient {
     } on Object {
       // Detaching from an app that already left is the same outcome.
     }
+    if (_ownsConnection) await connection.close();
   }
 }

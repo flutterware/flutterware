@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:flutterware/plugins.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import 'refusal.dart';
+import 'run_files.dart';
 
 /// The `--flavor` a package builds with when nobody says otherwise, from its
 /// pubspec's `flutter: default-flavor:`.
@@ -18,11 +17,14 @@ import 'refusal.dart';
 /// Read rather than inferred, and only this one key: the *list* of flavors a
 /// project has lives in Gradle and in Xcode schemes, which is a different job
 /// with two parsers in it. This is the one that costs a `loadYaml`.
-String? defaultFlavorOf(String packageRoot) {
+String? defaultFlavorOf(
+  String packageRoot, {
+  RunFiles files = const DiskRunFiles(),
+}) {
   try {
-    var file = File(p.join(packageRoot, 'pubspec.yaml'));
-    if (!file.existsSync()) return null;
-    var yaml = loadYaml(file.readAsStringSync());
+    var text = files.readString(p.join(packageRoot, 'pubspec.yaml'));
+    if (text == null) return null;
+    var yaml = loadYaml(text);
     if (yaml is! Map) return null;
     var flutter = yaml['flutter'];
     if (flutter is! Map) return null;

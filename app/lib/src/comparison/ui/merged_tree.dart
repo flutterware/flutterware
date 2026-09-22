@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutterware/comparison_report.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutterware/real_work.dart';
 
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
@@ -577,7 +578,13 @@ class _ThumbnailState extends State<_Thumbnail> {
 
   Future<void> _load() async {
     var frame = widget.frame;
-    var shot = frame == null ? null : await widget.store.byRef(frame);
+    // Announced, for the reason `ShotPair` gives.
+    var shot = frame == null
+        ? null
+        : await RealWork.track(
+            widget.store.byRef(frame),
+            label: 'comparison thumbnail',
+          );
     if (!mounted) {
       shot?.image.dispose();
       return;

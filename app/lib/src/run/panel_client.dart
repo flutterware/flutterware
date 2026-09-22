@@ -14,7 +14,7 @@ import 'channel_client.dart';
 class RunPanels {
   RunPanels(this.client);
 
-  final RunChannelClient client;
+  final RunAttachment client;
 
   /// Fires when the app says its panel list moved — a plugin mounted, a devbar
   /// unmounted. Carries nothing: the answer is to re-[list], which is one

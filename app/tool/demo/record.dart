@@ -37,6 +37,7 @@ import 'package:pubspec_parse/pubspec_parse.dart' show Pubspec;
 import 'package:yaml/yaml.dart';
 
 import 'changes_branch.dart';
+import 'run_session.dart';
 import 'server_traffic.dart';
 import 'stack_traffic.dart';
 
@@ -61,12 +62,14 @@ import 'stack_traffic.dart';
 ///
 /// `--only=launcher-icon`, `--only=scenarios`, `--only=server`,
 /// `--only=stack`, `--only=translations`, `--only=store`,
-/// `--only=dependencies`, `--only=splash`, `--only=changes` or
-/// `--only=comparison` records one part. The launcher-icon, server, stack,
-/// splash and changes parts are byte-identical on every machine, which CI
-/// checks; the scenario, translations, store and comparison parts spawn the
-/// harness and keep its pixels, and the dependencies part asks pub.dev, none
-/// of which is, and those are recorded from one machine on purpose.
+/// `--only=dependencies`, `--only=splash`, `--only=changes`,
+/// `--only=comparison` or `--only=run` records one part. The launcher-icon,
+/// server, stack, splash and changes parts are byte-identical on every
+/// machine, which CI checks; the scenario, translations, store and comparison
+/// parts spawn the harness and keep its pixels, the dependencies part asks
+/// pub.dev, and the run part drives the demo app on an iOS simulator — see
+/// `run_session.dart` — none of which is, and those are recorded from one
+/// machine on purpose.
 ///
 /// The server part runs no server: a real [ServerInspector] is started in
 /// this process, `tool/demo/server_traffic.dart` reports into it the way a
@@ -90,11 +93,12 @@ Future<void> main(List<String> arguments) async {
         'splash',
         'changes',
         'comparison',
+        'run',
       }.contains(only)) {
         stderr.writeln(
           'usage: record.dart [project] '
           '[--only=launcher-icon|scenarios|server|stack|translations|store'
-          '|dependencies|splash|changes|comparison]',
+          '|dependencies|splash|changes|comparison|run]',
         );
         exit(64);
       }
@@ -135,6 +139,8 @@ Future<void> main(List<String> arguments) async {
       await _recordChanges(project: project, out: out, appRoot: appRoot),
     if (only == null || only == 'comparison')
       await _recordComparison(project: project, out: out, appRoot: appRoot),
+    if (only == null || only == 'run')
+      await recordRunSession(project: project, out: out, appRoot: appRoot),
   ];
   print(
     'Recorded ${p.relative(project, from: p.dirname(appRoot))} into '

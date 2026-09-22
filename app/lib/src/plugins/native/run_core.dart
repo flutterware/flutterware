@@ -30,6 +30,8 @@ import '../../inspect/lens.dart';
 import '../../inspect/screen_read.dart';
 import '../../run/inspect.dart';
 import '../../run/refusal.dart';
+import '../../run/run_files.dart';
+import '../../run/run_sources.dart';
 import '../../run/inventory.dart';
 import '../../run/journal.dart';
 import '../../run/launch.dart';
@@ -91,7 +93,17 @@ const _maxRememberedFailures = 8;
 /// nothing else until the panel is mounted ([track]) or an action is named.
 /// Sockets, subprocesses and the daemon live behind both.
 class RunCore extends PluginCore {
-  RunCore(super.host);
+  RunCore(super.host, {this.sources = const RunSources.live()});
+
+  /// Where this core reads runs from — the machine, or a recording.
+  final RunSources sources;
+
+  /// The run's files, through [sources]. Everything the panel shows about a
+  /// run that is not its live screen is read from here.
+  RunFiles get files => sources.files;
+
+  /// Why nothing can change here — see [RunSources.readOnly].
+  String? get readOnly => sources.readOnly;
 
   /// Where one run's screen is — the same segments the panel reads back.
   Address addressFor(RunHandle handle) => Address(
@@ -109,7 +121,7 @@ class RunCore extends PluginCore {
 
   /// Where this core's run state lives — what production reads, so a test that
   /// redirects [runDirProvider] redirects everything rather than most things.
-  String get runDir => runDirProvider();
+  String get runDir => sources.runDir ?? runDirProvider();
 
   DeviceCache? _cache;
   DeviceDaemon? _daemon;
@@ -154,7 +166,8 @@ class RunCore extends PluginCore {
   /// device is a wait with no guaranteed end. A capture that catches the list
   /// one frame early is a bounded imprecision; the alternative was an
   /// unbounded one.
-  bool get isFindingDevices => _tracking && !isLive && _daemonError == null;
+  bool get isFindingDevices =>
+      _tracking && !isLive && _daemonError == null && readOnly == null;
 
   /// The runs currently announced, newest first — every worktree's, because a
   /// device held by another checkout is exactly the case this answers.
@@ -262,6 +275,7 @@ class RunCore extends PluginCore {
         () => scanEntrypointKnobs(
           packageRoot: host.workspace.absolutePathOf(package),
           entrypoint: entrypoint,
+          files: files,
         ),
       );
 
@@ -398,14 +412,15 @@ class RunCore extends PluginCore {
 
   /// Machine-global on purpose — see [handles] vs [ownHandles] for where the
   /// worktree line is drawn.
-  List<RunHandle> _scanHandles() => scanRunHandles(runDirProvider());
+  List<RunHandle> _scanHandles() => scanRunHandles(runDir, files: files);
 
   @override
   Future<void> computeAll() async {
-    _cache = DeviceCache.read(runDirProvider());
+    await files.ready;
+    _cache = DeviceCache.read(runDir, files: files);
     _handles = _scanHandles();
     _failures = {
-      for (var failure in scanRunFailures(runDirProvider()))
+      for (var failure in scanRunFailures(runDir, files: files))
         failure.key: failure,
     };
     for (var path in packages) {
@@ -414,12 +429,13 @@ class RunCore extends PluginCore {
       _entrypoints[path] = declared.isNotEmpty
           ? declared
           : scanEntrypoints(root);
-      _defaultFlavors[path] = defaultFlavorOf(root);
+      _defaultFlavors[path] = defaultFlavorOf(root, files: files);
       _flavorVocabularies[path] = declaredFlavors(_configFor(path)['flavors']);
     }
     // Dropped so the next ask re-reads sources that may have moved since.
     _entrypointKnobs.clear();
-    _hostAddresses = await _readHostAddresses();
+    // This machine's addresses, which a recording's machine is not.
+    if (readOnly == null) _hostAddresses = await _readHostAddresses();
     _scanned = true;
   }
 
@@ -486,7 +502,8 @@ class RunCore extends PluginCore {
         if (debugLive && !isDisposed) unawaited(_probeAll());
       }),
     );
-    if (debugLive) {
+    // A recording is probed once, above, and then nothing moves under it.
+    if (debugLive && readOnly == null) {
       // Same bargain as the daemon: the form is about to show what each define
       // will be, and it cannot show a computed one without asking for it.
       unawaited(resolveScriptSources().then((_) => notifyChanged()));
@@ -529,7 +546,7 @@ class RunCore extends PluginCore {
     if (existing != null) return existing;
     var daemon = await DeviceDaemon.acquire(
       host.workspace.flutterSdk,
-      runDir: runDirProvider(),
+      runDir: runDir,
     );
     if (isDisposed || _daemon != null) {
       // Disposed while starting, or another call won the race — either way this
@@ -590,7 +607,7 @@ class RunCore extends PluginCore {
         !_failures.containsKey(handle.key)) {
       var oldest = failures.last;
       _failures.remove(oldest.key);
-      RunFailure.forget(runDirProvider(), oldest.key);
+      RunFailure.forget(runDir, oldest.key);
     }
     var failure = RunFailure(
       key: handle.key,
@@ -607,12 +624,12 @@ class RunCore extends PluginCore {
       at: DateTime.now(),
     );
     _failures[handle.key] = failure;
-    failure.write(runDirProvider());
+    failure.write(runDir);
   }
 
   /// Forgets a failure, once it has been read.
   void dismissFailure(String key) {
-    RunFailure.forget(runDirProvider(), key);
+    RunFailure.forget(runDir, key);
     if (_failures.remove(key) != null) notifyChanged();
   }
 
@@ -623,18 +640,21 @@ class RunCore extends PluginCore {
   /// build*, which on Android takes a minute and a half, and sweeping it would
   /// free a device that is very much in use.
   Future<int> _probeAll() async {
+    if (readOnly != null) return _probeRecorded();
     // Top each handle up from its launcher's log first. The log is the source
     // of truth about a run and the handle is a cache of it, so a run launched
     // by somebody else — another `fw`, a GUI that has since closed — becomes
     // connectable here without this process ever having watched it start.
-    var handles = [for (var handle in _handles) refreshFromLog(handle)];
+    var handles = [
+      for (var handle in _handles) refreshFromLog(handle, files: files),
+    ];
     _handles = handles;
     _failures = {
-      for (var failure in scanRunFailures(runDirProvider()))
+      for (var failure in scanRunFailures(runDir, files: files))
         failure.key: failure,
     };
     var probes = await Future.wait([
-      for (var handle in handles) probeRunHandle(handle),
+      for (var handle in handles) sources.apps.probe(handle),
     ]);
     if (isDisposed) return 0;
     var swept = 0;
@@ -645,7 +665,7 @@ class RunCore extends PluginCore {
         // Read before deleting, and only for a run that never started: an app
         // that ran and was stopped is not a failure and must leave nothing
         // behind, or every ordinary `stop` would post an obituary.
-        var log = LaunchLog.read(handle.logPath ?? '');
+        var log = LaunchLog.read(handle.logPath ?? '', files: files);
         if (!log.started) recordFailure(handle, log);
         handle.delete();
         _probes.remove(handle.handlePath);
@@ -656,7 +676,7 @@ class RunCore extends PluginCore {
       if (handle.handlePath != null) {
         _probes[handle.handlePath!] = probe;
         if (handle.logPath case var path?) {
-          _logs[handle.handlePath!] = LaunchLog.read(path);
+          _logs[handle.handlePath!] = LaunchLog.read(path, files: files);
         }
       }
       alive.add(handle);
@@ -664,6 +684,21 @@ class RunCore extends PluginCore {
     _handles = alive;
     notifyChanged();
     return swept;
+  }
+
+  /// A recording's probe: what the app answers, once, with nothing to top up
+  /// from a log that is not being written and nothing to sweep.
+  Future<int> _probeRecorded() async {
+    for (var handle in _handles) {
+      var path = handle.handlePath;
+      if (path == null) continue;
+      _probes[path] = await sources.apps.probe(handle);
+      if (handle.logPath case var log?) {
+        _logs[path] = LaunchLog.read(log, files: files);
+      }
+    }
+    if (!isDisposed) notifyChanged();
+    return 0;
   }
 
   @override
@@ -2043,6 +2078,9 @@ class RunCore extends PluginCore {
     String actionId, {
     Map<String, Object?> arguments = const {},
   }) async {
+    if (readOnly case var why? when _changesTheMachine(actionId, arguments)) {
+      throw RunRefusal(why);
+    }
     return switch (actionId) {
       'devices' => _devicesAction(refresh: _boolArgument(arguments['refresh'])),
       'apps' => _appsAction(),
@@ -2071,6 +2109,18 @@ class RunCore extends PluginCore {
       _ => super.invoke(actionId, arguments: arguments),
     };
   }
+
+  /// Whether [actionId] launches, reloads, boots, drives or dials something —
+  /// what a recording refuses. Reading the ledger, the journal and the
+  /// panels a recording answered is not.
+  static bool _changesTheMachine(
+    String actionId,
+    Map<String, Object?> arguments,
+  ) => switch (actionId) {
+    'apps' || 'entrypoints' || 'lens' || 'panels' || 'panelState' => false,
+    'devices' => _boolArgument(arguments['refresh']),
+    _ => true,
+  };
 
   /// [message] with the launcher's own error lines under it.
   ///
@@ -2582,7 +2632,7 @@ class RunCore extends PluginCore {
     );
 
     var wait = _boolArgument(arguments['wait'] ?? true);
-    var log = LaunchLog.read(handle.logPath ?? '');
+    var log = LaunchLog.read(handle.logPath ?? '', files: files);
     if (wait) {
       var timeout = Duration(seconds: _intArgument(arguments['timeout'], 300));
       try {
@@ -2598,7 +2648,7 @@ class RunCore extends PluginCore {
     _handles = _scanHandles();
     await _probeAll();
 
-    var probe = probeOf(handle) ?? await probeRunHandle(handle);
+    var probe = probeOf(handle) ?? await sources.apps.probe(handle);
     var failure = log.failure(launcherAlive: probe.launcher);
     var status = switch (log) {
       // A run that stopped without ever starting did not stop, it failed —
@@ -2667,6 +2717,7 @@ class RunCore extends PluginCore {
     Map<String, String> defines = const {},
     Map<String, String> knobs = const {},
   }) async {
+    if (readOnly case var why?) throw RunRefusal(why);
     _checkKnobNames(package, entry, knobs);
     flavor = applyFlavorVocabulary(
       flavor: flavor,
@@ -2681,7 +2732,7 @@ class RunCore extends PluginCore {
         .firstOrNull;
     var handle = await launchApp(
       sdk: host.workspace.flutterSdk,
-      runDir: runDirProvider(),
+      runDir: runDir,
       worktree: host.worktree.path,
       worktreeName: host.worktree.name,
       packageRoot: host.workspace.absolutePathOf(package),
@@ -3106,6 +3157,7 @@ class RunCore extends PluginCore {
     RunHandle handle,
     Map<String, String> values,
   ) async {
+    if (readOnly case var why?) throw RunRefusal(why);
     // Refused before anything is written. `absolutePathOf` resolves in *this*
     // worktree, so applying to another checkout's run would rewrite this
     // worktree's wrapper and restart that app onto this worktree's code — a
@@ -3170,7 +3222,7 @@ class RunCore extends PluginCore {
         entrypoint: handle.entrypoint,
         knobs: knobs,
       );
-      handle.withKnobs(knobs).publish(runDirProvider());
+      handle.withKnobs(knobs).publish(runDir);
       _handles = [
         for (var other in _handles)
           if (other.handlePath == handle.handlePath)
@@ -3218,6 +3270,7 @@ class RunCore extends PluginCore {
 
   /// Does one thing to one running app. The panel's entry point as well.
   Future<void> control(String action, RunHandle handle) async {
+    if (readOnly case var why?) throw RunRefusal(why);
     await _control(action, handle);
     // A reload or a restart that *returned* is the cockpit changing the app's
     // screen, and the Screen pane re-reads on it. Out here rather than beside
@@ -3315,7 +3368,7 @@ class RunCore extends PluginCore {
   /// that a pumped panel cannot settle. The tests that used to dodge this by
   /// publishing a run so the desk would not draw at all no longer can.
   Future<void> loadEmulators() async {
-    if (!debugLive) return;
+    if (!debugLive || readOnly != null) return;
     var daemon = await _acquireDaemon();
     await daemon.refreshEmulators();
     if (!isDisposed) notifyChanged();
@@ -3331,6 +3384,7 @@ class RunCore extends PluginCore {
   /// go stale together — an emulator booted from a terminal is a new device
   /// *and* one fewer thing to boot.
   Future<void> refreshDesk() async {
+    if (readOnly case var why?) throw RunRefusal(why);
     var daemon = await _acquireDaemon();
     await daemon.refresh();
     await daemon.refreshEmulators();
@@ -3339,6 +3393,7 @@ class RunCore extends PluginCore {
 
   /// Boots one. The panel's entry point, and `bootEmulator`'s.
   Future<DaemonDevice?> bootEmulator(String id, {bool coldBoot = false}) async {
+    if (readOnly case var why?) throw RunRefusal(why);
     var daemon = await _acquireDaemon();
     return daemon.launchEmulator(id, coldBoot: coldBoot);
   }
@@ -3456,15 +3511,12 @@ class RunCore extends PluginCore {
     bool summary = true,
   }) =>
       debugRead?.call(handle) ??
-      _withInspector(
+      sources.apps.read(
         handle,
-        (i) => i.read(
-          tree: tree,
-          screenshot: screenshot,
-          semantics: semantics,
-          summary: summary,
-          preferGuest: true,
-        ),
+        tree: tree,
+        screenshot: screenshot,
+        semantics: semantics,
+        summary: summary,
       );
 
   /// Stands in for the VM service so the panel can be pumped in a test.
@@ -3499,34 +3551,20 @@ class RunCore extends PluginCore {
   }) {
     var path = handle.logPath;
     if (path == null) return const [];
-    return readRunLog(path, only: only, errorsOnly: errorsOnly, tail: tail);
+    return readRunLog(
+      path,
+      only: only,
+      errorsOnly: errorsOnly,
+      tail: tail,
+      files: files,
+    );
   }
 
-  /// Opens a connection for reading rather than for driving.
-  ///
-  /// Waits for no registration, and that is the point. Reload and restart
-  /// have to wait for the `flutter run` to register them; the inspector is the
-  /// *app's* own and exists the moment its isolate does. So everything built on
-  /// this keeps working on a run whose launcher has died — the surviving half
-  /// of the two-tier split.
+  /// See [withRunInspector].
   Future<T> _withInspector<T>(
     RunHandle handle,
     Future<T> Function(RunInspector inspector) body,
-  ) async {
-    var uri = handle.vmService;
-    if (uri == null) {
-      throw RunRefusal(
-        '${handle.entrypointLabel} has no VM service yet — it is still '
-        'building. Watch ${handle.logPath}.',
-      );
-    }
-    var connection = await RunConnection.connect(uri);
-    try {
-      return await body(RunInspector(connection));
-    } finally {
-      await connection.close();
-    }
-  }
+  ) => withRunInspector(handle, body);
 
   /// Attaches to the app's channels for the length of one action.
   ///
@@ -3541,24 +3579,17 @@ class RunCore extends PluginCore {
   /// drain that loses returns frames the winner already took.
   Future<T> _withPanels<T>(
     RunHandle handle,
-    Future<T> Function(RunChannelClient client, RunPanels panels) body,
+    Future<T> Function(RunAttachment client, RunPanels panels) body,
   ) async {
-    var uri = handle.vmService;
-    if (uri == null) {
-      throw RunRefusal(
-        '${handle.entrypointLabel} has no VM service yet — it is still '
-        'building. Watch ${handle.logPath}.',
-      );
-    }
-    var connection = await RunConnection.connect(uri);
-    RunChannelClient client;
+    RunAttachment client;
     try {
-      client = await RunChannelClient.attach(
-        connection,
+      client = await sources.channels.attach(
+        handle,
         peer: 'action:${_nextPanelPeer++}',
       );
+    } on RunRefusal {
+      rethrow;
     } on Object {
-      await connection.close();
       // Not a failure of this call so much as a fact about the app: an app
       // that mounts no `Devbar` installs no channels, and saying which is the
       // difference between a bug hunt and reading one line.
@@ -3572,7 +3603,6 @@ class RunCore extends PluginCore {
       return await body(client, RunPanels(client));
     } finally {
       await client.close();
-      await connection.close();
     }
   }
 
@@ -3580,7 +3610,7 @@ class RunCore extends PluginCore {
 
   /// The events this attachment replayed, per feed, newest [limit] kept.
   Map<String, List<Map<String, Object?>>> _feedEvents(
-    RunChannelClient client,
+    RunAttachment client,
     List<PanelDescriptor> panels,
     int limit,
   ) {
@@ -3792,6 +3822,7 @@ class RunCore extends PluginCore {
     // may not spawn a process in a widget test. Working out *which device this
     // is* costs two, and reading it costs seven more — none of which a pumped
     // panel can settle.
+    if (readOnly case var why?) throw RunRefusal(why);
     if (!debugLive) return const [];
     var settings = await _deviceSettingsFor(handle);
     return _refusing(() => settings.read(appSize: _appSizeFor(handle)));
@@ -3809,6 +3840,7 @@ class RunCore extends PluginCore {
     DeviceSettingId id,
     String value,
   ) async {
+    if (readOnly case var why?) throw RunRefusal(why);
     var settings = await _deviceSettingsFor(handle);
     var clock = Stopwatch()..start();
     DeviceSetting written;
@@ -4081,7 +4113,7 @@ class RunCore extends PluginCore {
       given is String && given.isNotEmpty
       ? given
       : p.join(
-          runDirProvider(),
+          runDir,
           '${runHandleKey(handle.worktree, handle.device, handle.entrypoint)}.png',
         );
 
@@ -5238,7 +5270,7 @@ class RunCore extends PluginCore {
         );
       }
     } else {
-      _cache = DeviceCache.read(runDirProvider());
+      _cache = DeviceCache.read(runDir, files: files);
     }
 
     _handles = _scanHandles();
@@ -5308,7 +5340,7 @@ class RunCore extends PluginCore {
       swept: swept,
       note: _handles.isEmpty
           ? 'Nothing is running. This lists apps launched through flutterware, '
-                'which announce themselves in ${runDirProvider()}.'
+                'which announce themselves in $runDir.'
           : null,
       apps: [for (var handle in _handles) _appEntry(handle, probeOf(handle))],
     );

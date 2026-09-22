@@ -13,6 +13,7 @@ import '../utils/daemon/device.dart';
 import '../utils/run_dir.dart';
 import 'shell_controller.dart';
 import 'worktree.dart';
+import '../run/run_sources.dart';
 
 /// The desk, in the chrome: what is on this machine, what is free, and who
 /// has the rest — with the one move the panel structurally cannot offer,
@@ -59,12 +60,23 @@ class _DeskButtonState extends State<DeskButton> {
   @override
   void initState() {
     super.initState();
-    _readBadge();
-    _badgeTick = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _readBadge(),
+    unawaited(
+      _runs.files.ready.then((_) {
+        if (mounted) _readBadge();
+      }),
     );
+    // Nothing under a recording moves, so nothing is re-read.
+    if (_runs.readOnly == null) {
+      _badgeTick = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => _readBadge(),
+      );
+    }
   }
+
+  RunSources get _runs => widget.shell.runs;
+
+  String get _runDir => _runs.runDir ?? DeskButton.runDirProvider();
 
   @override
   void dispose() {
@@ -74,7 +86,7 @@ class _DeskButtonState extends State<DeskButton> {
   }
 
   void _readBadge() {
-    var handles = scanRunHandles(DeskButton.runDirProvider());
+    var handles = scanRunHandles(_runDir, files: _runs.files);
     var busy = {for (var handle in handles) handle.device}.length;
     if (busy == _busy) return;
     setState(() => _busy = busy);
@@ -84,10 +96,10 @@ class _DeskButtonState extends State<DeskButton> {
   /// any process shows without reopening. Cheap on purpose: a directory
   /// listing and a handful of small JSON files.
   void _read() {
-    var runDir = DeskButton.runDirProvider();
+    var runDir = _runDir;
     setState(() {
-      _cache = DeviceCache.read(runDir);
-      _handles = scanRunHandles(runDir);
+      _cache = DeviceCache.read(runDir, files: _runs.files);
+      _handles = scanRunHandles(runDir, files: _runs.files);
       _busy = {for (var handle in _handles) handle.device}.length;
     });
   }
@@ -96,6 +108,7 @@ class _DeskButtonState extends State<DeskButton> {
     _read();
     _menuController.open();
     _refresh?.cancel();
+    if (_runs.readOnly != null) return;
     _refresh = Timer.periodic(const Duration(seconds: 2), (_) => _read());
   }
 

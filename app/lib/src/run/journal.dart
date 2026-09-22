@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'handle.dart';
+import 'run_files.dart';
 
 /// The story of a run: every tool step appended to one file beside the
 /// handle, in the run dir — same files-not-memory rule, same payoff. The GUI
@@ -338,13 +339,17 @@ void appendJournal(RunHandle handle, JournalEntry entry) {
 
 /// The entries, oldest first. A malformed line — a torn concurrent write — is
 /// skipped rather than fatal: the journal is a narrative, not a ledger.
-List<JournalEntry> readJournal(RunHandle handle, {int? tail}) {
+List<JournalEntry> readJournal(
+  RunHandle handle, {
+  int? tail,
+  RunFiles files = const DiskRunFiles(),
+}) {
   var path = journalPathFor(handle);
   if (path == null) return const [];
-  var file = File(path);
-  if (!file.existsSync()) return const [];
+  var text = files.readString(path);
+  if (text == null) return const [];
   var entries = <JournalEntry>[];
-  for (var line in file.readAsLinesSync()) {
+  for (var line in const LineSplitter().convert(text)) {
     if (line.trim().isEmpty) continue;
     try {
       entries.add(

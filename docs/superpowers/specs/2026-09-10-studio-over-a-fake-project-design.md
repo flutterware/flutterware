@@ -787,7 +787,7 @@ plugin-agnostic. What differs per plugin is the door and the data:
 | lints | `rules.json` at the SDK tag + issue counts | both are files already | small |
 | scenarios | interface extraction (see above) | a run's export — the format that ships | the go/no-go for the interface plan |
 | previews | interface extraction; the still picture | entries JSON + thumbnails + inspect trees | the hard one |
-| run, server, dev stack | none that helps: their subject is a live process | at best a snapshot — a run's log and inspect tree frozen — and the demo would show a cockpit that cannot move | not worth recording; a "not in this recording" panel is honest |
+| run, server, dev stack | none that helps: their subject is a live process | at best a snapshot — a run's log and inspect tree frozen — and the demo would show a cockpit that cannot move | not worth recording; a "not in this recording" panel is honest — **wrong for all three**: server and stack below, run in `2026-09-14-run-over-a-recording-design.md` |
 
 So: mostly yes for the plugins whose subject is the project on disk, which is
 nine of fourteen. The three whose subject is a running process are where a

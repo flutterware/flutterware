@@ -8,6 +8,7 @@ import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 import '../utils/run_dir.dart';
+import 'run_files.dart';
 
 /// One app running on one device, announced as a file under the run dir.
 ///
@@ -174,9 +175,14 @@ class RunHandle {
     'protocol': protocol,
   };
 
-  static RunHandle? tryRead(File file) {
+  static RunHandle? tryRead(File file) =>
+      tryParse(file.path, file.readAsStringSync);
+
+  /// The handle at [path], whose text [read] answers — null for one that
+  /// cannot be read, however that happened.
+  static RunHandle? tryParse(String path, String? Function() read) {
     try {
-      var json = jsonDecode(file.readAsStringSync());
+      var json = jsonDecode(read() ?? '');
       if (json is! Map) return null;
       var map = json.cast<String, Object?>();
       return RunHandle(
@@ -204,7 +210,7 @@ class RunHandle {
             '${entry.key}': '${entry.value}',
         },
         protocol: map['protocol'] as int? ?? runHandleProtocol,
-        handlePath: file.path,
+        handlePath: path,
       );
     } on Object {
       // Torn write, stale schema, deleted meanwhile — a handle that cannot be
@@ -353,25 +359,23 @@ String runHandleKey(
 /// point of the ledger is that *another* worktree's run is what is holding the
 /// phone, so a scan that could only see its own would answer "free" about a
 /// device nothing can launch onto.
-List<RunHandle> scanRunHandles(String runDir, {String? underRoot}) {
-  List<FileSystemEntity> entries;
+List<RunHandle> scanRunHandles(
+  String runDir, {
+  String? underRoot,
+  RunFiles files = const DiskRunFiles(),
+}) {
+  List<String> entries;
   try {
-    entries = Directory(runDir).listSync();
-  } on FileSystemException {
-    return [];
+    entries = files.list(runDir);
   } on UnsupportedError {
     // No filesystem at all — a browser. Nothing has been launched from one.
     return [];
   }
   var handles = <RunHandle>[];
-  for (var entity in entries) {
-    var name = p.basename(entity.path);
-    if (entity is! File ||
-        !name.startsWith('app-') ||
-        !name.endsWith('.json')) {
-      continue;
-    }
-    var handle = RunHandle.tryRead(entity);
+  for (var path in entries) {
+    var name = p.basename(path);
+    if (!name.startsWith('app-') || !name.endsWith('.json')) continue;
+    var handle = RunHandle.tryParse(path, () => files.readString(path));
     if (handle == null) continue;
     if (underRoot != null && !_isAtOrWithin(underRoot, handle.worktree)) {
       continue;

@@ -9,6 +9,7 @@ import 'package:flutterware_app/src/run/connection.dart';
 import 'package:flutterware_app/src/run/flag_memory.dart';
 import 'package:flutterware_app/src/run/handle.dart';
 import 'package:flutterware_app/src/run/panels_tab.dart';
+import 'package:flutterware_app/src/run/run_sources.dart';
 import 'package:vm_service/vm_service.dart';
 
 /// A real [VmServiceTransport] serving a real [Panels] registry, reached over a
@@ -137,7 +138,10 @@ void main() {
           body: PanelsTab(
             handle: handle,
             memory: memory,
-            connect: (_) => RunConnection.forTesting(app.service, 'isolates/1'),
+            channels: LiveRunChannels(
+              connect: (_) =>
+                  RunConnection.forTesting(app.service, 'isolates/1'),
+            ),
           ),
         ),
       ),
@@ -241,7 +245,9 @@ void main() {
           body: PanelsTab(
             handle: handle,
             memory: memory,
-            connect: (_) => Future.error(StateError('no vm service')),
+            channels: LiveRunChannels(
+              connect: (_) => Future.error(StateError('no vm service')),
+            ),
           ),
         ),
       ),

@@ -4,9 +4,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/inspect/node.dart';
+import 'package:flutterware/real_work.dart';
 import 'package:path/path.dart' as p;
 
 import '../../address/address_scope.dart';
@@ -25,8 +27,9 @@ import '../../run/panels_tab.dart';
 import '../../run/screen_picture.dart';
 import '../../run/launch.dart';
 import '../../run/launching_pane.dart';
-import '../../run/file_refresh.dart';
 import '../../run/logs_tab.dart';
+import '../../run/refusal.dart';
+import '../../run/run_files.dart';
 import '../../inspect/elements_view.dart';
 import '../../inspect/inspect_dock.dart';
 import '../../inspect/semantics_node.dart';
@@ -55,8 +58,17 @@ export 'run_core.dart' show RunCore, runPluginId;
 /// What is connected, what is busy, who holds it and what launching does all
 /// live in [RunCore], so `fw` and an agent get the same answers from the same
 /// code. This class exists because `buildPanel` returns a `Widget`.
+/// How the panel draws one of a run's pictures, by the path the journal
+/// gave it. The disk by default; a recording's own pictures over one.
+typedef RunImage = ImageProvider Function(String path);
+
+ImageProvider _fileImage(String path) => FileImage(File(path));
+
 class RunPlugin extends NativePlugin<RunCore> {
-  RunPlugin(super.core);
+  RunPlugin(super.core, {this.image = _fileImage});
+
+  /// How a step's picture is drawn — see [RunImage].
+  final RunImage image;
 
   /// Starting a `flutter daemon` takes seconds and a cold build takes minutes,
   /// and the panel is worth photographing for neither. Without this a window
@@ -223,6 +235,7 @@ class _RunPanelState extends State<_RunPanel> {
           ),
           (_, var handle?) => _RunView(
             core: _core,
+            image: widget.plugin.image,
             handle: handle,
             view: place.view,
             onControl: _control,
@@ -255,6 +268,7 @@ class _RunPanelState extends State<_RunPanel> {
 class _RunView extends StatefulWidget {
   const _RunView({
     required this.core,
+    required this.image,
     required this.handle,
     required this.view,
     required this.onControl,
@@ -262,6 +276,7 @@ class _RunView extends StatefulWidget {
   });
 
   final RunCore core;
+  final RunImage image;
   final RunHandle handle;
   final RunViewKind view;
   final void Function(String action, RunHandle handle) onControl;
@@ -437,7 +452,11 @@ class _RunViewState extends State<_RunView> {
             // post-mortem review wants them — and, for the log, the only
             // window in which anybody is asking what the build is doing.
             // Above the guard for that reason; see [_ViewTabs._fileBacked].
-            RunViewKind.steps => _StepsTab(handle: handle),
+            RunViewKind.steps => _StepsTab(
+              handle: handle,
+              files: core.files,
+              image: widget.image,
+            ),
             RunViewKind.logs => LogsTab(core: core, handle: handle),
             _ when !state.canInspect => LaunchingPane(
               core: core,
@@ -449,7 +468,7 @@ class _RunViewState extends State<_RunView> {
               // that into a claim about a build running late.
               elapsed: probe == null
                   ? null
-                  : DateTime.now().difference(handle.startedAt),
+                  : clock.now().difference(handle.startedAt),
               platform: core.platformOf(handle.device),
               onStopAndEdit: mine ? _stopAndEdit : null,
             ),
@@ -468,6 +487,10 @@ class _RunViewState extends State<_RunView> {
               // same tab is a different app to attach to.
               key: ValueKey(handle.key),
               handle: handle,
+              connect: switch (core.readOnly) {
+                var why? => (_) => Future.error(RunRefusal(why)),
+                null => null,
+              },
             ),
             RunViewKind.knobs => _knobsTab(core, handle),
             RunViewKind.panels => PanelsTab(
@@ -475,7 +498,8 @@ class _RunViewState extends State<_RunView> {
               // the same tab is a different app to attach to.
               key: ValueKey(handle.key),
               handle: handle,
-              memory: FlagMemory(core.runDir),
+              channels: core.sources.channels,
+              memory: FlagMemory(core.runDir, files: core.files),
             ),
           },
         ),
@@ -585,7 +609,7 @@ class _RunHeader extends StatelessWidget {
     var meta = [
       for (var define in handle.defines.entries)
         '${define.key}=${define.value}',
-      'started ${describeAge(DateTime.now().difference(handle.startedAt))}',
+      'started ${describeAge(clock.now().difference(handle.startedAt))}',
     ].join(' · ');
 
     return Container(
@@ -1173,7 +1197,7 @@ class _ScreenTabState extends State<_ScreenTab> {
             : SemanticsTranscript.of(_semantics!);
         _semanticsHighlight.value = null;
         _error = null;
-        _readAt = DateTime.now();
+        _readAt = clock.now();
         // The count as it stands *now*, not as it stood when the read was
         // asked for: a tap that arrived while the picture was being taken is
         // a tap the picture may well show.
@@ -1327,10 +1351,15 @@ class _ScreenTabState extends State<_ScreenTab> {
 Future<ui.Image?> _decodePicture(Uint8List? bytes) async {
   if (bytes == null || bytes.isEmpty) return null;
   try {
-    var codec = await ui.instantiateImageCodec(bytes);
-    var frame = await codec.getNextFrame();
-    codec.dispose();
-    return frame.image;
+    // Announced, because the decode lands on the engine's own threads and
+    // schedules no frame: a scenario of this pane would otherwise photograph
+    // `Reading the app…` over a picture that was a few milliseconds away.
+    return await RealWork.track(() async {
+      var codec = await ui.instantiateImageCodec(bytes);
+      var frame = await codec.getNextFrame();
+      codec.dispose();
+      return frame.image;
+    }(), label: "the run's screenshot");
   } on Object {
     return null;
   }
@@ -1344,9 +1373,17 @@ Future<ui.Image?> _decodePicture(Uint8List? bytes) async {
 /// and confirm" is a scroll rather than an act of faith. A file like the log,
 /// polled like the log, and readable while the app builds and after it dies.
 class _StepsTab extends StatefulWidget {
-  const _StepsTab({required this.handle});
+  const _StepsTab({
+    required this.handle,
+    required this.files,
+    required this.image,
+  });
 
   final RunHandle handle;
+
+  /// Where the journal and its pictures are read from.
+  final RunFiles files;
+  final RunImage image;
 
   @override
   State<_StepsTab> createState() => _StepsTabState();
@@ -1359,13 +1396,21 @@ class _StepsTabState extends State<_StepsTab> {
   /// the tab opens in, and returns to when you select the last row.
   int? _selected;
 
-  FileRefresh? _refresh;
+  StreamSubscription<void>? _refresh;
+
+  void _watch() {
+    unawaited(_refresh?.cancel());
+    var path = journalPathFor(widget.handle);
+    _refresh = path == null
+        ? null
+        : widget.files.changes(path).listen((_) => _reread());
+  }
 
   @override
   void initState() {
     super.initState();
     _reread();
-    _refresh = FileRefresh(journalPathFor(widget.handle), _reread);
+    _watch();
   }
 
   @override
@@ -1373,15 +1418,14 @@ class _StepsTabState extends State<_StepsTab> {
     super.didUpdateWidget(old);
     if (old.handle.key != widget.handle.key) {
       _selected = null;
-      _refresh?.dispose();
-      _refresh = FileRefresh(journalPathFor(widget.handle), _reread);
+      _watch();
       _reread();
     }
   }
 
   @override
   void dispose() {
-    _refresh?.dispose();
+    unawaited(_refresh?.cancel());
     super.dispose();
   }
 
@@ -1389,7 +1433,7 @@ class _StepsTabState extends State<_StepsTab> {
   /// file, and the panel rebuilds far more often than the file changes.
   void _reread() {
     if (!mounted) return;
-    var entries = readJournal(widget.handle, tail: 500);
+    var entries = readJournal(widget.handle, tail: 500, files: widget.files);
     setState(() => _entries = entries);
   }
 
@@ -1420,6 +1464,8 @@ class _StepsTabState extends State<_StepsTab> {
             itemBuilder: (context, i) {
               var index = entries.length - 1 - i;
               return _StepRow(
+                files: widget.files,
+                image: widget.image,
                 entry: entries[index],
                 ordinal: index + 1,
                 selected: index == selected,
@@ -1431,7 +1477,13 @@ class _StepsTabState extends State<_StepsTab> {
           ),
         ),
         const VerticalDivider(width: 1),
-        Expanded(child: _StepDetail(entry: entries[selected])),
+        Expanded(
+          child: _StepDetail(
+            files: widget.files,
+            image: widget.image,
+            entry: entries[selected],
+          ),
+        ),
       ],
     );
   }
@@ -1439,12 +1491,16 @@ class _StepsTabState extends State<_StepsTab> {
 
 class _StepRow extends StatelessWidget {
   const _StepRow({
+    required this.files,
+    required this.image,
     required this.entry,
     required this.ordinal,
     required this.selected,
     required this.onTap,
   });
 
+  final RunFiles files;
+  final RunImage image;
   final JournalEntry entry;
   final int ordinal;
   final bool selected;
@@ -1505,15 +1561,14 @@ class _StepRow extends StatelessWidget {
 
   Widget _thumbnail(BuildContext context) {
     var path = entry.screenshot;
-    if (path != null && File(path).existsSync()) {
+    if (path != null && files.exists(path)) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(context.radii.micro),
-        child: Image.file(
-          File(path),
+        child: Image(
+          image: ResizeImage.resizeIfNeeded(88, null, image(path)),
           width: 44,
           height: 32,
           fit: BoxFit.cover,
-          cacheWidth: 88,
           gaplessPlayback: true,
         ),
       );
@@ -1533,8 +1588,14 @@ class _StepRow extends StatelessWidget {
 /// The step's face: the screenshot big, the facts above it, the refusal in
 /// red when there was one, and the text projection when there is no picture.
 class _StepDetail extends StatefulWidget {
-  const _StepDetail({required this.entry});
+  const _StepDetail({
+    required this.files,
+    required this.image,
+    required this.entry,
+  });
 
+  final RunFiles files;
+  final RunImage image;
   final JournalEntry entry;
 
   @override
@@ -1555,7 +1616,7 @@ class _StepDetailState extends State<_StepDetail> {
     _texts = null;
     if (path == null) return;
     try {
-      _texts = (jsonDecode(File(path).readAsStringSync()) as List)
+      _texts = (jsonDecode(widget.files.readString(path) ?? '') as List)
           .cast<String>();
     } on Object {
       _texts = null;
@@ -1583,7 +1644,7 @@ class _StepDetailState extends State<_StepDetail> {
         '$count error${count == 1 ? '' : 's'}',
     ];
     var screenshot = entry.screenshot;
-    var hasShot = screenshot != null && File(screenshot).existsSync();
+    var hasShot = screenshot != null && widget.files.exists(screenshot);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1606,7 +1667,8 @@ class _StepDetailState extends State<_StepDetail> {
                     CaptureButton(
                       primary: CaptureTarget(
                         label: "the step's screenshot",
-                        capture: () => File(screenshot).readAsBytes(),
+                        capture: () async =>
+                            widget.files.readBytes(screenshot) ?? Uint8List(0),
                         // The journal already names the file after the step;
                         // a save keeps that identity.
                         suggestedName: () => p.basename(screenshot),
@@ -1638,8 +1700,8 @@ class _StepDetailState extends State<_StepDetail> {
                   color: colors.bg,
                   alignment: Alignment.center,
                   padding: const EdgeInsets.all(FwSpacing.md),
-                  child: Image.file(
-                    File(screenshot),
+                  child: Image(
+                    image: widget.image(screenshot),
                     fit: BoxFit.contain,
                     gaplessPlayback: true,
                     filterQuality: FilterQuality.medium,

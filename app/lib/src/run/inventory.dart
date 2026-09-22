@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
@@ -10,6 +11,7 @@ import '../utils/daemon/device.dart';
 import '../utils/daemon/events.dart';
 import '../utils/daemon/protocol.dart';
 import '../utils/flutter_sdk.dart';
+import 'run_files.dart';
 
 final _logger = Logger('run_inventory');
 
@@ -43,7 +45,7 @@ class DeviceCache {
   final DateTime updatedAt;
   final List<DaemonDevice> devices;
 
-  Duration get age => DateTime.now().difference(updatedAt);
+  Duration get age => clock.now().difference(updatedAt);
 
   /// `just now`, `2m ago`, `3h ago` — the phrase every surface puts beside the
   /// list, computed once so they agree.
@@ -52,11 +54,14 @@ class DeviceCache {
   static String pathIn(String runDir) => p.join(runDir, 'devices.json');
 
   /// Null when nothing has ever written one, or what is there cannot be read.
-  static DeviceCache? read(String runDir) {
+  static DeviceCache? read(
+    String runDir, {
+    RunFiles files = const DiskRunFiles(),
+  }) {
     try {
-      var file = File(pathIn(runDir));
-      if (!file.existsSync()) return null;
-      var json = jsonDecode(file.readAsStringSync());
+      var text = files.readString(pathIn(runDir));
+      if (text == null) return null;
+      var json = jsonDecode(text);
       if (json is! Map) return null;
       var map = json.cast<String, Object?>();
       return DeviceCache(

@@ -23,6 +23,7 @@ import 'config_watcher.dart';
 import 'workspace.dart';
 import 'worktree.dart';
 import 'worktree_discovery.dart';
+import '../run/run_sources.dart';
 
 final _logger = Logger('shell');
 
@@ -93,6 +94,7 @@ class ShellController extends ChangeNotifier {
     Stream<WatchEvent> Function(String directory)? watchEvents,
     Duration? watchDebounce,
     this.changes,
+    this.runs = const RunSources.live(),
   }) : _discovery = discovery ?? WorktreeDiscovery(),
        // ignore: prefer_initializing_formals
        _buildWorktreeFacts = worktreeFacts,
@@ -124,6 +126,11 @@ class ShellController extends ChangeNotifier {
   /// studio's recordings. Null is the checkout — git, the working tree, the
   /// review log under the home directory.
   final ChangesSources? changes;
+
+  /// Where the chrome's device button reads which devices are busy — the
+  /// machine's run dir, or a recording's. The run plugin's core takes the
+  /// same sources, so the two never disagree about what is running.
+  final RunSources runs;
 
   /// Which panels this build can draw.
   final PluginRegistry registry;

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware_app/src/changes/diff_view.dart';
 import 'package:flutterware_app/src/demo/recorded_project.dart';
 import 'package:flutterware_app/src/demo/recording.dart';
+import 'package:flutterware_app/src/run/screen_picture.dart';
 import 'package:flutterware_app/src/launcher_icon/ui/plate.dart';
 import 'package:flutterware_app/src/scenarios/framed_shot.dart';
 import 'package:flutterware_app/src/plugins/scan_cache.dart';
@@ -135,6 +136,55 @@ void main() {
     await tester.tap(find.text('Compare again'));
     await tester.pumpAndSettle();
     expect(find.textContaining('This is a recording'), findsOneWidget);
+  });
+
+  testWidgets('opens the recorded run: its screen, steps, log and panels', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var shell = recordedShell(recording: recording);
+    addTearDown(shell.dispose);
+    await shell.start(recordedProjectRoot);
+    await tester.pumpWidget(ShellApp(shell));
+    await tester.pumpAndSettle();
+
+    // One run in the rail, named by its entry point and the phone it ran on.
+    await tester.tap(find.text('Run'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Brewline (devbar) · iPhone 16'));
+    await tester.pump();
+    // The screenshot decodes on the engine's threads, which only the real
+    // event loop turns — a scenario lands it by itself; a widget test asks.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+
+    // Inspectable, not reloadable: the launcher is gone, and the header says
+    // so rather than offering a reload that could not work.
+    expect(find.text('no launcher — cannot reload'), findsOneWidget);
+    // The last picture the session took, read as the app's screen, with its
+    // tree beside it.
+    expect(find.byType(RunScreenPicture), findsOneWidget);
+    expect(find.textContaining('Reading'), findsNothing);
+
+    await tester.tap(find.text('Steps'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('tap "Large"'), findsOneWidget);
+    expect(find.textContaining('Place order'), findsWidgets);
+
+    // The push panel the app reported, with the notification the session
+    // sent. Before the log, whose filters have an `App` of their own.
+    await tester.tap(find.text('App'));
+    await tester.pumpAndSettle();
+    expect(find.text('Your order is ready'), findsOneWidget);
+
+    await tester.tap(find.text('Logs'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Xcode build done'), findsOneWidget);
   });
 
   testWidgets('opens a recorded scenario and draws its run', (tester) async {
