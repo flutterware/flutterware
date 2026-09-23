@@ -757,6 +757,99 @@ void main() {
     expect(result.note, contains('hidden or occluded'));
   });
 
+  group('a step that drew no frame', () {
+    Future<RunActResult> tapWith(
+      Map<String, Object?> settle, {
+      String? lifecycle,
+    }) async {
+      core.debugAct = (handle, args) async => {
+        'step': {'verb': 'tap', 'target': '"Pay"', 'settle': settle},
+        'lifecycle': ?lifecycle,
+        'texts': ['Pay'],
+      };
+      return (await core.invoke(
+            'act',
+            arguments: {'verb': 'tap', 'target': 'Pay'},
+          ))!
+          as RunActResult;
+    }
+
+    /// The case a consumer spent several steps diagnosing: an iOS simulator
+    /// booted with the Simulator app closed, where the app is `inactive`,
+    /// frames stay enabled and none is ever drawn.
+    test('on an inactive app, says so and names the way out', () async {
+      core.debugNativeAvailable = true;
+      var result = await tapWith({
+        'settled': false,
+        'frames': 0,
+        'unansweredFrames': 3,
+        'framesEnabled': true,
+        'elapsedMs': 800,
+      }, lifecycle: 'inactive');
+
+      expect(result.ok, isTrue, reason: 'the tap was delivered');
+      expect(result.frames, 0);
+      expect(result.note, contains('drew no frame'));
+      expect(result.note, contains('`inactive`'));
+      expect(result.note, contains('Simulator app is not running'));
+      expect(result.note, contains('act {verb: foreground, layer: native}'));
+    });
+
+    test('without a native driver, the way out is said in words', () async {
+      var result = await tapWith({
+        'settled': false,
+        'frames': 0,
+        'unansweredFrames': 3,
+        'framesEnabled': true,
+        'elapsedMs': 800,
+      }, lifecycle: 'inactive');
+
+      expect(result.note, contains('Open that device in the Simulator app'));
+      expect(result.note, isNot(contains('layer: native')));
+    });
+
+    test(
+      'replaces the hidden-window note rather than contradicting it',
+      () async {
+        var result = await tapWith({
+          'settled': false,
+          'frames': 0,
+          'unansweredFrames': 2,
+          'forcedFrames': 2,
+          'framesEnabled': false,
+          'elapsedMs': 800,
+        }, lifecycle: 'paused');
+
+        expect(result.note, contains('drew no frame'));
+        expect(result.note, contains('`paused`'));
+        expect(result.note, isNot(contains('every frame this step saw')));
+      },
+    );
+
+    test('is silent when a frame was drawn, even after a missed one', () async {
+      var result = await tapWith({
+        'settled': true,
+        'frames': 1,
+        'unansweredFrames': 1,
+        'framesEnabled': true,
+        'elapsedMs': 400,
+      }, lifecycle: 'resumed');
+
+      expect(result.note, isNull);
+    });
+
+    test('is silent when nothing needed a frame', () async {
+      var result = await tapWith({
+        'settled': true,
+        'frames': 0,
+        'framesEnabled': true,
+        'elapsedMs': 20,
+      }, lifecycle: 'inactive');
+
+      expect(result.note, isNull);
+    });
+  });
+
   /// The hold is the whole reason `hover` is not just a tap with a different
   /// event, and it is spent inside the guest — so the host's only job is to
   /// let the number through. A key missing from the wire allowlist is a

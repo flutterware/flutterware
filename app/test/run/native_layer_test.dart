@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -368,6 +369,146 @@ void main() {
         isNull,
       );
     });
+  });
+
+  /// `foreground` is the way out of a stuck simulator app, and a consumer
+  /// found it had no way out of the simulator itself: booted with Simulator
+  /// closed, it answered "No running application matches", and with
+  /// Simulator open, "No window … starts with iPhone 16".
+  group('a simulator device with no window gets one', () {
+    late Directory dir;
+    late AxNativeDriver driver;
+    var launched = <String>[];
+
+    /// A helper that shows no window for the device until Simulator's menu
+    /// asks for one, and has no Simulator at all until [launched] says so.
+    void helper({bool running = true, bool windowAppears = true}) {
+      var d = dir.path;
+      if (running) File(p.join(d, 'running')).createSync();
+      var script = File(p.join(d, 'ax_helper'))
+        ..writeAsStringSync('''
+#!/bin/sh
+printf '%s\\n' "\$1" >> "$d/log"
+[ -f "$d/running" ] || { echo '{"ok":false,"code":"noApp","error":"No running application matches \\\\"com.apple.iphonesimulator\\\\""}'; exit 1; }
+case "\$1" in
+  *'"cmd":"menu"'*) ${windowAppears ? 'touch "$d/opened"; ' : ''}echo '{"ok":true}';;
+  *) [ -f "$d/opened" ] && echo '{"ok":true}' || echo '{"ok":false,"code":"noWindow","error":"No window of com.apple.iphonesimulator starts with \\\\"iPhone 16\\\\". It has: no titled windows"}';;
+esac
+''');
+      Process.runSync('chmod', ['+x', script.path]);
+      driver =
+          AxNativeDriver(
+              platform: 'ios-simulator',
+              helper: script.path,
+              app: 'com.apple.iphonesimulator',
+              window: 'iPhone 16',
+            )
+            ..simulatorUdid = 'UDID-1'
+            ..simulatorRuntime = ((_) async => 'iOS 18.1')
+            ..launchSimulator = (udid) async {
+              launched.add(udid);
+              File(p.join(d, 'running')).createSync();
+            }
+            ..windowDeadline = const Duration(seconds: 2);
+    }
+
+    List<Map<String, Object?>> commands() => [
+      for (var line in File(p.join(dir.path, 'log')).readAsLinesSync())
+        (jsonDecode(line) as Map).cast<String, Object?>(),
+    ];
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('fw-ax-');
+      launched = [];
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('Simulator running without the window: the menu opens it', () async {
+      helper();
+
+      await driver.raiseDeviceWindow('UDID-1');
+
+      expect(launched, isEmpty, reason: 'Simulator was already running');
+      expect(
+        [for (var c in commands()) c['cmd']],
+        ['foreground', 'menu', 'foreground'],
+      );
+      expect(commands()[1]['path'], [
+        'File',
+        'Open Simulator',
+        'iOS 18.1',
+        'iPhone 16',
+      ]);
+    });
+
+    test('Simulator not running: launched on the device, then asked', () async {
+      helper(running: false);
+
+      await driver.raiseDeviceWindow('UDID-1');
+
+      expect(launched, ['UDID-1']);
+      expect(commands().last['cmd'], 'foreground');
+    });
+
+    test('a window that never comes is refused with what was tried', () async {
+      helper(windowAppears: false);
+
+      await expectLater(
+        driver.raiseDeviceWindow('UDID-1'),
+        throwsA(
+          isA<NativeRefusal>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('File › Open Simulator › iOS 18.1 › iPhone 16'),
+              contains('no titled windows'),
+              isNot(contains('foreground')),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('everything else is refused as it was', () async {
+      helper();
+      File(p.join(dir.path, 'ax_helper')).writeAsStringSync('''
+#!/bin/sh
+printf '%s\\n' "\$1" >> "${dir.path}/log"
+echo '{"ok":false,"code":"untrusted","error":"x"}'; exit 1
+''');
+
+      await expectLater(
+        driver.raiseDeviceWindow('UDID-1'),
+        throwsA(isA<NativeRefusal>()),
+      );
+      expect(commands().map((c) => c['cmd']), isNot(contains('menu')));
+    });
+  }, skip: Platform.isWindows ? 'the fake helper is a shell script' : false);
+
+  test("a runtime is named the way Simulator's menu names it", () {
+    var json = jsonEncode({
+      'devices': {
+        'com.apple.CoreSimulator.SimRuntime.iOS-26-2': [
+          {'udid': 'OTHER', 'name': 'iPhone 16'},
+        ],
+        'com.apple.CoreSimulator.SimRuntime.iOS-18-1': [
+          {'udid': 'UDID-1', 'name': 'iPhone 16'},
+        ],
+      },
+      'runtimes': [
+        {
+          'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-18-1',
+          'name': 'iOS 18.1',
+        },
+        {
+          'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-26-2',
+          'name': 'iOS 26.2',
+        },
+      ],
+    });
+
+    expect(AxNativeDriver.runtimeNameOf('UDID-1', json), 'iOS 18.1');
+    expect(AxNativeDriver.runtimeNameOf('MISSING', json), isNull);
   });
 
   test('a long label is capped, with the ellipsis the refusal teaches', () {

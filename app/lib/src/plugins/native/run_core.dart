@@ -1884,7 +1884,8 @@ class RunCore extends PluginCore {
         'than '
         'a raster of the Flutter layer. Reach for it when a drive target is '
         'refused for something you can see in the picture but not in the '
-        'texts, or to bring a suspended iOS app back with verb: foreground. '
+        'texts, or to bring a suspended iOS app back with verb: foreground, '
+        "which opens the simulator's window first when it has none. "
         'It does observe, tap, enterText (Android) and foreground; drag, '
         'scrollTo, back and navigate stay on the drive layer.',
     options: [ActionOption('flutter'), ActionOption('native')],
@@ -4817,7 +4818,10 @@ class RunCore extends PluginCore {
         // the note rather than `error`: the verb landed, and saying it did
         // not would send the caller back to redo it.
         read.note,
-        if (framesEnabled == false) _hiddenWindowNote,
+        // Never both: "every frame this step saw was forced" is false when it
+        // saw none, and the no-frame note covers a backgrounded app itself.
+        await _noFramesNote(handle, settle, reply['lifecycle'] as String?) ??
+            (framesEnabled == false ? _hiddenWindowNote : null),
       ]),
     );
   }
@@ -4878,6 +4882,49 @@ class RunCore extends PluginCore {
   static const _hiddenWindowNote =
       'The window is hidden or occluded; every frame this step saw was '
       'forced. What a human sees on screen may lag this reply.';
+
+  /// What to say when a step had a frame to draw and the app drew none.
+  ///
+  /// Reported by a consumer driving an iOS simulator that was booted with the
+  /// Simulator app closed: the app sat `inactive`, every tap answered `ok`,
+  /// and the screen never moved. The taps were delivered; what they changed was
+  /// never built. [_hiddenWindowNote] could not fire, because Flutter turns
+  /// frames off only for `hidden` and `paused`, and an `inactive` app keeps
+  /// asking for frames that nothing answers. The reply carried `lifecycle:
+  /// inactive` the whole time and it still took several steps to connect it
+  /// to a screen that would not move — so the reply makes the connection.
+  ///
+  /// The Simulator app, not the window: a device detached from its window
+  /// while Simulator runs stays `resumed` and draws (measured).
+  Future<String?> _noFramesNote(
+    RunHandle handle,
+    Map<String, Object?>? settle,
+    String? lifecycle,
+  ) async {
+    var unanswered = settle?['unansweredFrames'] as int? ?? 0;
+    if (unanswered == 0 || (settle?['frames'] as int? ?? 0) > 0) return null;
+    var said =
+        'The app drew no frame during this step, though it had one to draw. '
+        'The step itself was delivered, but nothing it changed has been built '
+        'or painted, so the texts and the screenshot still show the screen '
+        'from before it.';
+    Future<bool> native() => _nativeSessionFor(handle).isAvailable;
+    return switch (lifecycle) {
+      'inactive' =>
+        '$said The app is `inactive`, which is what an app on an iOS '
+            'simulator reports while the Simulator app is not running: the '
+            'device is booted, but nothing shows its screen, so nothing asks '
+            'the app to draw. '
+            '${await native() ? '`act {verb: foreground, layer: native}` opens the window.' : 'Open that device in the Simulator app.'}',
+      'hidden' || 'paused' =>
+        '$said The app is `$lifecycle`, in the background. '
+            '${await native() ? '`act {verb: foreground, layer: native}` brings it back.' : 'Bring it to the front.'}',
+      'resumed' =>
+        '$said The app is `resumed`, so a frame is running longer than this '
+            "step's settle; observe again to see what it drew.",
+      _ => said,
+    };
+  }
 
   static String? _note(List<String?> parts) {
     var said = [

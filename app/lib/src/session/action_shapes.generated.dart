@@ -2805,7 +2805,12 @@ final resultShapes = <String, ResultShape>{
         'doc': 'False means the settle budget ran out with the app still animating — a spinner, an infinite animation.',
       },
       <String, Object?>{'name': 'settleMs', 'type': 'int', 'optional': true},
-      <String, Object?>{'name': 'frames', 'type': 'int', 'optional': true},
+      <String, Object?>{
+        'name': 'frames',
+        'type': 'int',
+        'optional': true,
+        'doc': 'Frames the app drew during the settle.',
+      },
       <String, Object?>{
         'name': 'framesEnabled',
         'type': 'bool',

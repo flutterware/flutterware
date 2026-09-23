@@ -291,9 +291,39 @@ func ownerOfWindow(at point: CGPoint) -> pid_t? {
   return nil
 }
 
+/// The item at the end of [titles] in the app's menu bar — `File`, `Open
+/// Simulator`, `iOS 18.1`, `iPhone 16`.
+///
+/// Titles, compared exactly, one level at a time: an item with a submenu holds
+/// its items inside an `AXMenu`, which is looked through rather than named.
+/// Exact, because the simulator's menus pair every device with an alternate
+/// spelling of it (`iOS 18.1 (22B81) - iPhone 16`), and a prefix match would
+/// press whichever came first.
+func menuItem(_ titles: [String]) -> AXUIElement {
+  guard let bar = attribute(axApp, kAXMenuBarAttribute) else {
+    fail("\(appQuery) has no menu bar yet.", code: "noMenu")
+  }
+  var level = bar as! AXUIElement
+  for (depth, wanted) in titles.enumerated() {
+    let items = children(level).flatMap { child in
+      string(child, kAXRoleAttribute) == kAXMenuRole as String ? children(child) : [child]
+    }
+    guard let found = items.first(where: { string($0, kAXTitleAttribute) == wanted }) else {
+      let offered = items.compactMap { string($0, kAXTitleAttribute) }.filter { !$0.isEmpty }
+      fail(
+        "No menu item \"\(wanted)\" under \(depth == 0 ? "the menu bar" : titles[..<depth].joined(separator: " › ")). "
+          + "It has: \(offered.isEmpty ? "nothing" : offered.joined(separator: ", "))",
+        code: "noMenu")
+    }
+    level = found
+  }
+  return level
+}
+
 // MARK: - Commands
 
-let roots = scopedRoots()
+// The one command that needs no window: it is how a window gets opened.
+let roots = verb == "menu" ? [] : scopedRoots()
 
 switch verb {
 case "observe":
@@ -314,13 +344,19 @@ case "press":
   } else if let wanted = command["label"] as? String {
     // By label, for the few elements the Dart side knows by name rather than
     // by walk — the simulator's own Home button, pressed to un-suspend an app.
+    //
+    // `in` narrows the search to inside elements of one role. A device with a
+    // Home button has two labelled "Home": the toolbar's, and one drawn in the
+    // bezel that accepts the press and does nothing (measured, iPhone SE).
+    let within = command["in"] as? String
     var found: [AXUIElement] = []
-    func search(_ element: AXUIElement, depth: Int) {
-      if label(element) == wanted { found.append(element) }
+    func search(_ element: AXUIElement, depth: Int, inside: Bool) {
+      let here = inside || within == nil || string(element, kAXRoleAttribute) == within
+      if here && label(element) == wanted { found.append(element) }
       if depth >= 40 { return }
-      for child in children(element) { search(child, depth: depth + 1) }
+      for child in children(element) { search(child, depth: depth + 1, inside: here) }
     }
-    for root in roots { search(root, depth: 0) }
+    for root in roots { search(root, depth: 0, inside: false) }
     guard found.count == 1 else {
       fail(
         found.isEmpty
@@ -399,8 +435,23 @@ case "foreground":
   }
   emit(["ok": true])
 
+case "menu":
+  guard let titles = command["path"] as? [String], !titles.isEmpty else {
+    fail("`path` is required for menu: the item titles, outermost first", code: "usage")
+  }
+  // Pressed where it sits: a menu item's action runs without its menu being
+  // opened first.
+  let status = AXUIElementPerformAction(menuItem(titles), kAXPressAction as CFString)
+  if status != .success {
+    fail(
+      "The platform refused to press \(titles.joined(separator: " › ")) "
+        + "(AX error \(status.rawValue)).",
+      code: "notPressable")
+  }
+  emit(["ok": true])
+
 default:
   fail(
     "Unknown command \"\(verb)\". This helper does: trusted, observe, press, "
-      + "click, foreground.", code: "usage")
+      + "click, foreground, menu.", code: "usage")
 }

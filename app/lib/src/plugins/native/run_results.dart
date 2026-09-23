@@ -906,6 +906,10 @@ class RunActResult implements PluginResult, ProducesArtifacts {
   final bool? settled;
 
   final int? settleMs;
+
+  /// Frames the app drew during the settle. Zero with [settled] false is an
+  /// app that had something to draw and was never given the frame — the
+  /// [note] says why.
   final int? frames;
 
   /// False when the platform has the window hidden or occluded: every frame
