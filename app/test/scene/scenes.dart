@@ -5,7 +5,7 @@
 // The test's second grader reads this: the generator writes `scene_args.dart`
 // from it, the compiler checks `sample.scene.dart` against that, and the
 // parser reads the same file back.
-import 'package:flutter/material.dart' show Color, FontWeight, TextStyle;
+import 'package:material_ui/material_ui.dart' show Color, FontWeight, TextStyle;
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart';
 

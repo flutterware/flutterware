@@ -1,6 +1,6 @@
 // The app widget `sample.scene.dart` places — on this side of the file,
 // where a widget belongs, rather than in a map of strings to lambdas.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class SampleChip extends StatelessWidget {
   const SampleChip({super.key, required this.label});

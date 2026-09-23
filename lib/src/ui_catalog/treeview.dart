@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 const selectionColor = Color(0xff2675bf);
 const iconLightBlue = Color(0xffaeb9c0);

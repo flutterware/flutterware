@@ -5,7 +5,7 @@
 // way in, a skin, and a clip somebody else authored — scrubbed by the
 // playhead through `ModelView`'s ordinary arguments, the way a scene's
 // motion drives them.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware_probes/model_view.dart';
 // ignore: implementation_imports

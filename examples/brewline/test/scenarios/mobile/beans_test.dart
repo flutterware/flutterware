@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 /// The scrolling example — a list long enough that the target is not built

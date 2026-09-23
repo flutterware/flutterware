@@ -2,7 +2,7 @@
 // then one control per uniform the shader asks for — drawn from what the
 // compiler reflected and the source's own `// @range`, `// @color` and
 // `// @default` comments, never from a table of names.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/scene_authoring.dart';
 import 'package:path/path.dart' as p;
 

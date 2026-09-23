@@ -468,7 +468,7 @@ List<int> _recolored(Uint8List png) {
 }
 
 const _loyaltyDart = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'shop_app.dart';
 
@@ -638,7 +638,7 @@ String _standalonePubspec(String pubspec) {
 }
 
 const _loyaltyPreviewDart = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:brewline/shop/shop_app.dart';
 

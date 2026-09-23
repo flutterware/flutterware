@@ -1,6 +1,6 @@
 // The layer list's paint editor, driven: a colour pass becomes a gradient
 // through the kind picker, and a gradient pass can be laid across each line.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene_authoring.dart';
 import 'package:flutterware_app/src/scene/shader_library.dart';

@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'shop_screens.dart';
 import 'shop_strings.dart';
@@ -62,9 +61,7 @@ class _ShopAppState extends State<ShopApp> {
       supportedLocales: const [Locale('en'), Locale('fr')],
       localizationsDelegates: const [
         ShopStrings.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
+        ...GlobalMaterialLocalizations.delegates,
       ],
       theme: shopTheme(Brightness.light),
       darkTheme: shopTheme(Brightness.dark),

@@ -2,7 +2,7 @@
 // shader object and replays it later, so each band of a per-line pass has to
 // have drawn with a shader of its own — one shared shader would replay every
 // band with the last line's uniforms.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/render.dart';

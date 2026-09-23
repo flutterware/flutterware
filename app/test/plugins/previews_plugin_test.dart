@@ -292,7 +292,7 @@ Widget counter() => const Placeholder();
     expect(examples, hasLength(2), reason: 'both knob spellings are examples');
 
     write('demo/knobs.dart', '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 
 ${examples.join('\n\n')}

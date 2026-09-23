@@ -30,7 +30,7 @@ sits. `directory:` narrows that; see the config below.
 
 ```dart
 // demo/buttons.dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 
 @Preview(name: 'Buttons')

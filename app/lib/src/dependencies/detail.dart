@@ -1,13 +1,14 @@
 import 'package:clock/clock.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:pub_scores/pub_scores.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../address/address_scope.dart';
 import '../ui/empty_state.dart';
+import '../ui/markdown_style.dart';
 import '../ui/theme.dart';
 import '../utils/async_value.dart';
 import '../utils/cloc/cloc.dart';
@@ -833,6 +834,7 @@ class _DocumentSectionState extends State<_DocumentSection> {
                   constraints: const BoxConstraints(maxHeight: 420),
                   child: MarkdownBody(
                     data: _emphasised(document.content),
+                    styleSheet: markdownStyleSheet(context),
                     onTapLink: (text, href, title) {
                       if (href != null) launchUrl(Uri.parse(href));
                     },

@@ -100,7 +100,7 @@ void main() { fragColor = vec4($rgb, 1.0); }
       ..writeAsStringSync('''
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Loaded once and held, the way a painter holds its shader: a refresh that
 /// does not reach the program leaves this very object drawing the old code.

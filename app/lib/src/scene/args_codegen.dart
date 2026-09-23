@@ -78,9 +78,7 @@ String emitSceneArgs({
   // showed: the entries need `Widget` and `Builder` from it too.
   var designLibraries = {
     for (var i in declarationImports)
-      if (!i.contains(' as ') &&
-          (_importPath(i) == 'package:flutter/material.dart' ||
-              _importPath(i) == 'package:flutter/cupertino.dart'))
+      if (!i.contains(' as ') && _designLibraries.contains(_importPath(i)))
         _importPath(i),
   };
   var widgetsCovered = entries && designLibraries.isNotEmpty;
@@ -463,6 +461,16 @@ String? _narrowShow(String directive, Set<String> types) {
     'show ${kept.join(', ')};',
   );
 }
+
+/// The design libraries that re-export `package:flutter/widgets.dart`. The
+/// framework's own two stay: they are read out of a project's declarations,
+/// and a project that has not moved to the packages still spells them.
+const _designLibraries = {
+  'package:material_ui/material_ui.dart',
+  'package:cupertino_ui/cupertino_ui.dart',
+  'package:flutter/material.dart',
+  'package:flutter/cupertino.dart',
+};
 
 /// `foo.dart` from `import 'foo.dart' as x;`.
 String _importPath(String directive) {

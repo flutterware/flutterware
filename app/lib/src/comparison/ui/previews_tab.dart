@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutterware/comparison_report.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../capture/settle.dart';
 import '../../ui/tappable.dart';

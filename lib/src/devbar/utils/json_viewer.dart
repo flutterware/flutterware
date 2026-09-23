@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../third_party/flutter_highlight/lib/flutter_highlight.dart';
 import '../../third_party/flutter_highlight/lib/themes/darcula.dart';

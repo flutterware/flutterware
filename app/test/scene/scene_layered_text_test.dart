@@ -1,7 +1,7 @@
 // The painter's shape, which is what its cost rests on: no stack, no extra
 // work; a stack, and the widget that does the LAYOUT draws nothing.
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart';

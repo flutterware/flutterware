@@ -53,7 +53,7 @@ dependencies:
   file_selector:
   flutter:
     sdk: flutter
-  flutter_markdown:
+  flutter_markdown_plus:
   flutter_svg:
   flutter_web_plugins:
     sdk: flutter
@@ -80,6 +80,7 @@ dependencies:
   logging:
   lottie:
   markdown:
+  material_ui: ^1.4.0
   meta:
   more:
   os_detect:

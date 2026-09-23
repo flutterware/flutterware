@@ -1,6 +1,6 @@
 // The stop bar, driven the way a hand drives it: a tap on the bar adds a
 // stop, a drag moves one past its neighbour, and the last two stay.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene_authoring.dart';
 import 'package:flutterware_app/src/scene/ui/gradient_field.dart';

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware_app/src/changes/diff_view.dart';
 import 'package:flutterware_app/src/demo/recorded_project.dart';

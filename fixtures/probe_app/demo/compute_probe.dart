@@ -7,7 +7,7 @@
 // `lib/root_zone_scene.dart`. This keeps the question on its own: a `compute`
 // in `initState`, tracked, and a green box once it answers.
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware/real_work.dart';
 

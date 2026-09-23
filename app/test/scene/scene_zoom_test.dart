@@ -1,7 +1,7 @@
 // Zooming the canvas: a trackpad gesture is the canvas's, never a node's,
 // and a host drawing a pane layer is told where the artboard is.
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware_app/src/scene/editor.dart';

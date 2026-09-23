@@ -21,7 +21,7 @@ $sceneGroupFileMarker
 // exports   the app's own values, named for the scenes — any type
 // libraries the *$sceneTokensFileSuffix these scenes read, imported above
 // wrap      what the canvas is mounted under — the app's theme
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart';
 

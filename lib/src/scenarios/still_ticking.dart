@@ -25,6 +25,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import '../design_libraries.dart';
+
 /// What each frame callback still registered was started by, one line each,
 /// the same line once however many callbacks share it.
 ///
@@ -37,7 +39,7 @@ List<String> whatKeepsTicking() {
   for (var stack in _transientCallbackStacks()) {
     var frame = _startingFrame(stack);
     if (frame == null) continue;
-    var owned = frame.location.startsWith('package:flutter/')
+    var owned = _framework.any(frame.location.startsWith)
         ? _ownersOf(frame.owner)
         : const <String>[];
     described.addAll(owned.isEmpty ? [frame.label] : owned);
@@ -112,7 +114,7 @@ String? _appCreation(Element element) {
       InspectorSerializationDelegate(service: WidgetInspectorService.instance),
     );
     if (json['creationLocation'] case {'file': String file, 'line': int line}
-        when !_sdk.hasMatch(file)) {
+        when !_sdk.hasMatch(file) && !designLibraryFile.hasMatch(file)) {
       found = '${_readable(file)}:$line';
       return false;
     }
@@ -147,6 +149,9 @@ final _column = RegExp(r'^(.*?:\d+)(?::\d+)?$');
 
 /// A creation location inside the Flutter SDK's own packages.
 final _sdk = RegExp(r'/packages/flutter(_test)?/lib/');
+
+/// The libraries whose frames are the framework's.
+const _framework = ['package:flutter/', ...designLibraryPackages];
 
 const _machinery = [
   'dart:',

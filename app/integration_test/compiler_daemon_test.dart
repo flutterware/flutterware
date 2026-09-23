@@ -697,7 +697,7 @@ void main() {
     // Nothing serving, and nothing remembered: a first encounter.
     await restart();
     broken.writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 
 @Preview(name: 'Broken')
@@ -734,7 +734,7 @@ Widget fixtureBroken() => NoSuchWidgetExistsHere();
     // compiled like any other, so a repair can never be locked out by a stale
     // note — which is the one way this optimisation could do real harm.
     broken.writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 
 @Preview(name: 'Broken')
@@ -1073,7 +1073,7 @@ Future<String> _appPackageRoot() async {
 
 String _preview(String symbol, String text) =>
     '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 
 @Preview(name: 'Fixture')
@@ -1084,7 +1084,7 @@ Widget $symbol() => const Center(child: Text('$text'));
 /// compiler blame this file — and so what makes the entry quarantinable.
 String _brokenPreview(String symbol) =>
     '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 
 @Preview(name: 'Fixture')

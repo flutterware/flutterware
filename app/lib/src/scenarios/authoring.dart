@@ -152,7 +152,7 @@ String scenarioFileName(String name) {
 /// exists — which is the failure mode a doc has and a scaffold does not.
 String scenarioScaffold(String name) =>
     '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 /// Replace `_Stub` with the app you want to walk through; the scenario below

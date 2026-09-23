@@ -18,7 +18,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware_app/src/run/device/device_settings.dart';
 import 'package:flutterware_app/src/run/device/adb_settings.dart';

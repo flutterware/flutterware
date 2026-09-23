@@ -11,7 +11,7 @@
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart' hide Token;
@@ -60,7 +60,7 @@ void main() {
   group('the declaration', () {
     test('records a type and a kind, never the value', () {
       var parsed = parseGroupFile('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 final scenes = SceneGroup(exports: [
   Token<Color>('accent', AppColors.accent),
   Token<TextStyle>('heading', Theme.of(context).textTheme.titleLarge!),

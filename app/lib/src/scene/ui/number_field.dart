@@ -9,7 +9,7 @@
 // unparseable value REFUSES rather than writing a zero for what somebody meant.
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../ui/design/design.dart';
 import 'number_shape.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware_app/src/ui/theme.dart';
 
 /// Wraps a demo in **the app's own theme**, so what a preview shows is what the

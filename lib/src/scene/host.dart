@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 
-import 'package:flutter/material.dart' show MaterialApp;
+import 'package:material_ui/material_ui.dart' show MaterialApp;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 

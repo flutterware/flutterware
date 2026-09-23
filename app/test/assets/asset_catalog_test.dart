@@ -617,6 +617,30 @@ flutter:
       );
     });
 
+    test('a shader reached through packages/ is keyed as declared', () async {
+      // How `material_ui` declares the ink-sparkle ripple: a file under its
+      // own `lib/`, which it loads by exactly this key.
+      write('app/pubspec.yaml', '''
+name: app
+dependencies:
+  dep:
+''');
+      write('dep/pubspec.yaml', '''
+name: dep
+flutter:
+  shaders:
+    - packages/dep/shaders/ink.frag
+''');
+      write('dep/lib/shaders/ink.frag', 'frag');
+
+      var catalog = await resolve();
+
+      var shader = catalog.shaders.single;
+      expect(shader.key, 'packages/dep/shaders/ink.frag');
+      expect(shader.source, p.join(depRoot(), 'lib', 'shaders', 'ink.frag'));
+      expect(catalog.problems, isEmpty);
+    });
+
     test(
       'a declared shader that is not on disk is a problem, not a key',
       () async {

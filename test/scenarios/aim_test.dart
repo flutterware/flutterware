@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware/src/scenarios/run_args.dart';
 import 'package:flutterware/src/scenarios/run_listener.dart';

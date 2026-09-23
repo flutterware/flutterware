@@ -54,9 +54,9 @@ class EnumValues {
 /// path, or a `package:` URI belonging to a package of the same workspace —
 /// see [firstPartyPackages]. A dependency it fetched is not, which is a bound
 /// and not an oversight: parsing the export closure of
-/// `package:flutter/material.dart` to answer one name would cost a form that
-/// has to open now, and an enum nobody in the checkout can edit is not the one
-/// somebody is trying to put a knob on.
+/// `package:material_ui/material_ui.dart` to answer one name would cost a form
+/// that has to open now, and an enum nobody in the checkout can edit is not
+/// the one somebody is trying to put a knob on.
 ///
 /// Shared deliberately: entry-point knobs and catalog demos ask the identical
 /// question of the identical AST, and
@@ -291,9 +291,10 @@ class EnumLookup {
 /// enum hides — one `Backend` in one place, so two apps cannot disagree about
 /// what `staging` means — and following `path:` dependencies to reach it is a
 /// handful of small packages. Following everything else is not: an entry point
-/// imports `package:flutter/material.dart`, whose export closure is hundreds of
-/// files to parse before a missing name can be called missing, on the path that
-/// draws a launch form. So the resolver carries the checkout and stops there.
+/// imports `package:material_ui/material_ui.dart`, whose export closure is
+/// hundreds of files to parse before a missing name can be called missing, on
+/// the path that draws a launch form. So the resolver carries the checkout and
+/// stops there.
 ///
 /// The two lines are drawn where the config itself draws them: pub names the
 /// cache it fetched into and the SDK it resolved against, and writes a relative

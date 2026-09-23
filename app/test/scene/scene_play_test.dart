@@ -13,7 +13,7 @@
 // on a compiled node by hand, which an app would write in its scene file.
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart' show FillLayer, ShaderPaint;

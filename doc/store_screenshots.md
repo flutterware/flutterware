@@ -80,7 +80,7 @@ A frame is a widget that receives one shot and draws the image around it:
 
 ```dart
 // lib/store_frame.dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/store.dart';
 
 StoreFrame storeFrame(StoreShot shot) => CoffeeStoreFrame(shot);

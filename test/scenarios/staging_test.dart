@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 /// A plain `flutter test` walking a catalog, on the right surface per entry.

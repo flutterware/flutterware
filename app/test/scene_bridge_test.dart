@@ -3,7 +3,7 @@
 // order pinned index-by-index, and all 13 curves compared against the
 // framework across sampled inputs (the ports are algorithm-identical, so
 // equality is exact, not approximate).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart';

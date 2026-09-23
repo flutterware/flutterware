@@ -13,7 +13,7 @@
 /// where a project keeps its marketing copy — see the design's §2.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../devices.dart';
 import '../plugins/store.dart';

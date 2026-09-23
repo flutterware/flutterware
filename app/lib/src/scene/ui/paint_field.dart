@@ -1,7 +1,7 @@
 // What one pass paints with: the kind as a picker, then whatever that kind
 // is made of — a colour, a gradient's stops and its shape, or a shader and
 // its uniforms.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/scene_authoring.dart';
 
 import '../../ui/design/design.dart';

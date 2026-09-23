@@ -23,6 +23,7 @@ dependencies:
     path: ..
   flutterware_app:
     path: ../app
+  material_ui: ^1.4.0
 
 dev_dependencies:
   flutter_lints:

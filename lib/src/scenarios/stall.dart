@@ -29,6 +29,7 @@
 /// scenario that was only on a slow machine.
 library;
 
+import '../design_libraries.dart';
 import '../real_work/tracker.dart';
 import 'progress.dart';
 
@@ -149,6 +150,7 @@ final _location = RegExp(r'\(([^()]+)\)$');
 const _framework = [
   'dart:',
   'package:flutter/',
+  ...designLibraryPackages,
   'package:flutter_test/',
   'package:flutterware/',
   'package:test_api/',

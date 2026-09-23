@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware/src/scenarios/keyboard.dart';
 import 'package:flutterware/src/scenarios/profile.dart';

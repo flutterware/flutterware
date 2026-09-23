@@ -5,7 +5,7 @@
 /// thing the same way.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../ui/design/design.dart';
 import 'branch_delta.dart';

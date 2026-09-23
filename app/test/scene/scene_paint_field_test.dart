@@ -1,7 +1,7 @@
 // The paint field's own arithmetic, driven through the real widget: a
 // centre field rounds what it writes, and a sweep's "From" turns the arc
 // rather than shrinking it.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene_authoring.dart';
 import 'package:flutterware_app/src/scene/ui/number_field.dart';

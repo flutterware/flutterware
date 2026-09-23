@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/notification.dart';
 import 'package:path/path.dart' as p;

@@ -48,7 +48,7 @@ own `@Preview`. Nothing of flutterware's is imported, and there is no map to
 register it in — $scanned.
 
   // $example/buttons.dart
-  import 'package:flutter/material.dart';
+  import 'package:material_ui/material_ui.dart';
   import 'package:flutter/widget_previews.dart';
 
   @Preview(name: 'Buttons')
@@ -163,7 +163,7 @@ String catalogSymbolName(String name) {
 String catalogScaffold(String name) {
   var symbol = catalogSymbolName(name);
   return '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 
 @Preview(name: '$name')

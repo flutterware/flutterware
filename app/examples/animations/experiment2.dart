@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // Tool:
 //  - generate the widget in a file to show the user how it looks

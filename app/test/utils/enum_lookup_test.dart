@@ -250,10 +250,10 @@ enum Backend { local }
   });
 
   test('a package it did not write is left where it is', () {
-    // The bound that keeps this cheap. Following `package:flutter/material.dart`
-    // means parsing its whole export closure to answer one name, on a form that
-    // has to open now — and an enum somebody cannot edit is not the one they
-    // are looking for. Both spellings of "fetched" are refused: a root inside
+    // The bound that keeps this cheap. Following
+    // `package:material_ui/material_ui.dart` means parsing its whole export
+    // closure to answer one name, on a form that has to open now — and an enum
+    // somebody cannot edit is not the one they are looking for. Both spellings of "fetched" are refused: a root inside
     // the cache the config names, and the absolute root pub writes for one.
     write('.cache/hosted/near-1.0.0/lib/near.dart', 'enum Backend { dev }');
     write('far/lib/far.dart', 'enum Other { dev }');

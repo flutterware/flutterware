@@ -29,7 +29,7 @@ void main() {
     var demoDir = Directory(p.join(root.path, 'demo', 'team'))
       ..createSync(recursive: true);
     File(p.join(demoDir.path, 'avatar_tile.dart')).writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../shell.dart';
 
@@ -128,7 +128,10 @@ Widget avatarTileEmpty() => const Placeholder();
   test('carries the demo file imports, re-relativised', () {
     generator.select(members);
     // Package URIs pass through untouched.
-    expect(wrapper(0), contains("import 'package:flutter/material.dart';"));
+    expect(
+      wrapper(0),
+      contains("import 'package:material_ui/material_ui.dart';"),
+    );
     // '../shell.dart' resolves to <root>/demo/shell.dart, which from
     // <root>/build/entrypoint/ is three levels up.
     expect(wrapper(0), contains("import '../../demo/shell.dart';"));
@@ -305,7 +308,7 @@ Widget avatarTileEmpty() => const Placeholder();
       // match then carried a fragment — or, if the URI was on the second line,
       // nothing at all.
       var generated = wrapperFor('''
-import 'package:flutter/material.dart'
+import 'package:material_ui/material_ui.dart'
     show Widget, Placeholder;
 
 import '../shell.dart'
@@ -319,7 +322,7 @@ Widget avatarTileMembers() => const Placeholder();
       expect(
         generated,
         contains(
-          "import 'package:flutter/material.dart' "
+          "import 'package:material_ui/material_ui.dart' "
           'show Widget, Placeholder;',
         ),
       );
@@ -331,7 +334,7 @@ Widget avatarTileMembers() => const Placeholder();
 
     test('a prefix, a hide and a deferred load all survive', () {
       var generated = wrapperFor('''
-import 'package:flutter/material.dart' as m hide Placeholder;
+import 'package:material_ui/material_ui.dart' as m hide Placeholder;
 import '../shell.dart' as s;
 
 m.Widget avatarTileMembers() => s.wrapInApp(const m.SizedBox());
@@ -339,7 +342,7 @@ m.Widget avatarTileMembers() => s.wrapInApp(const m.SizedBox());
       expect(
         generated,
         contains(
-          "import 'package:flutter/material.dart' as m hide Placeholder;",
+          "import 'package:material_ui/material_ui.dart' as m hide Placeholder;",
         ),
       );
       expect(generated, contains("import '../../demo/shell.dart' as s;"));
@@ -349,7 +352,7 @@ m.Widget avatarTileMembers() => s.wrapInApp(const m.SizedBox());
       // A part belongs to the library that declares it; carrying one would
       // claim a second owner for the same file.
       var generated = wrapperFor('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 export '../shell.dart';
 part 'avatar_tile.g.dart';
 
@@ -406,7 +409,7 @@ Widget avatarTileMembers() => const Placeholder();
       var widgets = Directory(p.join(libRoot.path, 'lib', 'widgets'))
         ..createSync(recursive: true);
       File(p.join(widgets.path, 'tile.dart')).writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../theme.dart';
 import '../../demo/shell.dart';

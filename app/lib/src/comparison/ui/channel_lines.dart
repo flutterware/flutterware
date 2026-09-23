@@ -1,6 +1,6 @@
 import 'package:flutterware/app_events.dart';
 import 'package:flutterware/comparison_report.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../ui/menu.dart';
 import '../../ui/popover.dart';
