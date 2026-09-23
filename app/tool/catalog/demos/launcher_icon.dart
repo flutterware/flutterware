@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/plugins.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware_app/src/launcher_icon/model/role.dart';

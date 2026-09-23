@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/previews_guest.dart';
 
 import '../inspect/elements_view.dart';

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../previews/devices.dart';
 import '../plugins/native/scenarios_results.dart';

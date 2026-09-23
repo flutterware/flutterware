@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutterware/comparison_report.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware_app/src/comparison/shot_cache.dart';
 import 'package:flutterware_app/src/comparison/shot_store_io.dart';

@@ -1,7 +1,7 @@
 import 'dart:core' as core;
 import 'dart:core';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/ui_catalog.dart';
 
 void main() async {

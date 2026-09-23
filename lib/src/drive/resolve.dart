@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart' show InputDecorator;
+import 'package:material_ui/material_ui.dart' show InputDecorator;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -412,7 +412,7 @@ class TargetResolver {
   /// live app, the likelier one: a tooltip is always there to be asked about,
   /// where the semantics tree is off until something holds a handle.
   String? _propertyMiss(String wanted) {
-    var tooltips = find.byTooltip(wanted).evaluate().length;
+    var tooltips = findByTooltip(wanted).evaluate().length;
     if (tooltips > 0) {
       return messages.propertyMiss(tooltips, noun: 'tooltip', form: 'tooltip');
     }

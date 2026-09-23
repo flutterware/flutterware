@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/plugins.dart' show Address;
 // ignore: implementation_imports
@@ -266,6 +267,50 @@ void main() {
     expect(find.text('Changelog'), findsOneWidget);
     await scrollTo(tester, 'License text');
     expect(find.text('License text'), findsOneWidget);
+  });
+
+  testWidgets('a readme taller than its section scrolls inside it', (
+    tester,
+  ) async {
+    // http's README is hundreds of lines. The section caps its height so the
+    // changelog and the licence below it stay a short scroll away, and a cap
+    // with nothing scrollable under it overflowed and cut the rest off.
+    await pumpDetail(tester, 'http');
+    await scrollTo(tester, 'Readme');
+
+    var readme = find.ancestor(
+      of: find.text('Readme'),
+      matching: find.byType(Card),
+    );
+    var body = find.descendant(of: readme, matching: find.byType(MarkdownBody));
+    // The section reads the file from `initState`, so under fake time: each
+    // step of the read needs a turn of the real event loop, then a pump to
+    // deliver it.
+    for (var i = 0; i < 20 && body.evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+    expect(body, findsOneWidget);
+    var section = find
+        .descendant(
+          of: readme,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Scrollable && widget.axis == Axis.vertical,
+          ),
+        )
+        .first;
+    var position = tester.state<ScrollableState>(section).position;
+    expect(position.maxScrollExtent, greaterThan(0));
+
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pump();
+    expect(
+      tester.getBottomLeft(body).dy,
+      moreOrLessEquals(tester.getBottomLeft(section).dy, epsilon: 1),
+      reason: 'the end of the document is reachable',
+    );
   });
 
   testWidgets('the licence text starts collapsed, the readme does not', (

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../plugins/native/run_results.dart';
 import '../ui/design/spacing.dart';

@@ -8,7 +8,7 @@
 // one undo entry (the field commits once, on release, under the door's merge
 // key). And every colour, weight and alignment goes through the studio's own
 // controls rather than stock Material.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/scene_authoring.dart';
 import 'package:path/path.dart' as paths;
 

@@ -8,7 +8,7 @@
 /// glyphs.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../address/address_scope.dart';
 import '../ui/design/design.dart';

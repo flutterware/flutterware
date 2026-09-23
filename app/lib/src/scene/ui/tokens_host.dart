@@ -8,7 +8,7 @@
 // and follows a rename into the files that are not open. Without a host —
 // a test, the catalog — the surfaces fall back to this file and the
 // library alone.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/scene_authoring.dart';
 
 import '../../ui/menu.dart';

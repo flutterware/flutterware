@@ -1,7 +1,7 @@
 // Theirs hidden, as everywhere but the one file that borrows their bodies:
 // `Devices` here is our offered table, which is what a shot is filed under.
 import 'package:device_frame/device_frame.dart' hide Devices;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/store.dart' show StatusChrome;
 
 import '../previews/catalog_devices.dart';

@@ -2,7 +2,7 @@
 // mutation a command door, the undo stack a journal — plus the focus
 // discipline in widgets (a Backspace in an inspector field must never
 // delete a node).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';

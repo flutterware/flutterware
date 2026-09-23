@@ -170,13 +170,13 @@ void main({m.Backend backend = m.Backend.dev}) {}
     test('dart: and package: imports pass through untouched', () {
       write('lib/main.dart', '''
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 void main() {}
 ''');
 
       expect(scan().imports, [
         "import 'dart:async';",
-        "import 'package:flutter/material.dart';",
+        "import 'package:material_ui/material_ui.dart';",
       ]);
     });
 

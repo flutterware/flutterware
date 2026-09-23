@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A complete colour palette. One instance per theme; provided to the tree via
 /// [FwTokens] and read through `context.colors`. The shipped palettes live with

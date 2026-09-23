@@ -9,7 +9,7 @@
 // the real widget for it. Nothing about that widget crosses a wire — its
 // mockup data, its theme, its own animations all live here, on this side.
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../previews/playhead.dart';
 import 'core/model.dart';

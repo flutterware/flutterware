@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Draws a box and its label above it — the inspector's rectangle, painted
 /// **inside a surface that is the guest's logical size**: the rects handed in

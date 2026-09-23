@@ -1402,7 +1402,7 @@ List<String> _scratchTexts(Map<String, Object?> report) {
 const _rippleSource = r'''
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1434,7 +1434,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) =>
 
 String _scratchSource(String label) =>
     '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1466,7 +1466,7 @@ String _lastPng(Map<String, Object?> report) {
 
 /// A scenario nested in a user `group()`, beside one that is not.
 const _groupedSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1491,7 +1491,7 @@ void main() {
 /// A nested split: three paths (left→x, left→y, right), a shared prefix
 /// (`root`), and a step after the split (`tail`) that runs once per path.
 const _splitSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1527,7 +1527,7 @@ void main() {
 const _hooksSource = r'''
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 var setUps = 0;
@@ -1556,7 +1556,7 @@ void main() {
 
 /// A `setUpAll` that throws — the fixture every scenario under it needed.
 const _brokenHookSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1573,7 +1573,7 @@ void main() {
 /// A skipped scenario whose body would fail, beside one that runs — skipped
 /// the way an author skips: because the body is known broken.
 const _partlySkippedSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1593,7 +1593,7 @@ void main() {
 /// thrown — the smallest recipe for the binding's "Multiple exceptions"
 /// aggregate.
 const _doublyBrokenSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1631,7 +1631,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) =>
 ''';
 
 const _profiledSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1653,7 +1653,7 @@ void main() {
 /// A scenario and a plain `testWidgets` in the same file — what `list` and
 /// `run` used to disagree about.
 const _straySource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1673,7 +1673,7 @@ void main() {
 /// Two scenarios, one tagged — the fixture for `--tag` and for what a
 /// listing reports about it.
 const _taggedSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1694,7 +1694,7 @@ void main() {
 /// The verbs past tap and enterText: a list scrolled to an off-screen row, a
 /// target scoped to that row, and a timer waited out.
 const _verbsSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1754,7 +1754,7 @@ class _AppState extends State<_App> {
 
 /// The two unhappy shapes: a screen holding a spinner, where the settle
 const _unhappySource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {
@@ -1899,7 +1899,7 @@ class _DeadEnd extends StatelessWidget {
 ''';
 
 const _probeSource = r'''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 void main() {

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 // The half of the harness `flutter_test.dart` does not re-export.
 import 'package:flutterware/src/clock.dart';

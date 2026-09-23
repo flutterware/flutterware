@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Motion that carries no information, declared by the app so a scenario can
 /// photograph it standing still.

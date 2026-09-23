@@ -1,5 +1,30 @@
 ## Unreleased
 
+- **flutterware is built on `material_ui`.** Every library, the studio and the
+  templates it writes into a project import
+  `package:material_ui/material_ui.dart`, and the package depends on
+  `material_ui: ^1.4.0`, whose floor is the one this package already had. It
+  is a separate copy of Material, not an alias: its `Theme`,
+  `MaterialLocalizations` and `Material` are different types from
+  `package:flutter/material.dart`'s. So where flutterware puts a Material app
+  around your widgets — a scene's default wrap, a Store frame, the UI catalog —
+  a widget still importing the SDK's copy finds none of its own kind there.
+  `dart fix --apply --code=migrate_design_widgets` migrates a project; a scene
+  also takes a `wrap` of your own.
+
+- **An app on `material_ui` reads as the app, not as Material.** The SDK tells
+  the framework's widgets from yours by whether they were created under
+  `packages/flutter/`, and `material_ui` lives in the pub cache. So the inspect
+  tree listed a `MaterialApp`'s own scaffolding as your code, a `node=` crop
+  matched a `TextField`'s insides along with it, and a settle that never landed
+  named `_CircularProgressIndicatorState` instead of the line that built the
+  spinner. All three now treat `material_ui` and `cupertino_ui` as framework. A
+  `{tooltip: …}` target also finds an `excludeFromSemantics` `Tooltip`. And
+  previews and scenarios now bundle the shaders a dependency declares
+  through `packages/<name>/…`. That is how `material_ui` ships its ink-sparkle
+  ripple, and without it a tap that drew one threw
+  `Asset 'packages/material_ui/shaders/ink_sparkle.frag' not found`.
+
 - **Scenarios: every `split` branch starts at the instant the first run did.**
   A split replays the body from the top, but the pinned clock kept running
   across replays, so each branch read the fake time of every branch before it.

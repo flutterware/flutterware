@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart' show PointerScrollEvent;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../shell/worktree.dart';
@@ -2707,8 +2707,8 @@ class _FilePaneState extends State<_FilePane> {
   }
 
   /// Where a relative image reference in this file's markdown points: its own
-  /// directory in the worktree, spelled the way flutter_markdown concatenates
-  /// it — absolute, with a trailing slash.
+  /// directory in the worktree, spelled the way flutter_markdown_plus
+  /// concatenates it — absolute, with a trailing slash.
   String _imageDirectoryOf(String path) {
     var slash = path.lastIndexOf('/');
     var directory = slash < 0 ? '' : '${path.substring(0, slash)}/';

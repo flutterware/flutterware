@@ -7,7 +7,7 @@
 // So the graders here are the round trip on both sides of that line, the
 // constructor resolving the same way a parsed node does, and the editor's
 // three doors: apply, override (any edit), reset.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart' hide Token;

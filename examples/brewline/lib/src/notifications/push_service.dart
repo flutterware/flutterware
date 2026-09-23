@@ -13,7 +13,7 @@
 library;
 
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// What the OS has told the app about showing notifications.
 enum PushPermission {

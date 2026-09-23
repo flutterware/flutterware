@@ -9,7 +9,7 @@
 //
 // The rows take [FwChoice], the same description [FwPicker] takes, so a list
 // that outgrows the room becomes a picker by changing the widget.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'design/design.dart';
 import 'tappable.dart';

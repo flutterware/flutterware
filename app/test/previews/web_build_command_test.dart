@@ -81,7 +81,7 @@ void main() {
       var demo = Directory(p.join(root.path, 'demo'))
         ..createSync(recursive: true);
       File(p.join(demo.path, 'a.dart')).writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 Widget a() => const Placeholder();
 ''');

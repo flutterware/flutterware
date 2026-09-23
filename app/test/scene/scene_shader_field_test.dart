@@ -1,7 +1,7 @@
 // The shader pass's editor, driven through the paint field that mounts it: a
 // picker over the package's declared shaders, then a control per uniform the
 // reflection lists, drawn from the shader's own comments.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene_authoring.dart';
 import 'package:flutterware_app/src/scene/shader_library.dart';

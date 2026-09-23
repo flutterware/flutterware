@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/previews.dart';
 
 /// The app chrome a demo needs to look like itself: theme, localizations,

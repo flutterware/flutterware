@@ -16,7 +16,7 @@
 // The plug is the affordance the panel had none of. It appears on hover on
 // every bindable row, in the label's own line, and it is the same gesture on
 // a number, a colour and a text.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../ui/design/design.dart';
 import '../../ui/tappable.dart';

@@ -7,7 +7,7 @@
 /// a second real consumer to prove the generalisation against.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../server/attach_session.dart';
 import '../descriptor.dart';

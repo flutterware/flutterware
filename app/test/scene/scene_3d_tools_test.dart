@@ -2,7 +2,7 @@
 // orbit tool, brought closer with the wheel, and given its placements from
 // the tree — each writing the rows the inspector and the guest read.
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart';

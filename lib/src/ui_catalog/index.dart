@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../third_party/device_frame/lib/device_frame.dart';
 import 'app.dart';

@@ -6,7 +6,7 @@
 /// widgets with ordinary arguments, not what they draw.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 const brandColor = Color(0xFF6F4E37);
 

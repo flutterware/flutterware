@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../devbar.dart';
 import '../../utils/auto_scroll_to_bottom.dart';

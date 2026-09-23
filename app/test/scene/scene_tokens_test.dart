@@ -6,7 +6,7 @@
 // spells `tokens.brand` against; and a scene reading a token round-trips —
 // the formal by type, the reference spelled back, an undeclared name refused.
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart' hide Token;
@@ -32,7 +32,7 @@ final sceneTokens = [
 /// widgets. Any type at all, including the String and bool a library
 /// refuses: a library is a design system, and copy is the app's.
 const _exports = '''
-import 'package:flutter/material.dart' show ButtonStyle, FilledButton;
+import 'package:material_ui/material_ui.dart' show ButtonStyle, FilledButton;
 import 'package:flutterware/scene_authoring.dart';
 
 import 'shop.dart' as app;
@@ -351,7 +351,7 @@ final sceneTokens = [
         'app.Decor',
       );
       expect(parsed.imports, [
-        "import 'package:flutter/material.dart' show ButtonStyle, FilledButton;",
+        "import 'package:material_ui/material_ui.dart' show ButtonStyle, FilledButton;",
         "import 'shop.dart' as app;",
       ]);
     });
@@ -381,7 +381,9 @@ final sceneTokens = [
       expect(source, contains("import 'scenes.dart';"));
       expect(
         source,
-        contains("import 'package:flutter/material.dart' show ButtonStyle;"),
+        contains(
+          "import 'package:material_ui/material_ui.dart' show ButtonStyle;",
+        ),
         reason: 'the show list is cut to what this file spells',
       );
       expect(source, contains("import 'shop.dart' as app;"));
@@ -391,7 +393,7 @@ final sceneTokens = [
 
     test("fills an external argument of the app's own type", () {
       var externals = parseGroupFile('''
-import 'package:flutter/material.dart' show ButtonStyle;
+import 'package:material_ui/material_ui.dart' show ButtonStyle;
 import 'package:flutterware/scene_authoring.dart';
 
 final scenes = SceneGroup(widgets: [
@@ -415,7 +417,9 @@ final scenes = SceneGroup(widgets: [
       expect(source, isNot(contains('MotionTrack? style')));
       expect(
         source,
-        contains("import 'package:flutter/material.dart' show ButtonStyle;"),
+        contains(
+          "import 'package:material_ui/material_ui.dart' show ButtonStyle;",
+        ),
       );
     });
 

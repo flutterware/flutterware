@@ -3,6 +3,7 @@ import '../utils/identity_hash.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart' show Tooltip;
 
 /// Resolves a verb's polymorphic target to a `Finder`.
 ///
@@ -248,13 +249,29 @@ class _Label extends Target {
   String toString() => 'Target.label("$label")';
 }
 
+/// `find.byTooltip`, for the `Tooltip` apps build now.
+///
+/// flutter_test matches a `RawTooltip` by the message it announces, and
+/// `material_ui`'s `Tooltip` builds one — except when it is
+/// `excludeFromSemantics` and announces nothing. flutter_test reads that
+/// case's message off `package:flutter/material.dart`'s `Tooltip`, a class a
+/// `material_ui` app never builds, so this reads it off `material_ui`'s.
+Finder findByTooltip(String message) => find.byWidgetPredicate(
+  (widget) => switch (widget) {
+    RawTooltip(:var semanticsTooltip) => semanticsTooltip == message,
+    Tooltip(excludeFromSemantics: true) =>
+      (widget.message ?? widget.richMessage?.toPlainText()) == message,
+    _ => false,
+  },
+);
+
 class _Tooltip extends Target {
   const _Tooltip(this.message);
 
   final String message;
 
   @override
-  Finder toFinder() => find.byTooltip(message);
+  Finder toFinder() => findByTooltip(message);
 
   @override
   String toString() => 'Target.tooltip("$message")';

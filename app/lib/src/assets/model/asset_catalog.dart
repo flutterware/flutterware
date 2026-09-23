@@ -347,8 +347,8 @@ class FontAsset {
 /// One `shaders:` entry, resolved to a file.
 ///
 /// Deliberately thin next to [ResolvedAsset]: a shader is a flat list of
-/// package-relative paths — no directories, no maps, no transformers, no
-/// density variants — so there is nothing here for a build to chain onto.
+/// paths — no directories, no maps, no transformers, no density variants — so
+/// there is nothing here for a build to chain onto.
 class ResolvedShader {
   ResolvedShader({
     required this.key,
@@ -359,13 +359,16 @@ class ResolvedShader {
   });
 
   /// What a build names it: `shaders/glow.frag` for the root package,
-  /// `packages/<name>/shaders/glow.frag` for anything else.
+  /// `packages/<name>/shaders/glow.frag` for anything else, and the
+  /// declaration itself when it reaches into a package's `lib/` through
+  /// `packages/<name>/…`.
   final String key;
 
   /// The package that declared it, or null for the root package.
   final String? package;
 
-  /// Absolute path to the root [source] sits under.
+  /// Absolute path to the root [source] sits under — the declarer's, or for a
+  /// `packages/…` reach the package it reaches into.
   final String packageRoot;
 
   /// The pubspec entry as written.
@@ -886,31 +889,51 @@ class _Resolver {
     }
   }
 
-  /// `flutter: shaders:` is a flat list of package-relative file paths — no
-  /// directories, no maps, no transformers, and no `packages/…` reach: unlike
-  /// a font, a shader has nowhere else to look for the file.
+  /// `flutter: shaders:` is a flat list of file paths — no directories, no
+  /// maps, no transformers — each resolved the way `flutter_tools` resolves an
+  /// asset file, because that is the code it runs through (`_parseAssetFromFile`
+  /// with `AssetKind.shader`): the declarer's own path first, then a
+  /// `packages/<name>/…` reach into `<name>`'s `lib/`, keyed by the declaration
+  /// as written. `material_ui` declares its ink-sparkle program that way and
+  /// loads it by that key, so a bundle without the reach has no Material
+  /// ripple in it.
   void _addShaders(String packageRoot, YamlList declared, String? packageName) {
     for (var entry in declared) {
       if (entry is! String) continue;
       var source = p.normalize(p.join(packageRoot, entry));
-      if (!File(source).existsSync()) {
-        problems.add(
-          AssetProblem(
-            kind: AssetProblemKind.missingShaderFile,
+      if (File(source).existsSync()) {
+        shaders.add(
+          ResolvedShader(
+            key: packageName == null ? entry : 'packages/$packageName/$entry',
             package: packageName,
             packageRoot: packageRoot,
             declaration: entry,
+            source: source,
           ),
         );
         continue;
       }
-      shaders.add(
-        ResolvedShader(
-          key: packageName == null ? entry : 'packages/$packageName/$entry',
+      if (_packageReach(entry) case var reach?) {
+        var reached = p.normalize(p.join(reach.root, reach.relative));
+        if (File(reached).existsSync()) {
+          shaders.add(
+            ResolvedShader(
+              key: entry,
+              package: packageName,
+              packageRoot: reach.root,
+              declaration: entry,
+              source: reached,
+            ),
+          );
+          continue;
+        }
+      }
+      problems.add(
+        AssetProblem(
+          kind: AssetProblemKind.missingShaderFile,
           package: packageName,
           packageRoot: packageRoot,
           declaration: entry,
-          source: source,
         ),
       );
     }

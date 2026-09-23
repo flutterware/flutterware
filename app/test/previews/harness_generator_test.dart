@@ -39,7 +39,7 @@ void main() {
       var file = File(p.join(root.path, entry.path))
         ..parent.createSync(recursive: true);
       file.writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 Widget ${entry.symbol}() => const Placeholder();
 ''');

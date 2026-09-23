@@ -14,7 +14,7 @@
 // the asset is the build-time `.fsceneb` the app's hook wrote.
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_scene/scene.dart' as fs;
 import 'package:flutterware/real_work.dart';
 import 'package:vector_math/vector_math.dart' as vm;

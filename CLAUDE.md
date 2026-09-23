@@ -121,6 +121,17 @@ cd app && fvm flutter run -t lib/main_dev.dart -d macos \
 The studio is drawn from its own design system, and every panel written against
 stock Material has had to be redone. The rules:
 
+- **Material is `package:material_ui/material_ui.dart`, never
+  `package:flutter/material.dart`** — everywhere in the workspace, `lib/`
+  included, and in every template that writes an import into a user's project.
+  They are two copies with distinct types: a `Theme` or `MaterialLocalizations`
+  one provides is invisible to a lookup through the other, so a stray legacy
+  import compiles and then renders wrong. `test/legacy_material_test.dart`
+  fails on one; `dart fix --apply --code=migrate_design_widgets` rewrites it.
+  Third-party packages still on the legacy copy read a theme nothing provides:
+  a `MarkdownBody` takes `markdownStyleSheet(context)`
+  (`app/lib/src/ui/markdown_style.dart`) for that reason.
+
 - **Read the tokens, never invent values.** Colours are `context.colors`, the
   type ramp is `context.type` (13px `body` is the working size — Material 3's
   16px is *not on the ramp*), spacing is `FwSpacing`, corners `context.radii`,

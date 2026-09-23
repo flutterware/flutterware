@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import '../design_libraries.dart';
 import '../guest_extensions.dart';
 
 // `rendering` as well as `widgets`, for the layout half: `widgets.dart`
@@ -244,7 +245,7 @@ class GuestInspector {
           byRenderObject: byRenderObject,
         );
       }
-      var json = decoded.cast<String, Object?>();
+      var json = _withoutDesignLibraries(decoded.cast<String, Object?>());
       var demo = _findPreview(json) ?? json;
       // The marker is ours, added so this could find the demo at all. Reporting
       // it would be reporting the observer: a caller would see a root whose
@@ -286,6 +287,39 @@ class GuestInspector {
       WidgetInspectorService.instance.disposeGroup(group);
     }
   }
+
+  /// [node] with every descendant the design libraries created replaced by
+  /// its own children.
+  ///
+  /// The summary tree is what the SDK attributes to the project, and it
+  /// decides that by one test: not created under `packages/flutter/`.
+  /// `material_ui` builds its widgets' insides from the pub cache, so the SDK
+  /// counts them as the app's own — a bare `MaterialApp` puts
+  /// `HeroControllerScope`, `AnimatedTheme`, `ScaffoldMessenger` and the rest
+  /// above the first widget the app wrote, and a `TextField` its
+  /// `MouseRegion` and `TextFieldTapRegion`. Hoisting their children draws the
+  /// tree the SDK drew when Material was `package:flutter`.
+  static Map<String, Object?> _withoutDesignLibraries(
+    Map<String, Object?> node,
+  ) {
+    if (node['children'] case List children) {
+      List<Map<String, Object?>> kept(List children) => [
+        for (var child in children.whereType<Map>())
+          if (_designLibraryCreated(child))
+            ...kept(child['children'] as List? ?? const [])
+          else
+            _withoutDesignLibraries(child.cast<String, Object?>()),
+      ];
+      return {...node, 'children': kept(children)};
+    }
+    return node;
+  }
+
+  static bool _designLibraryCreated(Map node) =>
+      switch (node['creationLocation']) {
+        {'file': String file} => designLibraryFile.hasMatch(file),
+        _ => false,
+      };
 
   /// The shallowest inspector node at or below the demo's root.
   ///
@@ -355,8 +389,8 @@ class GuestInspector {
   /// `find` is asked about what is on the glass.
   ///
   /// `Tooltip` and the rest of the labelled widgets live in
-  /// `package:flutter/material.dart`, and this file imports `widgets` so that
-  /// a guest is not made to link Material to be inspected.
+  /// `package:material_ui/material_ui.dart`, and this file imports `widgets`
+  /// so that a guest is not made to link Material to be inspected.
   static String? _preview(Element? element) => switch (element) {
     Element(widget: Text(:var data?)) => 'Text("$data")',
     Element(widget: Text(:var textSpan?)) => 'Text("${_plain(textSpan)}")',

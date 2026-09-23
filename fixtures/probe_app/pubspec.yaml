@@ -38,8 +38,6 @@ dependencies:
     sdk: flutter
   flutter_gpu:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
   # **Pinned below 11, because 11 is ahead of the whole toolchain we pin.**
   # `flutter_secure_storage 11.0.0` sets `compileSdk = 37` and makes every app
   # that depends on it compile against 37 too; Flutter 3.48 pins compileSdk 36
@@ -51,13 +49,14 @@ dependencies:
   # `packages/flutter_tools/lib/src/android/gradle_utils.dart` is where it is
   # written. Measured 2026-08-24.
   flutter_scene: ^0.23.0
-  flutter_secure_storage: ^10.0.0
+  flutter_secure_storage: ^11.2.0
   flutterware:
     path: ../..
   hooks: ^2.2.0
   # `test/scenarios/events_test.dart` signs in over a real request.
   http:
   logging:
+  material_ui: ^1.4.0
   os_detect:
   package_info_plus:
   path:

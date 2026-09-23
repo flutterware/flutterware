@@ -1,6 +1,6 @@
 // The list parameter's table in the drawer: every cell edits the parameter
 // in place, and the repeat that draws the list follows.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart';

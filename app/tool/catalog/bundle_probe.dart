@@ -30,7 +30,7 @@ Future<void> main() async {
 
   var scene = File(p.join(work.path, 'scene.dart'))
     ..writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() => runApp(
   MaterialApp(

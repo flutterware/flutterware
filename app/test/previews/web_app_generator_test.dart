@@ -49,7 +49,7 @@ void main() {
     Directory(p.join(root.path, 'demo', 'team')).createSync(recursive: true);
     File(p.join(root.path, 'demo', 'team', 'avatar_tile.dart'))
         .writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../shell.dart';
 
@@ -57,12 +57,12 @@ Widget avatarTileMembers() => const Placeholder();
 Widget avatarTileEmpty() => const Placeholder();
 ''');
     File(p.join(root.path, 'demo', 'settings.dart')).writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 Widget settings() => const Placeholder();
 ''');
     File(p.join(root.path, 'demo', 'settings_wide.dart')).writeAsStringSync('''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 Widget settingsWide() => const Placeholder();
 ''');
@@ -181,6 +181,6 @@ Widget settingsWide() => const Placeholder();
     );
     // Carried from the demo file, with the relative URI rewritten to resolve
     // from the generated directory rather than from the demo's own.
-    expect(wrapper, contains("import 'package:flutter/material.dart';"));
+    expect(wrapper, contains("import 'package:material_ui/material_ui.dart';"));
   });
 }

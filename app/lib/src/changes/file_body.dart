@@ -13,11 +13,12 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../ui/markdown_style.dart';
 import '../ui/selectable_line.dart';
 import '../ui/syntax.dart';
 import '../ui/theme.dart';
@@ -395,11 +396,9 @@ class MarkdownFileBody extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 760),
           child: MarkdownBody(
             data: content,
-            sizedImageBuilder: (config) => _MarkdownImage(
-              uri: config.uri,
-              directory: imageDirectory,
-              alt: config.alt,
-            ),
+            styleSheet: markdownStyleSheet(context),
+            imageBuilder: (uri, title, alt) =>
+                _MarkdownImage(uri: uri, directory: imageDirectory, alt: alt),
             onTapLink: (text, href, title) {
               if (href == null) return;
               var uri = Uri.tryParse(href);

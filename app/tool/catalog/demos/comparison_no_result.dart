@@ -1,5 +1,5 @@
 import 'package:flutterware/comparison_report.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware_app/src/capture/settle.dart';
 import 'package:flutterware_app/src/comparison/comparison_controller.dart';

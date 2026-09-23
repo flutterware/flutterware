@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:clock/clock.dart';
 import 'package:flutterware/flutter_test.dart';

@@ -4,7 +4,7 @@ import 'package:flutterware/scene_authoring.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware/previews.dart';
 import 'package:flutterware/scene.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'sample.scene.dart';
 import 'sample_nested.scene.dart';

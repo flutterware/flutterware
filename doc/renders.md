@@ -14,7 +14,7 @@ arguments it takes. The app then says how to draw each one:
 
 ```dart
 // lib/renders.dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/render.dart';
 
 final monthlyChart = WidgetRender<ChartRequest>(

@@ -79,7 +79,7 @@ void main() {
   test('a package outside the checkout is not in the closure', () {
     write('demo/card.dart', '''
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 ''');
 
     expect(graph().closureOf('demo/card.dart'), ['demo/card.dart']);

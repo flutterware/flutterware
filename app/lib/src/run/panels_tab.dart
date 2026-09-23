@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/channels.dart';
 import 'package:flutterware/channels_ui.dart';
 import 'package:logging/logging.dart';

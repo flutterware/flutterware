@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The reading order, drawn on the picture: a numbered disc on each utterance,
 /// joined in traversal order by a thin line. The numbers are the script's own

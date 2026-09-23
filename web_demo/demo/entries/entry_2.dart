@@ -1,7 +1,7 @@
 // GENERATED — do not edit.
 // Imports carried from the demo file: the annotation is written in *its* scope,
 // so anything the annotation names has to resolve here too.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/previews.dart';
 import 'package:brewline/shop/shop_app.dart';
 // Unconditional: the getters below are typed, and a demo file is not obliged

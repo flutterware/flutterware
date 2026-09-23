@@ -2,7 +2,7 @@
 // itself, a handle under each stop, a tap on the bar to add one, a drag to
 // move one, and the selected stop's colour and position beneath.
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/scene_authoring.dart';
 
 import '../../ui/design/design.dart';

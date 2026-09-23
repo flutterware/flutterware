@@ -21,7 +21,7 @@
 /// `flutter run -t lib/shop_devbar.dart`.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/devbar.dart';
 
 import 'shop/shop_app.dart';

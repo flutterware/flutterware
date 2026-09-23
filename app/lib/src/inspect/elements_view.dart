@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/previews_guest.dart';
 // `InspectFilter` is not on the guest's public surface — the same import
 // `screen_read.dart` makes, so both trees are trimmed by one rule.
