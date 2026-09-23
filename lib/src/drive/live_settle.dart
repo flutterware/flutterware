@@ -10,6 +10,7 @@ class LiveSettleResult {
     required this.forcedFrames,
     required this.framesEnabled,
     required this.elapsed,
+    this.unansweredFrames = 0,
   });
 
   /// False means the budget ran out with work still pending — an infinite
@@ -25,7 +26,19 @@ class LiveSettleResult {
   /// wanting "the screen is done" has to read the texts as well.
   final bool settled;
 
+  /// Frames the engine drew while this settled — drawn, not asked for. A wait
+  /// the per-frame cap ended is one of [unansweredFrames] instead.
   final int frames;
+
+  /// Frames this settle asked for that the engine never drew.
+  ///
+  /// Counted apart from [frames] because an app can be running and drawing
+  /// nothing at all, and that has to be visible in the reply. Found on an iOS
+  /// simulator booted with the Simulator app closed: the app sits `inactive`,
+  /// Flutter keeps frames enabled (it turns them off only for `hidden` and
+  /// `paused`), and no vsync ever answers them. Every tap there is delivered
+  /// and nothing it changes is built.
+  final int unansweredFrames;
 
   /// Frames this settle had to force because the window was hidden.
   final int forcedFrames;
@@ -40,6 +53,7 @@ class LiveSettleResult {
   Map<String, Object?> toJson() => {
     'settled': settled,
     'frames': frames,
+    if (unansweredFrames > 0) 'unansweredFrames': unansweredFrames,
     'forcedFrames': forcedFrames,
     'framesEnabled': framesEnabled,
     'elapsedMs': elapsed.inMilliseconds,
@@ -63,7 +77,8 @@ class LiveSettleResult {
 ///   dirty element is invisible to every probe, and without the flush an
 ///   observation after `enterText` reads the tree from before the text.
 /// - Each `endOfFrame` wait is capped, so an engine that refuses even forced
-///   frames makes this late, not stuck.
+///   frames makes this late, not stuck — and a wait the cap ended is counted
+///   as unanswered, never as a frame.
 Future<LiveSettleResult> settleLive({
   Duration budget = const Duration(milliseconds: 800),
   Duration frameTimeout = const Duration(milliseconds: 250),
@@ -71,6 +86,7 @@ Future<LiveSettleResult> settleLive({
   var binding = WidgetsBinding.instance;
   var watch = Stopwatch()..start();
   var frames = 0;
+  var unanswered = 0;
   var forced = 0;
 
   bool pending() =>
@@ -83,8 +99,15 @@ Future<LiveSettleResult> settleLive({
       binding.scheduleForcedFrame();
       forced++;
     }
-    await Future.any([binding.endOfFrame, Future<void>.delayed(frameTimeout)]);
-    frames++;
+    var drawn = await Future.any([
+      binding.endOfFrame.then((_) => true),
+      Future<bool>.delayed(frameTimeout, () => false),
+    ]);
+    if (drawn) {
+      frames++;
+    } else {
+      unanswered++;
+    }
   }
 
   if (!binding.framesEnabled) await awaitFrame();
@@ -102,6 +125,7 @@ Future<LiveSettleResult> settleLive({
   return LiveSettleResult(
     settled: !pending(),
     frames: frames,
+    unansweredFrames: unanswered,
     forcedFrames: forced,
     framesEnabled: binding.framesEnabled,
     elapsed: watch.elapsed,

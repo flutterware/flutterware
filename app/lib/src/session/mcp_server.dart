@@ -870,7 +870,8 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
               'macOS it is for native chrome, because a Flutter app usually '
               'publishes none of its own widgets to macOS accessibility — '
               'some processes do, and then you simply see more. '
-              'Use verb: foreground here to bring back a suspended iOS app.',
+              'Use verb: foreground here to bring back a suspended iOS app '
+              '— or a simulator with no window, which it opens first.',
         ),
         'target': Schema.string(
           description:

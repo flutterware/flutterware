@@ -110,10 +110,27 @@ class AxNativeDriver extends NativeDriver {
     }
     if (reply['ok'] != true) {
       var code = reply['code'] as String?;
-      throw NativeRefusal(
-        code == 'untrusted' ? _untrusted : '${reply['error']}',
+      var message = code == 'untrusted' ? _untrusted : '${reply['error']}';
+      if (simulatorUdid != null) {
+        message = switch (code) {
+          'noApp' =>
+            '$message: Simulator is not running, so this device has no window '
+                'for the native layer to read — and an app on it sits '
+                '`inactive`, drawing nothing. `act {verb: foreground, layer: '
+                'native}` opens it.',
+          'noWindow' =>
+            '$message\nThe device is booted without a window, so the native '
+                'layer has nothing to read. `act {verb: foreground, layer: '
+                'native}` opens one.',
+          _ => message,
+        };
+      }
+      throw _HelperRefusal(
+        message,
+        code: code,
+        said: '${reply['error']}',
         failure: switch (code) {
-          'stale' || 'noWindow' || 'noApp' => 'notFound',
+          'stale' || 'noWindow' || 'noApp' || 'noMenu' => 'notFound',
           'notPressable' => 'unsupported',
           _ => 'unavailable',
         },
@@ -379,12 +396,23 @@ class AxNativeDriver extends NativeDriver {
   /// for. Pressing Home and then the app's icon resumes it instead, with the
   /// screen it was on intact (measured: the next observe answered in 18ms with
   /// the counter where the agent left it).
+  ///
+  /// A device with no window gets one first — see [raiseDeviceWindow].
   @override
   Future<void> foreground() async {
-    await _run({'cmd': 'foreground'});
+    if (simulatorUdid case var udid?) {
+      await raiseDeviceWindow(udid);
+    } else {
+      await _run({'cmd': 'foreground'});
+    }
     if (simulatorUdid case var udid?) {
       var installed = await _installedApps(udid);
-      await _run({'cmd': 'press', 'scope': 'window', 'label': 'Home'});
+      await _run({
+        'cmd': 'press',
+        'scope': 'window',
+        'label': 'Home',
+        'in': 'AXToolbar',
+      });
       await Future<void>.delayed(const Duration(milliseconds: 800));
       var icons = (await observe(screenshot: false)).speaking
           .where((node) => installed.contains(node.label))
@@ -408,6 +436,165 @@ class AxNativeDriver extends NativeDriver {
       await tapNode(icons.single);
       await Future<void>.delayed(const Duration(milliseconds: 800));
     }
+  }
+
+  /// Raises the simulator's window for [udid], opening one when it has none.
+  ///
+  /// A consumer's simulator had been booted with the Simulator app closed. The
+  /// app on it sat `inactive` and drew nothing, and this verb — the way out of
+  /// a stuck simulator app — answered "No running application matches
+  /// com.apple.iphonesimulator"; with Simulator opened by hand, "No window
+  /// of com.apple.iphonesimulator starts with iPhone 16". Both true, and both
+  /// dead ends in exactly the state the verb is for.
+  ///
+  /// So a missing Simulator is launched, and a missing window is asked for the
+  /// way a person asks for one: File › Open Simulator › runtime › device. The
+  /// menu, because relaunching is no answer — a running Simulator ignores the
+  /// arguments `open` passes it (measured), and quitting it would take every
+  /// other device's window with it. Measured on a device detached from its
+  /// window with Simulator running: the menu press brings the window back.
+  @visibleForTesting
+  Future<void> raiseDeviceWindow(String udid) async {
+    String? missing;
+    try {
+      await _run({'cmd': 'foreground'});
+      return;
+    } on _HelperRefusal catch (e) {
+      if (e.code != 'noApp' && e.code != 'noWindow') rethrow;
+      missing = e.code;
+    }
+    if (missing == 'noApp') await launchSimulator(udid);
+    var deadline = DateTime.now().add(windowDeadline);
+    var path = [
+      'File',
+      'Open Simulator',
+      await simulatorRuntime(udid),
+      window!,
+    ];
+    try {
+      // A Simulator that is still starting has no menu bar, or has one whose
+      // device submenus are not filled in yet.
+      await _untilAnswered(
+        deadline,
+        {'cmd': 'menu', 'path': path},
+        transient: {'noApp', 'noMenu'},
+      );
+      await _untilAnswered(
+        deadline,
+        {'cmd': 'foreground'},
+        transient: {'noApp', 'noWindow'},
+      );
+    } on _HelperRefusal catch (e) {
+      throw NativeRefusal(
+        '${missing == 'noApp' ? 'Launched Simulator and asked it' : 'Asked Simulator'} '
+        'for this device (${path.join(' › ')}), and after '
+        '${windowDeadline.inSeconds}s there is still no window to bring '
+        'forward. ${e.said}',
+        failure: e.failure,
+      );
+    }
+  }
+
+  /// How long [raiseDeviceWindow] waits for Simulator to start and show the
+  /// window.
+  @visibleForTesting
+  var windowDeadline = const Duration(seconds: 20);
+
+  /// Starts Simulator on [udid] — the selected Xcode's copy, the same Xcode
+  /// `xcrun simctl` answers for, rather than whichever Launch Services
+  /// prefers when two are installed.
+  @visibleForTesting
+  Future<void> Function(String udid) launchSimulator = _launchSimulator;
+
+  /// The runtime [udid] runs, as Simulator's menu names it — `iOS 18.1`.
+  @visibleForTesting
+  Future<String> Function(String udid) simulatorRuntime = _simulatorRuntime;
+
+  Future<void> _untilAnswered(
+    DateTime deadline,
+    Map<String, Object?> command, {
+    required Set<String> transient,
+  }) async {
+    while (true) {
+      try {
+        await _run(command);
+        return;
+      } on _HelperRefusal catch (e) {
+        if (!transient.contains(e.code) || DateTime.now().isAfter(deadline)) {
+          rethrow;
+        }
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+  }
+
+  static Future<void> _launchSimulator(String udid) async {
+    var developer = await Process.run('xcode-select', ['-p']);
+    var bundle = p.join(
+      '${developer.stdout}'.trim(),
+      'Applications',
+      'Simulator.app',
+    );
+    var result = await Process.run('open', [
+      if (developer.exitCode == 0 && Directory(bundle).existsSync()) ...[
+        '-a',
+        bundle,
+      ] else ...[
+        '-b',
+        'com.apple.iphonesimulator',
+      ],
+      // Read only by a Simulator that is starting: it opens this device's
+      // window first rather than whichever it showed last.
+      '--args',
+      '-CurrentDeviceUDID',
+      udid,
+    ]);
+    if (result.exitCode != 0) {
+      throw NativeRefusal(
+        'Could not start Simulator: ${'${result.stderr}'.trim()}',
+        failure: 'unavailable',
+      );
+    }
+  }
+
+  static Future<String> _simulatorRuntime(String udid) async {
+    var result = await Process.run('xcrun', ['simctl', 'list', '-j']);
+    var name = result.exitCode == 0
+        ? runtimeNameOf(udid, '${result.stdout}')
+        : null;
+    if (name == null) {
+      throw NativeRefusal(
+        '`xcrun simctl list` does not say which runtime $udid runs, so there '
+        "is no way to find it in Simulator's menu. Open it there by hand.",
+        failure: 'unavailable',
+      );
+    }
+    return name;
+  }
+
+  /// The name of the runtime [udid] belongs to in `simctl list -j`'s
+  /// [json] — the name Simulator's menu uses, which the device map's keys
+  /// (`com.apple.CoreSimulator.SimRuntime.iOS-18-1`) are not.
+  @visibleForTesting
+  static String? runtimeNameOf(String udid, String json) {
+    if (jsonDecode(json) case {
+      'devices': Map devices,
+      'runtimes': List runtimes,
+    }) {
+      for (var MapEntry(key: identifier, value: list) in devices.entries) {
+        if (list is! List) continue;
+        if (!list.any((device) => device is Map && device['udid'] == udid)) {
+          continue;
+        }
+        for (var runtime in runtimes) {
+          if (runtime case {'identifier': String id, 'name': String name}
+              when id == identifier) {
+            return name;
+          }
+        }
+      }
+    }
+    return null;
   }
 
   /// The user-installed apps on a simulator, by display name.
@@ -530,4 +717,21 @@ class AxNativeDriver extends NativeDriver {
       return false;
     }
   }
+}
+
+/// A refusal from the helper, with the code it gave — which [AxNativeDriver]
+/// reads to tell a device with no window from a real failure.
+class _HelperRefusal extends NativeRefusal {
+  _HelperRefusal(
+    super.message, {
+    required this.code,
+    required this.said,
+    super.failure,
+  });
+
+  final String? code;
+
+  /// The helper's own words, before this driver added the way out — for the
+  /// refusal that comes from having already tried it.
+  final String said;
 }
