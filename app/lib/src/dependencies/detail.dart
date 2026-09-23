@@ -830,14 +830,21 @@ class _DocumentSectionState extends State<_DocumentSection> {
                     style: context.type.bodyMuted,
                   );
                 }
+                // A section of the page, not the page: uncapped, one README
+                // pushes the changelog and the licence thousands of pixels
+                // down. The document scrolls inside the cap instead, the way
+                // FwCodeBlock does — a `MarkdownBody` is a plain `Column`, and
+                // capped with nothing to scroll it the rest was cut off.
                 return ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 420),
-                  child: MarkdownBody(
-                    data: _emphasised(document.content),
-                    styleSheet: markdownStyleSheet(context),
-                    onTapLink: (text, href, title) {
-                      if (href != null) launchUrl(Uri.parse(href));
-                    },
+                  child: SingleChildScrollView(
+                    child: MarkdownBody(
+                      data: _emphasised(document.content),
+                      styleSheet: markdownStyleSheet(context),
+                      onTapLink: (text, href, title) {
+                        if (href != null) launchUrl(Uri.parse(href));
+                      },
+                    ),
                   ),
                 );
               },
