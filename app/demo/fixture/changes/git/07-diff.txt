@@ -49,11 +49,11 @@ index 79859e2..4c81eff 100644
 Binary files a/assets/splash/branding.png and b/assets/splash/branding.png differ
 diff --git a/demo/loyalty.dart b/demo/loyalty.dart
 new file mode 100644
-index 0000000..ea7eb9c
+index 0000000..533804f
 --- /dev/null
 +++ b/demo/loyalty.dart
 @@ -0,0 +1,8 @@
-+import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
 +import 'package:flutter/widget_previews.dart';
 +import 'package:brewline/shop/shop_app.dart';
 +
@@ -63,7 +63,7 @@ index 0000000..ea7eb9c
 +Widget shopLoyalty() => const LoyaltyScreen();
 diff --git a/demo/store_panorama.dart b/demo/store_panorama.dart
 deleted file mode 100644
-index 8f431b8..0000000
+index c1592a5..0000000
 --- a/demo/store_panorama.dart
 +++ /dev/null
 @@ -1,141 +0,0 @@
@@ -81,7 +81,7 @@ index 8f431b8..0000000
 -import 'dart:ui' as ui;
 -
 -import 'package:flutter/foundation.dart';
--import 'package:flutter/material.dart';
+-import 'package:material_ui/material_ui.dart';
 -import 'package:flutter/widget_previews.dart';
 -import 'package:flutterware/plugins.dart';
 -import 'package:flutterware/store.dart';
@@ -210,11 +210,11 @@ index 8f431b8..0000000
 -}
 diff --git a/lib/shop/loyalty.dart b/lib/shop/loyalty.dart
 new file mode 100644
-index 0000000..eab36c2
+index 0000000..7177493
 --- /dev/null
 +++ b/lib/shop/loyalty.dart
 @@ -0,0 +1,104 @@
-+import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
 +
 +import 'shop_app.dart';
 +
@@ -323,12 +323,11 @@ similarity index 100%
 rename from lib/shop/mini_markdown.dart
 rename to lib/shop/markdown_text.dart
 diff --git a/lib/shop/shop_app.dart b/lib/shop/shop_app.dart
-index 8ddc916..252a0e8 100644
+index c5e6612..fc6a497 100644
 --- a/lib/shop/shop_app.dart
 +++ b/lib/shop/shop_app.dart
-@@ -1,9 +1,11 @@
- import 'package:flutter/material.dart';
- import 'package:flutter_localizations/flutter_localizations.dart';
+@@ -1,8 +1,10 @@
+ import 'package:material_ui/material_ui.dart';
  
 +import 'loyalty.dart';
  import 'shop_screens.dart';
@@ -338,7 +337,7 @@ index 8ddc916..252a0e8 100644
  export 'shop_screens.dart';
  export 'shop_strings.dart';
  
-@@ -54,6 +56,10 @@ class ShopApp extends StatefulWidget {
+@@ -53,6 +55,10 @@ class ShopApp extends StatefulWidget {
  class _ShopAppState extends State<ShopApp> {
    late final _cart = widget.cart ?? Cart();
  
@@ -349,7 +348,7 @@ index 8ddc916..252a0e8 100644
    @override
    Widget build(BuildContext context) {
      return MaterialApp(
-@@ -71,20 +77,29 @@ class _ShopAppState extends State<ShopApp> {
+@@ -68,20 +74,29 @@ class _ShopAppState extends State<ShopApp> {
        themeMode: widget.themeMode,
        locale: widget.locale,
        navigatorKey: widget.navigatorKey,
@@ -393,7 +392,7 @@ index 8ddc916..252a0e8 100644
        ),
        home: widget.home ?? const WelcomeScreen(),
      );
-@@ -150,6 +165,7 @@ class ShopKeys {
+@@ -147,6 +162,7 @@ class ShopKeys {
    static const placeOrder = Key('shop.placeOrder');
    static const backToMenu = Key('shop.backToMenu');
    static const openCart = Key('shop.openCart');
@@ -402,11 +401,11 @@ index 8ddc916..252a0e8 100644
  }
  
 diff --git a/lib/shop/shop_screens.dart b/lib/shop/shop_screens.dart
-index aa1ee5d..17a0c27 100644
+index 26f94d0..28c2149 100644
 --- a/lib/shop/shop_screens.dart
 +++ b/lib/shop/shop_screens.dart
 @@ -1,6 +1,7 @@
- import 'package:flutter/material.dart';
+ import 'package:material_ui/material_ui.dart';
  
 -import 'mini_markdown.dart';
 +import 'loyalty.dart';
@@ -484,11 +483,11 @@ index 7407629..3411ffe 100644
  
  import '../profiles.dart';
 diff --git a/test/shop/translations_test.dart b/test/shop/translations_test.dart
-index 2938e49..4f101fe 100644
+index e6eeb47..a9a5715 100644
 --- a/test/shop/translations_test.dart
 +++ b/test/shop/translations_test.dart
 @@ -1,7 +1,7 @@
- import 'package:flutter/material.dart';
+ import 'package:material_ui/material_ui.dart';
  import 'package:flutter_test/flutter_test.dart';
  import 'package:flutterware/translations.dart';
 -import 'package:brewline/shop/mini_markdown.dart';

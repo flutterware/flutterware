@@ -1,6 +1,6 @@
-# branch.oid 9d97238b6b58e58d66917edae4e08c3fd83846ef
+# branch.oid a19e4d945c4a4f2fbd7f4fad7c71231945c8c7aa
 # branch.head loyalty-stamps
 1 .M N... 100644 100644 100644 a605ff92074d9fc1d631fd309bb524e100aafd6f a605ff92074d9fc1d631fd309bb524e100aafd6f assets/i18n/en.json
-1 .M N... 100644 100644 100644 3b71f4b4c545c897ba9a856b7e70c5bafd35d251 3b71f4b4c545c897ba9a856b7e70c5bafd35d251 lib/shop/loyalty.dart
+1 .M N... 100644 100644 100644 4af7dc1b2ed605306b3caad6b9aab8f3ad2b82c1 4af7dc1b2ed605306b3caad6b9aab8f3ad2b82c1 lib/shop/loyalty.dart
 ? docs/
 ? test/shop/loyalty_test.dart
