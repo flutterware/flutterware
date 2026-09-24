@@ -45,9 +45,22 @@ void main() => Flutterware.configure((fw) {
         StoreShotsApp(
           app,
           file: 'test/scenarios/mobile/shop_test.dart',
+          // The five shots `A morning order` tags for the listing, not every
+          // named shot in the file.
+          tag: 'store',
           frame: 'lib/store_frame.dart',
+          // Two stores, one phone each. An iPad listing would be this phone
+          // layout blown up, and Play's phone is the case that needs a frame
+          // at all: its canvas is 2:1 and no Android phone is.
           listings: [
-            Listing.appStore(locales: {'en': 'en-US', 'fr': 'fr-FR'}),
+            Listing.appStore(
+              locales: {'en': 'en-US', 'fr': 'fr-FR'},
+              classes: [AppStoreClass.iphone69],
+            ),
+            Listing.play(
+              locales: {'en': 'en-US', 'fr': 'fr-FR'},
+              classes: [PlayClass.phone],
+            ),
           ],
         ),
       ],

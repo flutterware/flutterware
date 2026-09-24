@@ -23,23 +23,43 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
+import '../shop/shop_strings.dart';
+
 /// The headline for a shot, or null where the listing has nothing to say about
 /// that screen.
 ///
-/// A set is usually longer than the copy written for it — the demo suite has
-/// fifteen shots and five headlines — and a frame that drew an empty band for
-/// the rest would look worse than one that drew none.
-String? storeHeadline(String slug, Locale locale) =>
-    _catalog(locale.languageCode)[slug] ?? _catalog('en')[slug];
+/// Null for a shot nobody wrote copy for: a listing that is not narrowed by a
+/// tag takes every named shot in its file, and a frame that drew an empty band
+/// for those would look worse than one that drew none.
+String? storeHeadline(String slug, Locale locale) => _copy(slug, locale);
 
-Map<String, String> _catalog(String locale) => _loaded.putIfAbsent(locale, () {
-  var file = _find('assets/store/$locale.json');
-  if (file == null) return const {};
-  return {
-    for (var entry in (jsonDecode(file.readAsStringSync()) as Map).entries)
-      '${entry.key}': '${entry.value}',
-  };
-});
+/// The line above the headline — what the shot is about, in two words.
+String? storeKicker(String slug, Locale locale) =>
+    _copy('$slug.kicker', locale);
+
+String? _copy(String key, Locale locale) =>
+    _catalog('assets/store', locale.languageCode)[key] ??
+    _catalog('assets/store', 'en')[key];
+
+/// The app's own strings, read the same way and for the same reason: a frame
+/// that lifts one of the app's widgets out of the phone has to hand it the
+/// words it reads, and `ShopStrings`' delegate reaches them through
+/// `rootBundle`, which a frame cannot wait for.
+ShopStrings shopStringsFor(Locale locale) => ShopStrings(
+  locale,
+  _catalog('assets/i18n', locale.languageCode),
+  _catalog('assets/i18n', ShopStrings.template),
+);
+
+Map<String, String> _catalog(String directory, String locale) =>
+    _loaded.putIfAbsent('$directory/$locale', () {
+      var file = _find('$directory/$locale.json');
+      if (file == null) return const {};
+      return {
+        for (var entry in (jsonDecode(file.readAsStringSync()) as Map).entries)
+          '${entry.key}': '${entry.value}',
+      };
+    });
 
 /// The catalog, from wherever the harness happens to have been started.
 ///

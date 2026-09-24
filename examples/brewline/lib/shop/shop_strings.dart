@@ -84,6 +84,29 @@ class ShopStrings {
   String get emptyCart => read('emptyCart');
   String get onItsWay => read('onItsWay');
   String get backToMenu => read('backToMenu');
+  String get perkOrderAhead => read('perkOrderAhead');
+  String get perkSkipQueue => read('perkSkipQueue');
+  String get perkReady => read('perkReady');
+  String get pickupFrom => read('pickupFrom');
+  String get seasonalLabel => read('seasonalLabel');
+  String get categoryAll => read('categoryAll');
+  String get categoryCoffee => read('categoryCoffee');
+  String get categoryTea => read('categoryTea');
+  String get categoryIced => read('categoryIced');
+  String get milk => read('milk');
+  String get milkWhole => read('milkWhole');
+  String get milkOat => read('milkOat');
+  String get milkAlmond => read('milkAlmond');
+  String get extraShot => read('extraShot');
+  String get pickup => read('pickup');
+  String get pickupAsap => read('pickupAsap');
+  String get pickupIn15 => read('pickupIn15');
+  String get pickupIn30 => read('pickupIn30');
+  String get orderLabel => read('orderLabel');
+  String get counter => read('counter');
+  String get stepReceived => read('stepReceived');
+  String get stepBrewing => read('stepBrewing');
+  String get stepReady => read('stepReady');
 
   /// The string that goes through a placeholder, and still resolves.
   ///
@@ -101,6 +124,10 @@ class ShopStrings {
   /// see there for the other half.
   String thanks(String name) =>
       _expand('thanks', read('thanks').replaceAll('{name}', name));
+
+  /// A count of minutes, through a placeholder like [thanks].
+  String readyIn(int minutes) =>
+      _expand('readyIn', read('readyIn').replaceAll('{minutes}', '$minutes'));
 
   String _expand(String key, String expanded) =>
       wrapExpanded?.call(key, expanded) ?? expanded;

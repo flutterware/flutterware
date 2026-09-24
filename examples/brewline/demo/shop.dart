@@ -42,12 +42,16 @@ Widget wrapInShop(Widget child, {Cart Function()? cart}) => PreviewShell(
 
 /// Public because `@Preview` only accepts public symbols as arguments — the
 /// annotation is read by the analyzer, not called.
-Widget wrapWithFullCart(Widget child) => wrapInShop(
-  child,
-  cart: () => Cart()
-    ..add(CartItem(drinks[0], DrinkSize.large))
-    ..add(CartItem(drinks[2], DrinkSize.small)),
-);
+Widget wrapWithFullCart(Widget child) =>
+    wrapInShop(child, cart: () => Cart()..items.addAll(sampleOrder));
+
+/// Three drinks, three kinds of choice: what a cart or a receipt looks like
+/// with something in it.
+final sampleOrder = [
+  CartItem(drinks[0], DrinkSize.large, milk: Milk.oat, extraShot: true),
+  CartItem(drinks[4], DrinkSize.medium),
+  CartItem(drinks[2], DrinkSize.small, milk: Milk.almond),
+];
 
 @Preview(name: 'Welcome', group: 'Brewline', wrapper: wrapInShop)
 Widget shopWelcome() => const WelcomeScreen();
@@ -64,8 +68,10 @@ Widget shopCart() => const CartScreen();
 /// The one screen with a word of the customer's on it, so the word is a knob.
 @Preview(name: 'Order placed', group: 'Brewline', wrapper: wrapInShop)
 Widget shopConfirmation() => Builder(
-  builder: (context) =>
-      ConfirmationScreen(name: context.knobs.string('name', 'Ada')),
+  builder: (context) => ConfirmationScreen(
+    name: context.knobs.string('name', 'Ada'),
+    items: sampleOrder,
+  ),
 );
 
 /// One component in every state it has, on one sheet — the badge that

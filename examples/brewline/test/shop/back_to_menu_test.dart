@@ -50,6 +50,10 @@ void main() {
   ) async {
     await start(tester);
 
+    // Below the fold on a test's 800×600 surface, so reached the way a
+    // customer would: through its category.
+    await tester.tap(find.byKey(ShopKeys.category(DrinkCategory.iced)));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Cold brew'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(ShopKeys.addToCart));

@@ -1,3 +1,4 @@
+import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 import 'package:brewline/shop/shop_app.dart';
 
@@ -48,20 +49,46 @@ void main() {
     });
   });
 
-  // The linear reference next to the fan-out — and the one this project ships
-  // to the store: `tags: ['store']` is what `fw run scenarios shots --tag`
-  // narrows to, so a listing gets three deliberate screenshots rather than
-  // every frame the suite happens to capture.
+  // The linear reference next to the fan-out.
   scenario('Order a cappuccino', (s) async {
-    await s.pumpWidget(const ShopApp(), shot: Shot('Welcome', tags: ['store']));
-    await s.tap(ShopKeys.getStarted, shot: Shot('Menu', tags: ['store']));
+    await s.pumpWidget(const ShopApp(), shot: Shot('Welcome'));
+    await s.tap(ShopKeys.getStarted, shot: Shot('Menu'));
     await s.tap('Cappuccino');
     await s.tap(ShopKeys.size(DrinkSize.large));
     await s.tap(ShopKeys.addToCart, shot: Shot('Cart'));
     await s.enterText(ShopKeys.cupName, 'Ada');
-    await s.tap(
-      ShopKeys.placeOrder,
-      shot: Shot('Order placed', tags: ['store']),
-    );
+    await s.tap(ShopKeys.placeOrder, shot: Shot('Order placed'));
+  });
+
+  // The one this project ships to the store: `tags: ['store']` is what the
+  // listing in `tool/flutterware.dart` narrows to, so the App Store gets five
+  // deliberate screenshots, in the order a customer meets them, rather than
+  // every frame the suite happens to capture. Each is a screen worth showing
+  // — the cart has three drinks in it, not one.
+  scenario('A morning order', (s) async {
+    await s.pumpWidget(const ShopApp(), shot: Shot('Welcome', tags: _store));
+    await s.tap(ShopKeys.getStarted, shot: Shot('Menu', tags: _store));
+    await s.tap('Cappuccino');
+    await s.tap(ShopKeys.size(DrinkSize.large));
+    await s.tap(ShopKeys.milk(Milk.oat));
+    await s.tap(ShopKeys.extraShot, shot: Shot('Drink', tags: _store));
+    await s.tap(ShopKeys.addToCart);
+    // Back to the menu for two more, by the category they are under. The
+    // back button is found by type: its tooltip is translated.
+    await s.tap(find.byType(BackButton));
+    await s.tap(ShopKeys.category(DrinkCategory.iced));
+    await s.tap('Cold brew');
+    await s.tap(ShopKeys.addToCart);
+    await s.tap(find.byType(BackButton));
+    await s.tap(ShopKeys.category(DrinkCategory.tea));
+    await s.tap('Matcha latte');
+    await s.tap(ShopKeys.size(DrinkSize.small));
+    await s.tap(ShopKeys.milk(Milk.almond));
+    await s.tap(ShopKeys.addToCart);
+    await s.tap(ShopKeys.pickup(Pickup.in15), shot: Shot('Cart', tags: _store));
+    await s.enterText(ShopKeys.cupName, 'Ada');
+    await s.tap(ShopKeys.placeOrder, shot: Shot('Order placed', tags: _store));
   });
 }
+
+const _store = ['store'];
