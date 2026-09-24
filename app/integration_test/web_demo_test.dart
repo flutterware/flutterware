@@ -178,7 +178,8 @@ void main() {
     // The recorded translations: the catalogs and the export come from the
     // recording, and so does every picture of a key in place.
     await screen.tap('Translations');
-    await screen.waitFor('placeOrder');
+    // A key near the top: the table is alphabetical and longer than a window.
+    await screen.waitFor('drink.maple');
     await _waitUntil(
       () => fetched.entries.any(
         (e) =>
@@ -304,8 +305,8 @@ void main() {
     // The comparison strip: a run the recorder kept, its pictures fetched
     // from beside the page — a preview's two sides, then a scenario's steps.
     await screen.tap('previews');
-    await screen.waitFor('shopMenu');
-    await screen.tap('shopMenu');
+    await screen.waitFor('Menu');
+    await screen.tap('Menu');
     await _waitUntil(
       () => fetched.entries.any(
         (e) => e.key.contains('/comparison/shots/') && e.value == 200,
