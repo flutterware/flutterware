@@ -110,9 +110,17 @@ PluginManifest recordedManifest() {
           root,
           name: 'brewline',
           file: 'test/scenarios/mobile/shop_test.dart',
+          tag: 'store',
           frame: 'lib/store_frame.dart',
           listings: [
-            Listing.appStore(locales: const {'en': 'en-US', 'fr': 'fr-FR'}),
+            Listing.appStore(
+              locales: const {'en': 'en-US', 'fr': 'fr-FR'},
+              classes: const [AppStoreClass.iphone69],
+            ),
+            Listing.play(
+              locales: const {'en': 'en-US', 'fr': 'fr-FR'},
+              classes: const [PlayClass.phone],
+            ),
           ],
         ),
       ],
@@ -167,12 +175,16 @@ PluginManifest recordedManifest() {
 /// [appContext] and [flutterSdk] default to values nothing here dereferences:
 /// the recorded cores never build a daemon or spawn a tool, so the SDK path is
 /// a label and the app-tool directory is never listed.
+///
+/// [presenting] is for pictures of the studio rather than for the web demo:
+/// see [recordedRunSources].
 ShellController recordedShell({
   required Recording recording,
   InlinePreviews? previews,
   AppContext? appContext,
   FlutterSdkPath? flutterSdk,
   PluginManifest? manifest,
+  bool presenting = false,
 }) {
   var context =
       appContext ??
@@ -186,7 +198,7 @@ ShellController recordedShell({
   var git = RecordedGit(recording);
   // One run dir for the plugin and the chrome's device button, so the two
   // agree about what is running.
-  var runs = recordedRunSources(recording);
+  var runs = recordedRunSources(recording, presenting: presenting);
   return ShellController(
     appContext: context,
     flutterSdk: flutterSdk ?? FlutterSdkPath('$recordedProjectRoot/flutter'),

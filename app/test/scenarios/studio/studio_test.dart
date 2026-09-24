@@ -65,7 +65,7 @@ void main() {
     await s.pumpWidget(ShellApp(shell));
     await s.tap('Changes');
     await s.tap('previews', shot: Shot('The previews half'));
-    await s.tap('shopMenu', shot: Shot('The menu, before and after'));
+    await s.tap('Menu', shot: Shot('The menu, before and after'));
     await s.tap('scenarios', shot: Shot('The scenarios half'));
     await s.tap('Order a cappuccino', shot: Shot('A walk that moved'));
     await s.tap('Compare again', shot: Shot('What a recording says to that'));
@@ -149,7 +149,7 @@ void main() {
     await shell.start(recordedProjectRoot);
     await s.pumpWidget(ShellApp(shell));
     await s.tap('Translations', shot: Shot('The keys'));
-    await s.tap('placeOrder', shot: Shot('A key in place'));
+    await s.tap('drink.maple', shot: Shot('A key in place'));
     // The first `fr`: the language switch in the filter row, before the open
     // key's own French row.
     await s.tap(const Target.nth('fr', 0), shot: Shot('In French'));

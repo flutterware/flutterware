@@ -1,12 +1,12 @@
 {
-  "ms": 1988,
+  "ms": 3388,
   "scenarios": [
     {
       "file": "test/scenarios/mobile/shop_test.dart",
       "name": "Around the shop",
       "ok": true,
       "device": "iphone-16",
-      "ms": 1720,
+      "ms": 2105,
       "steps": [
         {
           "index": 1,
@@ -21,9 +21,11 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/1-Welcome.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/1-Welcome.semantics.json",
           "texts": [
-            "☕",
             "Brewline",
             "Your coffee, ready before you are.",
+            "Order ahead, from anywhere",
+            "Skip the queue at the counter",
+            "Collect it the minute it's ready",
             "Get started"
           ],
           "statusBrightness": "dark",
@@ -36,7 +38,7 @@
             "system": 5
           },
           "eventTitles": [],
-          "digest": "517d17e7a8e0742b"
+          "digest": "7085a3e89baf3f9d"
         },
         {
           "index": 2,
@@ -52,23 +54,28 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/2-Menu.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/2-Menu.semantics.json",
           "texts": [
-            "☕",
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
             "Cappuccino",
             "Espresso, steamed milk, silky foam.",
             "4.20 €",
-            "🥛",
             "Flat white",
             "Double espresso under a thin veil of milk.",
             "4.60 €",
-            "🍵",
             "Matcha latte",
             "Whisked green tea, soft and grassy.",
             "5.10 €",
-            "🫖",
             "Chai latte",
             "Warm spices, creamy milk.",
             "4.80 €",
-            "🧊",
             "Cold brew",
             "Steeped cold for sixteen hours.",
             "3.90 €",
@@ -89,7 +96,7 @@
             "system": 2
           },
           "eventTitles": [],
-          "digest": "d59b5bbfc3522ec2"
+          "digest": "03e4d826bc33e844"
         },
         {
           "index": 3,
@@ -105,12 +112,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/3-tap_Cappuccino_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/3-tap_Cappuccino_.semantics.json",
           "texts": [
-            "☕",
             "Espresso, steamed milk, silky foam.",
+            "4.20 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 4.20 €",
             "Cappuccino"
           ],
@@ -118,8 +131,8 @@
           "verb": "tap",
           "target": "\"Cappuccino\"",
           "aim": {
-            "x": 104.0,
-            "y": 154.5,
+            "x": 106.0,
+            "y": 431.5,
             "w": 97.87109375,
             "h": 23.0
           },
@@ -129,7 +142,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "5b611dc8088135d8"
+          "digest": "177e9644025e7113"
         },
         {
           "index": 4,
@@ -145,12 +158,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/4-tap_key_shop.size.small_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/4-tap_key_shop.size.small_.semantics.json",
           "texts": [
-            "☕",
             "Espresso, steamed milk, silky foam.",
+            "4.20 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 3.70 €",
             "Cappuccino"
           ],
@@ -159,7 +178,7 @@
           "target": "key 'shop.size.small'",
           "aim": {
             "x": 24.0,
-            "y": 402.0,
+            "y": 415.0,
             "w": 109.66666666666669,
             "h": 48.0
           },
@@ -169,7 +188,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "4563662d52091ca8"
+          "digest": "9742b1631b07f1da"
         },
         {
           "index": 5,
@@ -185,13 +204,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/5-Cart_small.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/5-Cart_small.semantics.json",
           "texts": [
-            "☕",
             "Cappuccino",
+            "Small · Whole",
             "3.70 €",
-            "Total",
-            "3.70 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "",
             "Name on the cup",
+            "Total",
+            "3.70 €",
             "Place order",
             "Your order"
           ],
@@ -200,7 +224,7 @@
           "target": "key 'shop.addToCart'",
           "aim": {
             "x": 24.0,
-            "y": 776.0,
+            "y": 766.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -210,7 +234,7 @@
             "system": 4
           },
           "eventTitles": [],
-          "digest": "8237fcacf7f481f8"
+          "digest": "3c16c0dceee08e9f"
         },
         {
           "index": 6,
@@ -225,13 +249,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/6-enterText_key_shop.cupName_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/6-enterText_key_shop.cupName_.semantics.json",
           "texts": [
-            "☕",
             "Cappuccino",
+            "Small · Whole",
             "3.70 €",
-            "Total",
-            "3.70 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "Ada",
             "Name on the cup",
+            "Total",
+            "3.70 €",
             "Place order",
             "Your order"
           ],
@@ -239,18 +268,18 @@
           "verb": "enterText",
           "target": "key 'shop.cupName'",
           "aim": {
-            "x": 40.0,
-            "y": 722.0,
-            "w": 313.0,
+            "x": 76.0,
+            "y": 346.0,
+            "w": 277.0,
             "h": 24.0
           },
           "events": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/6-enterText_key_shop.cupName_.events.json",
-          "eventCount": 22,
+          "eventCount": 13,
           "eventChannels": {
-            "system": 22
+            "system": 13
           },
           "eventTitles": [],
-          "digest": "312b8559f44fb6ed",
+          "digest": "7073d2bd120fd89c",
           "keyboard": 336.0
         },
         {
@@ -269,6 +298,16 @@
           "texts": [
             "Thanks, Ada!",
             "Your order is on its way.",
+            "Order",
+            "BL-1042",
+            "Counter 3",
+            "Received",
+            "Brewing",
+            "Ready",
+            "Collect at Canal Street · Ready in about 6 min",
+            "Cappuccino",
+            "Small · Whole",
+            "3.70 €",
             "Back to menu"
           ],
           "statusBrightness": "dark",
@@ -276,7 +315,7 @@
           "target": "key 'shop.placeOrder'",
           "aim": {
             "x": 24.0,
-            "y": 440.0,
+            "y": 448.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -286,7 +325,7 @@
             "system": 3
           },
           "eventTitles": [],
-          "digest": "9d0285d9ad9ccb39"
+          "digest": "f6b24b46c63c0f8e"
         },
         {
           "index": 8,
@@ -302,12 +341,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/8-tap_key_shop.size.large_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/8-tap_key_shop.size.large_.semantics.json",
           "texts": [
-            "☕",
             "Espresso, steamed milk, silky foam.",
+            "4.20 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 4.90 €",
             "Cappuccino"
           ],
@@ -316,7 +361,7 @@
           "target": "key 'shop.size.large'",
           "aim": {
             "x": 259.33333333333337,
-            "y": 402.0,
+            "y": 415.0,
             "w": 109.66666666666669,
             "h": 48.0
           },
@@ -326,7 +371,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "cd3e83131c9e256a"
+          "digest": "6b65c943d0dbf3c8"
         },
         {
           "index": 9,
@@ -342,13 +387,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/9-Cart_large.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/9-Cart_large.semantics.json",
           "texts": [
-            "☕",
             "Cappuccino",
+            "Large · Whole",
             "4.90 €",
-            "Total",
-            "4.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "",
             "Name on the cup",
+            "Total",
+            "4.90 €",
             "Place order",
             "Your order"
           ],
@@ -357,7 +407,7 @@
           "target": "key 'shop.addToCart'",
           "aim": {
             "x": 24.0,
-            "y": 776.0,
+            "y": 766.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -367,7 +417,7 @@
             "system": 4
           },
           "eventTitles": [],
-          "digest": "1523ab025180bee2"
+          "digest": "d84e27148d340aff"
         },
         {
           "index": 10,
@@ -382,13 +432,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/10-enterText_key_shop.cupName_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/10-enterText_key_shop.cupName_.semantics.json",
           "texts": [
-            "☕",
             "Cappuccino",
+            "Large · Whole",
             "4.90 €",
-            "Total",
-            "4.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "Ada",
             "Name on the cup",
+            "Total",
+            "4.90 €",
             "Place order",
             "Your order"
           ],
@@ -396,18 +451,18 @@
           "verb": "enterText",
           "target": "key 'shop.cupName'",
           "aim": {
-            "x": 40.0,
-            "y": 722.0,
-            "w": 313.0,
+            "x": 76.0,
+            "y": 346.0,
+            "w": 277.0,
             "h": 24.0
           },
           "events": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/10-enterText_key_shop.cupName_.events.json",
-          "eventCount": 22,
+          "eventCount": 13,
           "eventChannels": {
-            "system": 22
+            "system": 13
           },
           "eventTitles": [],
-          "digest": "424112eb8350e448",
+          "digest": "3122f8403ca0e775",
           "keyboard": 336.0
         },
         {
@@ -426,6 +481,16 @@
           "texts": [
             "Thanks, Ada!",
             "Your order is on its way.",
+            "Order",
+            "BL-1042",
+            "Counter 3",
+            "Received",
+            "Brewing",
+            "Ready",
+            "Collect at Canal Street · Ready in about 6 min",
+            "Cappuccino",
+            "Large · Whole",
+            "4.90 €",
             "Back to menu"
           ],
           "statusBrightness": "dark",
@@ -433,7 +498,7 @@
           "target": "key 'shop.placeOrder'",
           "aim": {
             "x": 24.0,
-            "y": 440.0,
+            "y": 448.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -443,7 +508,7 @@
             "system": 3
           },
           "eventTitles": [],
-          "digest": "9d0285d9ad9ccb39"
+          "digest": "a509909f6d7e145f"
         },
         {
           "index": 12,
@@ -459,12 +524,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/12-tap_Flat_white_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/12-tap_Flat_white_.semantics.json",
           "texts": [
-            "🥛",
             "Double espresso under a thin veil of milk.",
+            "4.60 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 4.60 €",
             "Flat white"
           ],
@@ -472,8 +543,8 @@
           "verb": "tap",
           "target": "\"Flat white\"",
           "aim": {
-            "x": 104.0,
-            "y": 250.5,
+            "x": 106.0,
+            "y": 527.5,
             "w": 81.35546875,
             "h": 23.0
           },
@@ -483,7 +554,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "11abef21c4d7910e"
+          "digest": "be08396f08b36a45"
         },
         {
           "index": 13,
@@ -498,12 +569,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/13-tap_key_shop.size.medium_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/13-tap_key_shop.size.medium_.semantics.json",
           "texts": [
-            "🥛",
             "Double espresso under a thin veil of milk.",
+            "4.60 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 4.60 €",
             "Flat white"
           ],
@@ -512,7 +589,7 @@
           "target": "key 'shop.size.medium'",
           "aim": {
             "x": 141.66666666666669,
-            "y": 402.0,
+            "y": 429.0,
             "w": 109.66666666666669,
             "h": 48.0
           },
@@ -522,7 +599,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "11abef21c4d7910e",
+          "digest": "be08396f08b36a45",
           "unchanged": true
         },
         {
@@ -539,13 +616,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/14-Cart.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/14-Cart.semantics.json",
           "texts": [
-            "🥛",
             "Flat white",
+            "Medium · Whole",
             "4.60 €",
-            "Total",
-            "4.60 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "",
             "Name on the cup",
+            "Total",
+            "4.60 €",
             "Place order",
             "Your order"
           ],
@@ -554,7 +636,7 @@
           "target": "key 'shop.addToCart'",
           "aim": {
             "x": 24.0,
-            "y": 776.0,
+            "y": 766.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -564,7 +646,7 @@
             "system": 4
           },
           "eventTitles": [],
-          "digest": "edf2273cae934de2"
+          "digest": "f484227f555bf215"
         },
         {
           "index": 15,
@@ -580,12 +662,14 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/15-tap_Cold_brew_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/15-tap_Cold_brew_.semantics.json",
           "texts": [
-            "🧊",
             "Steeped cold for sixteen hours.",
+            "3.90 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 3.90 €",
             "Cold brew"
           ],
@@ -593,8 +677,8 @@
           "verb": "tap",
           "target": "\"Cold brew\"",
           "aim": {
-            "x": 104.0,
-            "y": 538.5,
+            "x": 106.0,
+            "y": 815.5,
             "w": 83.48828125,
             "h": 23.0
           },
@@ -604,7 +688,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "aa4b8eae6503eeda"
+          "digest": "e1a9dbdbeb960edd"
         },
         {
           "index": 16,
@@ -620,13 +704,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/16-Cart.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/16-Cart.semantics.json",
           "texts": [
-            "🧊",
             "Cold brew",
+            "Medium",
             "3.90 €",
-            "Total",
-            "3.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "",
             "Name on the cup",
+            "Total",
+            "3.90 €",
             "Place order",
             "Your order"
           ],
@@ -635,7 +724,7 @@
           "target": "key 'shop.addToCart'",
           "aim": {
             "x": 24.0,
-            "y": 776.0,
+            "y": 766.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -645,7 +734,7 @@
             "system": 4
           },
           "eventTitles": [],
-          "digest": "a9df28621b995e3e"
+          "digest": "c5115a763c628703"
         },
         {
           "index": 17,
@@ -663,6 +752,16 @@
           "texts": [
             "Thanks, —!",
             "Your order is on its way.",
+            "Order",
+            "BL-1042",
+            "Counter 3",
+            "Received",
+            "Brewing",
+            "Ready",
+            "Collect at Canal Street · Ready in about 6 min",
+            "Cold brew",
+            "Medium",
+            "3.90 €",
             "Back to menu"
           ],
           "statusBrightness": "dark",
@@ -670,7 +769,7 @@
           "target": "key 'shop.placeOrder'",
           "aim": {
             "x": 24.0,
-            "y": 776.0,
+            "y": 766.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -680,7 +779,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "baa4015a1453d036"
+          "digest": "6616c5b0bdbafaef"
         },
         {
           "index": 18,
@@ -716,7 +815,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "b840604782cdafdf"
+          "digest": "45faa8ce51e6d2dc"
         },
         {
           "index": 19,
@@ -732,23 +831,28 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/19-Back_at_the_menu.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/around-the-shop/19-Back_at_the_menu.semantics.json",
           "texts": [
-            "☕",
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
             "Cappuccino",
             "Espresso, steamed milk, silky foam.",
             "4.20 €",
-            "🥛",
             "Flat white",
             "Double espresso under a thin veil of milk.",
             "4.60 €",
-            "🍵",
             "Matcha latte",
             "Whisked green tea, soft and grassy.",
             "5.10 €",
-            "🫖",
             "Chai latte",
             "Warm spices, creamy milk.",
             "4.80 €",
-            "🧊",
             "Cold brew",
             "Steeped cold for sixteen hours.",
             "3.90 €",
@@ -769,7 +873,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "d59b5bbfc3522ec2"
+          "digest": "03e4d826bc33e844"
         }
       ],
       "stepCount": 19,
@@ -779,24 +883,49 @@
         "shop": {
           "title": "Brewline",
           "tagline": "Your coffee, ready before you are.",
+          "perkOrderAhead": "Order ahead, from anywhere",
+          "perkSkipQueue": "Skip the queue at the counter",
+          "perkReady": "Collect it the minute it's ready",
           "getStarted": "Get started",
           "menuTitle": "The menu",
+          "pickupFrom": "Collect at Canal Street",
+          "readyIn": "Ready in about {minutes} min",
+          "categoryAll": "All",
+          "categoryCoffee": "Coffee",
+          "categoryTea": "Tea",
+          "categoryIced": "Iced",
+          "seasonalLabel": "This season",
+          "drink.maple": "Maple syrup, oat milk, a double shot.",
           "drink.cappuccino": "Espresso, steamed milk, silky foam.",
           "drink.flat-white": "Double espresso under a thin veil of milk.",
           "drink.matcha": "Whisked green tea, soft and grassy.",
           "drink.chai": "Warm spices, creamy milk.",
           "drink.cold-brew": "Steeped cold for sixteen hours.",
           "size": "Size",
+          "milk": "Milk",
+          "extraShot": "Extra shot",
+          "addToCart": "Add to cart",
           "sizeSmall": "Small",
           "sizeMedium": "Medium",
           "sizeLarge": "Large",
-          "addToCart": "Add to cart",
+          "milkWhole": "Whole",
+          "milkOat": "Oat",
+          "milkAlmond": "Almond",
           "yourOrder": "Your order",
-          "total": "Total",
+          "pickup": "Pickup",
           "nameOnCup": "Name on the cup",
+          "total": "Total",
           "placeOrder": "Place order",
+          "pickupAsap": "ASAP",
+          "pickupIn15": "15 min",
+          "pickupIn30": "30 min",
           "thanks": "Thanks, **{name}**!",
           "onItsWay": "Your order is on its way.",
+          "orderLabel": "Order",
+          "counter": "Counter 3",
+          "stepReceived": "Received",
+          "stepBrewing": "Brewing",
+          "stepReady": "Ready",
           "backToMenu": "Back to menu",
           "emptyCart": "Your cart is empty."
         }
@@ -807,16 +936,13 @@
       "name": "Order a cappuccino",
       "ok": true,
       "device": "iphone-16",
-      "ms": 258,
+      "ms": 346,
       "steps": [
         {
           "index": 1,
           "position": "#1",
           "name": "Welcome",
           "auto": false,
-          "tags": [
-            "store"
-          ],
           "image": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/1-Welcome.png",
           "format": "png",
           "width": 393,
@@ -825,9 +951,11 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/1-Welcome.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/1-Welcome.semantics.json",
           "texts": [
-            "☕",
             "Brewline",
             "Your coffee, ready before you are.",
+            "Order ahead, from anywhere",
+            "Skip the queue at the counter",
+            "Collect it the minute it's ready",
             "Get started"
           ],
           "statusBrightness": "dark",
@@ -840,7 +968,7 @@
             "system": 4
           },
           "eventTitles": [],
-          "digest": "517d17e7a8e0742b"
+          "digest": "7085a3e89baf3f9d"
         },
         {
           "index": 2,
@@ -848,9 +976,6 @@
           "parent": 1,
           "name": "Menu",
           "auto": false,
-          "tags": [
-            "store"
-          ],
           "image": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/2-Menu.png",
           "format": "png",
           "width": 393,
@@ -859,23 +984,28 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/2-Menu.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/2-Menu.semantics.json",
           "texts": [
-            "☕",
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
             "Cappuccino",
             "Espresso, steamed milk, silky foam.",
             "4.20 €",
-            "🥛",
             "Flat white",
             "Double espresso under a thin veil of milk.",
             "4.60 €",
-            "🍵",
             "Matcha latte",
             "Whisked green tea, soft and grassy.",
             "5.10 €",
-            "🫖",
             "Chai latte",
             "Warm spices, creamy milk.",
             "4.80 €",
-            "🧊",
             "Cold brew",
             "Steeped cold for sixteen hours.",
             "3.90 €",
@@ -896,7 +1026,7 @@
             "system": 2
           },
           "eventTitles": [],
-          "digest": "d59b5bbfc3522ec2"
+          "digest": "03e4d826bc33e844"
         },
         {
           "index": 3,
@@ -911,12 +1041,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/3-tap_Cappuccino_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/3-tap_Cappuccino_.semantics.json",
           "texts": [
-            "☕",
             "Espresso, steamed milk, silky foam.",
+            "4.20 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 4.20 €",
             "Cappuccino"
           ],
@@ -924,8 +1060,8 @@
           "verb": "tap",
           "target": "\"Cappuccino\"",
           "aim": {
-            "x": 104.0,
-            "y": 154.5,
+            "x": 106.0,
+            "y": 431.5,
             "w": 97.87109375,
             "h": 23.0
           },
@@ -935,7 +1071,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "5b611dc8088135d8"
+          "digest": "177e9644025e7113"
         },
         {
           "index": 4,
@@ -950,12 +1086,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/4-tap_key_shop.size.large_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/4-tap_key_shop.size.large_.semantics.json",
           "texts": [
-            "☕",
             "Espresso, steamed milk, silky foam.",
+            "4.20 €",
             "Size",
             "Small",
             "Medium",
             "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
             "Add to cart · 4.90 €",
             "Cappuccino"
           ],
@@ -964,7 +1106,7 @@
           "target": "key 'shop.size.large'",
           "aim": {
             "x": 259.33333333333337,
-            "y": 402.0,
+            "y": 415.0,
             "w": 109.66666666666669,
             "h": 48.0
           },
@@ -974,7 +1116,7 @@
             "system": 1
           },
           "eventTitles": [],
-          "digest": "cd3e83131c9e256a"
+          "digest": "6b65c943d0dbf3c8"
         },
         {
           "index": 5,
@@ -990,13 +1132,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/5-Cart.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/5-Cart.semantics.json",
           "texts": [
-            "☕",
             "Cappuccino",
+            "Large · Whole",
             "4.90 €",
-            "Total",
-            "4.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "",
             "Name on the cup",
+            "Total",
+            "4.90 €",
             "Place order",
             "Your order"
           ],
@@ -1005,7 +1152,7 @@
           "target": "key 'shop.addToCart'",
           "aim": {
             "x": 24.0,
-            "y": 776.0,
+            "y": 766.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -1015,7 +1162,7 @@
             "system": 4
           },
           "eventTitles": [],
-          "digest": "1523ab025180bee2"
+          "digest": "d84e27148d340aff"
         },
         {
           "index": 6,
@@ -1030,13 +1177,18 @@
           "keys": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/6-enterText_key_shop.cupName_.keys.json",
           "semantics": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/6-enterText_key_shop.cupName_.semantics.json",
           "texts": [
-            "☕",
             "Cappuccino",
+            "Large · Whole",
             "4.90 €",
-            "Total",
-            "4.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
             "Ada",
             "Name on the cup",
+            "Total",
+            "4.90 €",
             "Place order",
             "Your order"
           ],
@@ -1044,18 +1196,18 @@
           "verb": "enterText",
           "target": "key 'shop.cupName'",
           "aim": {
-            "x": 40.0,
-            "y": 722.0,
-            "w": 313.0,
+            "x": 76.0,
+            "y": 346.0,
+            "w": 277.0,
             "h": 24.0
           },
           "events": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/6-enterText_key_shop.cupName_.events.json",
-          "eventCount": 22,
+          "eventCount": 13,
           "eventChannels": {
-            "system": 22
+            "system": 13
           },
           "eventTitles": [],
-          "digest": "424112eb8350e448",
+          "digest": "3122f8403ca0e775",
           "keyboard": 336.0
         },
         {
@@ -1064,9 +1216,6 @@
           "parent": 6,
           "name": "Order placed",
           "auto": false,
-          "tags": [
-            "store"
-          ],
           "image": "scenarios/root/test-scenarios-mobile-shop_test/order-a-cappuccino/7-Order_placed.png",
           "format": "png",
           "width": 393,
@@ -1077,6 +1226,16 @@
           "texts": [
             "Thanks, Ada!",
             "Your order is on its way.",
+            "Order",
+            "BL-1042",
+            "Counter 3",
+            "Received",
+            "Brewing",
+            "Ready",
+            "Collect at Canal Street · Ready in about 6 min",
+            "Cappuccino",
+            "Large · Whole",
+            "4.90 €",
             "Back to menu"
           ],
           "statusBrightness": "dark",
@@ -1084,7 +1243,7 @@
           "target": "key 'shop.placeOrder'",
           "aim": {
             "x": 24.0,
-            "y": 440.0,
+            "y": 448.0,
             "w": 345.0,
             "h": 52.0
           },
@@ -1094,7 +1253,7 @@
             "system": 3
           },
           "eventTitles": [],
-          "digest": "9d0285d9ad9ccb39"
+          "digest": "a509909f6d7e145f"
         }
       ],
       "stepCount": 7,
@@ -1104,24 +1263,1069 @@
         "shop": {
           "title": "Brewline",
           "tagline": "Your coffee, ready before you are.",
+          "perkOrderAhead": "Order ahead, from anywhere",
+          "perkSkipQueue": "Skip the queue at the counter",
+          "perkReady": "Collect it the minute it's ready",
           "getStarted": "Get started",
           "menuTitle": "The menu",
+          "pickupFrom": "Collect at Canal Street",
+          "readyIn": "Ready in about {minutes} min",
+          "categoryAll": "All",
+          "categoryCoffee": "Coffee",
+          "categoryTea": "Tea",
+          "categoryIced": "Iced",
+          "seasonalLabel": "This season",
+          "drink.maple": "Maple syrup, oat milk, a double shot.",
           "drink.cappuccino": "Espresso, steamed milk, silky foam.",
           "drink.flat-white": "Double espresso under a thin veil of milk.",
           "drink.matcha": "Whisked green tea, soft and grassy.",
           "drink.chai": "Warm spices, creamy milk.",
           "drink.cold-brew": "Steeped cold for sixteen hours.",
           "size": "Size",
+          "milk": "Milk",
+          "extraShot": "Extra shot",
+          "addToCart": "Add to cart",
           "sizeSmall": "Small",
           "sizeMedium": "Medium",
           "sizeLarge": "Large",
-          "addToCart": "Add to cart",
+          "milkWhole": "Whole",
+          "milkOat": "Oat",
+          "milkAlmond": "Almond",
           "yourOrder": "Your order",
-          "total": "Total",
+          "pickup": "Pickup",
           "nameOnCup": "Name on the cup",
+          "total": "Total",
           "placeOrder": "Place order",
+          "pickupAsap": "ASAP",
+          "pickupIn15": "15 min",
+          "pickupIn30": "30 min",
           "thanks": "Thanks, **{name}**!",
           "onItsWay": "Your order is on its way.",
+          "orderLabel": "Order",
+          "counter": "Counter 3",
+          "stepReceived": "Received",
+          "stepBrewing": "Brewing",
+          "stepReady": "Ready",
+          "backToMenu": "Back to menu",
+          "emptyCart": "Your cart is empty."
+        }
+      }
+    },
+    {
+      "file": "test/scenarios/mobile/shop_test.dart",
+      "name": "A morning order",
+      "ok": true,
+      "device": "iphone-16",
+      "ms": 926,
+      "steps": [
+        {
+          "index": 1,
+          "position": "#1",
+          "name": "Welcome",
+          "auto": false,
+          "tags": [
+            "store"
+          ],
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/1-Welcome.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/1-Welcome.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/1-Welcome.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/1-Welcome.semantics.json",
+          "texts": [
+            "Brewline",
+            "Your coffee, ready before you are.",
+            "Order ahead, from anywhere",
+            "Skip the queue at the counter",
+            "Collect it the minute it's ready",
+            "Get started"
+          ],
+          "statusBrightness": "dark",
+          "navBrightness": "light",
+          "verb": "pumpWidget",
+          "target": "ShopApp",
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/1-Welcome.events.json",
+          "eventCount": 4,
+          "eventChannels": {
+            "system": 4
+          },
+          "eventTitles": [],
+          "digest": "7085a3e89baf3f9d"
+        },
+        {
+          "index": 2,
+          "position": "#2",
+          "parent": 1,
+          "name": "Menu",
+          "auto": false,
+          "tags": [
+            "store"
+          ],
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/2-Menu.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/2-Menu.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/2-Menu.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/2-Menu.semantics.json",
+          "texts": [
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
+            "Cappuccino",
+            "Espresso, steamed milk, silky foam.",
+            "4.20 €",
+            "Flat white",
+            "Double espresso under a thin veil of milk.",
+            "4.60 €",
+            "Matcha latte",
+            "Whisked green tea, soft and grassy.",
+            "5.10 €",
+            "Chai latte",
+            "Warm spices, creamy milk.",
+            "4.80 €",
+            "Cold brew",
+            "Steeped cold for sixteen hours.",
+            "3.90 €",
+            "The menu"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.getStarted'",
+          "aim": {
+            "x": 28.0,
+            "y": 738.0,
+            "w": 337.0,
+            "h": 52.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/2-Menu.events.json",
+          "eventCount": 2,
+          "eventChannels": {
+            "system": 2
+          },
+          "eventTitles": [],
+          "digest": "03e4d826bc33e844"
+        },
+        {
+          "index": 3,
+          "position": "#3",
+          "parent": 2,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/3-tap_Cappuccino_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/3-tap_Cappuccino_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/3-tap_Cappuccino_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/3-tap_Cappuccino_.semantics.json",
+          "texts": [
+            "Espresso, steamed milk, silky foam.",
+            "4.20 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 4.20 €",
+            "Cappuccino"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "\"Cappuccino\"",
+          "aim": {
+            "x": 106.0,
+            "y": 431.5,
+            "w": 97.87109375,
+            "h": 23.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/3-tap_Cappuccino_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "177e9644025e7113"
+        },
+        {
+          "index": 4,
+          "position": "#4",
+          "parent": 3,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/4-tap_key_shop.size.large_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/4-tap_key_shop.size.large_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/4-tap_key_shop.size.large_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/4-tap_key_shop.size.large_.semantics.json",
+          "texts": [
+            "Espresso, steamed milk, silky foam.",
+            "4.20 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 4.90 €",
+            "Cappuccino"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.size.large'",
+          "aim": {
+            "x": 259.33333333333337,
+            "y": 415.0,
+            "w": 109.66666666666669,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/4-tap_key_shop.size.large_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "6b65c943d0dbf3c8"
+        },
+        {
+          "index": 5,
+          "position": "#5",
+          "parent": 4,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/5-tap_key_shop.milk.oat_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/5-tap_key_shop.milk.oat_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/5-tap_key_shop.milk.oat_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/5-tap_key_shop.milk.oat_.semantics.json",
+          "texts": [
+            "Espresso, steamed milk, silky foam.",
+            "4.20 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 5.20 €",
+            "Cappuccino"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.milk.oat'",
+          "aim": {
+            "x": 141.66666666666669,
+            "y": 511.0,
+            "w": 109.66666666666669,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/5-tap_key_shop.milk.oat_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "29087063f2baff0f"
+        },
+        {
+          "index": 6,
+          "position": "#6",
+          "parent": 5,
+          "name": "Drink",
+          "auto": false,
+          "tags": [
+            "store"
+          ],
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/6-Drink.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/6-Drink.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/6-Drink.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/6-Drink.semantics.json",
+          "texts": [
+            "Espresso, steamed milk, silky foam.",
+            "4.20 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 5.80 €",
+            "Cappuccino"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.extraShot'",
+          "aim": {
+            "x": 24.0,
+            "y": 569.0,
+            "w": 345.0,
+            "h": 72.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/6-Drink.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "057a4220bfa4f992"
+        },
+        {
+          "index": 7,
+          "position": "#7",
+          "parent": 6,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/7-tap_key_shop.addToCart_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/7-tap_key_shop.addToCart_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/7-tap_key_shop.addToCart_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/7-tap_key_shop.addToCart_.semantics.json",
+          "texts": [
+            "Cappuccino",
+            "Large · Oat · Extra shot",
+            "5.80 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
+            "",
+            "Name on the cup",
+            "Total",
+            "5.80 €",
+            "Place order",
+            "Your order"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.addToCart'",
+          "aim": {
+            "x": 24.0,
+            "y": 766.0,
+            "w": 345.0,
+            "h": 52.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/7-tap_key_shop.addToCart_.events.json",
+          "eventCount": 4,
+          "eventChannels": {
+            "system": 4
+          },
+          "eventTitles": [],
+          "digest": "5d776de171da8a1b"
+        },
+        {
+          "index": 8,
+          "position": "#8",
+          "parent": 7,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/8-tap_widget_with_type_BackButton_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/8-tap_widget_with_type_BackButton_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/8-tap_widget_with_type_BackButton_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/8-tap_widget_with_type_BackButton_.semantics.json",
+          "texts": [
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
+            "Cappuccino",
+            "Espresso, steamed milk, silky foam.",
+            "4.20 €",
+            "Flat white",
+            "Double espresso under a thin veil of milk.",
+            "4.60 €",
+            "Matcha latte",
+            "Whisked green tea, soft and grassy.",
+            "5.10 €",
+            "Chai latte",
+            "Warm spices, creamy milk.",
+            "4.80 €",
+            "Cold brew",
+            "Steeped cold for sixteen hours.",
+            "3.90 €",
+            "The menu",
+            "1"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "widget with type \"BackButton\"",
+          "aim": {
+            "x": 4.0,
+            "y": 63.0,
+            "w": 48.0,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/8-tap_widget_with_type_BackButton_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "0eb6424cbee3608d"
+        },
+        {
+          "index": 9,
+          "position": "#9",
+          "parent": 8,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/9-tap_key_shop.category.iced_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/9-tap_key_shop.category.iced_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/9-tap_key_shop.category.iced_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/9-tap_key_shop.category.iced_.semantics.json",
+          "texts": [
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
+            "Cold brew",
+            "Steeped cold for sixteen hours.",
+            "3.90 €",
+            "The menu",
+            "1"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.category.iced'",
+          "aim": {
+            "x": 233.1815643310547,
+            "y": 350.0,
+            "w": 63.255727767944336,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/9-tap_key_shop.category.iced_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "76def19ac12d4f20"
+        },
+        {
+          "index": 10,
+          "position": "#10",
+          "parent": 9,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/10-tap_Cold_brew_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/10-tap_Cold_brew_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/10-tap_Cold_brew_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/10-tap_Cold_brew_.semantics.json",
+          "texts": [
+            "Steeped cold for sixteen hours.",
+            "3.90 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 3.90 €",
+            "Cold brew"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "\"Cold brew\"",
+          "aim": {
+            "x": 106.0,
+            "y": 431.5,
+            "w": 83.48828125,
+            "h": 23.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/10-tap_Cold_brew_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "e1a9dbdbeb960edd"
+        },
+        {
+          "index": 11,
+          "position": "#11",
+          "parent": 10,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/11-tap_key_shop.addToCart_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/11-tap_key_shop.addToCart_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/11-tap_key_shop.addToCart_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/11-tap_key_shop.addToCart_.semantics.json",
+          "texts": [
+            "Cappuccino",
+            "Large · Oat · Extra shot",
+            "5.80 €",
+            "Cold brew",
+            "Medium",
+            "3.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
+            "",
+            "Name on the cup",
+            "Total",
+            "9.70 €",
+            "Place order",
+            "Your order"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.addToCart'",
+          "aim": {
+            "x": 24.0,
+            "y": 766.0,
+            "w": 345.0,
+            "h": 52.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/11-tap_key_shop.addToCart_.events.json",
+          "eventCount": 4,
+          "eventChannels": {
+            "system": 4
+          },
+          "eventTitles": [],
+          "digest": "46af6c04765208a3"
+        },
+        {
+          "index": 12,
+          "position": "#12",
+          "parent": 11,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/12-tap_widget_with_type_BackButton_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/12-tap_widget_with_type_BackButton_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/12-tap_widget_with_type_BackButton_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/12-tap_widget_with_type_BackButton_.semantics.json",
+          "texts": [
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
+            "Cold brew",
+            "Steeped cold for sixteen hours.",
+            "3.90 €",
+            "The menu",
+            "2"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "widget with type \"BackButton\"",
+          "aim": {
+            "x": 4.0,
+            "y": 63.0,
+            "w": 48.0,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/12-tap_widget_with_type_BackButton_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "dde078669a0d980b"
+        },
+        {
+          "index": 13,
+          "position": "#13",
+          "parent": 12,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/13-tap_key_shop.category.tea_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/13-tap_key_shop.category.tea_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/13-tap_key_shop.category.tea_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/13-tap_key_shop.category.tea_.semantics.json",
+          "texts": [
+            "Collect at Canal Street",
+            "Ready in about 6 min",
+            "THIS SEASON",
+            "Maple oat latte",
+            "Maple syrup, oat milk, a double shot.",
+            "5.40 €",
+            "All",
+            "Coffee",
+            "Tea",
+            "Iced",
+            "Matcha latte",
+            "Whisked green tea, soft and grassy.",
+            "5.10 €",
+            "Chai latte",
+            "Warm spices, creamy milk.",
+            "4.80 €",
+            "The menu",
+            "2"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.category.tea'",
+          "aim": {
+            "x": 167.19269180297852,
+            "y": 350.0,
+            "w": 57.98887252807617,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/13-tap_key_shop.category.tea_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "211e5bfec44801cf"
+        },
+        {
+          "index": 14,
+          "position": "#14",
+          "parent": 13,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/14-tap_Matcha_latte_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/14-tap_Matcha_latte_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/14-tap_Matcha_latte_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/14-tap_Matcha_latte_.semantics.json",
+          "texts": [
+            "Whisked green tea, soft and grassy.",
+            "5.10 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 5.10 €",
+            "Matcha latte"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "\"Matcha latte\"",
+          "aim": {
+            "x": 106.0,
+            "y": 431.5,
+            "w": 103.5390625,
+            "h": 23.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/14-tap_Matcha_latte_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "d6f32ee229c0dbb4"
+        },
+        {
+          "index": 15,
+          "position": "#15",
+          "parent": 14,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/15-tap_key_shop.size.small_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/15-tap_key_shop.size.small_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/15-tap_key_shop.size.small_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/15-tap_key_shop.size.small_.semantics.json",
+          "texts": [
+            "Whisked green tea, soft and grassy.",
+            "5.10 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 4.60 €",
+            "Matcha latte"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.size.small'",
+          "aim": {
+            "x": 24.0,
+            "y": 415.0,
+            "w": 109.66666666666669,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/15-tap_key_shop.size.small_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "7b370ce283d0b65c"
+        },
+        {
+          "index": 16,
+          "position": "#16",
+          "parent": 15,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/16-tap_key_shop.milk.almond_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/16-tap_key_shop.milk.almond_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/16-tap_key_shop.milk.almond_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/16-tap_key_shop.milk.almond_.semantics.json",
+          "texts": [
+            "Whisked green tea, soft and grassy.",
+            "5.10 €",
+            "Size",
+            "Small",
+            "Medium",
+            "Large",
+            "Milk",
+            "Whole",
+            "Oat",
+            "Almond",
+            "Extra shot",
+            "+ 0.60 €",
+            "Add to cart · 4.90 €",
+            "Matcha latte"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.milk.almond'",
+          "aim": {
+            "x": 259.33333333333337,
+            "y": 511.0,
+            "w": 109.66666666666669,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/16-tap_key_shop.milk.almond_.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "914a46d3e79356dc"
+        },
+        {
+          "index": 17,
+          "position": "#17",
+          "parent": 16,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/17-tap_key_shop.addToCart_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/17-tap_key_shop.addToCart_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/17-tap_key_shop.addToCart_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/17-tap_key_shop.addToCart_.semantics.json",
+          "texts": [
+            "Cappuccino",
+            "Large · Oat · Extra shot",
+            "5.80 €",
+            "Cold brew",
+            "Medium",
+            "3.90 €",
+            "Matcha latte",
+            "Small · Almond",
+            "4.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
+            "",
+            "Name on the cup",
+            "Total",
+            "14.60 €",
+            "Place order",
+            "Your order"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.addToCart'",
+          "aim": {
+            "x": 24.0,
+            "y": 766.0,
+            "w": 345.0,
+            "h": 52.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/17-tap_key_shop.addToCart_.events.json",
+          "eventCount": 4,
+          "eventChannels": {
+            "system": 4
+          },
+          "eventTitles": [],
+          "digest": "5053c74461662126"
+        },
+        {
+          "index": 18,
+          "position": "#18",
+          "parent": 17,
+          "name": "Cart",
+          "auto": false,
+          "tags": [
+            "store"
+          ],
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/18-Cart.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/18-Cart.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/18-Cart.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/18-Cart.semantics.json",
+          "texts": [
+            "Cappuccino",
+            "Large · Oat · Extra shot",
+            "5.80 €",
+            "Cold brew",
+            "Medium",
+            "3.90 €",
+            "Matcha latte",
+            "Small · Almond",
+            "4.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
+            "",
+            "Name on the cup",
+            "Total",
+            "14.60 €",
+            "Place order",
+            "Your order"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.pickup.in15'",
+          "aim": {
+            "x": 141.66666666666669,
+            "y": 359.0,
+            "w": 109.66666666666669,
+            "h": 48.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/18-Cart.events.json",
+          "eventCount": 1,
+          "eventChannels": {
+            "system": 1
+          },
+          "eventTitles": [],
+          "digest": "ae6687e7aef933af"
+        },
+        {
+          "index": 19,
+          "position": "#19",
+          "parent": 18,
+          "auto": true,
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/19-enterText_key_shop.cupName_.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/19-enterText_key_shop.cupName_.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/19-enterText_key_shop.cupName_.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/19-enterText_key_shop.cupName_.semantics.json",
+          "texts": [
+            "Cold brew",
+            "Medium",
+            "3.90 €",
+            "Matcha latte",
+            "Small · Almond",
+            "4.90 €",
+            "Pickup",
+            "ASAP",
+            "15 min",
+            "30 min",
+            "Collect at Canal Street",
+            "Ada",
+            "Name on the cup",
+            "Total",
+            "14.60 €",
+            "Place order",
+            "Your order"
+          ],
+          "statusBrightness": "dark",
+          "verb": "enterText",
+          "target": "key 'shop.cupName'",
+          "aim": {
+            "x": 76.0,
+            "y": 470.0,
+            "w": 277.0,
+            "h": 24.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/19-enterText_key_shop.cupName_.events.json",
+          "eventCount": 17,
+          "eventChannels": {
+            "system": 17
+          },
+          "eventTitles": [],
+          "digest": "80a796ff9fd81823",
+          "keyboard": 336.0
+        },
+        {
+          "index": 20,
+          "position": "#20",
+          "parent": 19,
+          "name": "Order placed",
+          "auto": false,
+          "tags": [
+            "store"
+          ],
+          "image": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/20-Order_placed.png",
+          "format": "png",
+          "width": 393,
+          "height": 852,
+          "tree": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/20-Order_placed.tree.json",
+          "keys": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/20-Order_placed.keys.json",
+          "semantics": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/20-Order_placed.semantics.json",
+          "texts": [
+            "Thanks, Ada!",
+            "Your order is on its way.",
+            "Order",
+            "BL-1042",
+            "Counter 3",
+            "Received",
+            "Brewing",
+            "Ready",
+            "Collect at Canal Street · Ready in about 15 min",
+            "Cappuccino",
+            "Large · Oat · Extra shot",
+            "5.80 €",
+            "Cold brew",
+            "Medium",
+            "3.90 €",
+            "Matcha latte",
+            "Small · Almond",
+            "4.90 €",
+            "Back to menu"
+          ],
+          "statusBrightness": "dark",
+          "verb": "tap",
+          "target": "key 'shop.placeOrder'",
+          "aim": {
+            "x": 24.0,
+            "y": 448.0,
+            "w": 345.0,
+            "h": 52.0
+          },
+          "events": "scenarios/root/test-scenarios-mobile-shop_test/a-morning-order/20-Order_placed.events.json",
+          "eventCount": 3,
+          "eventChannels": {
+            "system": 3
+          },
+          "eventTitles": [],
+          "digest": "aa454dddebb2e7b3"
+        }
+      ],
+      "stepCount": 20,
+      "unchangedCount": 0,
+      "unsettledCount": 0,
+      "translations": {
+        "shop": {
+          "title": "Brewline",
+          "tagline": "Your coffee, ready before you are.",
+          "perkOrderAhead": "Order ahead, from anywhere",
+          "perkSkipQueue": "Skip the queue at the counter",
+          "perkReady": "Collect it the minute it's ready",
+          "getStarted": "Get started",
+          "menuTitle": "The menu",
+          "pickupFrom": "Collect at Canal Street",
+          "readyIn": "Ready in about {minutes} min",
+          "categoryAll": "All",
+          "categoryCoffee": "Coffee",
+          "categoryTea": "Tea",
+          "categoryIced": "Iced",
+          "seasonalLabel": "This season",
+          "drink.maple": "Maple syrup, oat milk, a double shot.",
+          "drink.cappuccino": "Espresso, steamed milk, silky foam.",
+          "drink.flat-white": "Double espresso under a thin veil of milk.",
+          "drink.matcha": "Whisked green tea, soft and grassy.",
+          "drink.chai": "Warm spices, creamy milk.",
+          "drink.cold-brew": "Steeped cold for sixteen hours.",
+          "size": "Size",
+          "milk": "Milk",
+          "extraShot": "Extra shot",
+          "addToCart": "Add to cart",
+          "sizeSmall": "Small",
+          "sizeMedium": "Medium",
+          "sizeLarge": "Large",
+          "milkWhole": "Whole",
+          "milkOat": "Oat",
+          "milkAlmond": "Almond",
+          "yourOrder": "Your order",
+          "pickup": "Pickup",
+          "nameOnCup": "Name on the cup",
+          "total": "Total",
+          "placeOrder": "Place order",
+          "pickupAsap": "ASAP",
+          "pickupIn15": "15 min",
+          "pickupIn30": "30 min",
+          "thanks": "Thanks, **{name}**!",
+          "onItsWay": "Your order is on its way.",
+          "orderLabel": "Order",
+          "counter": "Counter 3",
+          "stepReceived": "Received",
+          "stepBrewing": "Brewing",
+          "stepReady": "Ready",
           "backToMenu": "Back to menu",
           "emptyCart": "Your cart is empty."
         }
@@ -1129,6 +2333,7 @@
     }
   ],
   "clock": "2026-01-01T09:41:00.000",
+  "time": "fake",
   "network": [
     "off"
   ]

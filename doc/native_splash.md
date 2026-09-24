@@ -6,6 +6,9 @@ The same config produces different results on Android, Android 12 and later,
 iOS and the web, in light and in dark mode, and this tool shows all of them
 side by side.
 
+![The splash panel: every surface the demo's config produces, in light and in
+dark](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/native-splash.webp)
+
 ## Turn it on
 
 ```dart

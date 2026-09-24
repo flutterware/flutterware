@@ -1,9 +1,14 @@
 {
+  "welcome.kicker": "Commandez à l'avance",
   "welcome": "Votre café,\nprêt avant vous",
-  "menu": "Cinq boissons. Zéro file.",
-  "cart": "Touchez. Payez. Récupérez.",
-  "order-placed": "Il vous attend en arrivant",
-  "empty-cart": "Commencez par un flat white",
+  "menu.kicker": "La carte",
+  "menu": "Du nouveau\nà chaque saison",
+  "drink.kicker": "À votre goût",
+  "drink": "Préparé exactement\ncomme vous l'aimez",
+  "cart.kicker": "Sans attendre",
+  "cart": "Choisissez l'heure.\nOn s'en occupe.",
+  "order-placed.kicker": "Prêt quand vous l'êtes",
+  "order-placed": "Suivez-le.\nRécupérez-le chaud.",
   "banner-headline": "Votre café,\nprêt avant vous",
   "banner-subtitle": "Commandez à l'avance, évitez la file, récupérez-le chaud.",
   "banner-cta": "Télécharger l'app"

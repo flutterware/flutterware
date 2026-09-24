@@ -1,8 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'drink_art.dart';
 import 'shop_screens.dart';
 import 'shop_strings.dart';
 
+export 'drink_art.dart';
 export 'shop_screens.dart';
 export 'shop_strings.dart';
 
@@ -147,13 +149,33 @@ class ShopKeys {
   static const placeOrder = Key('shop.placeOrder');
   static const backToMenu = Key('shop.backToMenu');
   static const openCart = Key('shop.openCart');
+  static const seasonal = Key('shop.seasonal');
+  static const extraShot = Key('shop.extraShot');
   static Key size(DrinkSize size) => Key('shop.size.${size.name}');
+  static Key milk(Milk milk) => Key('shop.milk.${milk.name}');
+  static Key category(DrinkCategory? category) =>
+      Key('shop.category.${category?.name ?? 'all'}');
+  static Key pickup(Pickup pickup) => Key('shop.pickup.${pickup.name}');
 }
 
 enum DrinkSize { small, medium, large }
 
+enum Milk { whole, oat, almond }
+
+enum DrinkCategory { coffee, tea, iced }
+
+/// When the order is collected. The shop brews to it, so the drink is warm
+/// when you arrive rather than when it was ready.
+enum Pickup { asap, in15, in30 }
+
 class Drink {
-  const Drink(this.id, this.name, this.price, this.emoji, this.colors);
+  const Drink(
+    this.id,
+    this.name,
+    this.price,
+    this.look, {
+    required this.category,
+  });
 
   /// Also the key into [ShopStrings.describe] — proper nouns stay
   /// untranslated, descriptions do not.
@@ -161,8 +183,11 @@ class Drink {
 
   final String name;
   final double price;
-  final String emoji;
-  final (Color, Color) colors;
+  final DrinkLook look;
+  final DrinkCategory category;
+
+  /// Whether a milk is poured into it. A cold brew is served black.
+  bool get takesMilk => category != DrinkCategory.iced;
 }
 
 /// The shop's own colour and copy style, named so a scene can read them:
@@ -176,35 +201,96 @@ const subtitleStyle = TextStyle(
 );
 
 const drinks = [
-  Drink('cappuccino', 'Cappuccino', 4.20, '☕', (
-    Color(0xFFB08968),
-    Color(0xFF7F5539),
-  )),
-  Drink('flat-white', 'Flat white', 4.60, '🥛', (
-    Color(0xFFDDB892),
-    Color(0xFFB08968),
-  )),
-  Drink('matcha', 'Matcha latte', 5.10, '🍵', (
-    Color(0xFF9CAF88),
-    Color(0xFF606C38),
-  )),
-  Drink('chai', 'Chai latte', 4.80, '🫖', (
-    Color(0xFFE6B980),
-    Color(0xFFB4764F),
-  )),
-  Drink('cold-brew', 'Cold brew', 3.90, '🧊', (
-    Color(0xFF8D99AE),
-    Color(0xFF2B2D42),
-  )),
+  Drink(
+    'cappuccino',
+    'Cappuccino',
+    4.20,
+    DrinkLook(
+      top: DrinkTop.heart,
+      liquid: Color(0xFF8B5A3C),
+      foam: Color(0xFFFBF3E8),
+      ground: (Color(0xFFB08968), Color(0xFF7F5539)),
+    ),
+    category: DrinkCategory.coffee,
+  ),
+  Drink(
+    'flat-white',
+    'Flat white',
+    4.60,
+    DrinkLook(
+      top: DrinkTop.tulip,
+      liquid: Color(0xFF9C6B47),
+      foam: Color(0xFFFFF8EE),
+      ground: (Color(0xFFDDB892), Color(0xFFB08968)),
+    ),
+    category: DrinkCategory.coffee,
+  ),
+  Drink(
+    'matcha',
+    'Matcha latte',
+    5.10,
+    DrinkLook(
+      top: DrinkTop.heart,
+      liquid: Color(0xFF7E9F4B),
+      foam: Color(0xFFEEF2D8),
+      ground: (Color(0xFF9CAF88), Color(0xFF606C38)),
+    ),
+    category: DrinkCategory.tea,
+  ),
+  Drink(
+    'chai',
+    'Chai latte',
+    4.80,
+    DrinkLook(
+      top: DrinkTop.dusted,
+      liquid: Color(0xFFB0784A),
+      foam: Color(0xFFF5E6D3),
+      ground: (Color(0xFFE6B980), Color(0xFFB4764F)),
+    ),
+    category: DrinkCategory.tea,
+  ),
+  Drink(
+    'cold-brew',
+    'Cold brew',
+    3.90,
+    DrinkLook(
+      top: DrinkTop.iced,
+      liquid: Color(0xFF3A2618),
+      foam: Color(0xFFF2E6D8),
+      ground: (Color(0xFF8D99AE), Color(0xFF2B2D42)),
+    ),
+    category: DrinkCategory.iced,
+  ),
 ];
+
+/// The season's drink: on the menu's banner rather than in its list.
+const seasonal = Drink(
+  'maple',
+  'Maple oat latte',
+  5.40,
+  DrinkLook(
+    top: DrinkTop.drizzle,
+    liquid: Color(0xFFC0823F),
+    foam: Color(0xFFFBEFDD),
+    ground: (Color(0xFFE9A15F), Color(0xFF9C5A2A)),
+  ),
+  category: DrinkCategory.coffee,
+);
 
 String formatPrice(double price) => '${price.toStringAsFixed(2)} €';
 
 class CartItem {
-  const CartItem(this.drink, this.size);
+  const CartItem(
+    this.drink,
+    this.size, {
+    this.milk = Milk.whole,
+    this.extraShot = false,
+  });
 
   final Drink drink;
   final DrinkSize size;
+  final Milk milk;
+  final bool extraShot;
 
   double get price =>
       drink.price +
@@ -212,7 +298,9 @@ class CartItem {
         DrinkSize.small => -0.5,
         DrinkSize.medium => 0.0,
         DrinkSize.large => 0.7,
-      };
+      } +
+      (drink.takesMilk && milk != Milk.whole ? 0.3 : 0) +
+      (extraShot ? 0.6 : 0);
 }
 
 /// The cart, scoped to the app — a demo does not need more state machinery
@@ -241,9 +329,7 @@ class CartScope extends InheritedNotifier<Cart> {
     : super(notifier: cart);
 }
 
-/// The round drink artwork — a gradient and an emoji instead of shipped
-/// bitmaps, so the demo stays a single Dart file deep and the color emoji
-/// font gets exercised on every capture.
+/// The round drink artwork — see [DrinkArt].
 class DrinkBadge extends StatelessWidget {
   const DrinkBadge(this.drink, {super.key, this.size = 56});
 
@@ -251,22 +337,7 @@ class DrinkBadge extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [drink.colors.$1, drink.colors.$2],
-        ),
-      ),
-      child: Text(drink.emoji, style: TextStyle(fontSize: size * 0.45)),
-    );
-  }
+  Widget build(BuildContext context) => DrinkArt(drink.look, size: size);
 }
 
 class WelcomeScreen extends StatelessWidget {
@@ -286,55 +357,101 @@ class WelcomeScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(flex: 2),
-                Container(
-                  width: 96,
-                  height: 96,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    borderRadius: BorderRadius.circular(28),
+          child: LayoutBuilder(
+            builder: (context, box) => Padding(
+              padding: const EdgeInsets.fromLTRB(28, 12, 28, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Spacer(),
+                  Center(
+                    child: DrinkBadge(
+                      drinks.first,
+                      size: (box.maxHeight * 0.3).clamp(150, 240),
+                    ),
                   ),
-                  child: const Text('☕', style: TextStyle(fontSize: 44)),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  strings.title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w800,
-                    color: scheme.onSurface,
-                    letterSpacing: -1,
+                  const SizedBox(height: 28),
+                  Text(
+                    strings.title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
+                      letterSpacing: -1,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  strings.tagline,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: scheme.onSurfaceVariant,
+                  const SizedBox(height: 8),
+                  Text(
+                    strings.tagline,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-                const Spacer(flex: 3),
-                FilledButton(
-                  key: ShopKeys.getStarted,
-                  onPressed: () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute<void>(builder: (_) => const MenuScreen()),
+                  const SizedBox(height: 28),
+                  for (var (icon, text) in [
+                    (Icons.phone_iphone_rounded, strings.perkOrderAhead),
+                    (Icons.bolt_rounded, strings.perkSkipQueue),
+                    (Icons.local_cafe_outlined, strings.perkReady),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: _Perk(icon: icon, text: text),
+                    ),
+                  const Spacer(flex: 2),
+                  FilledButton(
+                    key: ShopKeys.getStarted,
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MenuScreen(),
+                      ),
+                    ),
+                    child: Text(strings.getStarted),
                   ),
-                  child: Text(strings.getStarted),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _Perk extends StatelessWidget {
+  const _Perk({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    var scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: scheme.surface.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, size: 19, color: scheme.primary),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: scheme.onSurface,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

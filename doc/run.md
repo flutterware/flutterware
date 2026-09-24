@@ -4,6 +4,9 @@ Launch your app on any device from the studio, then watch it and drive it while
 it runs: logs, network calls, the widget tree, device settings, and taps and
 typing from the studio, the command line or a coding agent.
 
+![The run cockpit: the steps an agent took through the demo app on an iPhone,
+one of them open on the screen it left](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/run.webp)
+
 ## Turn it on
 
 ```dart

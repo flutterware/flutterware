@@ -5,7 +5,8 @@ appears in your app. Translations also tells you which keys are missing in a
 language, which the app never uses, and which are too long for the screen.
 
 ![The translations table: each key with a picture of the string on screen, its
-English text and its French text, with two keys missing in French](screenshots/translations.png)
+English text and its French text, and one key opened on the screen it appears
+on](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/translations.webp)
 
 The pictures come from your [scenarios](scenarios.md): while they run,
 flutterware records which key produced which words on which screen.

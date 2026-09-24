@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-01-01T09:38:48.978206",
+  "updatedAt": "2026-01-01T09:37:48.724700",
   "devices": [
     {
       "id": "iphone-16",
@@ -31,7 +31,7 @@
       "category": "web",
       "platformType": "web",
       "ephemeral": false,
-      "sdk": "Google Chrome 153.0.8010.53",
+      "sdk": "Google Chrome 154.0.8037.57",
       "isConnected": true,
       "connectionInterface": "attached",
       "capabilities": {

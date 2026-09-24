@@ -32,8 +32,8 @@ const webDemoEntries = <CatalogEntry>[
         "Preview(name: 'Drink badges', group: 'Brewline', wrapper: wrapInShop)",
     name: 'Drink badges',
     group: 'Brewline',
-    line: 75,
-    endLine: 76,
+    line: 81,
+    endLine: 82,
   ),
   CatalogEntry(
     path: 'demo/shop.dart',
@@ -42,8 +42,8 @@ const webDemoEntries = <CatalogEntry>[
         "Preview(name: 'Welcome', group: 'Brewline', wrapper: wrapInShop)",
     name: 'Welcome',
     group: 'Brewline',
-    line: 52,
-    endLine: 53,
+    line: 56,
+    endLine: 57,
   ),
   CatalogEntry(
     path: 'demo/shop.dart',
@@ -51,8 +51,8 @@ const webDemoEntries = <CatalogEntry>[
     annotation: "Preview(name: 'Menu', group: 'Brewline', wrapper: wrapInShop)",
     name: 'Menu',
     group: 'Brewline',
-    line: 55,
-    endLine: 56,
+    line: 59,
+    endLine: 60,
   ),
   CatalogEntry(
     path: 'demo/shop.dart',
@@ -61,8 +61,8 @@ const webDemoEntries = <CatalogEntry>[
         "Preview(name: 'A drink', group: 'Brewline', wrapper: wrapInShop)",
     name: 'A drink',
     group: 'Brewline',
-    line: 58,
-    endLine: 59,
+    line: 62,
+    endLine: 63,
   ),
   CatalogEntry(
     path: 'demo/shop.dart',
@@ -71,8 +71,8 @@ const webDemoEntries = <CatalogEntry>[
         "Preview(name: 'Cart', group: 'Brewline', wrapper: wrapWithFullCart)",
     name: 'Cart',
     group: 'Brewline',
-    line: 61,
-    endLine: 62,
+    line: 65,
+    endLine: 66,
   ),
   CatalogEntry(
     path: 'demo/shop.dart',
@@ -81,8 +81,8 @@ const webDemoEntries = <CatalogEntry>[
         "Preview(name: 'Order placed', group: 'Brewline', wrapper: wrapInShop)",
     name: 'Order placed',
     group: 'Brewline',
-    line: 65,
-    endLine: 69,
+    line: 69,
+    endLine: 75,
   ),
 ];
 

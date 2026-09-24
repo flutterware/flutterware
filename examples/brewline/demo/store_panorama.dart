@@ -18,7 +18,7 @@ import 'package:flutterware/plugins.dart';
 import 'package:flutterware/store.dart';
 import 'package:brewline/store_frame.dart';
 
-const _slugs = ['welcome', 'menu', 'cart', 'order-placed', 'empty-cart'];
+const _slugs = ['welcome', 'menu', 'drink', 'cart', 'order-placed'];
 
 @Preview(name: 'Coffee frame · the whole listing', group: 'Store')
 Widget coffeeListing() =>

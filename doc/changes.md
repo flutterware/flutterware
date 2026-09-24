@@ -4,6 +4,9 @@ What your branch changed, file by file, with the files that matter to your
 project listed first. It's the studio's home for reviewing work before a pull
 request, including work an agent did.
 
+![The changes screen: the files the project pins first, and one of them open
+on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/changes.webp)
+
 ## Turn it on
 
 The Changes screen is always there. What you can add is the list of files to

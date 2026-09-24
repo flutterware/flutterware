@@ -1,9 +1,14 @@
 {
+  "welcome.kicker": "Order ahead",
   "welcome": "Your coffee,\nready before you are",
-  "menu": "Five drinks. No queue.",
-  "cart": "Tap. Pay. Collect.",
-  "order-placed": "It's waiting when you get there",
-  "empty-cart": "Start with a flat white",
+  "menu.kicker": "The menu",
+  "menu": "Something new\nevery season",
+  "drink.kicker": "Your way",
+  "drink": "Made exactly\nhow you like it",
+  "cart.kicker": "Skip the queue",
+  "cart": "Pick a time.\nWe brew to it.",
+  "order-placed.kicker": "Ready when you are",
+  "order-placed": "Watch it brew.\nCollect it warm.",
   "banner-headline": "Your coffee,\nready before you are",
   "banner-subtitle": "Order ahead, skip the queue, and collect it warm.",
   "banner-cta": "Get the app"

@@ -4,7 +4,7 @@ Every pub dependency of your packages in one table: what your pubspec asked
 for, what pub resolved it to, and where it came from.
 
 ![The dependencies panel: each package with its type, its origin, the
-constraint that asked for it and the version pub resolved](screenshots/dependencies.png)
+constraint that asked for it and the version pub resolved](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/dependencies.webp)
 
 ## Turn it on
 

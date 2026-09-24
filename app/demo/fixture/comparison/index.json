@@ -1,19 +1,75 @@
 {
   "version": 1,
-  "base": "4fdf0ffb781a7f9feb777c9a07be63b7b4d7d211",
+  "base": "1986c646b7e146bf43e1e0d3c9071f9a64f58d78",
   "head": "/recording",
-  "headCommit": "9d97238b6b58e58d66917edae4e08c3fd83846ef",
+  "headCommit": "c331430a70994b7cf3344d011faf734e7f7d1710",
   "at": "2026-01-01T08:41:00.000",
-  "ms": 13508,
+  "ms": 906,
   "counts": {
     "added": 1,
     "removed": 3,
-    "changed": 11,
+    "changed": 12,
     "same": 6
   },
   "frames": "relative",
+  "host": {
+    "os": "macos",
+    "cpus": 16,
+    "rasterizer": "impeller-metal",
+    "jobs": 1
+  },
+  "timings": {
+    "phases": [
+      {
+        "name": "checkout",
+        "ms": 1242
+      },
+      {
+        "name": "previews.plan",
+        "ms": 239,
+        "package": "."
+      },
+      {
+        "name": "previews.compare",
+        "ms": 57,
+        "package": "."
+      },
+      {
+        "name": "scenarios.plan",
+        "ms": 66,
+        "package": "."
+      },
+      {
+        "name": "scenarios.replay",
+        "ms": 523,
+        "package": "."
+      },
+      {
+        "name": "scenarios.compare",
+        "ms": 184,
+        "package": "."
+      },
+      {
+        "name": "scenarios.filing",
+        "ms": 0,
+        "package": "."
+      },
+      {
+        "name": "viewer",
+        "ms": 2462
+      },
+      {
+        "name": "export",
+        "ms": 989
+      },
+      {
+        "name": "sweep",
+        "ms": 19
+      }
+    ]
+  },
   "previews": {
-    "rendered": 20,
+    "rendered": 0,
     "because": {
       "7 files differ, including assets/i18n/en.json": 6,
       "2 files differ, including assets/i18n/en.json": 2
@@ -21,7 +77,7 @@
     "packages": [
       "."
     ],
-    "ms": 7803,
+    "ms": 302,
     "counts": {
       "added": 1,
       "removed": 3,
@@ -33,45 +89,50 @@
         "id": "demo/loyalty.dart#shopLoyalty",
         "state": "added",
         "package": ".",
+        "label": "Stamp card",
         "shots": {
-          "base": "310fd326af9a7f10dd03b456dae0e5a5e0c93693",
-          "head": "shots/bb4aad96448b5d79abbd217c6dd502af286c4d19.png"
+          "base": "1d0416aca1469ded01352d84b26a57d5776d2869",
+          "head": "shots/29e22820ccd1883ec7f158a8f1c80b19bbdc27cd.png"
         }
       },
       {
         "id": "demo/store_panorama.dart#coffeeAppStore",
         "state": "removed",
         "package": ".",
+        "label": "Coffee frame · App Store canvas",
         "shots": {
-          "base": "shots/fc556174a8f85b2553d5bee75b89abaa09c6fc0d.png",
-          "head": "428dfa1d824d0a88929a6f96894bdbd41f07e525"
+          "base": "shots/ea099fcd761aa06feeabebbc035225c8a0a0461d.png",
+          "head": "e79e8502b0cb62e6489174b5019bcce521eb6c47"
         }
       },
       {
         "id": "demo/store_panorama.dart#coffeeListing",
         "state": "removed",
         "package": ".",
+        "label": "Coffee frame · the whole listing",
         "shots": {
-          "base": "shots/09eeed1b73f6cd8ebc50f86d05348c403c204dfb.png",
-          "head": "bac9db400a77aa1d1b0802b8ee8971abf2e32d51"
+          "base": "shots/083ee817b479b65ffb8d5fe85bcf569babcf553f.png",
+          "head": "ad15ced1eedf08a46c796f2ba8a8e575135bb2b1"
         }
       },
       {
         "id": "demo/store_panorama.dart#coffeeOne",
         "state": "removed",
         "package": ".",
+        "label": "Coffee frame · one shot",
         "shots": {
-          "base": "shots/0d4afe4953031ee5e38423514dde48c8f2f21b5d.png",
-          "head": "40485f45301cdf724ff22cb2d8661d2f5ca1c915"
+          "base": "shots/9f4f261bbfd848d13e0445f4fbff38fd7f31ce35.png",
+          "head": "c9687c7052332a18f97184dff658875b6b54e236"
         }
       },
       {
         "id": "demo/shop.dart#shopBadges",
         "state": "changed",
         "package": ".",
+        "label": "Drink badges",
         "shots": {
-          "base": "shots/69e6763e389c1fe8b331ee28177d22a1304f1a63.png",
-          "head": "shots/6e11b6351ffea9bb14f50f28b482d5400c2684c3.png"
+          "base": "shots/a68b09feb188145ea821d0e0398b0454bcd53b7c.png",
+          "head": "shots/8559ceb400fea82468eca532ab1de7045ccd6fca.png"
         },
         "channels": {
           "pixels": {
@@ -101,9 +162,10 @@
         "id": "demo/shop.dart#shopCart",
         "state": "changed",
         "package": ".",
+        "label": "Cart",
         "shots": {
-          "base": "shots/11ad5d3ea8461c13eb25f591d1d32df73f6f38ad.png",
-          "head": "shots/6556d38ad8d35af848ebc139a3e1e5a58226a189.png"
+          "base": "shots/a10f0a912908a5698f61a7d8f42c8e09caa44ef9.png",
+          "head": "shots/6f037f7fe65fa053403ae23a98d1f13ec914094d.png"
         },
         "channels": {
           "pixels": {
@@ -133,9 +195,10 @@
         "id": "demo/shop.dart#shopConfirmation",
         "state": "changed",
         "package": ".",
+        "label": "Order placed",
         "shots": {
-          "base": "shots/d605fddc8e37513de8a92fc88166a2e545b309cd.png",
-          "head": "shots/477c85ad7004fa21d9435e06ca21341091923a09.png"
+          "base": "shots/b1760c1f30b9b13fabad7c8aba7a61b3b226ef46.png",
+          "head": "shots/079c6214d17a405487783e677f1b2a64d0bdf443.png"
         },
         "channels": {
           "pixels": {
@@ -165,9 +228,10 @@
         "id": "demo/shop.dart#shopDrink",
         "state": "changed",
         "package": ".",
+        "label": "A drink",
         "shots": {
-          "base": "shots/d1675159cd3155f8f474f8acd5ce09b70cba438b.png",
-          "head": "shots/ccc25789052f804c0e2ae52abec62a8241d0ca12.png"
+          "base": "shots/739c93d76dd3abce6fbd6d9cfdffad025a729cfb.png",
+          "head": "shots/3df9de4e79fa03a9408deebd77f9b833e1d044bd.png"
         },
         "channels": {
           "pixels": {
@@ -197,9 +261,10 @@
         "id": "demo/shop.dart#shopMenu",
         "state": "changed",
         "package": ".",
+        "label": "Menu",
         "shots": {
-          "base": "shots/9b08dedc6839e8f884f280d19e72f8e1816488f5.png",
-          "head": "shots/e8b70f628a7320540db9a2bd58b09242e10e1e59.png"
+          "base": "shots/a5ae9a8f6656f18173a50f7c0e310b72693f1163.png",
+          "head": "shots/73916485395708e2a0de77ddd41ff9e816375e9e.png"
         },
         "channels": {
           "pixels": {
@@ -237,9 +302,10 @@
         "id": "demo/shop.dart#shopWelcome",
         "state": "changed",
         "package": ".",
+        "label": "Welcome",
         "shots": {
-          "base": "shots/383320a7995ae1132ed2e35a7ef6729ad3cb8e69.png",
-          "head": "shots/51eb883d02b5d7e48ce9316228992aab0ff7203c.png"
+          "base": "shots/02a0bd6d0ce2705e2a74900500ace0ff38d9fc72.png",
+          "head": "shots/17ce85719a448408efe96c7b6c0662c5fec020f6.png"
         },
         "channels": {
           "pixels": {
@@ -269,9 +335,10 @@
         "id": "demo/brand.dart#appIcon",
         "state": "same",
         "package": ".",
+        "label": "App icon",
         "shots": {
-          "base": "shots/cca438946c420efa58b3fee3f1b9f146345e0fbe.png",
-          "head": "shots/6ef8322045d8600ee8b55b40ad42ea1a55100265.png"
+          "base": "shots/e16036327c03d62876edb712bdeb83610fde5f53.png",
+          "head": "shots/a3fc77a273d2680545bb0699bf06453c8f4a86ca.png"
         },
         "channels": {
           "pixels": {
@@ -290,9 +357,10 @@
         "id": "demo/brand.dart#appIconVariant",
         "state": "same",
         "package": ".",
+        "label": "App icon · one variant",
         "shots": {
-          "base": "shots/4743ef760ede891c7ee4558f9199f1187173c276.png",
-          "head": "shots/723172191a61ce2b0c7d33d56c4fa8af2f5567b9.png"
+          "base": "shots/f5ce8851abc028bcbf0922b22c46535c1f9f6b6a.png",
+          "head": "shots/f79c171828eb887e06ebe9055ba1be945752b941.png"
         },
         "channels": {
           "pixels": {
@@ -310,20 +378,20 @@
     ]
   },
   "scenarios": {
-    "ran": 9,
-    "replayed": 18,
+    "ran": 10,
+    "replayed": 0,
     "skipped": 0,
     "because": {
-      "8 files differ, including assets/i18n/en.json": 5,
+      "8 files differ, including assets/i18n/en.json": 6,
       "2 files differ, including assets/i18n/en.json": 2,
       "5 files differ, including assets/i18n/en.json": 2
     },
     "packages": [
       "."
     ],
-    "ms": 5705,
+    "ms": 604,
     "counts": {
-      "changed": 5,
+      "changed": 6,
       "same": 4
     },
     "items": [
@@ -361,12 +429,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s0/792755f94da2a8f49aec72fb4ce73e69d7399224.png",
+                "path": "frames/s0/8a57b768292f1214dd5a96bde2683a4be4b39351.png",
                 "width": 1600,
                 "height": 900
               },
               "head": {
-                "path": "frames/s0/792755f94da2a8f49aec72fb4ce73e69d7399224.png",
+                "path": "frames/s0/8a57b768292f1214dd5a96bde2683a4be4b39351.png",
                 "width": 1600,
                 "height": 900
               }
@@ -409,12 +477,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s0/7fb77c74c8a97146f0b70950c92a379050fe3ab5.png",
+                "path": "frames/s0/f4f2e623ced1d03026185dd4de20e6b04cb7da0d.png",
                 "width": 1600,
                 "height": 900
               },
               "head": {
-                "path": "frames/s0/bee088544feba8c7c31f6551a9fbaf556c29da0a.png",
+                "path": "frames/s0/f34efd9cc90fd52835c5f8d998bf5cf7dc3408a4.png",
                 "width": 1600,
                 "height": 900
               }
@@ -449,12 +517,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s0/10956a1be53e20c8a4f718502a37fbb0a960dff6.png",
+                "path": "frames/s0/23647924a1967724eb747e7b3865437e9035bbb0.png",
                 "width": 1600,
                 "height": 900
               },
               "head": {
-                "path": "frames/s0/10956a1be53e20c8a4f718502a37fbb0a960dff6.png",
+                "path": "frames/s0/23647924a1967724eb747e7b3865437e9035bbb0.png",
                 "width": 1600,
                 "height": 900
               }
@@ -489,12 +557,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s0/89aa5f46a8e7af2bce6898e1d59cb7f9307938b9.png",
+                "path": "frames/s0/12f1272c7fad107957067114861057e2716c2bba.png",
                 "width": 1600,
                 "height": 900
               },
               "head": {
-                "path": "frames/s0/89aa5f46a8e7af2bce6898e1d59cb7f9307938b9.png",
+                "path": "frames/s0/12f1272c7fad107957067114861057e2716c2bba.png",
                 "width": 1600,
                 "height": 900
               }
@@ -529,12 +597,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s0/f9bbc7223b13cd045007f50ea0257b196569fb73.png",
+                "path": "frames/s0/d7411527a50945f9b57041c0385171b7c1382d18.png",
                 "width": 1600,
                 "height": 900
               },
               "head": {
-                "path": "frames/s0/f9bbc7223b13cd045007f50ea0257b196569fb73.png",
+                "path": "frames/s0/d7411527a50945f9b57041c0385171b7c1382d18.png",
                 "width": 1600,
                 "height": 900
               }
@@ -576,12 +644,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               }
@@ -624,12 +692,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "path": "frames/s1/d997b6d8046ea8a6b8ebb70b814c4e39d44e7c6c.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "path": "frames/s1/e465778e67f0201d185f8f469fc219be1aaedcd1.png",
                 "width": 393,
                 "height": 852
               }
@@ -664,12 +732,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               }
@@ -704,12 +772,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
                 "width": 393,
                 "height": 852
               }
@@ -744,12 +812,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "path": "frames/s1/30f47fe5e4269ebc527dc52d49f73970b2537eef.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "path": "frames/s1/30f47fe5e4269ebc527dc52d49f73970b2537eef.png",
                 "width": 393,
                 "height": 852
               }
@@ -784,12 +852,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "path": "frames/s1/c087945bb97b548761754e6419065948409b3260.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "path": "frames/s1/c087945bb97b548761754e6419065948409b3260.png",
                 "width": 393,
                 "height": 852
               }
@@ -824,12 +892,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s1/1c3c258b1bb2b73aee387012a269367911932822.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s1/1c3c258b1bb2b73aee387012a269367911932822.png",
                 "width": 393,
                 "height": 852
               }
@@ -871,12 +939,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               }
@@ -919,12 +987,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "path": "frames/s1/d997b6d8046ea8a6b8ebb70b814c4e39d44e7c6c.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "path": "frames/s1/e465778e67f0201d185f8f469fc219be1aaedcd1.png",
                 "width": 393,
                 "height": 852
               }
@@ -959,12 +1027,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               }
@@ -999,12 +1067,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "path": "frames/s2/942df69154753a48e6a8fbd3acd04a3ca92b95d4.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "path": "frames/s2/942df69154753a48e6a8fbd3acd04a3ca92b95d4.png",
                 "width": 393,
                 "height": 852
               }
@@ -1039,12 +1107,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "path": "frames/s2/b6f1b325f5a03dea1332fdc971b2e2d0052bf96e.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "path": "frames/s2/b6f1b325f5a03dea1332fdc971b2e2d0052bf96e.png",
                 "width": 393,
                 "height": 852
               }
@@ -1079,12 +1147,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "path": "frames/s2/5d2bd0640dda8270fa5393d8623bf49c2fc7ae09.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "path": "frames/s2/5d2bd0640dda8270fa5393d8623bf49c2fc7ae09.png",
                 "width": 393,
                 "height": 852
               }
@@ -1119,12 +1187,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s2/86bd80299a30afadd4c3bd2b0d48b0cc99a341dd.png",
+                "path": "frames/s2/eb323235badb8c4b992589ed806680f2e2f97338.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s2/86bd80299a30afadd4c3bd2b0d48b0cc99a341dd.png",
+                "path": "frames/s2/eb323235badb8c4b992589ed806680f2e2f97338.png",
                 "width": 393,
                 "height": 852
               }
@@ -1159,12 +1227,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s2/52724acda8bc72d4b14e035a9c80639359f0ac14.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s2/52724acda8bc72d4b14e035a9c80639359f0ac14.png",
                 "width": 393,
                 "height": 852
               }
@@ -1173,7 +1241,7 @@
         ]
       },
       {
-        "id": "test/scenarios/mobile/shop_test.dart#Around the shop",
+        "id": "test/scenarios/mobile/shop_test.dart#A morning order",
         "state": "changed",
         "package": ".",
         "steps": [
@@ -1206,12 +1274,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               }
@@ -1254,12 +1322,859 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "path": "frames/s1/d997b6d8046ea8a6b8ebb70b814c4e39d44e7c6c.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "path": "frames/s1/e465778e67f0201d185f8f469fc219be1aaedcd1.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap \"Cappuccino\"",
+            "state": "changed",
+            "label": "tap \"Cappuccino\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.size.large'",
+            "state": "changed",
+            "label": "tap key 'shop.size.large'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.milk.oat'",
+            "state": "changed",
+            "label": "tap key 'shop.milk.oat'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/b1f37f695b9f9f512dd97a831d892ecb1386fa56.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/b1f37f695b9f9f512dd97a831d892ecb1386fa56.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Drink",
+            "state": "changed",
+            "label": "Drink",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/d0883e55a5ade6d83639f504d19278c93ac898b4.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/d0883e55a5ade6d83639f504d19278c93ac898b4.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.addToCart'",
+            "state": "changed",
+            "label": "tap key 'shop.addToCart'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/5bcb3f12af546d91bb11cbd2250c8244b272c39b.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/5bcb3f12af546d91bb11cbd2250c8244b272c39b.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap widget with type \"BackButton\"",
+            "state": "changed",
+            "label": "tap widget with type \"BackButton\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/34482543b9172877d10c7e4f62344e455a5cb445.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/bba2e1abaa40e4ca4004cdb0cdf99665090e5440.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.category.iced'",
+            "state": "changed",
+            "label": "tap key 'shop.category.iced'",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/ac3bdc1f46943fe01e971bf6df7dccaefbc655f8.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/c26649d741d093b0465946f41b6774ffa001a42e.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap \"Cold brew\"",
+            "state": "changed",
+            "label": "tap \"Cold brew\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/663e3bb3ffb2376cf29234d3627971b500bdae6c.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/663e3bb3ffb2376cf29234d3627971b500bdae6c.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.addToCart' (2)",
+            "state": "changed",
+            "label": "tap key 'shop.addToCart'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/e7de7e104cda5d84afb040dde545203449bc8059.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/e7de7e104cda5d84afb040dde545203449bc8059.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap widget with type \"BackButton\" (2)",
+            "state": "changed",
+            "label": "tap widget with type \"BackButton\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/5b424563ba3d8c689906f11ac2f2d26ae36b5743.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/06fdaee980a46ccf563bb4c4938f4751d7a8c160.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.category.tea'",
+            "state": "changed",
+            "label": "tap key 'shop.category.tea'",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/b4493962b2a6113d862516c873cd91c606949f03.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/b1f516d60caa303490258fc19ffac30ae0b67104.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap \"Matcha latte\"",
+            "state": "changed",
+            "label": "tap \"Matcha latte\"",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/df7a4d82284e8eee7f4b55e8e99045cda67033b2.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/df7a4d82284e8eee7f4b55e8e99045cda67033b2.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.size.small'",
+            "state": "changed",
+            "label": "tap key 'shop.size.small'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/ae9bfa87bc1c66fa7a173649cd57956ed7cf987d.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/ae9bfa87bc1c66fa7a173649cd57956ed7cf987d.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.milk.almond'",
+            "state": "changed",
+            "label": "tap key 'shop.milk.almond'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/c5d4a7205b5a23892fdb0d5b6e47ca505ed37e04.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/c5d4a7205b5a23892fdb0d5b6e47ca505ed37e04.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "tap key 'shop.addToCart' (3)",
+            "state": "changed",
+            "label": "tap key 'shop.addToCart'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/67c0a618689e2d00ec01a65fe29abda59ca25526.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/67c0a618689e2d00ec01a65fe29abda59ca25526.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Cart",
+            "state": "changed",
+            "label": "Cart",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/186a8dda8f9718cd78fd31a6b58e9a5372b0b6dd.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/186a8dda8f9718cd78fd31a6b58e9a5372b0b6dd.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "enterText key 'shop.cupName'",
+            "state": "changed",
+            "label": "enterText key 'shop.cupName'",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/215354eb0debf8f7075b6f55b903d5932155cdee.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/215354eb0debf8f7075b6f55b903d5932155cdee.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Order placed",
+            "state": "changed",
+            "label": "Order placed",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s3/a7b7b74ea63e8862b94e655f51fb545e1362e5f1.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s3/a7b7b74ea63e8862b94e655f51fb545e1362e5f1.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "test/scenarios/mobile/shop_test.dart#Around the shop",
+        "state": "changed",
+        "package": ".",
+        "steps": [
+          {
+            "id": "Welcome",
+            "state": "changed",
+            "label": "Welcome",
+            "channels": {
+              "pixels": {
+                "changed": 0.0,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": []
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
+                "width": 393,
+                "height": 852
+              }
+            }
+          },
+          {
+            "id": "Menu",
+            "state": "changed",
+            "label": "Menu",
+            "channels": {
+              "pixels": {
+                "changed": 0.00077,
+                "sizeChanged": false,
+                "width": 393,
+                "height": 852,
+                "clusters": [
+                  {
+                    "x": 298,
+                    "y": 76,
+                    "width": 22,
+                    "height": 21,
+                    "pixels": 259
+                  }
+                ]
+              },
+              "tree": {
+                "deltas": [
+                  {
+                    "kind": "added",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › LoyaltyScope",
+                    "head": "LoyaltyScope"
+                  },
+                  {
+                    "kind": "removed",
+                    "path": "DefaultAssetBundle › ScenarioKeyboardSlab › ValueListenableBuilder<KeyboardVariant> › ViewKeyboardSlab › FakeKeyboardSlab › Stack › ShopApp › MaterialApp › CartScope",
+                    "base": "CartScope"
+                  }
+                ]
+              }
+            },
+            "frames": {
+              "base": {
+                "path": "frames/s1/d997b6d8046ea8a6b8ebb70b814c4e39d44e7c6c.png",
+                "width": 393,
+                "height": 852
+              },
+              "head": {
+                "path": "frames/s1/e465778e67f0201d185f8f469fc219be1aaedcd1.png",
                 "width": 393,
                 "height": 852
               }
@@ -1294,12 +2209,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               }
@@ -1334,12 +2249,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "path": "frames/s2/942df69154753a48e6a8fbd3acd04a3ca92b95d4.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s2/3029bbd2781b8a744ce3be6498ffb553b20ea5c5.png",
+                "path": "frames/s2/942df69154753a48e6a8fbd3acd04a3ca92b95d4.png",
                 "width": 393,
                 "height": 852
               }
@@ -1374,12 +2289,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "path": "frames/s2/b6f1b325f5a03dea1332fdc971b2e2d0052bf96e.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s2/b7e643e02c79c0e92ebf6fb9769d436090188818.png",
+                "path": "frames/s2/b6f1b325f5a03dea1332fdc971b2e2d0052bf96e.png",
                 "width": 393,
                 "height": 852
               }
@@ -1414,12 +2329,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "path": "frames/s2/5d2bd0640dda8270fa5393d8623bf49c2fc7ae09.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s2/8b58bb9758900d8344e47f326eea18e43f42179d.png",
+                "path": "frames/s2/5d2bd0640dda8270fa5393d8623bf49c2fc7ae09.png",
                 "width": 393,
                 "height": 852
               }
@@ -1454,12 +2369,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s2/52724acda8bc72d4b14e035a9c80639359f0ac14.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s2/52724acda8bc72d4b14e035a9c80639359f0ac14.png",
                 "width": 393,
                 "height": 852
               }
@@ -1494,12 +2409,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
                 "width": 393,
                 "height": 852
               }
@@ -1534,12 +2449,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "path": "frames/s1/30f47fe5e4269ebc527dc52d49f73970b2537eef.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "path": "frames/s1/30f47fe5e4269ebc527dc52d49f73970b2537eef.png",
                 "width": 393,
                 "height": 852
               }
@@ -1574,12 +2489,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "path": "frames/s1/c087945bb97b548761754e6419065948409b3260.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "path": "frames/s1/c087945bb97b548761754e6419065948409b3260.png",
                 "width": 393,
                 "height": 852
               }
@@ -1614,12 +2529,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s1/1c3c258b1bb2b73aee387012a269367911932822.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s1/1c3c258b1bb2b73aee387012a269367911932822.png",
                 "width": 393,
                 "height": 852
               }
@@ -1654,12 +2569,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "path": "frames/s4/3814e5ffb67543d498950d2d7455a9a0ec77a548.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "path": "frames/s4/3814e5ffb67543d498950d2d7455a9a0ec77a548.png",
                 "width": 393,
                 "height": 852
               }
@@ -1694,12 +2609,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "path": "frames/s4/3814e5ffb67543d498950d2d7455a9a0ec77a548.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s3/8414c337aa40e288f3837f7f9b3a29ba8f0668c0.png",
+                "path": "frames/s4/3814e5ffb67543d498950d2d7455a9a0ec77a548.png",
                 "width": 393,
                 "height": 852
               }
@@ -1734,12 +2649,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s3/63074756e21c3bcb23b9a8a89a4f189231b68e2f.png",
+                "path": "frames/s4/6abfe8018dceb09f3c60278130a1f31018edb70b.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s3/63074756e21c3bcb23b9a8a89a4f189231b68e2f.png",
+                "path": "frames/s4/6abfe8018dceb09f3c60278130a1f31018edb70b.png",
                 "width": 393,
                 "height": 852
               }
@@ -1774,12 +2689,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s3/e7d85f1235793c3af862ea2d2d89c16ca795dcd2.png",
+                "path": "frames/s3/663e3bb3ffb2376cf29234d3627971b500bdae6c.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s3/e7d85f1235793c3af862ea2d2d89c16ca795dcd2.png",
+                "path": "frames/s3/663e3bb3ffb2376cf29234d3627971b500bdae6c.png",
                 "width": 393,
                 "height": 852
               }
@@ -1814,12 +2729,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s3/b00c78e86be81922a7c4b4c3743aef7758e26b77.png",
+                "path": "frames/s4/7afb0b145619c24d1e5e39298393c0235ca394c2.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s3/b00c78e86be81922a7c4b4c3743aef7758e26b77.png",
+                "path": "frames/s4/7afb0b145619c24d1e5e39298393c0235ca394c2.png",
                 "width": 393,
                 "height": 852
               }
@@ -1854,12 +2769,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s3/b4d3c4ea0b47fc2cf280e141acc247cb13008aec.png",
+                "path": "frames/s4/890367b43cc08c6647ba5e99a06b81524f67a839.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s3/b4d3c4ea0b47fc2cf280e141acc247cb13008aec.png",
+                "path": "frames/s4/890367b43cc08c6647ba5e99a06b81524f67a839.png",
                 "width": 393,
                 "height": 852
               }
@@ -1894,12 +2809,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s3/a77e13d11127df09e8938ed169c8fd009e706640.png",
+                "path": "frames/s4/0b14cb945630b04dc446e4a8d89747f9367a26a5.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s3/a77e13d11127df09e8938ed169c8fd009e706640.png",
+                "path": "frames/s4/0b14cb945630b04dc446e4a8d89747f9367a26a5.png",
                 "width": 393,
                 "height": 852
               }
@@ -1942,12 +2857,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "path": "frames/s1/d997b6d8046ea8a6b8ebb70b814c4e39d44e7c6c.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "path": "frames/s1/e465778e67f0201d185f8f469fc219be1aaedcd1.png",
                 "width": 393,
                 "height": 852
               }
@@ -1989,12 +2904,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/4348ed89ec610d58fb68c6f086bef2d9b79701ea.png",
+                "path": "frames/s1/016ed175f4b30f1dcb8b96a512b42e14466ab6a6.png",
                 "width": 393,
                 "height": 852
               }
@@ -2037,12 +2952,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/adcb9cde1b15d0ef152de384318aeee25a37d92d.png",
+                "path": "frames/s1/d997b6d8046ea8a6b8ebb70b814c4e39d44e7c6c.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/763abe714644414ce9f249ce39b26b025bd403fe.png",
+                "path": "frames/s1/e465778e67f0201d185f8f469fc219be1aaedcd1.png",
                 "width": 393,
                 "height": 852
               }
@@ -2077,12 +2992,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/c0214130e0129ec8510cbdd07d95303ead554459.png",
+                "path": "frames/s1/6f23458c0e734f248755adc083b7522b7f921c7b.png",
                 "width": 393,
                 "height": 852
               }
@@ -2117,12 +3032,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/9ed06f84848f1efe5a891c530705a6afa63c7fb7.png",
+                "path": "frames/s1/680ac7561a5e902dabf8dc6b33993b3d24bb28cd.png",
                 "width": 393,
                 "height": 852
               }
@@ -2157,12 +3072,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "path": "frames/s1/30f47fe5e4269ebc527dc52d49f73970b2537eef.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/b44695a5b7f5a9438df180cba21d1da1ea48aca1.png",
+                "path": "frames/s1/30f47fe5e4269ebc527dc52d49f73970b2537eef.png",
                 "width": 393,
                 "height": 852
               }
@@ -2197,12 +3112,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "path": "frames/s1/c087945bb97b548761754e6419065948409b3260.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/80cbdaee500d246066cbd8fe91404c9373b69899.png",
+                "path": "frames/s1/c087945bb97b548761754e6419065948409b3260.png",
                 "width": 393,
                 "height": 852
               }
@@ -2237,12 +3152,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s1/1c3c258b1bb2b73aee387012a269367911932822.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s1/5533d2a0ee70a7620d9c2a11e2ea126c586701b6.png",
+                "path": "frames/s1/1c3c258b1bb2b73aee387012a269367911932822.png",
                 "width": 393,
                 "height": 852
               }
@@ -2273,12 +3188,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s5/a177a9786b7d772c4dafd3701de272fd849b8d10.png",
+                "path": "frames/s6/a177a9786b7d772c4dafd3701de272fd849b8d10.png",
                 "width": 800,
                 "height": 600
               },
               "head": {
-                "path": "frames/s5/a177a9786b7d772c4dafd3701de272fd849b8d10.png",
+                "path": "frames/s6/a177a9786b7d772c4dafd3701de272fd849b8d10.png",
                 "width": 800,
                 "height": 600
               }
@@ -2313,12 +3228,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s5/e277c32071c9bbb4ac0eda24f712752742fa5698.png",
+                "path": "frames/s6/e277c32071c9bbb4ac0eda24f712752742fa5698.png",
                 "width": 800,
                 "height": 600
               },
               "head": {
-                "path": "frames/s5/e277c32071c9bbb4ac0eda24f712752742fa5698.png",
+                "path": "frames/s6/e277c32071c9bbb4ac0eda24f712752742fa5698.png",
                 "width": 800,
                 "height": 600
               }
@@ -2382,12 +3297,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s6/a88648a43b5bb8e797fd4c194fe4b60dca8eccef.png",
+                "path": "frames/s7/a88648a43b5bb8e797fd4c194fe4b60dca8eccef.png",
                 "width": 800,
                 "height": 600
               },
               "head": {
-                "path": "frames/s6/a88648a43b5bb8e797fd4c194fe4b60dca8eccef.png",
+                "path": "frames/s7/a88648a43b5bb8e797fd4c194fe4b60dca8eccef.png",
                 "width": 800,
                 "height": 600
               }
@@ -2411,12 +3326,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s6/0668445ce0a19254901bf7232fd2e42b831c04d4.png",
+                "path": "frames/s7/0668445ce0a19254901bf7232fd2e42b831c04d4.png",
                 "width": 800,
                 "height": 600
               },
               "head": {
-                "path": "frames/s6/0668445ce0a19254901bf7232fd2e42b831c04d4.png",
+                "path": "frames/s7/0668445ce0a19254901bf7232fd2e42b831c04d4.png",
                 "width": 800,
                 "height": 600
               }
@@ -2440,12 +3355,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s6/b646b7f11b9f50d709ca6a69c868f869f419471a.png",
+                "path": "frames/s7/b646b7f11b9f50d709ca6a69c868f869f419471a.png",
                 "width": 800,
                 "height": 600
               },
               "head": {
-                "path": "frames/s6/b646b7f11b9f50d709ca6a69c868f869f419471a.png",
+                "path": "frames/s7/b646b7f11b9f50d709ca6a69c868f869f419471a.png",
                 "width": 800,
                 "height": 600
               }
@@ -2487,12 +3402,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s7/89eb4feaafb387fcbc11382484e5847c7f42ebbe.png",
+                "path": "frames/s8/89eb4feaafb387fcbc11382484e5847c7f42ebbe.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s7/89eb4feaafb387fcbc11382484e5847c7f42ebbe.png",
+                "path": "frames/s8/89eb4feaafb387fcbc11382484e5847c7f42ebbe.png",
                 "width": 393,
                 "height": 852
               }
@@ -2516,12 +3431,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s7/e88f6ef4ed3efab72bec77ac251a54548f752a5e.png",
+                "path": "frames/s8/e88f6ef4ed3efab72bec77ac251a54548f752a5e.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s7/e88f6ef4ed3efab72bec77ac251a54548f752a5e.png",
+                "path": "frames/s8/e88f6ef4ed3efab72bec77ac251a54548f752a5e.png",
                 "width": 393,
                 "height": 852
               }
@@ -2545,12 +3460,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s7/4654678eac65a153d1749ee77f5e0d5fbbeff897.png",
+                "path": "frames/s8/4654678eac65a153d1749ee77f5e0d5fbbeff897.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s7/4654678eac65a153d1749ee77f5e0d5fbbeff897.png",
+                "path": "frames/s8/4654678eac65a153d1749ee77f5e0d5fbbeff897.png",
                 "width": 393,
                 "height": 852
               }
@@ -2581,12 +3496,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s8/bcc589280abc372354beb179366de01cc4d6fcd1.png",
+                "path": "frames/s9/bcc589280abc372354beb179366de01cc4d6fcd1.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s8/bcc589280abc372354beb179366de01cc4d6fcd1.png",
+                "path": "frames/s9/bcc589280abc372354beb179366de01cc4d6fcd1.png",
                 "width": 393,
                 "height": 852
               }
@@ -2610,12 +3525,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s8/7dacd77352e07e94d8f3c79b677392ca50d6985a.png",
+                "path": "frames/s9/7dacd77352e07e94d8f3c79b677392ca50d6985a.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s8/7dacd77352e07e94d8f3c79b677392ca50d6985a.png",
+                "path": "frames/s9/7dacd77352e07e94d8f3c79b677392ca50d6985a.png",
                 "width": 393,
                 "height": 852
               }
@@ -2639,12 +3554,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s8/799cb0ce16af71d1f756e96956f60b184ec4301e.png",
+                "path": "frames/s9/799cb0ce16af71d1f756e96956f60b184ec4301e.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s8/799cb0ce16af71d1f756e96956f60b184ec4301e.png",
+                "path": "frames/s9/799cb0ce16af71d1f756e96956f60b184ec4301e.png",
                 "width": 393,
                 "height": 852
               }
@@ -2668,12 +3583,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s8/9267429851bbefb83894ca66ccb81fd1d6c6629e.png",
+                "path": "frames/s9/9267429851bbefb83894ca66ccb81fd1d6c6629e.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s8/9267429851bbefb83894ca66ccb81fd1d6c6629e.png",
+                "path": "frames/s9/9267429851bbefb83894ca66ccb81fd1d6c6629e.png",
                 "width": 393,
                 "height": 852
               }
@@ -2697,12 +3612,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s8/40d40851316af6e6e72ce3f7401b5bd1d9209a01.png",
+                "path": "frames/s9/40d40851316af6e6e72ce3f7401b5bd1d9209a01.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s8/40d40851316af6e6e72ce3f7401b5bd1d9209a01.png",
+                "path": "frames/s9/40d40851316af6e6e72ce3f7401b5bd1d9209a01.png",
                 "width": 393,
                 "height": 852
               }
@@ -2726,12 +3641,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s8/a4411665b326b78c2cf90886d81b88e090243a17.png",
+                "path": "frames/s9/a4411665b326b78c2cf90886d81b88e090243a17.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s8/a4411665b326b78c2cf90886d81b88e090243a17.png",
+                "path": "frames/s9/a4411665b326b78c2cf90886d81b88e090243a17.png",
                 "width": 393,
                 "height": 852
               }
@@ -2755,12 +3670,12 @@
             },
             "frames": {
               "base": {
-                "path": "frames/s8/656b49527106dc1c4df0b40dc68bb003bc3c5cb7.png",
+                "path": "frames/s9/656b49527106dc1c4df0b40dc68bb003bc3c5cb7.png",
                 "width": 393,
                 "height": 852
               },
               "head": {
-                "path": "frames/s8/656b49527106dc1c4df0b40dc68bb003bc3c5cb7.png",
+                "path": "frames/s9/656b49527106dc1c4df0b40dc68bb003bc3c5cb7.png",
                 "width": 393,
                 "height": 852
               }
