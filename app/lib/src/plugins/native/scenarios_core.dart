@@ -850,7 +850,9 @@ class ScenariosCore extends PluginCore {
               'Package',
               kind: ActionParameterKind.choice,
               required: false,
-              description: 'Which declared package; all of them when omitted',
+              description:
+                  'Which declared package; every fake-time one when omitted. '
+                  'A real-time folder runs only when it is named here.',
               options: [
                 for (var path in packages)
                   ActionOption(path, label: path == '.' ? 'root' : path),
@@ -3305,6 +3307,27 @@ class ScenariosCore extends PluginCore {
   /// session.
   Future<ScenarioRunResult> _run(Map<String, Object?> arguments) async {
     var paths = _requested(arguments);
+    // Named, a real-time folder runs; unnamed, it is left out and said so —
+    // see [ScenarioRunResult.notRun].
+    var notRun = <String, String>{
+      if (arguments['package'] == null)
+        for (var path in paths)
+          if (timeFor(path) != null)
+            path:
+                'runs in real time, against a backend, so only when named: '
+                'package=$path',
+    };
+    paths = [
+      for (var path in paths)
+        if (!notRun.containsKey(path)) path,
+    ];
+    if (paths.isEmpty) {
+      throw ArgumentError(
+        'every declared folder runs in real time, against a backend, and a '
+        'run that names no package runs none of those. Name the one to run: '
+        '${notRun.keys.map((path) => 'package=$path').join(' or ')}.',
+      );
+    }
     // Not awaited: it is what the progress count is against, and a run that
     // waited on it would pay for the parse before compiling anything. A core
     // the panel has mounted has scanned already; one synthesized for an export
@@ -3722,6 +3745,7 @@ class ScenariosCore extends PluginCore {
       ],
       axes: anyFannedOut || axes.isEmpty ? null : axes.toParams(),
       clock: ranAtClock,
+      notRun: notRun,
     );
     // After the reports are on disk, so a sweep can never race the thing it is
     // meant to keep. The directories this request wrote are named explicitly
@@ -3914,6 +3938,7 @@ class ScenariosCore extends PluginCore {
       // answer that says which clock it ran at only in the file is an answer
       // that says it to the reader who already has one.
       clock: whole.clock,
+      notRun: whole.notRun,
       packages: [
         for (var run in whole.packages)
           run.carrying([

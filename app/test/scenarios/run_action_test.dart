@@ -27,6 +27,7 @@ void main() {
   ScenariosCore core(
     _FakeRunner runner, {
     Map<String, _FakeRunner> others = const {},
+    Set<String> realTime = const {},
   }) {
     var worktree = Worktree(path: root.path);
     var paths = ['.', ...others.keys];
@@ -44,7 +45,8 @@ void main() {
         ),
         config: {
           'packages': [
-            for (var path in paths) {'path': path},
+            for (var path in paths)
+              {'path': path, if (realTime.contains(path)) 'time': 'real'},
           ],
         },
       ),
@@ -85,6 +87,52 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
   });
 
   tearDown(() => root.deleteSync(recursive: true));
+
+  group('a real-time folder', () {
+    test('is left out of a run that names no package, and said so', () async {
+      var fake = _FakeRunner();
+      var live = _FakeRunner();
+      var result = await run(
+        core(fake, others: {'live': live}, realTime: {'live'}),
+      );
+
+      expect(fake.outDirsSeen, hasLength(1));
+      expect(live.outDirsSeen, isEmpty, reason: 'a backend was not asked for');
+      expect(result.packages.map((run) => run.path), ['.']);
+      expect(result.notRun.keys, ['live']);
+      expect(result.notRun['live'], contains('package=live'));
+      expect(result.toJson()['notRun'], {'live': result.notRun['live']});
+      expect(result.ok, isTrue);
+    });
+
+    test('runs when it is named', () async {
+      var live = _FakeRunner();
+      var result =
+          (await core(
+                _FakeRunner(),
+                others: {'live': live},
+                realTime: {'live'},
+              ).invoke('run', arguments: {'package': 'live'}))!
+              as ScenarioRunResult;
+
+      expect(live.outDirsSeen, hasLength(1));
+      expect(result.notRun, isEmpty);
+      expect(result.toJson(), isNot(contains('notRun')));
+    });
+
+    test('alone, refuses a run that names nothing, and says what to name', () {
+      expect(
+        () => run(core(_FakeRunner(), realTime: {'.'})),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            allOf(contains('real time'), contains('package=.')),
+          ),
+        ),
+      );
+    });
+  });
 
   test('a relative output resolves against the worktree, and run.json lands '
       'beside the artifacts', () async {

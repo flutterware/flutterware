@@ -1,5 +1,33 @@
 ## Unreleased
 
+- **Scenarios: `Settle.until(target)` waits for what the step is about.**
+  A step waits for frames, tracked futures and live requests until their
+  headers are in. A row that arrives down a stream opened long before, or a
+  list that reads its local database after the tap that opened it, announces
+  none of those, so the step settled on the empty state and photographed it.
+  `s.tap('Orders', settle: Settle.until('Order #1042'))` pumps until the
+  target is on screen, then settles as usual. A target that never appears
+  within the `timeout` (ten seconds of the lane's clock by default) fails the
+  step, with the screen it gave up on as the picture.
+
+- **Scenarios: a real-time scenario that kills its process is reported.** An
+  error that escaped every zone a scenario owned took `flutter_tester` down,
+  and the whole run failed with `Service connection disposed`: no scenario, no
+  step and no error in `run.json`. That scenario is now red, with the steps it
+  captured and the last of what the process printed, which names the
+  exception. The rest of the run carries on in a fresh process.
+
+- **`fw run scenarios run` with no `--package` leaves real-time folders out.**
+  A live folder runs against a backend, so a project's "run every scenario"
+  command started needing a stack the day one was declared. A bare run now
+  runs the fake-time folders and names the ones it left out under `notRun`.
+  `--package=<folder>` runs a real-time folder, as before. A project whose
+  only folders are real-time gets a refusal that names them.
+
+- **`doc/scenarios.md` covers real-time folders**: declaring one, when it
+  runs, what a step waits for, the traps of `split` and of a second device,
+  and a harness shape that worked for a suite that replaced its device tests.
+
 - **Scenarios: a refused or dropped connection is an error the scenario can
   catch.** Under `network: live` or `record`, a request to a server that was
   down, or one that dropped the connection before or during its answer, killed

@@ -5480,6 +5480,12 @@ final resultShapes = <String, ResultShape>{
         'doc': 'What `clock.now()` read at the start of every scenario in the run.',
       },
       <String, Object?>{
+        'name': 'notRun',
+        'type': 'Map<String, String>',
+        'optional': true,
+        'doc': 'The declared folders this run left out, each with why.',
+      },
+      <String, Object?>{
         'name': 'packages',
         'type': 'List<ScenarioRunPackage>',
         'shape': <String, Object?>{
