@@ -40,7 +40,7 @@ This is a pub workspace (`workspace:` in root `pubspec.yaml`) with two member pa
 - `examples/brewline` — the demo app a stranger clones; a workspace member here (see the toolchain section).
 - `fixtures/probe_app` — flutterware's own fixture: probes and deliberately wrong cases the tools are tested on. Not a sample.
 
-Versions in `pubspec.yaml` (`flutterware`) and `app/pubspec.yaml` (`flutterware_app`) must stay in sync — see the comment in the root pubspec.
+Versions in `pubspec.yaml` (`flutterware`) and `app/pubspec.yaml` (`flutterware_app`) must stay in sync — see the comment in the root pubspec. `fvm dart tool/release.dart <version>` moves every place the version is written; releasing is covered in `CONTRIBUTING.md`.
 
 ## Toolchain: fvm
 
@@ -54,7 +54,7 @@ fvm install && fvm flutter pub get
 
 `fvm install` is a no-op (~0.2s) when the version is already in `~/fvm/versions`; on a new machine it downloads it, which takes minutes.
 
-`examples/brewline` is the demo app a stranger clones. It is a workspace member here, so the root `fvm flutter pub get` resolves it against this checkout, while its committed pubspec names the *published* `flutterware: ^0.6.0` — pub lets a member's hosted constraint be met by the workspace's own package. `tool/publish_example.dart` drops the `resolution: workspace` line when it projects the tracked tree to github.com/flutterware/flutterware_example, and CI's *Demo export* job resolves, analyzes and tests that projection from the staged clone. Bumping flutterware's version means bumping brewline's constraint in the same change, or the root stops resolving.
+`examples/brewline` is the demo app a stranger clones. It is a workspace member here, so the root `fvm flutter pub get` resolves it against this checkout, while its committed pubspec names the *published* `flutterware: ^0.6.0` — pub lets a member's hosted constraint be met by the workspace's own package. `tool/publish_example.dart` drops the `resolution: workspace` line when it projects the tracked tree to github.com/flutterware/flutterware_example, and CI's *Demo export* job resolves, analyzes and tests that projection from the staged clone. Bumping flutterware's version means bumping brewline's constraint in the same change, or the root stops resolving — `tool/release.dart` does both.
 
 **The one rule: the SDK is whichever one the invocation names.** `fvm dart run flutterware` says which SDK to use by choosing the `dart` that runs it. Nothing in this repo discovers an SDK from a pin file, a cache or `FLUTTER_HOME` — `test/ambient_sdk_test.dart` fails the build if any source spawns a bare `dart` or `flutter`. So do not reach for the `flutter`/`dart` on PATH: measured 2026-08-14 on this machine, PATH Dart is **3.12.1 stable** against a `^3.13.0-0` floor, and `dart run flutterware` there fails with *"The language version 3.13 … is too high"*.
 

@@ -94,8 +94,43 @@ void copyPackageInto(String packageRoot, String destination, String stamp) {
   var lock = File(p.join(destination, 'pubspec.lock'));
   if (lock.existsSync()) lock.deleteSync();
 
+  _dropAbsentMembers(destination);
+
   // Last, so an interrupted copy is not recorded as a complete one.
   workingCopyStampFile(destination).writeAsStringSync(stamp);
+}
+
+/// Cuts the copy's `workspace:` list down to the members the copy has.
+///
+/// The root pubspec lists every package this repository develops together —
+/// the studio, the demo, the fixture, the web demo — and `.pubignore` keeps all
+/// of them but `app/` out of the archive. The copy resolves `app/`, a workspace
+/// member, so pub reads that list and refuses the first entry it cannot find:
+/// *No workspace packages matching `fixtures/probe_app`*. Every hosted install
+/// stopped there, before anything was built.
+void _dropAbsentMembers(String root) {
+  var pubspec = File(p.join(root, 'pubspec.yaml'));
+  if (!pubspec.existsSync()) return;
+  var before = pubspec.readAsStringSync();
+  var inWorkspace = false;
+  var kept = <String>[];
+  for (var line in before.split('\n')) {
+    if (RegExp(r'^workspace:\s*$').hasMatch(line)) {
+      inWorkspace = true;
+    } else if (inWorkspace) {
+      var member = RegExp(r'''^\s+-\s+['"]?([^'"\s#]+)''').firstMatch(line);
+      if (member != null) {
+        var present = File(p.join(root, member.group(1)!, 'pubspec.yaml'))
+            .existsSync();
+        if (!present) continue;
+      } else if (RegExp(r'^[^\s#]').hasMatch(line)) {
+        inWorkspace = false;
+      }
+    }
+    kept.add(line);
+  }
+  var after = kept.join('\n');
+  if (after != before) pubspec.writeAsStringSync(after);
 }
 
 /// Deletes the build state a working copy will never build in again, and

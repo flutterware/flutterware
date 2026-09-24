@@ -184,6 +184,34 @@ jobs:
           fi
           echo "pana: $granted/$max"
 
+  install:
+    name: Install from the archive
+    # Every other job starts flutterware from this checkout, which the launcher
+    # treats as a path dependency: no copy, no `pub get` of its own, nothing
+    # `.pubignore` leaves out. Everyone who installs it from pub.dev takes the
+    # other branch, and that branch broke with nothing here seeing it — the
+    # archive named workspace members it did not carry, and the first `pub get`
+    # of every install refused. This stages exactly what `pub publish` would
+    # upload inside the pub cache and runs `dart run flutterware --version`
+    # against it. The release runs it too, before publishing.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned Flutter version
+        id: pin
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          if [ -z "$version" ]; then echo "::error::.fvmrc names no Flutter version"; exit 1; fi
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.pin.outputs.version }}
+          channel: ${{ steps.pin.outputs.channel }}
+      - run: flutter pub get
+      - run: dart tool/publish/install_check.dart
+
   demo_export:
     name: Demo export
     # `examples/brewline` is the demo a stranger clones. It is a workspace
