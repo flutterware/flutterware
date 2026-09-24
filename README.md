@@ -14,7 +14,7 @@ from a coding agent over MCP.
 
 [![The studio drawing a test of the demo coffee shop as a flow of phone
 screenshots, two App Store images exported from the same tests, and the
-commands that produce them](doc/screenshots/hero.png)](https://flutterware.github.io/flutterware/)
+commands that produce them](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/hero.webp)](https://flutterware.github.io/flutterware/)
 
 ## Try it
 
@@ -39,16 +39,16 @@ Windows.
 
 | [Previews](doc/previews.md) | [Scenarios](doc/scenarios.md) |
 |:---|:---|
-| ![The demo's menu rendered on an iPhone 16 frame, with the list of its screens beside it](doc/screenshots/card-previews.png) | ![A test of the demo drawn as a flow of phone screenshots](doc/screenshots/card-scenarios.png) |
+| ![The demo's menu rendered on an iPhone 16 frame, with the list of its screens beside it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-previews.webp) | ![A test of the demo drawn as a flow of phone screenshots](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-scenarios.webp) |
 | Your `@Preview` widgets on a device frame, in a live engine. Change the device, the language or the theme, turn knobs, read the widget tree. | Widget tests that keep a screenshot, the widget tree and the visible text of every step. The studio draws each run as a flow. |
 | **[Store screenshots](doc/store_screenshots.md)** | **[Translations](doc/translations.md)** |
-| ![App Store and Google Play rows of finished store images](doc/screenshots/card-store.png) | ![The translations table, each key beside a picture of it on screen](doc/screenshots/card-translations.png) |
+| ![App Store and Google Play rows of finished store images](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-store.webp) | ![The translations table, each key beside a picture of it on screen](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-translations.webp) |
 | App Store and Google Play images made from your tests, for every language, at the sizes each store asks for. The frame is a widget you write. | Every key in every language, next to a picture of where it appears. Missing and overlong strings are flagged. |
 | **[Run](doc/run.md)** | **[Comparison](doc/comparison.md)** |
-| ![The steps an agent took through the demo on an iPhone, one of them open](doc/screenshots/card-run.png) | ![A branch's comparison: the tests whose screens changed, one open step by step](doc/screenshots/card-comparison.png) |
+| ![The steps an agent took through the demo on an iPhone, one of them open](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-run.webp) | ![A branch's comparison: the tests whose screens changed, one open step by step](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-comparison.webp) |
 | Your app on a simulator, a phone or the desktop: its logs, network calls, widget tree and permissions, and every tap an agent made, step by step. | What a branch changed on screen. `fw compare` renders both sides from git and exports a page to link from the pull request. |
 | **[Changes](doc/changes.md)** | **[Server](doc/server_inspection.md)** |
-| ![A branch's files, the ones the project pins first, one open on its diff](doc/screenshots/card-changes.png) | ![A Dart server's requests, one open on its queries, an N+1 flagged](doc/screenshots/card-server.png) |
+| ![A branch's files, the ones the project pins first, one open on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-changes.webp) | ![A Dart server's requests, one open on its queries, an N+1 flagged](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-server.webp) |
 | Your branch's diff with the files that matter listed first, and notes you can leave for your agent. | The requests your Dart backend handles, the SQL each one ran, and N+1 queries flagged. |
 
 And the rest:
@@ -164,9 +164,11 @@ Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers
 the basics and [CLAUDE.md](CLAUDE.md) explains how the repository is laid out.
 
 Every picture of the studio in this file and in `doc/` is a named step of one
-of the studio's own scenarios, run over a recording of the demo app, so they
-come out the same on any machine:
+of the studio's own scenarios, run over a recording of the demo app. CI renders
+them on each push to master and publishes them to the
+[`media`](https://github.com/flutterware/flutterware/tree/media) branch, one
+folder per version; to look at them locally:
 
 ```sh
-fvm dart tool/screenshots.dart
+fvm dart tool/screenshots.dart   # writes build/screenshots/media/
 ```

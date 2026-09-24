@@ -4,9 +4,6 @@ What your app's asset bundle contains once it's built: every file your
 pubspec declares, what your dependencies add, how much each weighs, and which
 screen densities exist for each image.
 
-![The assets panel: the demo's asset folders as a tree on the left, each file
-with its size, and a grid of the selected folder on the right](screenshots/assets.png)
-
 ## Turn it on
 
 ```dart

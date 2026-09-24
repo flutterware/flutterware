@@ -7,7 +7,7 @@ do anything Flutter can draw.
 
 ![Four finished App Store images from the demo: a headline over a leaning
 phone on each, one of the app's own widgets lifted out of the screen, and one
-continuous scene running behind all four](screenshots/store-strip.png)
+continuous scene running behind all four](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/store-strip.webp)
 
 These are the first four images the demo exports for the 6.9" iPhone slot.
 The card held out in front of each phone is the app's own widget, drawn again
@@ -144,7 +144,7 @@ Set `output:` on the app to write somewhere else, and
 `layout: StoreLayout.plain` for a layout without fastlane's folder names.
 
 ![The store panel: the demo's App Store and Google Play rows, five finished
-images each](screenshots/store.png)
+images each](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/store.webp)
 
 The **Store** panel shows the last export: one row per store slot, in listing
 order, for the language picked at the top. A set with more images than the
@@ -152,7 +152,7 @@ store accepts (ten per slot on the App Store, eight on Play) is shown in full,
 with the extra ones marked.
 
 ![A listing previewed the way the App Store shows it: the app's name and
-description above the demo's five images](screenshots/store-listing.png)
+description above the demo's five images](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/store-listing.webp)
 
 **Preview listing** shows a set the way the store page will: the images in a
 row, under the app's name and description.

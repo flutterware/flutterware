@@ -9,8 +9,18 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
+  # The pictures the package page links to, rendered from this tag and pushed
+  # to `media/v<version>/` before anything is published: pub.dev shows a
+  # version's README for ever, and a picture missing when it goes up is a
+  # broken image nobody can fix. Publishing freezes the folder.
+  pictures:
+    uses: ./.github/workflows/media.yaml
+    permissions:
+      contents: write
+
   publish:
     name: Publish to pub.dev
+    needs: pictures
     runs-on: ubuntu-latest
     # **The whole authentication story.** GitHub mints a short-lived OIDC token
     # for this run, pub.dev checks its claims against the repository and tag
@@ -49,6 +59,10 @@ jobs:
       # — a tag naming a version the archive does not contain — is one nobody
       # can fix after the fact, because a published version is permanent.
       - run: dart tool/publish/check_version.dart ${GITHUB_REF}
+
+      # Every picture README.md and doc/ link to answers, as WebP, at the URL
+      # naming this version — asked of the CDN a reader's browser will ask.
+      - run: dart tool/media.dart check
 
       # The exchange, in full. `--env-var` stores *the name of the variable* to
       # read at request time rather than the token itself, so the secret never

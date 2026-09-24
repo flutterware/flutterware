@@ -5,7 +5,7 @@ system does to it: the mask iOS applies, the shapes Android launchers crop an
 adaptive icon to, the padding the macOS Dock expects.
 
 ![The launcher icon panel: the demo's icons for each platform, and its themed
-icon on a home screen in light, dark and tinted](screenshots/launcher-icon.png)
+icon on a home screen in light, dark and tinted](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/launcher-icon.webp)
 
 ## Turn it on
 

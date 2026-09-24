@@ -1,0 +1,77 @@
+name: Pictures
+
+# The README's and the guides' pictures: rendered from the studio's own
+# scenarios over the recording (`tool/screenshots.dart`) and pushed to the
+# orphan `media` branch as `v<version>/<name>.webp` (`tool/media.dart`, which
+# says why they are not on master). Three ways in:
+#
+# * a push to master that can change a picture refreshes the version the
+#   pubspec names, so the README on GitHub shows the studio as it is today;
+# * the publish workflow calls this first, from the tag, so a release's
+#   pictures are the ones its own code draws;
+# * by hand, from the Actions tab.
+#
+# Once pub.dev has a version, its folder is frozen and a run changes nothing.
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'app/**'
+      - 'lib/**'
+      - 'examples/brewline/**'
+      - 'web_demo/**'
+      - 'tool/screenshots.dart'
+      - 'tool/media.dart'
+      - '.fvmrc'
+      - 'pubspec.yaml'
+      - '.github/workflows/media.yaml'
+  workflow_dispatch:
+  workflow_call:
+
+# One writer at a time: two runs pushing the same branch would race, and the
+# second would be refused.
+concurrency:
+  group: media
+  cancel-in-progress: false
+
+jobs:
+  pictures:
+    name: Render and publish the pictures
+    # macOS: the fonts and the rasterizer the studio is developed on, so the
+    # pictures are the ones a reader's own studio draws.
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned Flutter version
+        id: pin
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          if [ -z "$version" ]; then echo "::error::.fvmrc names no Flutter version"; exit 1; fi
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.pin.outputs.version }}
+          channel: ${{ steps.pin.outputs.channel }}
+      - run: flutter --version
+      - run: flutter pub get
+      # The WebP encoder. Lossless, so a newer one changes bytes at most, never
+      # what a picture shows.
+      - run: brew install webp
+      - run: dart tool/screenshots.dart
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pictures
+          path: build/screenshots/media
+          retention-days: 7
+      - name: Publish to the media branch
+        run: dart tool/media.dart publish
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com

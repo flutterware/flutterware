@@ -5,7 +5,7 @@ containers), with their state and a start and stop button, driven by the
 commands your project already has.
 
 ![The dev stack panel: the demo's orders server, up, and the log its command
-printed](screenshots/dev-stack.png)
+printed](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/dev-stack.webp)
 
 ## Turn it on
 

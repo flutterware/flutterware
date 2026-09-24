@@ -7,7 +7,7 @@ iOS and the web, in light and in dark mode, and this tool shows all of them
 side by side.
 
 ![The splash panel: every surface the demo's config produces, in light and in
-dark](screenshots/native-splash.png)
+dark](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/native-splash.webp)
 
 ## Turn it on
 

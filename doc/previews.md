@@ -5,7 +5,7 @@ Look at a screen without running the app to get there. Previews renders every
 your fonts and your theme.
 
 ![The previews panel: the demo's screens listed on the left, the menu rendered
-on an iPhone 16 frame on the right](screenshots/previews.png)
+on an iPhone 16 frame on the right](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/previews.webp)
 
 The live panel in the studio is macOS only for now. The command line actions
 that render without a window, like `screenshot` and `audit`, also run on Linux.
@@ -124,7 +124,7 @@ zooms. The tabs underneath are:
 - **Console**: what the preview printed.
 
 ![The menu on an iPhone 16 frame, with the Elements tab open under it on the
-widget tree](screenshots/previews-tree.png)
+widget tree](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/previews-tree.webp)
 
 Save a file and the preview reloads.
 

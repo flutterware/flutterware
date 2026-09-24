@@ -25,7 +25,7 @@ and on machines without `~/.flutterware/run`; there is no init call — the
 first event publishes the server.
 
 ![The Server panel: the demo's requests, one open on its waterfall, with the
-query it runs once per row flagged as an N+1](screenshots/server.png)
+query it runs once per row flagged as an N+1](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/server.webp)
 
 ## Describe the server: `FlutterwareServer.info`
 

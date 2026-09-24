@@ -1,9 +1,13 @@
-/// Regenerates the screenshots `README.md` and the guides in `doc/` show.
+/// Regenerates the pictures `README.md` and the guides in `doc/` show.
 ///
 /// ```sh
 /// fvm dart tool/screenshots.dart                      # everything
 /// fvm dart tool/screenshots.dart --compose hero        # redraw one picture
 /// ```
+///
+/// They land in [mediaDirectory] as lossless WebP, which `tool/media.dart`
+/// publishes to the `media` branch — the documents link there, not here. The
+/// conversion is `cwebp` (`brew install webp`, `apt-get install webp`).
 ///
 /// `--compose` skips the scenarios and the store export and redraws from the
 /// shots the last full run left in [rawDirectory] — the loop for working on
@@ -34,8 +38,11 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-/// Where the pictures go, relative to the repo root.
-const outputDirectory = 'doc/screenshots';
+/// Where the composed pictures go, as PNG, relative to the repo root.
+const outputDirectory = 'build/screenshots/png';
+
+/// Where the same pictures go as WebP: what `tool/media.dart` publishes.
+const mediaDirectory = 'build/screenshots/media';
 
 /// Where the scenarios' named shots are gathered before they are composed:
 /// full resolution, one file per shot name. Build output, never committed.
@@ -80,6 +87,7 @@ class Composed {
 
   String get entry => 'tool/catalog/readme/hero.dart#$symbol';
   String get file => '$outputDirectory/$name.png';
+  String get webp => '$mediaDirectory/$name.webp';
 }
 
 /// The README's cards, in the order the grid shows them.
@@ -134,10 +142,19 @@ final composed = [
   const Composed('store-strip', 'readmeStoreStrip', width: 1600, height: 858),
 ];
 
+/// Every picture this makes, by name: `<name>.webp` on the media branch.
+final pictureNames = [for (var picture in composed) picture.name];
+
 Future<void> main(List<String> arguments) async {
   var only = arguments.where((a) => !a.startsWith('-')).toSet();
   var root = _repoRoot();
   var failed = <String>[];
+  if (!await _hasCwebp()) {
+    stderr.writeln(
+      'cwebp is not on PATH: `brew install webp` or `apt-get install webp`.',
+    );
+    exit(1);
+  }
   if (!arguments.contains('--compose')) await _capture(root, failed);
   await _compose(root, only, failed);
 
@@ -145,7 +162,9 @@ Future<void> main(List<String> arguments) async {
     stderr.writeln('\n${failed.length} failed: ${failed.join(', ')}');
     exit(1);
   }
-  stdout.writeln('\nDone. Check `git status $outputDirectory`.');
+  stdout.writeln(
+    '\nDone: $mediaDirectory. `fvm dart tool/media.dart publish` pushes it.',
+  );
 }
 
 /// The store export, then every suite's named shots into [rawDirectory].
@@ -186,8 +205,8 @@ Future<void> _compose(
   for (var picture in composed) {
     if (only.isNotEmpty && !only.contains(picture.name)) continue;
     stdout.write('  ${picture.name.padRight(24)}');
-    var ok = await _render(root, picture);
-    stdout.writeln(ok ? picture.file : 'FAILED');
+    var ok = await _render(root, picture) && await _webp(root, picture);
+    stdout.writeln(ok ? picture.webp : 'FAILED');
     if (!ok) failed.add(picture.name);
   }
 }
@@ -230,7 +249,38 @@ Future<List<String>?> _shots(String root, Suite suite) async {
   return shots;
 }
 
+/// Lossless, at the effort that measured 30–36% under the PNG in well under a
+/// second a picture; the top effort took the hero from 0.6s to 8s for 0.3%.
+/// The same input and the same `cwebp` write the same bytes, so an unchanged
+/// picture is an unchanged file on the media branch.
+Future<bool> _webp(String root, Composed picture) async {
+  var output = File(p.join(root, picture.webp))
+    ..parent.createSync(recursive: true);
+  var result = await Process.run('cwebp', [
+    '-quiet',
+    '-lossless',
+    '-z',
+    '6',
+    '-metadata',
+    'none',
+    p.join(root, picture.file),
+    '-o',
+    output.path,
+  ]);
+  if (result.exitCode != 0) stderr.writeln(result.stderr);
+  return result.exitCode == 0;
+}
+
+Future<bool> _hasCwebp() async {
+  try {
+    return (await Process.run('cwebp', ['-version'])).exitCode == 0;
+  } on ProcessException {
+    return false;
+  }
+}
+
 Future<bool> _render(String root, Composed picture) async {
+  File(p.join(root, picture.file)).parent.createSync(recursive: true);
   var result = await Process.run(Platform.resolvedExecutable, [
     'run',
     'flutterware',
