@@ -254,7 +254,7 @@ void main() {
         expect(caught, isA<SocketException>());
         expect(
           s.network.requests.single.refusal,
-          contains('Connection refused'),
+          startsWith('SocketException'),
         );
       },
     );

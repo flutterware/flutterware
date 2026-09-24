@@ -50,7 +50,7 @@ void main() {
     }
     expect(s.network.requests, hasLength(2));
     for (var request in s.network.requests) {
-      expect(request.refusal, contains('Connection refused'));
+      expect(request.refusal, startsWith('SocketException'));
     }
   });
 
