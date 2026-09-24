@@ -15,11 +15,18 @@ import 'package:http/http.dart' as http;
 void main() {
   late HttpServer server;
   late String base;
+  late int closedPort;
   var hits = <String>[];
   var agents = <String>[];
   var captures = <ScenarioStepCapture>[];
 
   setUpAll(() async {
+    // Bound and released here, outside every scenario's fake zone, like the
+    // server: a port nothing listens on.
+    var closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    closedPort = closed.port;
+    await closed.close();
+
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     base = 'http://127.0.0.1:${server.port}';
     server.listen((request) async {
@@ -228,6 +235,29 @@ void main() {
       expect(hits, ['GET /api/messages']);
       expect(s.network.requests.single.outcome, 'live');
     });
+
+    // It used to reach the root zone as an uncaught error and take
+    // `flutter_tester` down, catch or no catch.
+    scenario(
+      'a refused connection is an error the app can catch',
+      network: ScenarioNetwork.live,
+      (s) async {
+        await s.pumpWidget(_Blank());
+        var caught = await s.runAsync(() async {
+          try {
+            await http.get(Uri.parse('http://127.0.0.1:$closedPort/'));
+            return null;
+          } on Object catch (error) {
+            return error;
+          }
+        });
+        expect(caught, isA<SocketException>());
+        expect(
+          s.network.requests.single.refusal,
+          startsWith('SocketException'),
+        );
+      },
+    );
 
     // The measurement this whole file is about: a request the *widget tree*
     // made — not the body — completing inside the step that mounted it, under
