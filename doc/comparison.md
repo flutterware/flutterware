@@ -8,6 +8,9 @@ pixels, the widget tree, the visible text and the events the app recorded.
 There are no golden files to keep up to date and nothing to approve. Both
 sides are built from git when you ask, so the base is always the real base.
 
+![A comparison in the studio: the previews that changed on a branch, and the
+menu open on both sides](screenshots/comparison.png)
+
 ## Run it
 
 ```shell

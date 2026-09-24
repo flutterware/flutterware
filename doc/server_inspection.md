@@ -24,6 +24,9 @@ Everything below is inert in release builds (`dart compile` / `dart build`)
 and on machines without `~/.flutterware/run`; there is no init call — the
 first event publishes the server.
 
+![The Server panel: the demo's requests, one open on its waterfall, with the
+query it runs once per row flagged as an N+1](screenshots/server.png)
+
 ## Describe the server: `FlutterwareServer.info`
 
 The one piece that is typed API rather than a snippet, because both halves

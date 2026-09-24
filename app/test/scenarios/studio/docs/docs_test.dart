@@ -66,8 +66,6 @@ void main() {
     await s.tap('Changes');
     await s.tap('previews');
     await s.tap('Menu', shot: Shot('comparison'));
-    await s.tap('scenarios');
-    await s.tap('Order a cappuccino', shot: Shot('comparison-scenarios'));
   });
 
   scenario('The changes guide', (s) async {
@@ -107,7 +105,6 @@ void main() {
   scenario('The dependencies guide', (s) async {
     await studio(s);
     await s.tap('Dependencies', shot: Shot('dependencies'));
-    await s.tap('flutter_native_splash', shot: Shot('dependencies-package'));
   });
 
   scenario('The splash guide', (s) async {

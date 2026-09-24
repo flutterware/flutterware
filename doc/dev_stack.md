@@ -4,6 +4,9 @@ The services your app needs while you work (a database, a local API, Docker
 containers), with their state and a start and stop button, driven by the
 commands your project already has.
 
+![The dev stack panel: the demo's orders server, up, and the log its command
+printed](screenshots/dev-stack.png)
+
 ## Turn it on
 
 ```dart

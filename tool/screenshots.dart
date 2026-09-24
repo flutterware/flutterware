@@ -104,13 +104,11 @@ const guides = [
   'store-listing',
   'translations',
   'comparison',
-  'comparison-scenarios',
   'changes',
   'run',
   'server',
   'dev-stack',
   'dependencies',
-  'dependencies-package',
   'native-splash',
   'launcher-icon',
 ];
