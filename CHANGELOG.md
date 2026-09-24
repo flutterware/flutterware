@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **Scenarios: a refused or dropped connection is an error the scenario can
+  catch.** Under `network: live` or `record`, a request to a server that was
+  down, or one that dropped the connection before or during its answer, killed
+  the whole `flutter_tester`, even when the scenario caught the error. On the
+  real-time lane the run then reported no scenario, no step and no error, only
+  `Service connection disposed`. The error now reaches the code that awaits
+  it. A refused connection is also on the step's network events now, like a
+  dropped one already was, so the request that found the server down is named.
+
 - **flutterware is built on `material_ui`.** Every library, the studio and the
   templates it writes into a project import
   `package:material_ui/material_ui.dart`, and the package depends on

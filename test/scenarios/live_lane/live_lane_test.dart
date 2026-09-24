@@ -30,6 +30,72 @@ void main() {
     client.close();
   });
 
+  // The two ways a backend that is down answers. Each used to reach the root
+  // zone as an uncaught error and take `flutter_tester` with it, whatever the
+  // body did to catch it: the funnel handed the body a root-zone future, and
+  // an error does not cross into another error zone.
+  scenario('a refused connection is an error the body can catch', (s) async {
+    var closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    var port = closed.port;
+    await closed.close();
+
+    var client = HttpClient();
+    addTearDown(client.close);
+    for (var host in ['127.0.0.1', 'localhost']) {
+      await expectLater(
+        client.getUrl(Uri.parse('http://$host:$port/')),
+        throwsA(isA<SocketException>()),
+        reason: host,
+      );
+    }
+    expect(s.network.requests, hasLength(2));
+    for (var request in s.network.requests) {
+      expect(request.refusal, contains('Connection refused'));
+    }
+  });
+
+  scenario('a dropped connection is an error the body can catch', (s) async {
+    var server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((socket) => socket.listen((_) => socket.destroy()));
+    addTearDown(server.close);
+
+    var client = HttpClient();
+    addTearDown(client.close);
+    await expectLater(
+      client
+          .getUrl(Uri.parse('http://127.0.0.1:${server.port}/'))
+          .then((request) => request.close()),
+      throwsA(isA<HttpException>()),
+    );
+  });
+
+  scenario(
+    'a body cut short while recording is an error the body can catch',
+    network: ScenarioNetwork.record,
+    (s) async {
+      var server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((socket) {
+        socket.listen((_) async {
+          socket.write(
+            'HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nten bytes.',
+          );
+          await socket.flush();
+          socket.destroy();
+        });
+      });
+      addTearDown(server.close);
+
+      var client = HttpClient();
+      addTearDown(client.close);
+      await expectLater(
+        client
+            .getUrl(Uri.parse('http://127.0.0.1:${server.port}/'))
+            .then((request) => request.close()),
+        throwsA(isA<HttpException>()),
+      );
+    },
+  );
+
   scenario('a real timer fires on the wall clock', (s) async {
     var sw = Stopwatch()..start();
     await Future<void>.delayed(const Duration(milliseconds: 50));

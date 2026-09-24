@@ -518,6 +518,24 @@ HttpClient _newRealClient() {
   }
 }
 
+/// Runs [body] in the root zone, for the reason [_newRealClient] gives, and
+/// answers in the caller's.
+///
+/// `Zone.root.run(body)` alone hands the caller a root-zone future, and an
+/// error never crosses from one error zone into another: a refused connect
+/// awaited from a scenario body is reported as uncaught in the root zone
+/// instead, where nothing catches it and `flutter_tester` exits. The completer
+/// belongs to the caller's zone, so the error reaches the `await` that is
+/// waiting for it. Synchronous, so the answer lands on the turn the root
+/// future's would have.
+Future<T> _inRootZone<T>(Future<T> Function() body) {
+  var answer = Completer<T>.sync();
+  Zone.root.run(
+    () => body().then(answer.complete, onError: answer.completeError),
+  );
+  return answer.future;
+}
+
 class _ScenarioHttpOverrides extends HttpOverrides {
   _ScenarioHttpOverrides(this.policy);
 
@@ -573,10 +591,20 @@ class _FunnelClient implements HttpClient {
             policy,
             verb,
             url,
-            await Zone.root.run(() => policy._client.openUrl(method, url)),
+            await _inRootZone(() => policy._client.openUrl(method, url)),
           );
-        } catch (_) {
+        } on Object catch (error) {
           scenarioLiveRequestsInFlight--;
+          // On the step like a connection dropped later is, so a backend that
+          // is down is named by the request that found it down.
+          policy._record(
+            ScenarioRequest(
+              method: verb,
+              url: url,
+              outcome: policy.mode.name,
+              refusal: '$error',
+            ),
+          );
           rethrow;
         }
     }
@@ -1042,7 +1070,7 @@ class _LiveRequest implements HttpClientRequest {
   @override
   Future<HttpClientResponse> close() async {
     try {
-      var response = await Zone.root.run(_inner.close);
+      var response = await _inRootZone(_inner.close);
       _closed = true;
       scenarioLiveRequestsInFlight--;
       if (_policy.mode != ScenarioNetwork.record) {
@@ -1065,7 +1093,7 @@ class _LiveRequest implements HttpClientRequest {
         status: response.statusCode,
         contentType: response.headers.contentType?.toString(),
         headers: _keptHeadersOf(response),
-        body: await Zone.root.run(() => _drain(response)),
+        body: await _inRootZone(() => _drain(response)),
       );
       // Whatever came back, error status included: a 500 a scenario is *about*
       // is worth recording. A transient one is not, and the way that is caught
