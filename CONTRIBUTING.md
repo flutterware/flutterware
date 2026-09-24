@@ -32,6 +32,18 @@ If dependencies aren't resolved yet, or the pinned SDK isn't installed, the
 hook skips itself gracefully and lets the commit through — run
 `fvm install && fvm flutter pub get` to enable it.
 
+## Screenshots
+
+Every picture of the studio in `README.md` and in `doc/` is a named step of
+one of the studio's own scenarios, run over a recording of the demo app. CI
+renders them on each push to master and publishes them to the
+[`media`](https://github.com/flutterware/flutterware/tree/media) branch, one
+folder per version; to look at them locally:
+
+```sh
+fvm dart tool/screenshots.dart   # writes build/screenshots/media/
+```
+
 ## Windows
 
 Windows support is in progress.

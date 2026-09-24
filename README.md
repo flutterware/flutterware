@@ -3,27 +3,26 @@
 [![pub package](https://img.shields.io/pub/v/flutterware.svg)](https://pub.dev/packages/flutterware)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Every screen of your Flutter app, on every device and in every language,
-without tapping through it.**
+**A desktop studio for your Flutter project, with the same tools for your
+coding agent.**
 
-Flutterware is a desktop studio that opens on your project. It renders your
-`@Preview` widgets live, turns your widget tests into a picture of every
-step, builds your store listings from those pictures, and runs your app on a
-device you can drive. Everything it does also runs from the terminal, and
-from a coding agent over MCP.
+Live previews, widget tests that picture every step, store screenshots, and
+your app on a device you can drive. All of it also runs from the terminal.
 
-[![The studio drawing a test of the demo coffee shop as a flow of phone
+**[Open the web demo](https://flutterware.github.io/flutterware/)** to look
+around before installing anything. It is the studio itself, compiled for the
+web and opened on the demo app, a small coffee shop: the previews run live in
+the page, and every other tool shows what it found on a recorded run of the
+app. Nothing in it can change.
+
+![The studio drawing a test of the demo coffee shop as a flow of phone
 screenshots, two App Store images exported from the same tests, and the
-commands that produce them](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/hero.webp)](https://flutterware.github.io/flutterware/)
+commands that produce them](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/hero.webp)
 
-## Try it
+## Try it on your machine
 
-**In your browser.** [flutterware.github.io/flutterware](https://flutterware.github.io/flutterware/)
-is the studio itself, compiled for the web and opened on a recording of the
-demo app. Nothing to install; nothing in it can change.
-
-**On your machine.** Clone the demo, a small coffee shop app with every tool
-turned on, and start the studio:
+Clone the demo, the coffee shop app with every tool turned on, and start the
+studio:
 
 ```shell
 git clone https://github.com/flutterware/flutterware_example
@@ -39,16 +38,16 @@ Windows.
 
 | [Previews](doc/previews.md) | [Scenarios](doc/scenarios.md) |
 |:---|:---|
-| ![The demo's menu rendered on an iPhone 16 frame, with the list of its screens beside it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-previews.webp) | ![A test of the demo drawn as a flow of phone screenshots](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-scenarios.webp) |
+| [![The demo's menu rendered on an iPhone 16 frame, with the list of its screens beside it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-previews.webp)](doc/previews.md) | [![A test of the demo drawn as a flow of phone screenshots](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-scenarios.webp)](doc/scenarios.md) |
 | Your `@Preview` widgets on a device frame, in a live engine. Change the device, the language or the theme, turn knobs, read the widget tree. | Widget tests that keep a screenshot, the widget tree and the visible text of every step. The studio draws each run as a flow. |
 | **[Store screenshots](doc/store_screenshots.md)** | **[Translations](doc/translations.md)** |
-| ![App Store and Google Play rows of finished store images](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-store.webp) | ![The translations table, each key beside a picture of it on screen](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-translations.webp) |
+| [![App Store and Google Play rows of finished store images](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-store.webp)](doc/store_screenshots.md) | [![The translations table, each key beside a picture of it on screen](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-translations.webp)](doc/translations.md) |
 | App Store and Google Play images made from your tests, for every language, at the sizes each store asks for. The frame is a widget you write. | Every key in every language, next to a picture of where it appears. Missing and overlong strings are flagged. |
 | **[Run](doc/run.md)** | **[Comparison](doc/comparison.md)** |
-| ![The steps an agent took through the demo on an iPhone, one of them open](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-run.webp) | ![A branch's comparison: the tests whose screens changed, one open step by step](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-comparison.webp) |
+| [![The steps an agent took through the demo on an iPhone, one of them open](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-run.webp)](doc/run.md) | [![A branch's comparison: the tests whose screens changed, one open step by step](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-comparison.webp)](doc/comparison.md) |
 | Your app on a simulator, a phone or the desktop: its logs, network calls, widget tree and permissions, and every tap an agent made, step by step. | What a branch changed on screen. `fw compare` renders both sides from git and exports a page to link from the pull request. |
 | **[Changes](doc/changes.md)** | **[Server](doc/server_inspection.md)** |
-| ![A branch's files, the ones the project pins first, one open on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-changes.webp) | ![A Dart server's requests, one open on its queries, an N+1 flagged](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-server.webp) |
+| [![A branch's files, the ones the project pins first, one open on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-changes.webp)](doc/changes.md) | [![A Dart server's requests, one open on its queries, an N+1 flagged](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-server.webp)](doc/server_inspection.md) |
 | Your branch's diff with the files that matter listed first, and notes you can leave for your agent. | The requests your Dart backend handles, the SQL each one ran, and N+1 queries flagged. |
 
 And the rest:
@@ -160,15 +159,5 @@ without the studio.
 
 ## Contributing
 
-Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers
-the basics and [CLAUDE.md](CLAUDE.md) explains how the repository is laid out.
-
-Every picture of the studio in this file and in `doc/` is a named step of one
-of the studio's own scenarios, run over a recording of the demo app. CI renders
-them on each push to master and publishes them to the
-[`media`](https://github.com/flutterware/flutterware/tree/media) branch, one
-folder per version; to look at them locally:
-
-```sh
-fvm dart tool/screenshots.dart   # writes build/screenshots/media/
-```
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md)
+explains how to set up the repository.
