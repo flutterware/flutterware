@@ -1,5 +1,5 @@
 diff --git a/README.md b/README.md
-index d9e05ff..452eb09 100644
+index 91be7fa..129dafe 100644
 --- a/README.md
 +++ b/README.md
 @@ -14,6 +14,14 @@ That is the whole setup. The first run is slow — it builds the studio — and

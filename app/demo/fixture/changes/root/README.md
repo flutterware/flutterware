@@ -41,6 +41,12 @@ tree and the visible texts, in both languages. The folder next to it,
 thing each: the keyboard coming up, a list scrolled to a row that is not
 built yet, a screen caught mid-animation, a receipt attached to a step.
 
+**Store screenshots** — `A morning order`, in the same file, tags the five
+shots the listing uses, and `lib/store_frame.dart` draws each one: a phone, a
+headline from `assets/store/`, and one of the app's own widgets held out of
+the screen. `fw run store export` writes the App Store and Google Play sets in
+both languages, in the layout fastlane reads.
+
 **Translations** — the words are in `assets/i18n/`, and because the scenarios
 record which key each screen asked for, the panel can say where a string
 actually appears.
@@ -72,12 +78,14 @@ opening this repo finds the same tools without being told.
 ## Layout
 
 ```
-lib/shop/        the app — welcome, menu, drink, cart, confirmation
+lib/shop/        the app — welcome, menu, drink, cart, order status
 lib/shop_devbar.dart    the app with a devbar, and the push plugin behind it
+lib/store_frame.dart    the frame around every store image
 demo/            @Preview entries: the screens, a component sheet, the icon
 test/scenarios/  the scenarios, a folder per kind of device, each with the
                  config that says what it replays on
 assets/i18n/     the words, English and French
+assets/store/    the store listing's headlines, kept apart from the app's words
 assets/brand/    the icon art, photographed from demo/brand.dart
 assets/splash/   the splash art; flutter_native_splash.yaml places it
 tool/flutterware.dart   which tools this project gets, and how they are aimed

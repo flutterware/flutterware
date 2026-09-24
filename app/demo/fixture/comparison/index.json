@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "base": "35cd093d3b33066a012b7de1ac65be0a881ea505",
+  "base": "1986c646b7e146bf43e1e0d3c9071f9a64f58d78",
   "head": "/recording",
-  "headCommit": "c3fac201ca18e0bd6b8b507fd43aeb67b63a13d0",
+  "headCommit": "c331430a70994b7cf3344d011faf734e7f7d1710",
   "at": "2026-01-01T08:41:00.000",
-  "ms": 18715,
+  "ms": 906,
   "counts": {
     "added": 1,
     "removed": 3,
@@ -22,78 +22,54 @@
     "phases": [
       {
         "name": "checkout",
-        "ms": 1136
+        "ms": 1242
       },
       {
         "name": "previews.plan",
-        "ms": 254,
+        "ms": 239,
         "package": "."
       },
       {
-        "name": "previews.compile",
-        "ms": 6535,
-        "package": ".",
-        "side": "base"
-      },
-      {
-        "name": "previews.render",
-        "ms": 1395,
-        "package": ".",
-        "side": "base"
-      },
-      {
-        "name": "previews.compile",
-        "ms": 1171,
-        "package": ".",
-        "side": "head"
-      },
-      {
-        "name": "previews.render",
-        "ms": 1160,
-        "package": ".",
-        "side": "head"
-      },
-      {
         "name": "previews.compare",
-        "ms": 42,
+        "ms": 57,
         "package": "."
       },
       {
         "name": "scenarios.plan",
-        "ms": 1354,
+        "ms": 66,
         "package": "."
       },
       {
         "name": "scenarios.replay",
-        "ms": 6765,
+        "ms": 523,
         "package": "."
       },
       {
         "name": "scenarios.compare",
-        "ms": 180,
+        "ms": 184,
         "package": "."
       },
       {
         "name": "scenarios.filing",
-        "ms": 1557,
+        "ms": 0,
         "package": "."
       },
       {
         "name": "viewer",
-        "ms": 19985
+        "ms": 2462
       },
       {
         "name": "export",
-        "ms": 1060
+        "ms": 989
       },
       {
         "name": "sweep",
-        "ms": 26
+        "ms": 19
       }
     ]
   },
   "previews": {
-    "rendered": 20,
+    "rendered": 0,
     "because": {
       "7 files differ, including assets/i18n/en.json": 6,
       "2 files differ, including assets/i18n/en.json": 2
@@ -101,7 +77,7 @@
     "packages": [
       "."
     ],
-    "ms": 10521,
+    "ms": 302,
     "counts": {
       "added": 1,
       "removed": 3,
@@ -403,7 +379,7 @@
   },
   "scenarios": {
     "ran": 10,
-    "replayed": 20,
+    "replayed": 0,
     "skipped": 0,
     "because": {
       "8 files differ, including assets/i18n/en.json": 6,
@@ -413,7 +389,7 @@
     "packages": [
       "."
     ],
-    "ms": 8194,
+    "ms": 604,
     "counts": {
       "changed": 6,
       "same": 4
@@ -423,10 +399,6 @@
         "id": "test/scenarios/desktop/shop_window_test.dart#Order a cold brew on a laptop",
         "state": "changed",
         "package": ".",
-        "ms": {
-          "base": 728,
-          "head": 733
-        },
         "steps": [
           {
             "id": "Welcome",
@@ -642,10 +614,6 @@
         "id": "test/scenarios/mobile/brewline_reel_test.dart#Brewline in twenty seconds",
         "state": "changed",
         "package": ".",
-        "ms": {
-          "base": 432,
-          "head": 426
-        },
         "steps": [
           {
             "id": "pumpWidget ShopApp",
@@ -941,10 +909,6 @@
         "id": "test/scenarios/mobile/keyboard_test.dart#Naming the cup",
         "state": "changed",
         "package": ".",
-        "ms": {
-          "base": 383,
-          "head": 402
-        },
         "steps": [
           {
             "id": "pumpWidget ShopApp",
@@ -1280,10 +1244,6 @@
         "id": "test/scenarios/mobile/shop_test.dart#A morning order",
         "state": "changed",
         "package": ".",
-        "ms": {
-          "base": 717,
-          "head": 724
-        },
         "steps": [
           {
             "id": "Welcome",
@@ -2131,10 +2091,6 @@
         "id": "test/scenarios/mobile/shop_test.dart#Around the shop",
         "state": "changed",
         "package": ".",
-        "ms": {
-          "base": 1119,
-          "head": 1136
-        },
         "steps": [
           {
             "id": "Welcome",
@@ -2918,10 +2874,6 @@
         "id": "test/scenarios/mobile/shop_test.dart#Order a cappuccino",
         "state": "changed",
         "package": ".",
-        "ms": {
-          "base": 317,
-          "head": 315
-        },
         "steps": [
           {
             "id": "Welcome",
@@ -3217,10 +3169,6 @@
         "id": "test/scenarios/attachment_test.dart#Exports a receipt",
         "state": "same",
         "package": ".",
-        "ms": {
-          "base": 513,
-          "head": 512
-        },
         "steps": [
           {
             "id": "pumpWidget _ReceiptApp",
@@ -3330,10 +3278,6 @@
         "id": "test/scenarios/mid_flight_test.dart#Confirming an order",
         "state": "same",
         "package": ".",
-        "ms": {
-          "base": 105,
-          "head": 105
-        },
         "steps": [
           {
             "id": "pumpWidget _OrderApp",
@@ -3439,10 +3383,6 @@
         "id": "test/scenarios/mobile/beans_test.dart#Find a bean in the list",
         "state": "same",
         "package": ".",
-        "ms": {
-          "base": 213,
-          "head": 211
-        },
         "steps": [
           {
             "id": "The catalogue",
@@ -3537,10 +3477,6 @@
         "id": "test/scenarios/mobile/keyboard_types_test.dart#Signing up on a phone",
         "state": "same",
         "package": ".",
-        "ms": {
-          "base": 204,
-          "head": 216
-        },
         "steps": [
           {
             "id": "pumpWidget _SignUp",
