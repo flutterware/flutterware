@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../real_work/tracker.dart';
 import 'motion.dart';
+import 'target.dart';
 
 /// The interval `pumpAndSettle` itself advances the clock by, kept the same so
 /// a scenario's frames land where a hand-written test's would.
@@ -108,6 +109,37 @@ sealed class Settle {
   /// not the default: reach for it where the question is *does this work at
   /// all* rather than *what does it look like now*.
   const factory Settle.elapse(Duration budget) = _Elapsed;
+
+  /// Pump until [target] is on screen, then settle as [standard] does — for
+  /// data that arrives without announcing itself.
+  ///
+  /// A step waits on what announces itself: frames, a tracked future, a live
+  /// request until its headers are in. Two things a real app does every day
+  /// announce nothing. A row that comes down a sync stream whose headers
+  /// arrived long before, and a list that asks its local database for rows
+  /// after the tap that opened it: the step settles on the empty state before
+  /// either lands. This names what the step is waiting *for* instead:
+  ///
+  /// ```dart
+  /// await s.tap('Orders', settle: Settle.until('Order #1042'));
+  /// await s.act(
+  ///   'An order placed on the other device reaches this one',
+  ///   () => otherDevice.placeOrder('#1043'),
+  ///   settle: Settle.until('Order #1043'),
+  /// );
+  /// ```
+  ///
+  /// [target] is anything a verb takes — visible text, a `Key`, a `Finder`, a
+  /// `Target`. The wait needs nothing from the app, and it is on the lane's
+  /// clock like every policy here: [timeout] of fake time under the fake
+  /// clock, where it is how to wait out a timer without knowing how long it
+  /// is, and of real time under `ScenarioTime.real`.
+  ///
+  /// Not seeing [target] within [timeout] **fails the step**, with the screen
+  /// as it stood at the end of the wait as its picture. An empty list captured
+  /// and passed is the failure this exists to prevent, so running out is never
+  /// only a number on the step.
+  const factory Settle.until(Object target, {Duration timeout}) = _Until;
 
   /// One frame, no clock advance — for a capture that must show the app
   /// mid-transition, or after work the scenario already pumped itself.
@@ -249,6 +281,47 @@ class _Elapsed extends Settle {
   }
 }
 
+class _Until extends Settle {
+  const _Until(this.target, {this.timeout = const Duration(seconds: 10)});
+
+  final Object target;
+  final Duration timeout;
+
+  @override
+  Future<bool> apply(
+    WidgetTester tester, {
+    ScenarioFrameSink? record,
+    Future<void> Function()? land,
+  }) async {
+    var finder = finderForTarget(target);
+    // [_Budgeted]'s loop with a different question at the bottom: whether the
+    // target is there yet, rather than whether the app asked for a frame. A
+    // quiet tree is exactly what a screen waiting on a stream looks like.
+    var interval = record?.interval ?? _frameInterval;
+    var elapsed = Duration.zero;
+    while (finder.evaluate().isEmpty) {
+      if (elapsed >= timeout) {
+        throw ScenarioNeverAppeared(
+          '${describeTarget(target)} did not appear within '
+          '${_readable(timeout)} of '
+          '${tester.binding is LiveTestWidgetsFlutterBinding ? 'real' : 'fake'}'
+          ' time. The picture on this step is the screen when the wait gave '
+          'up. If it is on its way and slower than that, give it longer: '
+          '`Settle.until(…, timeout: …)`.',
+        );
+      }
+      await land?.call();
+      await tester.pump(interval);
+      elapsed += interval;
+      record?.capture(tester);
+      await record?.flush(tester);
+    }
+    // Arrived, and possibly still arriving: a row that animates into its
+    // list is found on its first frame, and the picture wants its last.
+    return Settle.standard.apply(tester, record: record, land: land);
+  }
+}
+
 class _None extends Settle {
   const _None();
 
@@ -334,6 +407,18 @@ class _Full extends Settle {
 /// picture of whatever kept animating is on the failed step.
 class ScenarioStillAnimating implements Exception {
   ScenarioStillAnimating(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// What a [Settle.until] step throws when its target is not on screen by the
+/// end of the wait. Caught like every other failure, so the step's picture is
+/// the screen that was still missing it.
+class ScenarioNeverAppeared implements Exception {
+  ScenarioNeverAppeared(this.message);
 
   final String message;
 

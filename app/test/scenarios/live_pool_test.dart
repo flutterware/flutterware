@@ -10,7 +10,7 @@ import 'package:path/path.dart' as p;
 
 void main() {
   test(
-    'a live package runs one guest per scenario and survives a red one',
+    'a live package runs one guest per scenario and survives a red or dead one',
     () async {
       var flutterRoot = Platform.environment['FLUTTER_ROOT'];
       expect(
@@ -42,11 +42,28 @@ void main() {
 
       var scenarios = (result['scenarios']! as List)
           .cast<Map<String, Object?>>();
-      expect(scenarios, hasLength(4));
+      expect(scenarios, hasLength(5));
       expect(scenarios.where((s) => s['ok'] == true), hasLength(3));
-      expect(
-        scenarios.singleWhere((s) => s['ok'] == false)['name'],
+      expect(scenarios.where((s) => s['ok'] == false).map((s) => s['name']), {
         'a failing scenario does not poison its neighbours',
+        'a scenario that kills its process is still reported',
+      });
+
+      // The guest that died answered nothing, and the run still says what it
+      // was running, what it had captured and what it printed going down.
+      var died = scenarios.singleWhere(
+        (s) =>
+            s['name'] == 'a scenario that kills its process is still reported',
+      );
+      var error = ((died['errors']! as List).single as Map)['error'] as String;
+      expect(error, contains('flutter_tester exited'));
+      expect(error, contains('the guest goes down with this'));
+      var steps = (died['steps']! as List).cast<Map<String, Object?>>();
+      expect(steps.map((step) => step['name']), contains('before the crash'));
+      expect(
+        died['device'],
+        scenarios.firstWhere((s) => s['ok'] == true)['device'],
+        reason: 'framed like its neighbours',
       );
       expect(result['time'], 'real');
       // Unpinned: a live run reports no clock unless it asked for one.

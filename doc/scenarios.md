@@ -55,6 +55,7 @@ test file.
 
 ```shell
 fw run scenarios run                     # every scenario, on each folder's default device
+                                         # (a real-time folder only when named)
 fw run scenarios run --file=test/scenarios/shop_test.dart --language=fr
 fw run scenarios run --matrix=declared   # every device and language the folders declare
 fw run scenarios read                    # the step the last run failed on
@@ -151,6 +152,26 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) =>
 
 A scenario's own `settle:` still wins, and so does a verb's — `settle:
 Settle.standard` on the one `tap` whose picture is meant to show the spinner.
+
+`Settle.until(target)` waits for something instead of for quiet. Data that
+arrives without announcing itself looks exactly like an app with nothing left
+to do: a row down a sync stream that opened long ago, or a list that reads its
+local database after the tap that opened it. The default settles on the empty
+state and photographs that. Name what the step is waiting for:
+
+```dart
+await s.tap('Orders', settle: Settle.until('Order #1042'));
+await s.act(
+  'An order placed on the other device reaches this one',
+  () => otherDevice.placeOrder('#1043'),
+  settle: Settle.until('Order #1043'),
+);
+```
+
+It pumps until the target is on screen, then settles the way the default does.
+The target is anything a verb takes. The `timeout` is ten seconds by default,
+on the lane's own clock. A target that never appears fails the step, and the
+step's picture is the screen at the moment the wait gave up.
 
 ### Motion that says nothing
 
@@ -379,6 +400,89 @@ CI, instead of silently not.
 
 Inside a body, `s.assignment` reports what this pass is running as, so an
 expectation can adapt to the screen it is on.
+
+## Real-time folders
+
+A folder can run on the wall clock instead of the fake one, against a real
+backend: the same `scenario()`, the same verbs, the same report. It is how an
+integration suite that used to need a device becomes a folder of scenarios.
+The folder says so in its config, and the declaration says it again, because
+the runner has to know before it builds anything:
+
+```dart
+// integration_test/scenarios/flutter_test_config.dart
+Future<void> testExecutable(FutureOr<void> Function() testMain) =>
+    runScenarios(testMain, time: ScenarioTime.real());
+
+// tool/flutterware.dart
+fw.use(Scenarios(packages: [
+  .new(app),
+  .new(app, directory: 'integration_test/scenarios', time: ScenarioTime.real()),
+]));
+```
+
+A package can declare a fake-time folder and a real-time one side by side, and
+the second one is addressed by its directory: `app/integration_test/scenarios`.
+Under real time, the network is live by default. Animations run at a tenth of
+their duration (`ScenarioTime.real(animations: 1.0)` to film them). Each
+scenario gets its own process, several at once (`--jobs`).
+
+**It runs when you ask for it.** A real-time scenario creates an account,
+sends an email, texts a phone, so nothing runs it by accident:
+
+- The studio runs it when you press **Run**, not when you open its page.
+- `fw run scenarios run` with no `--package` runs the fake-time folders only,
+  and names the ones it left out under `notRun`.
+- `--package=app/integration_test/scenarios` runs the real-time folder.
+- A comparison never runs one.
+
+**What a step waits for.** A live request is waited for until its headers are
+in, so no scenario needs a hand-written wait for an HTTP call. What arrives
+after that is not announced: a sync stream's rows, or a list that reads its
+local database once the tap has opened it. Those need
+[`Settle.until`](#settling).
+
+Work before the flow goes in a setup beat: `await s.setup('a fresh account',
+() => api.signUp(...))` is one step, with its duration and its exchanges, and
+no picture.
+
+If a scenario takes its process down with it (an error that escapes every
+zone it owns), that scenario is reported red. The report keeps the steps it
+captured and the last of what the process printed, and the rest of the run
+carries on in a fresh process.
+
+### Traps
+
+- **`split` replays real side effects.** The body runs once per branch, so an
+  account made before the fork is made once per branch, and so is every email
+  and text. In a real-time folder, prefer separate scenarios.
+- **Pump a second device as a new widget.** When two apps share their root
+  widget types, a second `pumpWidget` updates the first app's `State` instead
+  of mounting a new app, and the screen still shows the first device's data.
+  Give each app its own key: `KeyedSubtree(key: UniqueKey(), child: app)`.
+- **A second device is a second object.** Pumping the same app object again
+  unmounts the first one, but whatever it opened natively stays open. A local
+  database opened twice on the same files can warn about it and stall. Give
+  each device its own object and its own data directory.
+
+### A shape that works
+
+This is from a suite that replaced its device tests with a real-time folder:
+six flows, two apps, and 127 steps in 20 seconds.
+
+- **One object per device.** It holds its own credentials, links and
+  database directory, and knows how to build each app that device can run.
+- **Check the stack before the first request.** Use a raw socket connect, so
+  the check is not an exchange recorded on the step. When nothing answers,
+  fail on the first line and name the command that starts the stack.
+- **Fresh accounts only, made through the API in `s.setup`.** Nothing depends
+  on seed data, so the same folder runs on a developer's stack and on CI's
+  empty one.
+- **Read mail and texts over HTTP**, from whatever catches them in the dev
+  stack.
+- **Point every guest at the stack through the environment.** A one-shot `fw`
+  passes its environment down to the scenarios, so CI can aim a whole run at
+  an isolated stack with one variable.
 
 ## Fonts: the lane decides how text measures
 

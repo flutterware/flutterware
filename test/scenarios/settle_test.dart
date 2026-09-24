@@ -85,6 +85,57 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
+  testWidgets('Settle.until waits for its target, and only that long', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _SlowLoad(Duration(seconds: 2)));
+    var start = tester.binding.clock.now();
+
+    expect(await Settle.until('loaded').apply(tester), isTrue);
+    expect(find.text('loaded'), findsOneWidget);
+    expect(
+      tester.binding.clock.now().difference(start),
+      lessThan(const Duration(seconds: 3)),
+      reason: 'the ten-second timeout is a ceiling, not a wait',
+    );
+  });
+
+  testWidgets('Settle.until does not wait for a target already there', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Still());
+    var start = tester.binding.clock.now();
+
+    expect(await Settle.until('still').apply(tester), isTrue);
+    expect(
+      tester.binding.clock.now().difference(start),
+      lessThan(const Duration(seconds: 1)),
+    );
+  });
+
+  testWidgets('Settle.until fails when its target never appears', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _SlowLoad(Duration(seconds: 10)));
+
+    await expectLater(
+      Settle.until('loaded', timeout: const Duration(seconds: 1)).apply(tester),
+      throwsA(
+        isA<ScenarioNeverAppeared>().having(
+          (e) => '$e',
+          'message',
+          allOf(
+            contains('"loaded" did not appear within 1s of fake time'),
+            contains('timeout:'),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('placeholder'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 10));
+  });
+
   // `Settle.full` is `pumpAndSettle` itself, throw included — untested here
   // because the SDK's throw escapes its own `TestAsyncUtils.guard` after the
   // body returns and fails the test whatever the body does with it. That

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -115,5 +117,50 @@ void main() {
           'a red body under an app bar is at least two colours; one colour '
           'means the layer raster came back blank',
     );
+  });
+
+  // The case no announcement covers: the response's headers came in long ago,
+  // so the request stopped being waited for, and the row that matters comes
+  // down the open body later — a sync stream. The step has to be told what
+  // it is waiting for.
+  scenario('a row down an open stream is waited for by name', (s) async {
+    var send = Completer<void>();
+    var server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.bufferOutput = false;
+      request.response.writeln('open');
+      await request.response.flush();
+      await send.future;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      request.response.writeln('Order #1043');
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+    var client = HttpClient();
+    addTearDown(client.close);
+    var lines = await client
+        .getUrl(Uri.parse('http://127.0.0.1:${server.port}/'))
+        .then((r) => r.close())
+        .then(
+          (response) =>
+              response.transform(utf8.decoder).transform(const LineSplitter()),
+        );
+
+    await s.pumpWidget(
+      MaterialApp(
+        home: StreamBuilder<String>(
+          stream: lines,
+          builder: (_, snap) => Text(snap.data ?? 'nothing yet'),
+        ),
+      ),
+    );
+    expect(find.text('Order #1043'), findsNothing);
+
+    await s.act(
+      'An order placed on the other device reaches this one',
+      send.complete,
+      settle: Settle.until('Order #1043'),
+    );
+    expect(find.text('Order #1043'), findsOneWidget);
   });
 }

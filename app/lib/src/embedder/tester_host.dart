@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
 import 'package:package_config/package_config.dart';
@@ -462,20 +463,26 @@ class TesterHost {
   /// spawn the host's own guest gets, minus the host's bookkeeping: its
   /// life is the caller's, which is what a pool of guests running one
   /// scenario each needs. Step events still reach [onEvent], so a panel
-  /// filling a flow in does not care which guest produced it.
+  /// filling a flow in does not care which guest produced it; [onGuestEvent]
+  /// hears this guest's alone, which is what a caller needs to know what a
+  /// guest had done by the time it died.
   Future<TesterGuest> spawnGuest(
     String dill, {
     void Function(String line)? tee,
     void Function(Process process)? onStarted,
+    void Function(Map<String, Object?> event)? onGuestEvent,
     String label = 'tester',
   }) async {
     // The tail the guest has printed, in hand: a connect that finds a service
     // with no isolate asks for it, and pointing that failure at a file it
-    // would have to be told to open is one step more than it needs.
+    // would have to be told to open is one step more than it needs. A guest
+    // that dies mid-scenario is asked for it too, and an uncaught error's
+    // stack is longer than a failed connect's, so more is kept than a connect
+    // failure shows.
     var printed = <String>[];
     void keep(String line) {
       printed.add(line);
-      if (printed.length > 20) printed.removeAt(0);
+      if (printed.length > TesterGuest.outputKept) printed.removeAt(0);
       tee?.call(line);
     }
 
@@ -569,17 +576,18 @@ class TesterHost {
       throw StateError('the harness was disposed while it was starting');
     }
 
-    process.stderr
+    var stderrDone = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
           keep(line);
           onLog?.call('[$label] $line');
-        });
+        })
+        .asFuture<void>();
 
     var vmServiceUri = Completer<String>();
     var ready = Completer<void>();
-    process.stdout
+    var stdoutDone = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
@@ -593,7 +601,8 @@ class TesterHost {
           if (line.contains(program.readyLine) && !ready.isCompleted) {
             ready.complete();
           }
-        });
+        })
+        .asFuture<void>();
     unawaited(
       process.exitCode.then((code) {
         // Every way a guest ends — teardown, a restart, `killGuest`, or the
@@ -622,7 +631,8 @@ class TesterHost {
     }
     var vm = await GuestVmService.connect(
       await vmServiceUri.future,
-      describeGuest: () => printed.join('\n'),
+      describeGuest: () =>
+          printed.skip(math.max(0, printed.length - 20)).join('\n'),
     );
     // `dart:developer` logs beside stdout, marked, so a dependency's own
     // failure report reaches the same line stream the guest's prints do.
@@ -635,10 +645,16 @@ class TesterHost {
     return TesterGuest(
       process: process,
       vm: vm,
+      output: printed,
+      // Only ever a signal: a pipe that ended in an error has still ended.
+      outputDone: Future.wait([stdoutDone, stderrDone])
+          .then((_) {}, onError: (Object _) {}),
       // Cancelled by `TesterGuest.kill`, whose caller owns the guest.
       events: switch (program.eventStream) {
-        var stream? =>
-          vm.extensionEvents(stream).listen((event) => onEvent?.call(event)),
+        var stream? => vm.extensionEvents(stream).listen((event) {
+          onEvent?.call(event);
+          onGuestEvent?.call(event);
+        }),
         null => null,
       },
     );
@@ -836,10 +852,27 @@ class TesterHost {
 /// The host's own guest is one of these under the hood; a live scenario pool
 /// holds several, one scenario each, and ends them itself.
 class TesterGuest {
-  TesterGuest({required this.process, required this.vm, this.events});
+  TesterGuest({
+    required this.process,
+    required this.vm,
+    this.output = const [],
+    Future<void>? outputDone,
+    this.events,
+  }) : outputDone = outputDone ?? Future.value();
 
   final Process process;
   final GuestVmService vm;
+
+  /// The last [outputKept] lines the process printed, stdout and stderr as
+  /// they arrived — live, so it keeps growing until [outputDone].
+  final List<String> output;
+
+  static const outputKept = 60;
+
+  /// Completes when both pipes have closed, which is after the process has
+  /// exited: the last thing a dying guest prints can still be on its way when
+  /// the VM service connection has already dropped.
+  final Future<void> outputDone;
 
   /// The step events forwarded to the host's `onEvent`, cancelled with the
   /// guest.

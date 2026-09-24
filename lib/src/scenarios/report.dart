@@ -78,6 +78,7 @@ class ScenarioRunResult
     required this.packages,
     this.axes,
     this.clock,
+    this.notRun = const {},
   });
 
   /// Decodes a `run.json`.
@@ -102,6 +103,7 @@ class ScenarioRunResult
         String it => DateTime.tryParse(it),
         _ => null,
       },
+      notRun: _stringsOrNull(json['notRun']) ?? const {},
     );
   }
 
@@ -125,6 +127,16 @@ class ScenarioRunResult
   ///
   /// Null only in a report written before runs recorded it.
   final DateTime? clock;
+
+  /// The declared folders this run left out, each with why.
+  ///
+  /// A run that names no package runs the fake-time folders only. A real-time
+  /// one runs against somebody's backend — an account made, an email sent —
+  /// so it runs when it is named, as it does in the studio, and a project's
+  /// "run every scenario" command does not start needing a stack the day a
+  /// live folder is declared beside the others. Said rather than silent, so a
+  /// green answer is not read as the live folder passing.
+  final Map<String, String> notRun;
 
   /// False when any package failed to run at all, or any scenario it ran came
   /// back red — what makes `fw run scenarios run` exit 1.
@@ -205,6 +217,7 @@ class ScenarioRunResult
     if (!ok) 'failed': failed,
     if (axes != null) 'axes': axes,
     if (clock != null) 'clock': clock!.toIso8601String(),
+    if (notRun.isNotEmpty) 'notRun': notRun,
     'packages': packages,
   };
 }

@@ -1332,6 +1332,7 @@ ok: bool
 failed: List<Map<String, Object?>>?
 axes: Map<String, String>?   # The axis assignment the whole request ran under — `{device: iphone-se, language: fr}` — or null for the test defaults.
 clock: String?   # What `clock.now()` read at the start of every scenario in the run.
+notRun: Map<String, String>?   # The declared folders this run left out, each with why.
 packages: List<ScenarioRunPackage>
   path: String
   output: String   # Where this run's artifacts were written.
@@ -1421,7 +1422,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 
 | parameter | kind | required | default | |
 |---|---|---|---|---|
-| `package` | choice | no | — | Which declared package; all of them when omitted |
+| `package` | choice | no | — | Which declared package; every fake-time one when omitted. A real-time folder runs only when it is named here. |
 | `file` | string | no | — | Run only this scenario file, package-relative — as `list` reports it. A directory runs everything under it, which is the unit the folder profiles are declared in. Several, comma-separated (or `--file` repeated), run in the order given in one process — the way to reproduce a failure that only happens after another file has run |
 | `scenario` | string | no | — | Run only this scenario, by name. Needs `file` too — names are unique per file, not per package. |
 | `output` | string | no | — | Where step artifacts are written, worktree-relative unless absolute; a fresh directory under the package's build/ when omitted. run.json lands in the same directory as the images it names. A run over several packages writes each into `<output>/<package>`, with `/` in its path as `-` and the root package as `root`. |
