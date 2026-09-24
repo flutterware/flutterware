@@ -2,6 +2,9 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
+// Prefixed: `ScrollCacheExtent` reaches `widgets.dart` only from Flutter 3.48,
+// and a plain import is an unnecessary one there.
+import 'package:flutter/rendering.dart' as rendering;
 import 'package:flutter/scheduler.dart';
 
 import '../ui/design/design.dart';
@@ -313,7 +316,7 @@ class _PreviewSheetState extends State<PreviewSheet>
             // the whole catalog" that a large extent amounts to. In viewports
             // rather than pixels because the pane this sits in is resizable,
             // and the answer wanted is "a screenful" at any of its sizes.
-            scrollCacheExtent: const ScrollCacheExtent.viewport(1),
+            scrollCacheExtent: const rendering.ScrollCacheExtent.viewport(1),
             slivers: slivers,
           ),
         );

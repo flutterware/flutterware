@@ -3,6 +3,7 @@
 ///
 /// ```sh
 /// fvm dart tool/publish/install_check.dart          # stage, install, clean up
+/// fvm dart tool/publish/install_check.dart --gui    # and build the studio
 /// fvm dart tool/publish/install_check.dart --keep   # leave it all for a look
 /// ```
 ///
@@ -15,16 +16,25 @@
 /// So this asks pub which files it would upload, puts exactly those inside the
 /// pub cache — which is what the launcher takes a hosted package to be — points
 /// a new project at them, and runs `dart run flutterware --version`: the
-/// unpack, the resolve and the CLI build of a first run, without the window.
+/// unpack, the resolve and the CLI build of a first run. `--gui` then builds
+/// the studio in that copy the way the launcher does, which is the rest of a
+/// first run short of opening the window.
+///
+/// Before any of it, every file a staged pubspec declares — assets, shaders,
+/// fonts — has to be in the archive. The GUI build finds a missing one too,
+/// but only on a runner that can build a GUI, and only minutes in.
 library;
 
 import 'dart:io';
 
+import 'package:flutterware/src/desktop_gui.dart';
 import 'package:flutterware/src/working_copy.dart';
 import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
 Future<void> main(List<String> args) async {
   var keep = args.contains('--keep');
+  var gui = args.contains('--gui');
   var root = _repoRoot();
   var dart = Platform.resolvedExecutable;
 
@@ -42,9 +52,28 @@ Future<void> main(List<String> args) async {
       Platform.environment['PUB_CACHE'] ??
       p.join(userHomePath(), Platform.isWindows ? 'Pub/Cache' : '.pub-cache');
   var staged = p.join(pubCache, 'install-check', 'flutterware-$version');
+  // Named the way the launcher names it: after the package root it resolves,
+  // which ends in a separator.
+  var copy = workingCopyPath(Uri.directory(staged).toFilePath());
   var project = Directory.systemTemp.createTempSync('install_check').path;
   try {
     _stage(root, staged, files);
+    var missing = [
+      for (var pubspec in ['pubspec.yaml', p.join('app', 'pubspec.yaml')])
+        for (var declared in declaredFiles(
+          File(p.join(staged, pubspec)).readAsStringSync(),
+        ))
+          if (!_exists(p.join(staged, p.dirname(pubspec), declared)))
+            '${p.join(p.dirname(pubspec), declared)} (declared in $pubspec)',
+    ];
+    if (missing.isNotEmpty) {
+      _fail(
+        'the archive leaves out files its pubspecs declare, and a build of '
+        'the installed package fails on the first one:\n  '
+        '${missing.join('\n  ')}\n'
+        'Keep them in the archive, in .pubignore.',
+      );
+    }
 
     File(p.join(project, 'pubspec.yaml')).writeAsStringSync('''
 name: install_check
@@ -64,16 +93,31 @@ dependencies:
     if (!'$out'.contains(version)) {
       _fail('`fw --version` did not print $version:\n$out');
     }
+
+    if (gui) {
+      var flutterSdk = findFlutterSdkRoot(dart);
+      if (flutterSdk == null) _fail('no Flutter SDK around $dart');
+      stdout.writeln('\nBuilding the studio in $copy…');
+      var build = await DesktopGui(
+        appPath: p.join(copy, 'app'),
+        flutterSdk: flutterSdk,
+      ).build();
+      if (!build.ok) {
+        _fail(
+          'the studio did not build from the installed package:\n  '
+          '${build.tail().join('\n  ')}\n'
+          'full log: ${build.file?.path}',
+        );
+      }
+    }
     stdout.writeln(
       '\nInstalled from the archive and ran: flutterware $version.',
     );
   } finally {
     if (keep) {
-      stdout.writeln(
-        'Kept:\n  $staged\n  $project\n  ${workingCopyPath(staged)}',
-      );
+      stdout.writeln('Kept:\n  $staged\n  $project\n  $copy');
     } else {
-      for (var dir in [staged, project, workingCopyPath(staged)]) {
+      for (var dir in [staged, project, copy]) {
         if (Directory(dir).existsSync()) {
           Directory(dir).deleteSync(recursive: true);
         }
@@ -123,6 +167,25 @@ dependencies:
   }
   return (version, files);
 }
+
+/// Every file [pubspec]'s `flutter:` section says the package bundles:
+/// assets (a trailing `/` is a directory), shaders and fonts.
+List<String> declaredFiles(String pubspec) {
+  var flutter = (loadYaml(pubspec) as YamlMap?)?['flutter'];
+  if (flutter is! YamlMap) return const [];
+  return [
+    for (var asset in flutter['assets'] as YamlList? ?? YamlList())
+      asset is YamlMap ? asset['path'] as String : asset as String,
+    for (var shader in flutter['shaders'] as YamlList? ?? YamlList())
+      shader as String,
+    for (var family in flutter['fonts'] as YamlList? ?? YamlList())
+      for (var font in (family as YamlMap)['fonts'] as YamlList)
+        (font as YamlMap)['asset'] as String,
+  ];
+}
+
+bool _exists(String path) =>
+    path.endsWith('/') ? Directory(path).existsSync() : File(path).existsSync();
 
 void _stage(String root, String staged, List<String> files) {
   if (Directory(staged).existsSync()) {

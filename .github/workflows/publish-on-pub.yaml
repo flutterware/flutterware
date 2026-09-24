@@ -11,8 +11,9 @@ name: Release
 # <version>` moves it and opens its changelog entry in an ordinary PR, and the
 # release names what master already says. Then, in order:
 #
-#   verify   the tag is master's version, on master, with CI green, and the
-#            package installs from exactly what pub would upload
+#   verify   the tag is master's version, on master, and master's CI passed
+#            on it — which includes installing from exactly what pub would
+#            upload, on the pin and on the newest stable
 #   pictures media/v<version>/, rendered from this tag
 #   publish  pub.dev, over OIDC
 #   demo     github.com/flutterware/flutterware_example synced, and a fresh
@@ -66,7 +67,8 @@ jobs:
 
       # The tests are master's CI, and it has run on this commit — or is
       # running, if the release was created right after the merge, in which
-      # case this waits for it. `Suites on Windows` is left out: its app suite
+      # case this waits for it. Its *Install from the archive* jobs are the
+      # ones that install the package the way pub.dev will hand it out. `Suites on Windows` is left out: its app suite
       # reports rather than blocks, and when it takes its runner down the job
       # fails without saying anything about the release.
       - name: Master's CI passed on this commit
@@ -94,11 +96,6 @@ jobs:
           done
           echo "::error::master's CI did not finish on $GITHUB_SHA within 90 minutes"
           exit 1
-
-      # The one check that installs flutterware the way pub.dev will hand it
-      # out, rather than from this checkout. See the script.
-      - name: It installs from what pub would upload
-        run: dart tool/publish/install_check.dart
 
   # The pictures the package page links to, rendered from this tag and pushed
   # to `media/v<version>/` before anything is published: pub.dev shows a

@@ -83,8 +83,10 @@ A release is a GitHub release. Its version is the one master already names:
 
 The tag starts `.github/workflows/publish-on-pub.yaml`, which does the rest. It
 checks that the tag matches master's version and that master's CI passed on
-that commit, then installs the package from exactly what pub would upload. It
-renders the pictures for `media/v0.6.1/`, publishes to pub.dev, syncs
+that commit. That CI includes installing the package from exactly what pub
+would upload and building the studio from it, on the pinned Flutter and on the
+newest stable. It then renders the pictures for `media/v0.6.1/`, publishes to
+pub.dev, syncs
 [flutterware_example](https://github.com/flutterware/flutterware_example), and
 installs a fresh clone of it from pub.dev.
 
