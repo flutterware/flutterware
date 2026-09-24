@@ -39,6 +39,20 @@
         "en",
         "fr"
       ]
+    },
+    {
+      "file": "test/scenarios/mobile/shop_test.dart",
+      "name": "A morning order",
+      "profile": "phones",
+      "devices": [
+        "iphone-16",
+        "iphone-se",
+        "android-tall"
+      ],
+      "languages": [
+        "en",
+        "fr"
+      ]
     }
   ]
 }

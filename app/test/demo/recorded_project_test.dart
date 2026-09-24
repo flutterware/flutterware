@@ -129,7 +129,7 @@ void main() {
     await tester.tap(find.text('previews'));
     await tester.pumpAndSettle();
     expect(find.text('1 added'), findsOneWidget);
-    expect(find.text('shopMenu'), findsOneWidget);
+    expect(find.text('Menu'), findsOneWidget);
     await tester.tap(find.text('scenarios'));
     await tester.pumpAndSettle();
     expect(find.text('Order a cappuccino'), findsOneWidget);

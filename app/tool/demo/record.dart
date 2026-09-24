@@ -359,21 +359,13 @@ Future<String> _recordTranslations({
 /// How much smaller than the store's canvas a recorded screenshot is kept.
 ///
 /// The one place a recording is not the tool's bytes. A store canvas is
-/// 1320×2868 or 2048×2732 pixels, and the demo app's listing exported whole is
-/// 42 MB of PNG — a fixture git would carry forever for a panel whose cards
-/// are thumbnails and whose viewer fits a phone into a window. A third along
-/// each side, the iPhone sets are 2.6 MB, still larger than anything the page
+/// 1320×2868 or 1080×2160 pixels, a fixture git would carry forever for a
+/// panel whose cards are thumbnails and whose viewer fits a phone into a
+/// window. A third along each side is still larger than anything the page
 /// draws them at, and the manifest keeps the canvas the store will receive,
 /// which is what the panel prints. Pixel-for-pixel fidelity at a store's own
 /// size is what `fw run store export` is for.
 const recordedStoreShotDivisor = 3;
-
-/// The display class the recording keeps. The declaration has two, and the
-/// iPad's sets are the larger half of an export the fixture cannot carry
-/// whole; narrowed by the action's own `--class`, the manifest holds the
-/// iPhone sets and the panel draws the iPad cards as it draws any set that
-/// has not been exported yet — which is a state worth a picture too.
-const recordedStoreClass = 'iphone-6-9';
 
 /// The store export, as the real action wrote it — and the pictures smaller.
 ///
@@ -398,7 +390,6 @@ Future<String> _recordStore({
     'run',
     'store',
     'export',
-    '--class=$recordedStoreClass',
   ], workingDirectory: project);
   if (exported.exitCode != 0) {
     stderr.writeln(exported.stdout);

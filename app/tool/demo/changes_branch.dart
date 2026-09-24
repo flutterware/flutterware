@@ -257,12 +257,14 @@ Future<void> growLoyaltyBranch(
 
   repo.edit(
     'lib/shop/shop_app.dart',
-    "import 'shop_screens.dart';\nimport 'shop_strings.dart';\n\n"
-        "export 'shop_screens.dart';\nexport 'shop_strings.dart';\n",
-    "import 'loyalty.dart';\nimport 'shop_screens.dart';\n"
+    "import 'drink_art.dart';\nimport 'shop_screens.dart';\n"
         "import 'shop_strings.dart';\n\n"
-        "export 'loyalty.dart';\nexport 'shop_screens.dart';\n"
+        "export 'drink_art.dart';\nexport 'shop_screens.dart';\n"
         "export 'shop_strings.dart';\n",
+    "import 'drink_art.dart';\nimport 'loyalty.dart';\n"
+        "import 'shop_screens.dart';\nimport 'shop_strings.dart';\n\n"
+        "export 'drink_art.dart';\nexport 'loyalty.dart';\n"
+        "export 'shop_screens.dart';\nexport 'shop_strings.dart';\n",
   );
   repo.edit(
     'lib/shop/shop_app.dart',
@@ -355,14 +357,14 @@ Future<void> growLoyaltyBranch(
   repo.edit(
     'lib/shop/shop_screens.dart',
     '''
-                      var name = _name.text.isEmpty ? '—' : _name.text;
-                      cart.clear();
+    var name = _name.text.isEmpty ? '—' : _name.text;
+    cart.clear();
 ''',
     '''
-                      var name = _name.text.isEmpty ? '—' : _name.text;
-                      // One stamp per drink, before the cart forgets them.
-                      Loyalty.of(context).stamp(cart.items.length);
-                      cart.clear();
+    var name = _name.text.isEmpty ? '—' : _name.text;
+    // One stamp per drink, before the cart forgets them.
+    Loyalty.of(context).stamp(cart.items.length);
+    cart.clear();
 ''',
   );
 

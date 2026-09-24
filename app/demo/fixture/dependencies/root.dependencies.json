@@ -442,7 +442,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 169,
-        "downloadCount30Days": 2708516,
+        "downloadCount30Days": 2775038,
         "tags": [
           "publisher:mcdole.org",
           "has:topic",
@@ -611,7 +611,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 903,
-        "downloadCount30Days": 14799127,
+        "downloadCount30Days": 15089692,
         "tags": [
           "publisher:loki3d.com",
           "has:topic",
@@ -817,7 +817,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 428,
-        "downloadCount30Days": 10790762,
+        "downloadCount30Days": 10986529,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -948,7 +948,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 635,
-        "downloadCount30Days": 12862067,
+        "downloadCount30Days": 13087902,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -1046,7 +1046,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 630,
-        "downloadCount30Days": 1646222,
+        "downloadCount30Days": 1682926,
         "tags": [
           "publisher:nfet.net",
           "sdk:dart",
@@ -1142,7 +1142,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 20,
-        "downloadCount30Days": 1426923,
+        "downloadCount30Days": 1455215,
         "tags": [
           "publisher:pwa.ir",
           "sdk:dart",
@@ -1216,7 +1216,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 38,
-        "downloadCount30Days": 9911300,
+        "downloadCount30Days": 10087242,
         "tags": [
           "publisher:tools.dart.dev",
           "sdk:dart",
@@ -1331,7 +1331,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 345,
-        "downloadCount30Days": 8278677,
+        "downloadCount30Days": 8430132,
         "tags": [
           "is:flutter-favorite",
           "publisher:google.dev",
@@ -1557,7 +1557,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 782,
-        "downloadCount30Days": 13966172,
+        "downloadCount30Days": 14232105,
         "tags": [
           "is:flutter-favorite",
           "publisher:google.dev",
@@ -1642,7 +1642,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 506,
-        "downloadCount30Days": 8735835,
+        "downloadCount30Days": 8904381,
         "tags": [
           "is:flutter-favorite",
           "publisher:dart.dev",
@@ -1720,7 +1720,7 @@
         "grantedPoints": 140,
         "maxPoints": 160,
         "likeCount": 255,
-        "downloadCount30Days": 11170422,
+        "downloadCount30Days": 11458208,
         "tags": [
           "publisher:tools.dart.dev",
           "sdk:dart",
@@ -1837,7 +1837,7 @@
         "grantedPoints": 140,
         "maxPoints": 160,
         "likeCount": 1431,
-        "downloadCount30Days": 10011598,
+        "downloadCount30Days": 10192678,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -1983,7 +1983,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 1887,
-        "downloadCount30Days": 11882177,
+        "downloadCount30Days": 12098536,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -2166,7 +2166,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 64,
-        "downloadCount30Days": 8575279,
+        "downloadCount30Days": 8726632,
         "tags": [
           "publisher:tools.dart.dev",
           "has:topic",
@@ -2261,7 +2261,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 148,
-        "downloadCount30Days": 1178805,
+        "downloadCount30Days": 1238437,
         "tags": [
           "publisher:flutter.dev",
           "has:topic",
@@ -2338,7 +2338,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 123,
-        "downloadCount30Days": 8027895,
+        "downloadCount30Days": 8179113,
         "tags": [
           "publisher:dart.dev",
           "sdk:dart",
@@ -2435,7 +2435,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 353,
-        "downloadCount30Days": 12105889,
+        "downloadCount30Days": 12323960,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -2550,7 +2550,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 69,
-        "downloadCount30Days": 9353438,
+        "downloadCount30Days": 9523040,
         "tags": [
           "publisher:dart.dev",
           "sdk:dart",
@@ -2629,7 +2629,7 @@
         "grantedPoints": 15,
         "maxPoints": 160,
         "likeCount": 0,
-        "downloadCount30Days": 349,
+        "downloadCount30Days": 374,
         "tags": [
           "is:discontinued",
           "is:unlisted",
@@ -2705,7 +2705,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 1339,
-        "downloadCount30Days": 8511787,
+        "downloadCount30Days": 8661907,
         "tags": [
           "publisher:flutter.dev",
           "has:topic",
@@ -2936,8 +2936,8 @@
         },
         "grantedPoints": 150,
         "maxPoints": 160,
-        "likeCount": 9798,
-        "downloadCount30Days": 1678095,
+        "likeCount": 9800,
+        "downloadCount30Days": 1713925,
         "tags": [
           "is:flutter-favorite",
           "publisher:jonhanson.net",
@@ -3018,17 +3018,17 @@
       },
       "cloc": {
         "global": {
-          "files": 2200,
-          "lines": 385164,
-          "comments": 92842,
-          "blanks": 46596
+          "files": 2202,
+          "lines": 386903,
+          "comments": 92981,
+          "blanks": 46734
         },
         "languages": {
           "Dart": {
-            "files": 2128,
-            "lines": 381941,
-            "comments": 92153,
-            "blanks": 46157
+            "files": 2130,
+            "lines": 383646,
+            "comments": 92277,
+            "blanks": 46293
           },
           "C++": {
             "files": 8,
@@ -3044,9 +3044,9 @@
           },
           "Swift": {
             "files": 20,
-            "lines": 643,
-            "comments": 145,
-            "blanks": 96
+            "lines": 677,
+            "comments": 160,
+            "blanks": 98
           },
           "HTML": {
             "files": 5,
@@ -3069,8 +3069,8 @@
         }
       },
       "size": {
-        "files": 3495,
-        "bytes": 45789330
+        "files": 3607,
+        "bytes": 54751817
       },
       "pubDev": {
         "name": "flutterware",
@@ -3093,7 +3093,7 @@
         "grantedPoints": 50,
         "maxPoints": 160,
         "likeCount": 3,
-        "downloadCount30Days": 98,
+        "downloadCount30Days": 92,
         "tags": [
           "has:error",
           "license:mit",
@@ -3183,7 +3183,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 659,
-        "downloadCount30Days": 9866779,
+        "downloadCount30Days": 10093767,
         "tags": [
           "publisher:tools.dart.dev",
           "has:topic",
@@ -3378,8 +3378,8 @@
         },
         "grantedPoints": 160,
         "maxPoints": 160,
-        "likeCount": 8472,
-        "downloadCount30Days": 11816091,
+        "likeCount": 8473,
+        "downloadCount30Days": 12033717,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -3475,7 +3475,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 270,
-        "downloadCount30Days": 10305334,
+        "downloadCount30Days": 10494146,
         "tags": [
           "publisher:dart.dev",
           "sdk:dart",
@@ -3659,7 +3659,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 1757,
-        "downloadCount30Days": 7166684,
+        "downloadCount30Days": 7315199,
         "tags": [
           "publisher:loki3d.com",
           "sdk:dart",
@@ -3863,7 +3863,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 6107,
-        "downloadCount30Days": 10742730,
+        "downloadCount30Days": 10950502,
         "tags": [
           "is:flutter-favorite",
           "publisher:dart.dev",
@@ -3983,7 +3983,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 214,
-        "downloadCount30Days": 8086231,
+        "downloadCount30Days": 8241270,
         "tags": [
           "publisher:tools.dart.dev",
           "sdk:dart",
@@ -4067,7 +4067,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 7,
-        "downloadCount30Days": 7972185,
+        "downloadCount30Days": 8126032,
         "tags": [
           "is:unlisted",
           "publisher:flutter.dev",
@@ -4134,7 +4134,7 @@
         "grantedPoints": 120,
         "maxPoints": 160,
         "likeCount": 1,
-        "downloadCount30Days": 7963230,
+        "downloadCount30Days": 8116855,
         "tags": [
           "is:unlisted",
           "publisher:tools.dart.dev",
@@ -4213,7 +4213,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 268,
-        "downloadCount30Days": 9920333,
+        "downloadCount30Days": 10089947,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -4384,7 +4384,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 1004,
-        "downloadCount30Days": 10289126,
+        "downloadCount30Days": 10473721,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -4498,7 +4498,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 68,
-        "downloadCount30Days": 10735168,
+        "downloadCount30Days": 10939395,
         "tags": [
           "publisher:dart.dev",
           "sdk:dart",
@@ -4578,7 +4578,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 281,
-        "downloadCount30Days": 8224793,
+        "downloadCount30Days": 8382145,
         "tags": [
           "publisher:material.io",
           "sdk:dart",
@@ -4672,8 +4672,8 @@
         },
         "grantedPoints": 160,
         "maxPoints": 160,
-        "likeCount": 268,
-        "downloadCount30Days": 1178956,
+        "likeCount": 269,
+        "downloadCount30Days": 1238314,
         "tags": [
           "publisher:flutter.dev",
           "has:topic",
@@ -4855,7 +4855,7 @@
         "grantedPoints": 150,
         "maxPoints": 160,
         "likeCount": 479,
-        "downloadCount30Days": 15222696,
+        "downloadCount30Days": 15508581,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -4996,7 +4996,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 1743,
-        "downloadCount30Days": 10000034,
+        "downloadCount30Days": 10181509,
         "tags": [
           "publisher:dart.dev",
           "has:topic",
@@ -5075,7 +5075,7 @@
         "grantedPoints": 140,
         "maxPoints": 160,
         "likeCount": 51,
-        "downloadCount30Days": 5653059,
+        "downloadCount30Days": 5786941,
         "tags": [
           "publisher:flutter.dev",
           "has:topic",
@@ -5250,8 +5250,8 @@
         },
         "grantedPoints": 160,
         "maxPoints": 160,
-        "likeCount": 3041,
-        "downloadCount30Days": 1495955,
+        "likeCount": 3042,
+        "downloadCount30Days": 1527819,
         "tags": [
           "publisher:nfet.net",
           "has:topic",
@@ -5417,7 +5417,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 402,
-        "downloadCount30Days": 11773847,
+        "downloadCount30Days": 12000076,
         "tags": [
           "publisher:lukas-renggli.ch",
           "has:topic",
@@ -5510,7 +5510,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 131,
-        "downloadCount30Days": 12790872,
+        "downloadCount30Days": 13099438,
         "tags": [
           "publisher:tools.dart.dev",
           "sdk:dart",
@@ -5611,7 +5611,7 @@
         "grantedPoints": 130,
         "maxPoints": 160,
         "likeCount": 11,
-        "downloadCount30Days": 6691699,
+        "downloadCount30Days": 6840492,
         "tags": [
           "publisher:onepub.dev",
           "sdk:dart",
@@ -5691,7 +5691,7 @@
         "grantedPoints": 160,
         "maxPoints": 160,
         "likeCount": 259,
-        "downloadCount30Days": 3251350,
+        "downloadCount30Days": 3327449,
         "tags": [
           "publisher:kevmoo.com",
           "sdk:dart",
@@ -8353,6 +8353,1396 @@
           "scope": "tool"
         },
         {
+          "path": "build/flutterware/store_harness/brewline/scenarios_harness.dart",
+          "uri": "package:flutterware/src/scenarios/harness.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/90758-0/scenarios_harness.dart",
+          "uri": "package:flutterware/src/scenarios/harness.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness.dart",
+          "uri": "package:flutterware/flutter_test.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_0.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_1.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_6.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_7.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_4.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/plugins.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/store.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_5.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_2.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_3.dart",
+          "uri": "package:flutterware/ui_catalog.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/scenarios_harness.dart",
+          "uri": "package:flutterware/src/scenarios/harness.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/store_frames/store_frames.dart",
+          "uri": "package:flutterware/src/store/frame_harness.dart",
+          "scope": "other"
+        },
+        {
           "path": "lib/src/devbar/notifications_panel.dart",
           "uri": "package:flutterware/channels.dart",
           "scope": "lib"
@@ -8370,6 +9760,11 @@
         {
           "path": "lib/shop_devbar.dart",
           "uri": "package:flutterware/devbar.dart",
+          "scope": "lib"
+        },
+        {
+          "path": "lib/store_frame.dart",
+          "uri": "package:flutterware/devices.dart",
           "scope": "lib"
         },
         {
@@ -8478,14 +9873,2049 @@
           "scope": "other"
         }
       ],
-      "collection": [
+      "flutter": [
         {
-          "path": "lib/src/notifications/push_service.dart",
-          "uri": "package:collection/collection.dart",
+          "path": "build/flutterware/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_0.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_1.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_6.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_7.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_4.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_5.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_2.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_3.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "lib/store_frame.dart",
+          "uri": "package:flutter/foundation.dart",
           "scope": "lib"
+        },
+        {
+          "path": "lib/shop/mini_markdown.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "lib"
+        },
+        {
+          "path": "lib/shop/shop_strings.dart",
+          "uri": "package:flutter/services.dart",
+          "scope": "lib"
+        },
+        {
+          "path": "lib/shop/shop_strings.dart",
+          "uri": "package:flutter/widgets.dart",
+          "scope": "lib"
+        },
+        {
+          "path": "demo/store_panorama.dart",
+          "uri": "package:flutter/foundation.dart",
+          "scope": "other"
+        },
+        {
+          "path": "demo/store_panorama.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "demo/brand.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
+        },
+        {
+          "path": "demo/shop.dart",
+          "uri": "package:flutter/widget_previews.dart",
+          "scope": "other"
         }
       ],
       "material_ui": [
+        {
+          "path": "build/flutterware/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_0.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_1.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_6.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_7.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_4.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_5.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_2.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_3.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "other"
+        },
         {
           "path": "lib/src/notifications/push_service.dart",
           "uri": "package:material_ui/material_ui.dart",
@@ -8522,6 +11952,11 @@
           "scope": "lib"
         },
         {
+          "path": "lib/shop/drink_art.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "lib"
+        },
+        {
           "path": "lib/shop/shop_screens.dart",
           "uri": "package:material_ui/material_ui.dart",
           "scope": "lib"
@@ -8538,6 +11973,11 @@
         },
         {
           "path": "test/scenarios/mobile/keyboard_types_test.dart",
+          "uri": "package:material_ui/material_ui.dart",
+          "scope": "test"
+        },
+        {
+          "path": "test/scenarios/mobile/shop_test.dart",
           "uri": "package:material_ui/material_ui.dart",
           "scope": "test"
         },
@@ -8577,44 +12017,472 @@
           "scope": "other"
         }
       ],
-      "flutter": [
-        {
-          "path": "lib/shop/mini_markdown.dart",
-          "uri": "package:flutter/widgets.dart",
-          "scope": "lib"
-        },
-        {
-          "path": "lib/shop/shop_strings.dart",
-          "uri": "package:flutter/services.dart",
-          "scope": "lib"
-        },
-        {
-          "path": "lib/shop/shop_strings.dart",
-          "uri": "package:flutter/widgets.dart",
-          "scope": "lib"
-        },
-        {
-          "path": "demo/store_panorama.dart",
-          "uri": "package:flutter/foundation.dart",
-          "scope": "other"
-        },
-        {
-          "path": "demo/store_panorama.dart",
-          "uri": "package:flutter/widget_previews.dart",
-          "scope": "other"
-        },
-        {
-          "path": "demo/brand.dart",
-          "uri": "package:flutter/widget_previews.dart",
-          "scope": "other"
-        },
-        {
-          "path": "demo/shop.dart",
-          "uri": "package:flutter/widget_previews.dart",
-          "scope": "other"
-        }
-      ],
       "brewline": [
+        {
+          "path": "build/flutterware/previews_harness/entry_4.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_2.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/previews_harness/entry_3.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84689-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85130-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84260-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85308-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84477-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84354-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85225-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85050-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/84596-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_6.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_7.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_10.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_4.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_8.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_9.dart",
+          "uri": "package:brewline/store_frame.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_5.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_2.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
+        {
+          "path": "build/flutterware/sessions/85392-0/previews_harness/entry_3.dart",
+          "uri": "package:brewline/shop/shop_app.dart",
+          "scope": "other"
+        },
         {
           "path": "test/scenarios/mobile/keyboard_test.dart",
           "uri": "package:brewline/shop/shop_app.dart",
@@ -8699,6 +12567,13 @@
           "path": "demo/shop.dart",
           "uri": "package:brewline/shop/shop_app.dart",
           "scope": "other"
+        }
+      ],
+      "collection": [
+        {
+          "path": "lib/src/notifications/push_service.dart",
+          "uri": "package:collection/collection.dart",
+          "scope": "lib"
         }
       ],
       "flutter_test": [

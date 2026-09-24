@@ -8,8 +8,8 @@
   "package": ".",
   "launcherPid": 1,
   "vmService": "ws://127.0.0.1:0/recording=/ws",
-  "appId": "08a639f6-7d82-4760-b098-7bbd8a212bac",
+  "appId": "49f4a8a5-fbfc-4197-9ca8-cc272c9277d8",
   "logPath": "/recording/run/app-57ff3a6b6f68.log",
-  "startedAt": "2026-01-01T09:38:54.890770",
+  "startedAt": "2026-01-01T09:37:55.952371",
   "protocol": 1
 }

@@ -17,19 +17,9 @@
         "images": [
           "iphone-6-9-01-welcome.png",
           "iphone-6-9-02-menu.png",
-          "iphone-6-9-03-cart-small.png",
-          "iphone-6-9-04-order-placed.png",
-          "iphone-6-9-05-cart-large.png",
-          "iphone-6-9-06-order-placed.png",
-          "iphone-6-9-07-cart.png",
-          "iphone-6-9-08-cart.png",
-          "iphone-6-9-09-order-placed.png",
-          "iphone-6-9-10-empty-cart.png",
-          "iphone-6-9-11-back-at-the-menu.png",
-          "iphone-6-9-12-welcome.png",
-          "iphone-6-9-13-menu.png",
-          "iphone-6-9-14-cart.png",
-          "iphone-6-9-15-order-placed.png"
+          "iphone-6-9-03-drink.png",
+          "iphone-6-9-04-cart.png",
+          "iphone-6-9-05-order-placed.png"
         ],
         "exportedAt": "2026-01-01T09:41:00.000"
       },
@@ -44,19 +34,43 @@
         "images": [
           "iphone-6-9-01-welcome.png",
           "iphone-6-9-02-menu.png",
-          "iphone-6-9-03-cart-small.png",
-          "iphone-6-9-04-order-placed.png",
-          "iphone-6-9-05-cart-large.png",
-          "iphone-6-9-06-order-placed.png",
-          "iphone-6-9-07-cart.png",
-          "iphone-6-9-08-cart.png",
-          "iphone-6-9-09-order-placed.png",
-          "iphone-6-9-10-empty-cart.png",
-          "iphone-6-9-11-back-at-the-menu.png",
-          "iphone-6-9-12-welcome.png",
-          "iphone-6-9-13-menu.png",
-          "iphone-6-9-14-cart.png",
-          "iphone-6-9-15-order-placed.png"
+          "iphone-6-9-03-drink.png",
+          "iphone-6-9-04-cart.png",
+          "iphone-6-9-05-order-placed.png"
+        ],
+        "exportedAt": "2026-01-01T09:41:00.000"
+      },
+      {
+        "app": "brewline",
+        "store": "play",
+        "class": "phone",
+        "appLocale": "en",
+        "storeLocale": "en-US",
+        "output": "store/root/brewline",
+        "directory": "android/en-US/images/phoneScreenshots",
+        "images": [
+          "01-welcome.png",
+          "02-menu.png",
+          "03-drink.png",
+          "04-cart.png",
+          "05-order-placed.png"
+        ],
+        "exportedAt": "2026-01-01T09:41:00.000"
+      },
+      {
+        "app": "brewline",
+        "store": "play",
+        "class": "phone",
+        "appLocale": "fr",
+        "storeLocale": "fr-FR",
+        "output": "store/root/brewline",
+        "directory": "android/fr-FR/images/phoneScreenshots",
+        "images": [
+          "01-welcome.png",
+          "02-menu.png",
+          "03-drink.png",
+          "04-cart.png",
+          "05-order-placed.png"
         ],
         "exportedAt": "2026-01-01T09:41:00.000"
       }

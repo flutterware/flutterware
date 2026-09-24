@@ -43,11 +43,16 @@ const recordedRunRefusal =
     'change it.';
 
 /// The run plugin's sources over [recording] — `RunCore(sources: …)`.
-RunSources recordedRunSources(Recording recording) {
+///
+/// [presenting] has the app answer as a run whose launcher is still there, so
+/// the header draws a live session rather than the recording's truth — for
+/// pictures of the cockpit, where *no launcher — cannot reload* would describe
+/// the recording rather than the tool. Everything still refuses.
+RunSources recordedRunSources(Recording recording, {bool presenting = false}) {
   var files = RecordedRunFiles(recording);
   return RunSources(
     files: files,
-    apps: RecordedRunApps(files),
+    apps: RecordedRunApps(files, launcher: presenting),
     channels: RecordedRunChannels(recording),
     runDir: recordedRunDir,
     readOnly: recordedRunRefusal,
@@ -123,14 +128,17 @@ class RecordedRunFiles extends RunFiles {
 
 /// The app behind a recorded handle.
 class RecordedRunApps extends RunApps {
-  const RecordedRunApps(this.files);
+  const RecordedRunApps(this.files, {this.launcher = false});
 
   final RunFiles files;
+
+  /// Whether the launcher answers as alive — see [recordedRunSources].
+  final bool launcher;
 
   /// Up, and without its launcher — inspectable, not reloadable.
   @override
   Future<RunProbe> probe(RunHandle handle) async =>
-      const RunProbe(app: true, launcher: false);
+      RunProbe(app: true, launcher: launcher);
 
   /// The last picture the session took, with its tree and its semantics —
   /// the same archive the Steps tab reads, which is a reading of the app at

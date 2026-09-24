@@ -94,7 +94,7 @@
         "--src-prefix=a/",
         "--dst-prefix=b/",
         "-M",
-        "95ad37b7a7f7c76395e339c6b443c5b672b13f3c"
+        "35cd093d3b33066a012b7de1ac65be0a881ea505"
       ],
       "exit": 0,
       "out": "changes/git/07-diff.txt"
@@ -108,7 +108,7 @@
         "color.ui=never",
         "cat-file",
         "-s",
-        "95ad37b7a7f7c76395e339c6b443c5b672b13f3c:assets/splash/branding.png"
+        "35cd093d3b33066a012b7de1ac65be0a881ea505:assets/splash/branding.png"
       ],
       "exit": 0,
       "out": "changes/git/08-cat-file.txt"
@@ -122,7 +122,7 @@
         "color.ui=never",
         "cat-file",
         "blob",
-        "95ad37b7a7f7c76395e339c6b443c5b672b13f3c:assets/splash/branding.png"
+        "35cd093d3b33066a012b7de1ac65be0a881ea505:assets/splash/branding.png"
       ],
       "exit": 0,
       "out": "changes/git/09-cat-file.bin"
@@ -162,7 +162,7 @@
         "rev-list",
         "--left-right",
         "--count",
-        "95ad37b7a7f7c76395e339c6b443c5b672b13f3c...a19e4d945c4a4f2fbd7f4fad7c71231945c8c7aa"
+        "35cd093d3b33066a012b7de1ac65be0a881ea505...c3fac201ca18e0bd6b8b507fd43aeb67b63a13d0"
       ],
       "exit": 0,
       "out": "changes/git/13-rev-list.txt"
@@ -172,7 +172,7 @@
         "--no-optional-locks",
         "diff",
         "--numstat",
-        "95ad37b7a7f7c76395e339c6b443c5b672b13f3c...a19e4d945c4a4f2fbd7f4fad7c71231945c8c7aa"
+        "35cd093d3b33066a012b7de1ac65be0a881ea505...c3fac201ca18e0bd6b8b507fd43aeb67b63a13d0"
       ],
       "exit": 0,
       "out": "changes/git/14-diff.txt"
