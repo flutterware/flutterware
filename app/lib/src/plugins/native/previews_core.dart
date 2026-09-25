@@ -38,6 +38,7 @@ import '../../previews/tester_renderer.dart';
 import '../../previews/headless_catalog.dart';
 import '../../previews/test_runner.dart';
 import '../../previews/web_build.dart';
+import '../../scenarios/opaque_png.dart';
 import '../../delta/branch_delta.dart';
 import '../../delta/branch_delta_controller.dart';
 import '../../delta/delta_painting.dart';
@@ -1039,6 +1040,18 @@ class PreviewsCore extends PluginCore {
             description:
                 'Draw a box and its node id over every widget, so a tree read '
                 'and a picture of it can be laid side by side',
+          ),
+          const ActionParameter(
+            'opaque',
+            'No alpha channel',
+            kind: ActionParameterKind.boolean,
+            required: false,
+            defaultValue: 'false',
+            description:
+                'Write a 24-bit PNG, with no alpha channel. A render is RGBA '
+                'even when nothing in it is see-through, and a store refuses '
+                "that for artwork: Google Play's feature graphic, for one. A "
+                'pixel that is see-through is laid over white.',
           ),
           const ActionParameter(
             'engine',
@@ -3044,6 +3057,7 @@ class PreviewsCore extends PluginCore {
       );
     }
     var annotate = arguments['annotate'] == true;
+    var opaque = arguments['opaque'] == true;
 
     var address = _pixelAddress(
       packagePath: packagePath,
@@ -3056,6 +3070,7 @@ class PreviewsCore extends PluginCore {
       debug: debug,
       node: node as String?,
       annotate: annotate,
+      opaque: opaque,
     );
 
     var output =
@@ -3081,6 +3096,7 @@ class PreviewsCore extends PluginCore {
             annotate: annotate,
           ),
         );
+    if (opaque) await flattenPngFile(captured.file.path, captured.file.path);
 
     return Artifact(
       kind: Artifact.png,
@@ -3196,6 +3212,7 @@ class PreviewsCore extends PluginCore {
     required Map<String, String> debug,
     required String? node,
     required bool annotate,
+    bool opaque = false,
   }) => addressFor(
     packagePath,
     entryId,
@@ -3226,6 +3243,8 @@ class PreviewsCore extends PluginCore {
       // twice.
       'node': ?node,
       if (annotate) 'annotate': 'true',
+      // Another file even where the pixels agree, and a store checks the file.
+      if (opaque) 'opaque': 'true',
     },
   );
 

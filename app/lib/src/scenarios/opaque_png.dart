@@ -9,7 +9,9 @@
 /// and there is no listing anywhere that would have accepted it.
 ///
 /// The debugging lane is left alone: `scenarios run` keeps its alpha, because
-/// its artifact is read by an inspector rather than uploaded.
+/// its artifact is read by an inspector rather than uploaded. So does
+/// `previews screenshot`, unless it is asked for `opaque` — which is how store
+/// artwork drawn as a preview gets here.
 library;
 
 import 'dart:io';
