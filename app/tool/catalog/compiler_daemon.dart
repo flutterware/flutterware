@@ -213,11 +213,14 @@ class _Daemon {
   Duration _coldCompile = Duration.zero;
   List<String> _diagnostics = const [];
 
-  /// The embedder host, built at most once and only when somebody asks.
-  ///
-  /// A `Future` rather than a path because it is the memo *and* the lock: two
-  /// clients opening a panel at the same moment await one build instead of
-  /// racing two into the same `cmake` output directory.
+  /// The embedder framework's directory, fetched at most once and only when
+  /// somebody asks for a host.
+  Future<String>? _engine;
+
+  /// The latest host build, in flight or finished — not a memo but the lock:
+  /// each build waits for this one before it starts, so two clients opening a
+  /// panel at the same moment never race two builds into the same `cmake`
+  /// output directory. See [_ensureHost].
   Future<String>? _host;
 
   /// Whether this start began from a previous daemon's kernel — see
@@ -466,8 +469,9 @@ class _Daemon {
     if (socket.existsSync()) socket.deleteSync();
   }
 
-  /// Everything slow and one-time: the engine framework, the asset bundle, the
-  /// first compile, and the C host. Paid once per daemon, not once per client.
+  /// Everything slow and one-time: the asset bundle and the first compile.
+  /// Paid once per daemon, not once per client. The embedder host is not here
+  /// — see [_ensureHost].
   Future<void> _prepare() async {
     var phase = Stopwatch()..start();
     // Announced on the way *out* only. These are the phases measured as "time
@@ -900,27 +904,31 @@ class _Daemon {
     }
   }
 
-  /// The embedder framework, then the C host that links against it — built on
-  /// the first [HostRequest] and never again.
+  /// The C host, built for **every** [HostRequest] — never handed out from a
+  /// memo.
   ///
-  /// One chain because the second genuinely needs the first. Memoised on
-  /// [_host] rather than guarded by a flag, so the second caller awaits the
-  /// first caller's build instead of starting its own into the same directory.
+  /// It used to be built on the first request and never again, and a daemon
+  /// outlives its last client by [_idleTimeout]: an edit to `native/host.c`
+  /// went unbuilt for up to ten minutes while every probe and panel ran the
+  /// binary from before it. A revert did the same in reverse, which is how a
+  /// probe once blamed an unchanged host for a failure only the edited one
+  /// had. So each request asks `cmake`, whose own dependency check is the one
+  /// that knows a header or a `CMakeLists.txt` moved. With nothing changed
+  /// that is a reconfigure and a no-op build: 110–140ms, measured 2026-09-25
+  /// on macOS, against ~0.2s for a real rebuild of `host.c`.
   ///
-  /// A failure is **not** cached as a failure the daemon then repeats forever:
-  /// [_host] is cleared on the way out, so a client that fixes whatever the
-  /// build was missing — an SDK, a compiler — can ask again without restarting
-  /// a daemon that is otherwise healthy.
-  Future<String> _ensureHost() => _host ??= () async {
-    try {
-      var engineDir = await _timed('engine framework', () async {
-        var dir = await ensureEmbedderEngine(_cache);
-        // Only once the shared copy is known good, so a failed download never
-        // leaves an install with neither.
-        removeLegacyEngineDir(config.appPackageRoot);
-        return dir;
-      });
-      return await _timed(
+  /// Chained on [_host], so builds into the one directory never overlap: each
+  /// waits for the one before it and then runs its own — which, right behind
+  /// it, is the no-op. Nothing is shared between requests, so a failure is not
+  /// cached either: a client that fixes whatever the build was missing — an
+  /// SDK, a compiler — can ask again without restarting a healthy daemon.
+  Future<String> _ensureHost() {
+    var previous = _host;
+    return _host = () async {
+      // Waited for, not shared: its own caller was told how it went.
+      await previous?.then((_) {}, onError: (Object _) {});
+      var engineDir = await _ensureEngine();
+      return _timed(
         'host build',
         () => buildHost(
           nativeSourceDir: p.join(config.appPackageRoot, 'native'),
@@ -928,8 +936,25 @@ class _Daemon {
           engineDir: engineDir,
         ),
       );
+    }();
+  }
+
+  /// The embedder framework the host links against, fetched once: it is keyed
+  /// by the engine revision, which a daemon never changes.
+  ///
+  /// A failure is **not** cached as a failure the daemon then repeats forever:
+  /// [_engine] is cleared on the way out, so the next request tries again.
+  Future<String> _ensureEngine() => _engine ??= () async {
+    try {
+      return await _timed('engine framework', () async {
+        var dir = await ensureEmbedderEngine(_cache);
+        // Only once the shared copy is known good, so a failed download never
+        // leaves an install with neither.
+        removeLegacyEngineDir(config.appPackageRoot);
+        return dir;
+      });
     } on Object {
-      _host = null;
+      _engine = null;
       rethrow;
     }
   }();

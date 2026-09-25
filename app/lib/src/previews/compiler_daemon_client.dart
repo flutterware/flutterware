@@ -90,13 +90,10 @@ class CompilerDaemonClient implements CatalogSource {
   /// died" to every caller waiting on it.
   final _pending = <int, Completer<DaemonCompiled>>{};
 
-  /// The same, for the one [hostPath] a client ever sends. Its own map because
-  /// the two replies are different types, and a `Completer<DaemonResponse>`
-  /// shared between them would put the cast back at every call site.
+  /// The same, for [hostPath]'s requests. Its own map because the two replies
+  /// are different types, and a `Completer<DaemonResponse>` shared between
+  /// them would put the cast back at every call site.
   final _hostPending = <int, Completer<HostReady>>{};
-
-  /// The answer to [hostPath], kept so a second caller does not ask twice.
-  Future<String>? _hostPath;
 
   /// The daemon's first word, which is either [DaemonReady] or [DaemonFailed].
   final _handshake = Completer<DaemonResponse>();
@@ -430,8 +427,7 @@ class CompilerDaemonClient implements CatalogSource {
     );
   }
 
-  /// Where the embedder host is, building it if this is the first time anyone
-  /// asked.
+  /// Where the embedder host is, built from the sources as they are now.
   ///
   /// **Not in the handshake, deliberately.** The host is a framework download
   /// and a `cmake` build, and only a caller that launches a guest — a panel, a
@@ -440,28 +436,17 @@ class CompilerDaemonClient implements CatalogSource {
   /// which made every client wait for it and, where the guest does not build,
   /// made every client fail with it.
   ///
-  /// Memoised per client so a panel and its screenshot ask once. The daemon
-  /// memoises it too, across clients, which is the one that actually prevents a
-  /// second build.
+  /// **Asked every time, and memoised nowhere.** A client held by a panel or
+  /// an MCP server lives for hours, and a memo here would hand every guest it
+  /// launches the binary from before the last edit to `native/`. The daemon
+  /// runs `cmake` for each request — ~0.1s when nothing changed — and one
+  /// build at a time, so a panel and its screenshot asking at once cost a
+  /// build and a no-op rather than a race. A failure is not kept either: a
+  /// caller that fixes a missing toolchain just asks again.
   ///
   /// [timeout] covers a cold framework download as well as the build.
   @override
-  Future<String> hostPath({Duration timeout = const Duration(minutes: 5)}) =>
-      _hostPath ??= _hostOnce(timeout);
-
-  Future<String> _hostOnce(Duration timeout) async {
-    try {
-      return await _requestHost(timeout);
-    } on Object {
-      // Not cached as a failure: a build that failed for a reason the caller
-      // can fix — a missing toolchain — should be askable again on the same
-      // client, rather than answering from a memo of the bad news forever.
-      _hostPath = null;
-      rethrow;
-    }
-  }
-
-  Future<String> _requestHost(Duration timeout) {
+  Future<String> hostPath({Duration timeout = const Duration(minutes: 5)}) {
     if (_gone case var reason?) return Future.error(StateError(reason));
 
     var requestId = _nextRequestId++;
