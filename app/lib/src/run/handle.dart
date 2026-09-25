@@ -42,6 +42,7 @@ class RunHandle {
     this.logPath,
     this.defines = const {},
     this.knobs = const {},
+    this.world,
     this.protocol = runHandleProtocol,
     this.handlePath,
   });
@@ -111,6 +112,11 @@ class RunHandle {
   /// Where the launcher's `--machine` stream is being written.
   final String? logPath;
 
+  /// The world this app belongs to, when it is a person's app in one — its
+  /// name. Such an app's knobs are the world script's, so they change with
+  /// the world's restart rather than here.
+  final String? world;
+
   final DateTime startedAt;
 
   final int protocol;
@@ -147,6 +153,7 @@ class RunHandle {
     defines: defines,
     knobs: knobs ?? this.knobs,
     logPath: logPath,
+    world: world,
     startedAt: startedAt,
     protocol: protocol,
     handlePath: handlePath ?? this.handlePath,
@@ -171,6 +178,7 @@ class RunHandle {
     if (defines.isNotEmpty) 'defines': defines,
     if (knobs.isNotEmpty) 'knobs': knobs,
     if (logPath != null) 'logPath': logPath,
+    if (world != null) 'world': world,
     'startedAt': startedAt.toUtc().toIso8601String(),
     'protocol': protocol,
   };
@@ -201,6 +209,7 @@ class RunHandle {
         vmService: map['vmService'] as String?,
         appId: map['appId'] as String?,
         logPath: map['logPath'] as String?,
+        world: map['world'] as String?,
         defines: {
           for (var entry in (map['defines'] as Map? ?? const {}).entries)
             if (entry.value is String) '${entry.key}': entry.value! as String,

@@ -3170,6 +3170,13 @@ class RunCore extends PluginCore {
         'the wrapper.',
       );
     }
+    if (handle.world case var world?) {
+      throw RunRefusal(
+        '${handle.entrypointLabel} is a person in the world $world, whose '
+        'script gives them their knobs. Restart the world for new ones: '
+        '`worlds restart`, or Restart in the Worlds panel.',
+      );
+    }
     var package = handle.package;
     if (package == null) {
       throw RunRefusal(

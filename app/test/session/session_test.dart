@@ -53,6 +53,7 @@ void main() {
       'flutterware.lints',
       'flutterware.dev_stack',
       'flutterware.run',
+      'flutterware.worlds',
       'flutterware.scenarios',
       'flutterware.translations',
     ]);

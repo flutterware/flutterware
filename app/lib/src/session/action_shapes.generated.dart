@@ -7012,4 +7012,91 @@ final resultShapes = <String, ResultShape>{
     ],
     'gates': true,
   }),
+  'WorldActionResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldActionResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'action', 'type': 'String'},
+      <String, Object?>{'name': 'run', 'type': 'int'},
+      <String, Object?>{
+        'name': 'running',
+        'type': 'bool',
+        'doc':
+            'Still going when the wait ran out; `worlds status` shows how far.',
+      },
+      <String, Object?>{
+        'name': 'progress',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The last thing it said about how far it is.',
+      },
+      <String, Object?>{'name': 'error', 'type': 'String', 'optional': true},
+    ],
+    'gates': true,
+  }),
+  'WorldListResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldListResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'worlds', 'type': 'List<Map<String, Object?>>'},
+      <String, Object?>{
+        'name': 'open',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The id of the world open in this process, if one is.',
+      },
+    ],
+  }),
+  'WorldStateResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldStateResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'world',
+        'type': 'String',
+        'doc': 'The world\'s id, what `worlds open` took.',
+      },
+      <String, Object?>{'name': 'name', 'type': 'String'},
+      <String, Object?>{
+        'name': 'phase',
+        'type': 'String',
+        'doc':
+            '`opening`, `open`, `restarting`, `failed`, `closing` or `closed`.',
+      },
+      <String, Object?>{
+        'name': 'id',
+        'type': 'String',
+        'optional': true,
+        'doc':
+            'This opening\'s id — what the script\'s emails and names carry.',
+      },
+      <String, Object?>{
+        'name': 'problem',
+        'type': 'String',
+        'optional': true,
+        'doc': 'Why it failed.',
+      },
+      <String, Object?>{'name': 'people', 'type': 'List<Map<String, Object?>>'},
+      <String, Object?>{
+        'name': 'actions',
+        'type': 'List<Map<String, Object?>>',
+        'optional': true,
+      },
+      <String, Object?>{
+        'name': 'knobs',
+        'type': 'List<Map<String, Object?>>',
+        'optional': true,
+      },
+      <String, Object?>{
+        'name': 'log',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'The script\'s last lines: its progress, and what it printed.',
+      },
+      <String, Object?>{
+        'name': 'note',
+        'type': 'String',
+        'optional': true,
+        'doc': 'A word about what to do next.',
+      },
+    ],
+    'gates': true,
+  }),
 };

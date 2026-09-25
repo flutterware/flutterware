@@ -2752,3 +2752,163 @@ samples: Map<String, List<String>>   # Up to three concrete findings per rule, a
 ```
 
 Takes no parameters.
+
+
+### `flutterware.worlds`
+
+Several people on your real server, set up by a script. Opening a world runs it; each person's app starts in an embedded guest, signed in as whoever the script made, and is a Run app like any other — `flutterware_act` reaches it by its device, `studio-<name>`.
+
+#### `list` — List
+
+Every world the project declares — a file in a declared package's worlds folder whose `main` calls `World.run` — with the doc comment that says what it sets up.
+
+```sh
+fw run worlds list
+```
+
+Returns `WorldListResult`:
+
+```
+worlds: List<Map<String, Object?>>
+open: String?   # The id of the world open in this process, if one is.
+```
+
+Takes no parameters.
+
+#### `open` — Open
+
+Runs the world script in its package and starts every person it declares, each app in an embedded guest; answers once they are all up. Each is then a Run app on the device `studio-<name>`, so `flutterware_act` with that `device` drives it. The world lives in this process: it closes when this process does.
+
+```sh
+fw run worlds open --world=<choice> [--knobs=…] [--hold=…]
+```
+
+Returns `WorldStateResult`:
+
+```
+world: String   # The world's id, what `worlds open` took.
+name: String
+phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
+id: String?   # This opening's id — what the script's emails and names carry.
+problem: String?   # Why it failed.
+people: List<Map<String, Object?>>
+actions: List<Map<String, Object?>>?
+knobs: List<Map<String, Object?>>?
+log: List<String>?   # The script's last lines: its progress, and what it printed.
+note: String?   # A word about what to do next.
+```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `world` | choice | yes | — | Which world, by its file name |
+| `knobs` | string | no | — | The world's knob values, `name=value` pairs split by `;`: `language=fr;network=offline` |
+| `hold` | boolean | no | — | Keep this process, and the world, until it is interrupted. For `fw`, whose process would otherwise end — and close the world — as soon as the world is open |
+
+#### `status` — Status
+
+The open world: its people and their devices, its actions and knobs, and its script's last lines.
+
+```sh
+fw run worlds status
+```
+
+Returns `WorldStateResult`:
+
+```
+world: String   # The world's id, what `worlds open` took.
+name: String
+phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
+id: String?   # This opening's id — what the script's emails and names carry.
+problem: String?   # Why it failed.
+people: List<Map<String, Object?>>
+actions: List<Map<String, Object?>>?
+knobs: List<Map<String, Object?>>?
+log: List<String>?   # The script's last lines: its progress, and what it printed.
+note: String?   # A word about what to do next.
+```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
+
+Takes no parameters.
+
+#### `restart` — Restart
+
+Runs the script again — its `onClose` first — so the people are new, and restarts each app in place with the knobs the script now gives it. Nothing rebuilds. The script's own edits apply too.
+
+```sh
+fw run worlds restart [--knobs=…]
+```
+
+Returns `WorldStateResult`:
+
+```
+world: String   # The world's id, what `worlds open` took.
+name: String
+phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
+id: String?   # This opening's id — what the script's emails and names carry.
+problem: String?   # Why it failed.
+people: List<Map<String, Object?>>
+actions: List<Map<String, Object?>>?
+knobs: List<Map<String, Object?>>?
+log: List<String>?   # The script's last lines: its progress, and what it printed.
+note: String?   # A word about what to do next.
+```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `knobs` | string | no | — | The world's knob values, `name=value` pairs split by `;`: `language=fr;network=offline` |
+
+#### `invoke` — Invoke
+
+Runs one of the actions the world script declares, and answers when it ends — or after 30 s, still running, for one that takes longer.
+
+```sh
+fw run worlds invoke --action=<string>
+```
+
+Returns `WorldActionResult`:
+
+```
+action: String
+run: int
+running: bool   # Still going when the wait ran out; `worlds status` shows how far.
+progress: String?   # The last thing it said about how far it is.
+error: String?
+```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `action` | string | yes | — | The action, by its name |
+
+#### `close` — Close
+
+Closes the open world: its script's `onClose` runs, and every person's app stops.
+
+```sh
+fw run worlds close
+```
+
+Returns `WorldStateResult`:
+
+```
+world: String   # The world's id, what `worlds open` took.
+name: String
+phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
+id: String?   # This opening's id — what the script's emails and names carry.
+problem: String?   # Why it failed.
+people: List<Map<String, Object?>>
+actions: List<Map<String, Object?>>?
+knobs: List<Map<String, Object?>>?
+log: List<String>?   # The script's last lines: its progress, and what it printed.
+note: String?   # A word about what to do next.
+```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
+
+Takes no parameters.

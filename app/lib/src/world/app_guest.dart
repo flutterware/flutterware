@@ -296,6 +296,14 @@ void main() => GuestLogs.instance.install<Object?>(() {
   }
 }
 
+/// [path], emptied and made: a person's home as their guest starts. A world
+/// creates what it needs every time it opens, so nothing is kept.
+Directory emptyGuestHome(String path) {
+  var home = Directory(path);
+  if (home.existsSync()) home.deleteSync(recursive: true);
+  return home..createSync(recursive: true);
+}
+
 /// What one person's guest process runs with: its knobs, as the file
 /// [AppGuestBuild.writeKnobs] wrote, its home, its locales. Only knobs
 /// somebody named — `main` is called by name, and a name it does not declare
@@ -337,23 +345,5 @@ String packageConfigFor(String package) {
     if (p.dirname(dir) == dir) {
       throw StateError('$package is not resolved; run `flutter pub get`.');
     }
-  }
-}
-
-/// `person=Ana;serverPort=8090` as knobs: `;`-separated `name=value` pairs,
-/// each value read as JSON when it parses, so `8090` reaches `main` as an int.
-Map<String, Object?> parseKnobs(String pairs) => {
-  for (var pair in pairs.split(';'))
-    if (pair.contains('='))
-      pair.substring(0, pair.indexOf('=')).trim(): _knobValue(
-        pair.substring(pair.indexOf('=') + 1),
-      ),
-};
-
-Object? _knobValue(String text) {
-  try {
-    return jsonDecode(text);
-  } on FormatException {
-    return text;
   }
 }

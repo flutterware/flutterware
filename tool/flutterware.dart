@@ -15,6 +15,7 @@ const fixture = Pkg('fixtures/probe_app');
 const brewline = Pkg('examples/brewline');
 const webDemo = Pkg('web_demo');
 const worldLab = Pkg('fixtures/world_lab/app');
+const worldLabServer = Pkg('fixtures/world_lab/server');
 
 void main() => Flutterware.configure((fw) {
   // **What to surface first on the changes screen, for this repository.**
@@ -285,52 +286,6 @@ void main() => Flutterware.configure((fw) {
                 ),
               ],
             ),
-            // The worlds guest experiment's pane: a world's people side by
-            // side in embedded guests, with the studio's mouse and keyboard
-            // handed to whichever one is clicked. `docs/superpowers/specs/
-            // 2026-09-25-worlds-guest-experiment-plan.md`, phase 2.
-            Entrypoint(
-              'lib/main_world_dev.dart',
-              name: 'World lab (dev)',
-              description:
-                  'People side by side in embedded guests — the lab app by '
-                  'default, any app with a package and its fakes',
-              platforms: [RunPlatform.desktop],
-              knobs: [
-                Knob(
-                  'flutterSdkRoot',
-                  label: 'Flutter SDK',
-                  from: ValueSource.flutterSdk,
-                  required: true,
-                ),
-                Knob(
-                  'appRoot',
-                  label: 'App root',
-                  description:
-                      'The flutterware_app package root, where the guest host '
-                      'is built',
-                  required: true,
-                ),
-                Knob(
-                  'people',
-                  label: 'People',
-                  description:
-                      "`|`-separated, each a name then that person's knobs: "
-                      '`Ana;person=Ana|Leo;person=Leo`',
-                ),
-                Knob('package', label: 'Package'),
-                Knob('entrypoint', label: 'Entry point'),
-                Knob('fakes', label: 'Guest fakes'),
-                Knob('platform', label: 'Look'),
-                Knob(
-                  'studioAnswers',
-                  label: 'Studio answers',
-                  description:
-                      "The plugins' own Dart halves, their platform answered "
-                      "by the studio, instead of the app's guest fakes",
-                ),
-              ],
-            ),
             Entrypoint(
               'lib/canvas_toy/main.dart',
               name: 'Canvas toy',
@@ -434,40 +389,42 @@ void main() => Flutterware.configure((fw) {
             ),
           ],
         ),
-        // The worlds lab's customer app. One file, declared once per person:
-        // a run is keyed by its entry point, so two people on one device need
-        // two names — which is how the lab puts a second instance of the same
-        // app beside the first. See `fixtures/world_lab/README.md`.
+        // The worlds lab's customer app — what the lab's worlds launch for
+        // each person, with their server, session and name as knobs. See
+        // `fixtures/world_lab/README.md`.
         .new(
           worldLab,
           entrypoints: [
-            for (var person in ['Ana', 'Leo'])
-              Entrypoint(
-                'lib/main.dart',
-                name: 'Lab · $person',
-                description:
-                    "$person's pickup app, against the lab server on :8090",
-                knobs: [
-                  Knob(
-                    'person',
-                    label: 'Person',
-                    description: 'Whose app this is, shown in its title',
-                  ),
-                  Knob(
-                    'session',
-                    label: 'Session',
-                    description:
-                        'A session token from the server, which signs the '
-                        'app in without a code',
-                  ),
-                  Knob('server', label: 'Server'),
-                ],
-              ),
+            Entrypoint(
+              'lib/main.dart',
+              name: 'Lab',
+              description:
+                  'The pickup app, against the lab server on :8090 unless '
+                  'told otherwise',
+              knobs: [
+                Knob(
+                  'person',
+                  label: 'Person',
+                  description: 'Whose app this is, shown in its title',
+                ),
+                Knob(
+                  'session',
+                  label: 'Session',
+                  description:
+                      'A session token from the server, which signs the app '
+                      'in without a code',
+                ),
+                Knob('server', label: 'Server'),
+              ],
+            ),
           ],
         ),
       ],
     ),
   );
+  // The lab's worlds, run in the lab server's package: it hosts the server
+  // and seeds it through its own API.
+  fw.use(Worlds(packages: [.new(worldLabServer)]));
   // The fixture's scenarios pin the runner; the demo app's are the sample.
   fw.use(
     Scenarios(

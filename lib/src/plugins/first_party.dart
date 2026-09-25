@@ -576,6 +576,40 @@ class ScenePackage extends PluginPackage {
   ];
 }
 
+/// Worlds: several people on your real server, set up by a script.
+///
+/// A world is a Dart file whose `main` calls `World.run`, from
+/// `package:flutterware/world.dart`, in the folder [WorldsPackage] names, in
+/// the package that can start the server and seed it: for a Dart server, the
+/// server's own package. Opening one runs it there; the people it declares get
+/// their apps, each launched from one of Run's entry points.
+class Worlds extends Plugin {
+  Worlds({this.packages = const [], String? label})
+    : super('flutterware.worlds', label: label ?? 'Worlds');
+
+  final List<WorldsPackage> packages;
+
+  @override
+  Map<String, Object?> get config => {
+    'packages': [for (var p in packages) p.toJson()],
+  };
+}
+
+class WorldsPackage extends PluginPackage {
+  const WorldsPackage(super.pkg, {this.directory = defaultWorldsDirectory});
+
+  /// Where the package keeps its worlds, relative to it — one world a file.
+  /// Only the folder's own files are worlds: helpers the worlds share go in a
+  /// subfolder, `worlds/src/`.
+  final String directory;
+
+  @override
+  Map<String, Object?> toJson() => {...super.toJson(), 'directory': directory};
+}
+
+/// Where [WorldsPackage] looks when it is not told.
+const defaultWorldsDirectory = 'worlds';
+
 /// The native splash screen: what `flutter_native_splash` will produce, on
 /// every surface and in both themes.
 ///

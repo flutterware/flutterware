@@ -19,8 +19,10 @@ studio's embedded guest, the studio answering its plugins' platform calls**
 (*go*, `2026-09-25-worlds-guest-phase5-decision.md`). A person whose app needs
 what a guest cannot carry — a camera, a view the OS draws, Bluetooth — runs on
 a simulator, a phone or a macOS window, and external devices stay
-first-class. Built so far: the experiment's lab (`fixtures/world_lab/`) and
-its *World lab* pane; no world script yet.
+first-class. Built so far: slice 0 — `package:flutterware/world.dart`, the
+`worlds` plugin (`fw`, the MCP server, and a *Worlds* panel in the studio)
+and the lab's first world, *Pickup order*
+(`2026-09-25-worlds-slice0-findings.md`).
 **Method:** one brainstorm (2026-09-24/25) with three rounds of clickable
 mockups; a read of a consumer's monorepo — a Dart server, a staff dashboard,
 a client phone app, a local stack in docker compose — through its code and its
@@ -127,10 +129,16 @@ fw.use(Worlds(packages: [.new(server, directory: 'worlds')]));
 
 The studio lists the folder, runs the file in that package when a world opens,
 keeps the process alive while it is open and stops it on close. The name comes
-from the file, the description from its doc comment. The script reaches the
-studio over the transport `FlutterwareServer` already uses — a unix socket
-announced by a handle file under `~/.flutterware/run`
-(`lib/src/server/inspector.dart`). A world is one more kind of handle.
+from the file, the description from its doc comment.
+
+**As built in slice 0,** the owner — the studio, `fw` or the MCP server —
+binds a unix socket before it starts the script with `dart run`, and names it
+in the script's environment; the two speak JSON lines over it
+(`lib/src/world/protocol.dart`). No handle file: the owner started the
+script, so it already knows where it is. What other processes need to know —
+that a world is open, and whose — is on each person's Run handle, which
+carries the world's name. A script run with no owner prints what it declares
+instead, which is how its setup is debugged.
 
 ### A sketch
 
@@ -154,22 +162,24 @@ void main(List<String> args) => World.run(args, (w) async {
 
   w.person(
     'Ana',
-    identity: (email: ana.email, userId: ana.id),
+    email: ana.email,
+    userId: ana.id,
     app: Launch('Dashboard · Local', knobs: {...server.knobs, 'session': ana.token}),
-    on: Studio(Devices.macbook),
+    on: Studio(Devices.macbookPro),
   );
   var customer = w.person(
     'Leo',
-    identity: (phone: leo.phone, userId: leo.id),
+    phone: leo.phone,
+    userId: leo.id,
     app: Launch('Shop · Local', knobs: server.knobs), // signed out on purpose
     on: Studio(Devices.iphone16),
   );
 });
 ```
 
-`identity` takes any subset of email, phone and user id: a person who signs
-up during the world is declared by a phone number alone, and gains a user id
-when the server makes one.
+A person takes any subset of email, phone, user id and password: a person who
+signs up during the world is declared by a phone number alone, and gains a
+user id when the server makes one.
 
 The helper every world of the project shares. For a Dart server that runs on
 the host, the world can **host the server in its own process**, and wiring an
@@ -208,10 +218,10 @@ And what a world may do beyond setting up — all optional:
 
   w.action('Leo orders a flat white', () => leo.api.order(Drink.flatWhite));
   w.action('Job: fail the next one', () => server.worker.failNext());
-  w.knob(Knob('language', options: ['en', 'fr']));
+  var language = w.knob('language', options: ['en', 'fr'], initial: 'en');
 
   var ben = await shop.staff(w.email('ben'), 'Ben', role: Role.manager);
-  w.person('Ben', identity: (email: ben.email, userId: ben.id)); // headless
+  w.person('Ben', email: ben.email, userId: ben.id); // headless
   w.action('Ben approves the refund', () => ben.api.approveRefund(leo));
 
   // Whoever turns up from outside gets this app, on this device.
@@ -219,8 +229,8 @@ And what a world may do beyond setting up — all optional:
 
   // The device is part of the world; an action may take a while.
   w.action('Leo walks to the shop', () => customer.device.moveAlong(route));
-  w.knob(Knob('Leo’s network', options: ['online', 'offline']),
-      (v) => customer.device.offline = v == 'offline');
+  var network = w.knob('Leo’s network', options: ['online', 'offline']);
+  customer.device.offline = network == 'offline'; // a knob change restarts the world
 ```
 
 ### Who writes what
@@ -672,8 +682,8 @@ triggered.
    - `worlds list`, `open`, `restart`, `close` and `invoke` from the CLI and
      the MCP.
    - Every person's app in a guest: the lab's build, processes, launcher and
-     Run announcement, promoted out of the lab. Any other device is refused
-     by name until its slice.
+     Run announcement, promoted out of the lab. `Studio(device)` is the one
+     kind of device the script can name until slice 4.
    - **Whoever opens a world owns it,** as with a Run launch. Opened in the
      studio, its guests are live in a plain *Worlds* panel, the lab's row of
      phones. Opened by the CLI or the MCP, they run headless in that

@@ -29,8 +29,8 @@ class GuestProcess {
   final Process process;
   final Socket _socket;
 
-  /// Its output as a `flutter run` log, for Run to read.
-  final GuestLog log;
+  /// Its output as a `flutter run` log, for Run to read — when it keeps one.
+  final GuestLog? log;
 
   /// The guest's VM service, once it has printed it.
   final vmService = Completer<String>();
@@ -61,10 +61,42 @@ class GuestProcess {
     Future<Uint8List?> Function(String channel, Uint8List bytes)? platform,
     void Function(String line)? onOutput,
   }) async {
-    var log = GuestLog(p.join(build.buildDir, 'logs', '$person.log'));
-    var home = Directory(build.homeOf(person));
-    if (home.existsSync()) home.deleteSync(recursive: true);
-    home.createSync(recursive: true);
+    var home = emptyGuestHome(build.homeOf(person));
+    return spawn(
+      person: person,
+      hostPath: hostPath,
+      assetsDir: build.assetsDir,
+      icuData: build.cache.icuData,
+      workingDirectory: build.package,
+      environment: guestEnvironment(
+        home: home.path,
+        knobsFile: build.writeKnobs(person, knobs),
+        locales: locales,
+        forward: platform != null,
+      ),
+      log: GuestLog(p.join(build.buildDir, 'logs', '$person.log')),
+      size: size,
+      insets: insets,
+      platform: platform,
+      onOutput: onOutput,
+    );
+  }
+
+  /// [start] with everything worked out by the caller — a world, which keeps
+  /// each person's home and knobs itself.
+  static Future<GuestProcess> spawn({
+    required String person,
+    required String hostPath,
+    required String assetsDir,
+    required String icuData,
+    required String workingDirectory,
+    required Map<String, String> environment,
+    GuestLog? log,
+    (int, int, double) size = (1179, 2556, 3),
+    (double, double, double, double) insets = (0, 0, 0, 0),
+    Future<Uint8List?> Function(String channel, Uint8List bytes)? platform,
+    void Function(String line)? onOutput,
+  }) async {
     var socketPath = checkSocketPath(
       p.join(flutterwareRunDir(), 'world-$pid-$person.sock'),
     );
@@ -76,21 +108,16 @@ class GuestProcess {
     var (width, height, ratio) = size;
     var process = await Process.start(
       hostPath,
-      [build.assetsDir, build.cache.icuData, socketPath, '$width', '$height'],
-      environment: guestEnvironment(
-        home: home.path,
-        knobsFile: build.writeKnobs(person, knobs),
-        locales: locales,
-        forward: platform != null,
-      ),
-      workingDirectory: build.package,
+      [assetsDir, icuData, socketPath, '$width', '$height'],
+      environment: environment,
+      workingDirectory: workingDirectory,
     );
     // Kept by the guest and closed by [shutdown].
     // ignore: close_sinks
     var socket = await server.first;
     await server.close();
     var guest = GuestProcess._(person, process, socket, log);
-    guest.output.listen(log.line);
+    if (log != null) guest.output.listen(log.line);
     // From the first line: what a guest prints before its first frame — its
     // plugins answering at boot — is exactly what a late listener misses.
     if (onOutput != null) guest.output.listen(onOutput);
@@ -228,13 +255,15 @@ Future<RunHandle> announceGuest({
   String? package,
   DateTime? startedAt,
   GuestLog? log,
+  String? world,
+  Map<String, Object?> knobs = const {},
 }) async {
   log?.started('guest-$person');
   var worktree = await _worktreeOf(packageRoot);
   var handle = RunHandle(
     worktree: worktree.$1,
     worktreeName: worktree.$2,
-    device: 'studio-${person.toLowerCase()}',
+    device: guestDeviceId(person),
     deviceName: 'Studio · $person',
     entrypoint: entrypoint,
     entrypointName: person,
@@ -243,6 +272,11 @@ Future<RunHandle> announceGuest({
     // As Run stores one: the websocket, where the guest prints the page.
     vmService: '${vmService.replaceFirst('http://', 'ws://')}ws',
     logPath: log?.path,
+    world: world,
+    knobs: {
+      for (var MapEntry(:key, :value) in knobs.entries)
+        key: value is String ? value : jsonEncode(value),
+    },
     startedAt: startedAt ?? DateTime.now(),
   ).publish(flutterwareRunDir());
   // As a launch does: a guest of the same person that died unannounced is
@@ -250,6 +284,10 @@ Future<RunHandle> announceGuest({
   RunFailure.forget(flutterwareRunDir(), handle.key);
   return handle;
 }
+
+/// The device a person's guest is to Run: `studio-ana`, `studio-ana-lopez`.
+String guestDeviceId(String person) =>
+    'studio-${person.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}';
 
 /// The worktree a handle belongs to, as Run names it: its path, and `~` for
 /// the main checkout or its git name for any other.
