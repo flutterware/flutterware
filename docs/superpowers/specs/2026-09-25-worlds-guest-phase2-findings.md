@@ -1,17 +1,18 @@
-# Worlds guest experiment — phase 2: can a human use it (interim)
+# Worlds guest experiment — phase 2: can a human use it
 
 **Date:** 2026-09-25
 **Plan:** `2026-09-25-worlds-guest-experiment-plan.md`, phase 2. Before it:
 `2026-09-25-worlds-guest-phase1-findings.md`.
-**Result, so far:** everything a human does with the mouse works — clicking
-into either of two guests, selecting text by dragging, the scroll wheel — and
-the clipboard now crosses between a guest and the Mac in both directions.
-Everything that travels by *key* from the studio into a guest does not, and
-that is one break rather than five: characters, Tab, dead keys, shortcuts and
-⌘V all ride the same path, and typing on it was already broken before this
-work (`tool/embedder/input_probe.dart` fails on master). It is being fixed
-separately. **The kill point cannot be called until it is**; nothing seen so
-far says it will fail.
+**Result:** everything the agent can reach passes — from the studio, into
+either of two guests: clicking, selecting by dragging, the wheel, typing,
+editing keys, Tab, ⌘A/⌘C/⌘V, and the keyboard going to whichever guest was
+clicked; the clipboard crosses between a guest and the Mac both ways. Two
+rows are left for a person at a real keyboard and trackpad: dead keys, which
+only the Mac's own key translation produces, and the trackpad. **The kill
+point stands on those two.**
+
+The first run of the key rows failed, and the cause was this experiment's
+own host, not an old bug (finding 1).
 
 ## What was built
 
@@ -44,28 +45,43 @@ own key translation, which dead keys need, is outside it.
 
 | | inside the guest | through the studio |
 |---|---|---|
-| type an email address | — | **blocked**: the key path |
-| type é and ü through dead keys | — | **blocked**: the key path, and needs a real keyboard |
-| paste a code with ⌘V | **works** — the Mac's clipboard lands in the field | **blocked**: the key path |
-| copy text out | **works** — ⌘C reaches the Mac's clipboard | **blocked**: the key path |
+| type an email address | — | **works** — characters and editing keys; ⌘A and Backspace clear the field first |
+| type é and ü through dead keys | — | **by hand**: only a real keyboard goes through the Mac's key translation |
+| paste a code with ⌘V | **works** — the Mac's clipboard lands in the field | **works** |
+| copy text out | **works** — ⌘C reaches the Mac's clipboard | **works**, by the same shortcut |
 | select text with the mouse | — | **works** — a drag selected `na@exa`, and ⌘C copied exactly that |
 | scroll with a wheel | — | **works** |
-| scroll with a trackpad | — | not measured: drive has no trackpad verb |
-| move between fields with Tab | — | **blocked**: the key path |
-| two guests side by side | — | clicks land in the guest clicked, at the point clicked, and the keyboard follows the click; whether *keys* then land is the key path |
-| the app's shortcuts reach the app | ⌘A, ⌘C, ⌘V work | **blocked**: the key path. The pane reserves no chord, by design |
+| scroll with a trackpad | — | **by hand**: drive has no trackpad verb |
+| move between fields with Tab | — | **works** — focus moved to the next control in the app's traversal order, and Enter activated it |
+| two guests side by side | — | **works** — clicks land in the guest clicked, at the point clicked, and typing goes to that guest only |
+| the app's shortcuts reach the app | ⌘A, ⌘C, ⌘V work | **work**. The pane reserves no chord, by design; a studio with shortcuts of its own has to keep the list to those it binds |
+
+Drive's synthetic keys carry the key's label as their character, so typed
+letters arrived upper-case; a real keyboard sends the character its layout
+resolves.
 
 ## Findings
 
-### 1. The key path from the studio is broken, and it is not only typing
+### 1. Answering the keyboard's question cost a guest every key
 
-⌘V sent inside the guest pastes; the same ⌘V forwarded from the studio —
-meta down, v, meta up, into the host's `FlutterEngineSendKeyEvent` and on to
-`GuestKeyboard` — lands nowhere, in either guest, while clicks on the same
-socket land to the pixel. Once, a paste that had gone nowhere appeared later,
-doubled, when a key arrived by the other path. So keys are being lost or held
-between the host and the framework, which is where the separate fix is
-looking; the evidence was passed on.
+The first run of the key rows found every key from the studio lost —
+characters and shortcuts alike — while clicks landed to the pixel. The cause,
+found by the session fixing the input probe: at start the framework asks
+`getKeyboardState` on `flutter/keyboard`, an optional channel, and the moment
+*any* answer arrives it hands every key event to its own `KeyEventManager`,
+overwriting the handler `GuestKeyboard` installed. Master's host never ran
+platform tasks, so it never answered and the takeover never happened. Phase
+1's host answers every message empty — and so it happened, on every start.
+
+Phase 1 had recorded typing as broken *before* this work. It was not: the
+probe's "master host" was a stale binary the catalog compiler daemon kept
+serving after `host.c` was reverted. With a fresh daemon, master passes.
+
+For now the host leaves `flutter/keyboard` alone and every key row passes.
+The lasting fix is the guest keyboard taking its handler back once its own
+`syncKeyboardState` is answered, which is being made separately; once it is
+in, the exception goes, so the probe is again what proves the handler
+survives.
 
 ### 2. A guest must be sized after it has announced its surfaces
 
@@ -91,7 +107,8 @@ disposed; a killed studio is never disposed.
 
 ## Open
 
-- **The key path**, then the six blocked rows above — dead keys by hand, since
-  only a real keyboard exercises the Mac's key translation.
-- The trackpad, by hand.
+- **Dead keys and the trackpad, by hand** — open *World lab (dev)*, click a
+  phone's field, type `⌥e` then `e`, and scroll with two fingers.
 - The cursor (finding 3), with phase 3.
+- The `flutter/keyboard` exception in `host.c`, once the guest keyboard's own
+  fix is on master (finding 1).

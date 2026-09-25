@@ -148,7 +148,7 @@ static int RunDuePlatformTasks(void) {
 }
 
 // Every platform message the app sends, answered empty — but for the
-// clipboard's, see clipboard.h — which Dart reads as
+// clipboard's, see clipboard.h, and the keyboard's, below — which Dart reads as
 // "no implementation" and throws `MissingPluginException` for, the way a test
 // or a real app with an unregistered plugin does. A plugin the app has not
 // replaced with a fake now fails loudly and at once instead of hanging.
@@ -186,6 +186,19 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message,
     printf("[platform] unanswered: %s\n", message->channel);
     fflush(stdout);
   }
+  // Except the keyboard's. The framework asks `getKeyboardState` at start and,
+  // the moment any answer comes back — empty included, the channel is
+  // optional — hands every key event to its own KeyEventManager, overwriting
+  // the handler `GuestKeyboard` installed. Answered, a guest loses every key
+  // from the studio: characters and shortcuts alike. Left unanswered, as the
+  // host always left it before it answered anything, the takeover never
+  // happens.
+  //
+  // Temporary. The lasting fix is `GuestKeyboard` taking the handler back
+  // once its own `syncKeyboardState` is answered; when that is in, this goes,
+  // so the input probe is again what proves the handler survives — and so
+  // nothing awaiting the keyboard's state waits forever.
+  if (strcmp(message->channel, "flutter/keyboard") == 0) return;
   if (message->response_handle) {
     FlutterEngineSendPlatformMessageResponse(g_engine, message->response_handle,
                                              NULL, 0);

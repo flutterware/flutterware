@@ -70,9 +70,14 @@ and answering empty turns a missing plugin into a `MissingPluginException`
 with a stack — the consumer's first boot stopped at
 `PackageInfo.fromPlatform` inside its system-info loader, named, in under a
 second. Before, it hung. The framework's own messages (`flutter/isolate`,
-`keyboard`, `platform`, `navigation`, `processtext`) get the same empty
-answer, which it tolerates. The existing smoke, unit and integration
-embedder tests pass on the new host.
+`platform`, `navigation`, `processtext`) get the same empty answer, which it
+tolerates — **but not `flutter/keyboard`**, corrected in phase 2: the
+framework asks `getKeyboardState` at start and, on any answer, takes key
+handling back from the guest keyboard, so every key from the studio was
+lost. The host now leaves that one channel unanswered, as it effectively
+always had, until the guest keyboard takes its handler back itself
+(`2026-09-25-worlds-guest-phase2-findings.md`, finding 1). The smoke, unit
+and integration embedder tests passed on the new host; they do not type.
 
 ### 2. One kernel serves every person
 
@@ -174,9 +179,11 @@ after start, twice the lab's — a larger app, not yet at rest.
 
 ## Open
 
-- **Typing is broken in guests, before this work.** `tool/embedder/input_probe.dart`
-  fails on master's host too — typed characters and backspace never reach
-  the field. Phase 2 starts there.
+- ~~Typing is broken in guests, before this work.~~ **Wrong, and corrected in
+  phase 2.** The input probe's "master host" was a stale binary: the catalog
+  compiler daemon builds the host once and serves it for its whole life, so
+  reverting `host.c` changed nothing it ran. Typing broke because this
+  phase's host answered `flutter/keyboard` (finding 1).
 
 ## Phase 2 starts from
 
