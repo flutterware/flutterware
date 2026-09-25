@@ -412,6 +412,15 @@ void main() {
     });
   });
 
+  test('an app that declared no panel lists none', () async {
+    // Nothing made a `Panels` here, which is every app that mounts no
+    // `Devbar`: the transport is installed, `panels.list` is not.
+    var client = await attach();
+    addTearDown(client.close);
+
+    expect(await RunPanels(client).list(), isEmpty);
+  });
+
   test('the app is gone: in-flight requests fail rather than hang', () async {
     var client = await attach();
     app.core.registerHandler('sql', 'explain', (_) => const {});

@@ -2,19 +2,25 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware/channels.dart';
 import 'package:flutterware/plugins.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/log_client.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/server/attach_session.dart' show AttachSession;
 import 'package:flutterware_app/src/context.dart';
 import 'package:flutterware_app/src/plugins/native/run_address.dart';
 import 'package:flutterware_app/src/plugins/native/run_plugin.dart';
 import 'package:flutterware_app/src/plugins/native/run_results.dart';
 import 'package:flutterware_app/src/plugins/plugin_host.dart';
+import 'package:flutterware_app/src/run/channel_client.dart';
 import 'package:flutterware_app/src/run/entrypoints.dart';
 import 'package:flutterware_app/src/run/handle.dart';
 import 'package:flutterware_app/src/run/inventory.dart';
 import 'package:flutterware_app/src/run/launch.dart';
 import 'package:flutterware_app/src/run/refusal.dart';
+import 'package:flutterware_app/src/run/run_files.dart';
+import 'package:flutterware_app/src/run/run_sources.dart';
 import 'package:flutterware_app/src/shell/workspace.dart';
 import 'package:flutterware_app/src/shell/worktree.dart';
 import 'package:flutterware_app/src/utils/daemon/device.dart';
@@ -3081,12 +3087,157 @@ void main({int serverPort = 1, Backend backend = Backend.dev}) {}
       expect(core.isFindingDevices, isFalse);
     });
   });
+
+  group('panels', () {
+    // Every app the run guest wraps has the channel transport installed, but
+    // the `panels` channel is registered only when something declares a panel
+    // — so an app that mounts no `Devbar` attaches fine and then answers
+    // `no handler for panels.list`, which was handed to the caller raw.
+    late _GuestChannels channels;
+
+    setUp(() {
+      channels = _GuestChannels();
+      core.dispose();
+      core = _coreFor(
+        worktree,
+        sources: RunSources(
+          files: const DiskRunFiles(),
+          apps: const LiveRunApps(),
+          channels: channels,
+        ),
+      );
+      _writeHandle(
+        runDir,
+        worktree,
+        device: 'macos',
+        entrypoint: 'lib/main.dart',
+        launcherPid: pid,
+      );
+    });
+
+    const noPanels =
+        'The app is reporting, but no plugin declared a panel. A devbar '
+        'plugin joins by implementing `DevbarPanelSource`.';
+
+    Matcher refusedWith(String message) =>
+        throwsA(isA<RunRefusal>().having((e) => e.message, 'message', message));
+
+    test('an app that declared none lists none, and says why', () async {
+      var result = (await core.invoke('panels'))! as RunPanelsResult;
+
+      expect(result.panels, isEmpty);
+      expect(result.note, noPanels);
+    });
+
+    test('asking it for a panel refuses with the same sentence', () async {
+      await expectLater(
+        core.invoke(
+          'panelInvoke',
+          arguments: {'panel': 'flags', 'action': 'reset'},
+        ),
+        refusedWith(noPanels),
+      );
+      await expectLater(
+        core.invoke(
+          'panelKnob',
+          arguments: {'panel': 'flags', 'knob': 'newCheckout', 'value': true},
+        ),
+        refusedWith(noPanels),
+      );
+      await expectLater(
+        core.invoke(
+          'panelState',
+          arguments: {'panel': 'flags', 'state': 'info'},
+        ),
+        refusedWith(noPanels),
+      );
+      await expectLater(
+        core.invoke('panels', arguments: {'panel': 'flags'}),
+        refusedWith(noPanels),
+      );
+    });
+
+    test(
+      'a panel it does not declare is refused with the ones it does',
+      () async {
+        Panels(channels.core).add('flags', 'Flags');
+
+        await expectLater(
+          core.invoke(
+            'panelState',
+            arguments: {'panel': 'net', 'state': 'info'},
+          ),
+          refusedWith('This app declares no panel "net" — it has flags.'),
+        );
+        // A panel that is there keeps the channel's own answer: the method is
+        // what is missing, and a refusal about panels would be wrong about it.
+        await expectLater(
+          core.invoke(
+            'panelInvoke',
+            arguments: {'panel': 'flags', 'action': 'nope'},
+          ),
+          throwsA(
+            predicate(
+              (e) => e is! RunRefusal && '$e' == 'no handler for flags.nope',
+            ),
+          ),
+        );
+      },
+    );
+  });
+}
+
+/// An app's channels as the run guest serves them — a real [InspectorCore] —
+/// reached in memory rather than over a VM service.
+class _GuestChannels extends RunChannels {
+  final core = InspectorCore(identity: () => const {});
+
+  @override
+  Future<RunAttachment> attach(RunHandle handle, {required String peer}) async {
+    var attachment = _InMemoryAttachment(core);
+    await attachment.session.attach();
+    return attachment;
+  }
+}
+
+class _InMemoryAttachment implements RunAttachment, InspectorPeer {
+  _InMemoryAttachment(this.core);
+
+  final InspectorCore core;
+
+  late final session = AttachSession(
+    sendFrame: (frame) => core.handleFrame(this, frame),
+  );
+
+  @override
+  void send(Map<String, Object?> frame) => session.receive(frame);
+
+  @override
+  List<InspectorEvent> get received => session.received;
+
+  @override
+  Stream<InspectorEvent> get events => session.events;
+
+  @override
+  Future<Map<String, Object?>> request(
+    String channel,
+    String method, [
+    Map<String, Object?> params = const {},
+  ]) => session.request(channel, method, params);
+
+  @override
+  Future<Map<String, Object?>?> details(int eventId) =>
+      session.details(eventId);
+
+  @override
+  Future<void> close() async {}
 }
 
 RunCore _coreFor(
   Directory worktree, {
   Map<String, Object?> config = const {},
   FlutterSdkPath? sdk,
+  RunSources sources = const RunSources.live(),
 }) {
   var tree = Worktree(path: worktree.path, isMain: true);
   return RunCore(
@@ -3103,6 +3254,7 @@ RunCore _coreFor(
         flutterSdk: sdk ?? FlutterSdkPath('/tmp/flutter'),
       ),
     ),
+    sources: sources,
   );
 }
 

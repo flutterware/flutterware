@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutterware/channels.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/server/attach_session.dart'
+    show InspectorRequestException;
 
 import 'channel_client.dart';
 
@@ -22,8 +25,20 @@ class RunPanels {
   Stream<void> get changed =>
       client.events.where((event) => event.channel == panelsChannel);
 
+  /// What the app declares — none, for an app nothing has declared a panel in.
+  ///
+  /// Such an app does not answer with an empty list: `GuestChannels.panels`
+  /// is created on first use, so every app the run guest wraps can be attached
+  /// to, but only one that declared a panel has `panels.list` registered. The
+  /// rest say nothing handles it, which means the same thing.
   Future<List<PanelDescriptor>> list() async {
-    var reply = await client.request(panelsChannel, panelsList);
+    Map<String, Object?> reply;
+    try {
+      reply = await client.request(panelsChannel, panelsList);
+    } on Object catch (e) {
+      if (!isUnhandled(e, panelsChannel)) rethrow;
+      return const [];
+    }
     return [
       for (var panel in reply['panels'] as List? ?? const [])
         PanelDescriptor.fromJson((panel as Map).cast<String, Object?>()),
@@ -62,3 +77,9 @@ class RunPanels {
       KnobDescriptor.fromJson((knob as Map).cast<String, Object?>()),
   ];
 }
+
+/// Whether [error] is the app saying nothing is registered on [channel] — how
+/// `InspectorCore` answers a request to a panel that was never declared.
+bool isUnhandled(Object error, String channel) =>
+    error is InspectorRequestException &&
+    error.message.startsWith('no handler for $channel.');

@@ -3653,23 +3653,47 @@ class RunCore extends PluginCore {
               for (var panel in listed)
                 if (panel.id == only) panel,
             ];
-      if (only != null && chosen.isEmpty) {
-        throw RunRefusal(
-          'This app declares no panel "$only" — it has '
-          '${listed.isEmpty ? 'none' : listed.map((p) => p.id).join(', ')}.',
-        );
-      }
+      if (only != null && chosen.isEmpty) throw _noSuchPanel(only, listed);
       return RunPanelsResult(
         device: handle.device,
         entrypoint: handle.entrypoint,
         panels: [for (var panel in chosen) panel.toJson()],
         events: _feedEvents(client, chosen, limit),
-        note: listed.isEmpty
-            ? 'The app is reporting, but no plugin declared a panel. A devbar '
-                  'plugin joins by implementing `DevbarPanelSource`.'
-            : null,
+        note: listed.isEmpty ? _noPanelsDeclared : null,
       );
     });
+  }
+
+  static const _noPanelsDeclared =
+      'The app is reporting, but no plugin declared a panel. A devbar plugin '
+      'joins by implementing `DevbarPanelSource`.';
+
+  static RunRefusal _noSuchPanel(String id, List<PanelDescriptor> listed) =>
+      listed.isEmpty
+      ? RunRefusal(_noPanelsDeclared)
+      : RunRefusal(
+          'This app declares no panel "$id" — it has '
+          '${listed.map((p) => p.id).join(', ')}.',
+        );
+
+  /// [request] against panel [panelId], with a panel the app never declared
+  /// refused in words rather than as the channel's `no handler for …`.
+  ///
+  /// The list is read only once the request has failed, so asking a panel
+  /// that is there still costs one round trip.
+  Future<T> _onPanel<T>(
+    RunPanels panels,
+    String panelId,
+    Future<T> Function() request,
+  ) async {
+    try {
+      return await request();
+    } on Object catch (e) {
+      if (!isUnhandled(e, panelId)) rethrow;
+      var listed = await panels.list();
+      if (listed.any((panel) => panel.id == panelId)) rethrow;
+      throw _noSuchPanel(panelId, listed);
+    }
   }
 
   Future<RunPanelResult> _panelInvokeAction(
@@ -3683,7 +3707,11 @@ class RunCore extends PluginCore {
       args = {...args, 'event': _intArgument(event, 0)};
     }
     return _withPanels(handle, (client, panels) async {
-      var result = await panels.invoke(panelId, actionId, args);
+      var result = await _onPanel(
+        panels,
+        panelId,
+        () => panels.invoke(panelId, actionId, args),
+      );
       return RunPanelResult(
         device: handle.device,
         entrypoint: handle.entrypoint,
@@ -3701,7 +3729,11 @@ class RunCore extends PluginCore {
     var knob = _requiredArgument(arguments, 'knob');
     var raw = arguments['value'];
     return _withPanels(handle, (client, panels) async {
-      var knobs = await panels.setKnob(panelId, knob, _looseValue(raw));
+      var knobs = await _onPanel(
+        panels,
+        panelId,
+        () => panels.setKnob(panelId, knob, _looseValue(raw)),
+      );
       var after = knobs.where((k) => k.name == knob).firstOrNull;
       return RunPanelResult(
         device: handle.device,
@@ -3724,7 +3756,11 @@ class RunCore extends PluginCore {
     var panelId = _requiredArgument(arguments, 'panel');
     var stateId = _requiredArgument(arguments, 'state');
     return _withPanels(handle, (client, panels) async {
-      var snapshot = await panels.state(panelId, stateId);
+      var snapshot = await _onPanel(
+        panels,
+        panelId,
+        () => panels.state(panelId, stateId),
+      );
       return RunPanelResult(
         device: handle.device,
         entrypoint: handle.entrypoint,
