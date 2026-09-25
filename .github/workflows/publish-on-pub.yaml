@@ -15,7 +15,7 @@ name: Release
 #            on it — which includes installing from exactly what pub would
 #            upload, on the pin and on the newest stable
 #   pictures media/v<version>/, rendered from this tag
-#   publish  pub.dev, over OIDC
+#   publish  pub.dev, through dart-lang/setup-dart's publish workflow
 #   demo     github.com/flutterware/flutterware_example synced, and a fresh
 #            clone of it installed from pub.dev — what a stranger does first
 on:
@@ -106,68 +106,21 @@ jobs:
     uses: ./.github/workflows/media.yaml
     permissions:
       contents: write
+    with:
+      check: true
 
+  # The reusable workflow pub.dev's documentation points at: it exchanges the
+  # run's OIDC token for pub.dev's, installs the newest stable Flutter — the
+  # SDK pub.dev grades with, and the one *Install from the archive (stable)*
+  # builds on — and runs `pub get`, a dry run and `pub publish`. Nothing to
+  # store and nothing to rotate. An older version of it installed a bare Dart,
+  # which cannot resolve a package that depends on `flutter`; that is why this
+  # job was once written out by hand.
   publish:
-    name: Publish to pub.dev
     needs: pictures
-    runs-on: ubuntu-latest
-    # **The whole authentication story.** GitHub mints a short-lived OIDC token
-    # for this run, pub.dev checks its claims against the repository and tag
-    # pattern configured on the package, and that is the credential. There is
-    # nothing to store and nothing to rotate — the `OAUTH_ACCESS_TOKEN` and
-    # `OAUTH_REFRESH_TOKEN` secrets this workflow used to write into a
-    # `pub-credentials.json` are no longer read by anything and can be deleted.
     permissions:
       id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      # The pinned SDK, read from the same committed file every other job reads.
-      # `dart-lang/setup-dart`'s reusable publish workflow would do the OIDC
-      # exchange for us, but it publishes with a bare Dart SDK — and this
-      # package depends on `flutter` from the SDK, so resolution fails before
-      # publishing is even attempted. Hence a Flutter toolchain and the exchange
-      # written out below.
-      - name: Read the pinned Flutter version
-        id: pin
-        run: |
-          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
-          if [ -z "$version" ]; then echo "::error::.fvmrc names no Flutter version"; exit 1; fi
-          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ steps.pin.outputs.version }}
-          channel: ${{ steps.pin.outputs.channel }}
-      - run: flutter --version
-      - run: flutter pub get
-
-      # Every picture README.md and doc/ link to answers, as WebP, at the URL
-      # naming this version — asked of the CDN a reader's browser will ask.
-      - run: dart tool/media.dart check
-
-      # The exchange, in full. `--env-var` stores *the name of the variable* to
-      # read at request time rather than the token itself, so the secret never
-      # reaches `pub-tokens.json` on disk.
-      - name: Authenticate to pub.dev with a GitHub OIDC token
-        run: |
-          token="$(curl -sSf \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://pub.dev" \
-            | jq -r '.value')"
-          if [ -z "$token" ] || [ "$token" = "null" ]; then
-            echo "::error::no OIDC token — is 'id-token: write' still granted?"
-            exit 1
-          fi
-          echo "::add-mask::$token"
-          echo "PUB_TOKEN=$token" >> "$GITHUB_ENV"
-          dart pub token add https://pub.dev --env-var PUB_TOKEN
-
-      # `--force` skips the prompt, not the validation: the archive is still
-      # built and checked, and a package that fails validation is not published.
-      - run: flutter pub publish --force
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
 
   # What a stranger does first, done by the release instead: the demo repo is
   # brought up to this version, then cloned fresh and installed from pub.dev
