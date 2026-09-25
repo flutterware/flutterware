@@ -12,6 +12,8 @@ import '../run/handle.dart';
 import '../ui/action_button.dart';
 import '../ui/theme.dart';
 import 'app_guest.dart';
+import 'guest_launcher.dart';
+import 'guest_log.dart';
 import 'guest_process.dart';
 import 'platform/studio_platform.dart';
 
@@ -26,7 +28,9 @@ import 'platform/studio_platform.dart';
 /// takes the keyboard when it is clicked, as a window would.
 ///
 /// Every guest is announced to Run as the device `studio-<person>`, so the
-/// agent observes and drives inside it with the same tools as any app.
+/// agent observes and drives inside it with the same tools as any app — and
+/// the pane stands in for its `flutter run` ([GuestLauncher]), so Run's
+/// reload and restart reach it too.
 class WorldLabScreen extends StatefulWidget {
   const WorldLabScreen({
     super.key,
@@ -72,13 +76,15 @@ class WorldLabScreen extends StatefulWidget {
 }
 
 class _Person {
-  _Person(this.name, this.engine, this.platform);
+  _Person(this.name, this.engine, this.platform, this.log);
 
   final String name;
   final EmbeddedEngine engine;
   final StudioPlatform? platform;
+  final GuestLog log;
   final focus = FocusNode();
   RunHandle? handle;
+  GuestLauncher? launcher;
 }
 
 class _WorldLabScreenState extends State<WorldLabScreen> {
@@ -120,6 +126,7 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
         var platform = widget.studioAnswers
             ? StudioPlatform(person: name, home: home, package: build.package)
             : null;
+        var log = GuestLog(p.join(build.buildDir, 'logs', '$name.log'));
         var engine = EmbeddedEngine(
           appPackageRoot: widget.appRoot,
           flutterSdkRoot: widget.flutterSdkRoot,
@@ -144,10 +151,11 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
                   }
                   return platform.platform.answer(channel, bytes);
                 },
+          onOutput: log.line,
           name: 'world-$name',
         );
         platform?.platform.send = engine.sendPlatform;
-        _people.add(_Person(name, engine, platform));
+        _people.add(_Person(name, engine, platform, log));
       }
       _say('Starting ${_people.length} guests');
       if (!mounted) return;
@@ -180,8 +188,57 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
       vmService: await engine.vmServiceUri,
       packageRoot: _build!.package,
       entrypoint: widget.entrypoint,
+      log: person.log,
+    );
+    var launcher = person.launcher = await GuestLauncher.connect(
+      await engine.vmServiceUri,
+    );
+    await launcher.serve(reload: _reloadAll, restart: () => _restart(person));
+  }
+
+  /// Recompiles what changed and reloads every person's app from the one
+  /// delta — Run's reload, asked of any of them.
+  Future<void> _reloadAll() => _serial(_reloadEveryone);
+
+  Future<void> _reloadEveryone() async {
+    var watch = Stopwatch()..start();
+    var (changed, delta) = await _build!.recompile();
+    if (!delta.ok) throw StateError(delta.output.join('\n'));
+    await Future.wait([
+      for (var person in _people)
+        if (person.launcher case var launcher?)
+          launcher.reloadFrom(delta.dillOutput!),
+    ]);
+    _say(
+      'Reloaded ${_people.length} in ${watch.elapsedMilliseconds} ms, '
+      '$changed changed',
     );
   }
+
+  /// Starts [person]'s app again from scratch, the others untouched — but
+  /// brought to the same code first, since the whole program this compiles
+  /// is what every later delta builds on.
+  Future<void> _restart(_Person person) => _serial(() async {
+    var watch = Stopwatch()..start();
+    await _reloadEveryone();
+    var (_, whole) = await _build!.recompileWhole();
+    if (!whole.ok) throw StateError(whole.output.join('\n'));
+    await person.launcher!.restartFrom(
+      whole.dillOutput!,
+      assets: _build!.assetsDir,
+    );
+    _say('Restarted ${person.name} in ${watch.elapsedMilliseconds} ms');
+  });
+
+  /// One compile at a time: the compiler is shared, and a delta is only
+  /// right for guests that took every delta before it.
+  Future<void> _serial(Future<void> Function() edit) {
+    var next = _edits.then((_) => edit());
+    _edits = next.then((_) {}, onError: (Object _) {});
+    return next;
+  }
+
+  var _edits = Future<void>.value();
 
   Future<void> _running(EmbeddedEngine engine) {
     if (engine.phase != EmbeddedEnginePhase.building) return Future.value();
@@ -204,6 +261,7 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
   void dispose() {
     for (var person in _people) {
       person.handle?.delete();
+      unawaited(person.launcher?.dispose());
       person.engine.dispose();
       person.focus.dispose();
     }
@@ -404,6 +462,7 @@ class _PlatformPanelState extends State<_PlatformPanel> {
   final _link = TextEditingController();
   final _subscriptions = <StreamSubscription<Object?>>[];
   String? _said;
+  var _background = false;
 
   @override
   void initState() {
@@ -478,6 +537,21 @@ class _PlatformPanelState extends State<_PlatformPanel> {
             ],
           ),
           if (_said case var said?) Text(said, style: context.type.bodyMuted),
+          const SizedBox(height: FwSpacing.md),
+          Text('App', style: context.type.sectionLabel),
+          const SizedBox(height: FwSpacing.xs),
+          // What a phone does to an app it no longer shows, and what the
+          // canvas will do to a person drawn as a card: the framework stops
+          // asking for frames.
+          FwActionButton(
+            label: _background
+                ? 'Bring to the front'
+                : 'Send to the background',
+            onPressed: () async {
+              setState(() => _background = !_background);
+              platform.system.lifecycle(_background ? 'paused' : 'resumed');
+            },
+          ),
         ],
       ),
     );

@@ -56,6 +56,7 @@ class _HomeState extends State<_Home> {
   User? _user;
   var _orders = <Order>[];
   var _codeSent = false;
+  var _spinning = false;
   String? _error;
   String? _highlight;
   WebSocketChannel? _live;
@@ -263,6 +264,14 @@ class _HomeState extends State<_Home> {
             ],
           ),
         ],
+        // An animation that never ends, so a world can measure what one
+        // moving app costs beside still ones, and whether pausing it stops it.
+        SwitchListTile(
+          title: const Text('Spin'),
+          value: _spinning,
+          onChanged: (on) => setState(() => _spinning = on),
+          secondary: _spinning ? const CircularProgressIndicator() : null,
+        ),
       ],
     );
   }

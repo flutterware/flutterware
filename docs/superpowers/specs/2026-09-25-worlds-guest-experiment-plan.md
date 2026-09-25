@@ -8,7 +8,7 @@ device experiment*.)
 **Answer:** not known. This is the plan that finds out: five phases, two kill
 points early, a scorecard filled for every candidate, and three possible
 outcomes decided before anything is measured.
-**Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes for both apps; phase 2 passes, both kill points cleared; phase 3 passes — 35 lines a plugin on average, isolation per person without the app's help (`2026-09-25-worlds-guest-phase3-findings.md`). Phase 4 next.
+**Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes for both apps; phase 2 passes, both kill points cleared; phase 3 passes — 35 lines a plugin on average, isolation per person without the app's help (`2026-09-25-worlds-guest-phase3-findings.md`); phase 4 passes — 4 guests at rest in 949 MB at 0.4 % CPU, every Run tab working through the guest's registration alone, changing knobs the one gap (`2026-09-25-worlds-guest-phase4-findings.md`). Phase 5 next.
 
 ## What is actually in question
 

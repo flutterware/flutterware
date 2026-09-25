@@ -142,6 +142,14 @@ class AppGuestBuild {
     return (changed.length, await compiler.compile(changed));
   }
 
+  /// As [recompile], but the whole program — what a guest restarts from. The
+  /// deltas after it build on it, so whoever restarts one guest from it must
+  /// first have reloaded the others to where it starts.
+  Future<(int, CompileOutcome)> recompileWhole() {
+    _compiler!.reset();
+    return recompile();
+  }
+
   /// Leaves the shared half of this program for the next checkout, as the
   /// catalog and the tester do. Worth calling once the world is open, not
   /// before.

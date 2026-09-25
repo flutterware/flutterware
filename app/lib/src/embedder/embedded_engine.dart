@@ -34,6 +34,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
     this.workingDirectory,
     this.environment,
     this.platform,
+    this.onOutput,
     this.name = 'gui',
   });
 
@@ -75,6 +76,9 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
   /// a plugin's native half would have run on. Null bytes are "no
   /// implementation". Unset, every forwarded message is answered that way.
   final Future<Uint8List?> Function(String channel, Uint8List bytes)? platform;
+
+  /// Every line the guest prints, as it prints it.
+  final void Function(String line)? onOutput;
 
   /// Sends a message into the app on [channel] — an event channel's event, a
   /// lifecycle change — with no reply.
@@ -195,6 +199,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
           .listen((line) {
             debugPrint('[guest] $line');
             _rememberGuestOutput(line);
+            onOutput?.call(line);
             var match = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
             if (match != null && !_vmServiceUri.isCompleted) {
               _vmServiceUri.complete(match.group(1));
@@ -203,6 +208,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
       _guest!.stderr.transform(const SystemEncoding().decoder).listen((line) {
         debugPrint('[guest:err] $line');
         _rememberGuestOutput(line);
+        onOutput?.call(line);
       });
 
       // Accept the guest's connection, but don't hang forever if the guest

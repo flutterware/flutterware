@@ -9,9 +9,11 @@ import 'package:path/path.dart' as p;
 import '../embedder/protocol.dart';
 import '../embedder/raw_frame.dart';
 import '../run/handle.dart';
+import '../run/launch.dart';
 import '../utils/run_dir.dart';
 import '../utils/run_git.dart';
 import 'app_guest.dart';
+import 'guest_log.dart';
 
 /// One person's app in an embedded guest with nobody looking at it: the
 /// process, its control socket, and nothing drawn anywhere — for a tool or a
@@ -21,11 +23,14 @@ import 'app_guest.dart';
 /// [send] is the studio's half of the socket, so a probe that sends pointer and
 /// key messages exercises exactly the path a human's input takes.
 class GuestProcess {
-  GuestProcess._(this.person, this.process, this._socket);
+  GuestProcess._(this.person, this.process, this._socket, this.log);
 
   final String person;
   final Process process;
   final Socket _socket;
+
+  /// Its output as a `flutter run` log, for Run to read.
+  final GuestLog log;
 
   /// The guest's VM service, once it has printed it.
   final vmService = Completer<String>();
@@ -56,6 +61,7 @@ class GuestProcess {
     Future<Uint8List?> Function(String channel, Uint8List bytes)? platform,
     void Function(String line)? onOutput,
   }) async {
+    var log = GuestLog(p.join(build.buildDir, 'logs', '$person.log'));
     var home = Directory(build.homeOf(person));
     if (home.existsSync()) home.deleteSync(recursive: true);
     home.createSync(recursive: true);
@@ -83,7 +89,8 @@ class GuestProcess {
     // ignore: close_sinks
     var socket = await server.first;
     await server.close();
-    var guest = GuestProcess._(person, process, socket);
+    var guest = GuestProcess._(person, process, socket, log);
+    guest.output.listen(log.line);
     // From the first line: what a guest prints before its first frame — its
     // plugins answering at boot — is exactly what a late listener misses.
     if (onOutput != null) guest.output.listen(onOutput);
@@ -188,6 +195,7 @@ class GuestProcess {
     entrypoint: entrypoint,
     package: package,
     startedAt: drewAt,
+    log: log,
   );
 
   Future<void> shutdown() async {
@@ -209,8 +217,8 @@ class GuestProcess {
 /// Announces a guest to Run as an app on the device `studio-<person>`, so
 /// `act` and `observe` reach inside it like any app Run launched — which only
 /// needs its VM service, and the guest carries Run's drive extensions. Reload
-/// and restart stay Run's to refuse: they belong to a `flutter run`, and a
-/// guest has none. Delete the handle when the guest goes.
+/// and restart reach it only when its owner stands in for the `flutter run` it
+/// does not have — see `GuestLauncher`. Delete the handle when the guest goes.
 Future<RunHandle> announceGuest({
   required String person,
   required int pid,
@@ -219,9 +227,11 @@ Future<RunHandle> announceGuest({
   required String entrypoint,
   String? package,
   DateTime? startedAt,
+  GuestLog? log,
 }) async {
+  log?.started('guest-$person');
   var worktree = await _worktreeOf(packageRoot);
-  return RunHandle(
+  var handle = RunHandle(
     worktree: worktree.$1,
     worktreeName: worktree.$2,
     device: 'studio-${person.toLowerCase()}',
@@ -232,8 +242,13 @@ Future<RunHandle> announceGuest({
     launcherPid: pid,
     // As Run stores one: the websocket, where the guest prints the page.
     vmService: '${vmService.replaceFirst('http://', 'ws://')}ws',
+    logPath: log?.path,
     startedAt: startedAt ?? DateTime.now(),
   ).publish(flutterwareRunDir());
+  // As a launch does: a guest of the same person that died unannounced is
+  // old news once this one is up.
+  RunFailure.forget(flutterwareRunDir(), handle.key);
+  return handle;
 }
 
 /// The worktree a handle belongs to, as Run names it: its path, and `~` for
