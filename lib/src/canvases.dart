@@ -74,6 +74,9 @@ class PreviewCanvas {
   ///
   /// Empty is a complete declaration and means the plain rectangle, which is
   /// how one subtree opts out of a canvas its parent declared.
+  ///
+  /// Each one from [Devices]. A canvas crosses to the renderer as ids, so
+  /// `Previews` refuses a device the table does not have rather than lose it.
   final List<Device> devices;
 
   /// The orientations worth crossing [devices] with, head first, likewise.
