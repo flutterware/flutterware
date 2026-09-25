@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import '../embedder/flutter_cache.dart';
 import '../run/entrypoint_knobs.dart';
 import '../run/handle.dart';
+import '../session/job.dart';
 import 'app_guest.dart';
 import 'guest_launcher.dart';
 import 'guest_log.dart';
@@ -691,14 +692,10 @@ class WorldActionRun {
   final _ended = Completer<void>();
 }
 
-/// A world that cannot do what it was asked, in a sentence for whoever asked.
-class WorldRefusal implements Exception {
-  WorldRefusal(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
+/// A world that cannot do what it was asked, in a sentence for whoever asked
+/// — printed as it is, with no stack.
+class WorldRefusal extends ActionRefusal {
+  WorldRefusal(super.message);
 }
 
 /// What a person's guest starts from.

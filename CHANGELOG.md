@@ -8,4 +8,7 @@ with a command line and an MCP server over the same tools.
   [doc/](doc/README.md).
 - `dart run flutterware` opens the studio and creates `tool/flutterware.dart`,
   where you pick your tools.
+- Worlds, experimental and macOS only: several people on your own server,
+  each with their app in the studio, set up by a script
+  ([guide](doc/worlds.md)).
 - Needs Flutter 3.47.

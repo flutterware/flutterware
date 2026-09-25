@@ -30,6 +30,9 @@ class WorldsCore extends PluginCore {
   /// guest says otherwise — the studio's panel sets a live one.
   WorldGuest Function(String person) guests = (_) => HeadlessWorldGuest();
 
+  /// Why no world opens here — [worldsUnsupported] — shown on every world.
+  String? unsupported = worldsUnsupported();
+
   var _worlds = <WorldFile>[];
   OpenWorld? _open;
 
@@ -47,6 +50,7 @@ class WorldsCore extends PluginCore {
           ...declaredWorlds(
             config: config,
             packageRoot: host.workspace.absolutePathOf(path),
+            unsupported: unsupported,
           ),
     ];
     notifyChanged();
@@ -278,8 +282,9 @@ class WorldsCore extends PluginCore {
     if (file.problem case var problem?) throw WorldRefusal(problem);
     if (openElsewhere() case var other?) {
       throw WorldRefusal(
-        '${other.world} is open in another process (pid ${other.pid}) on '
-        'this worktree. Close it there first: its people hold their devices.',
+        '$other is open in another process on this worktree — the studio, '
+        '`fw` or the MCP server that opened it. Close it there first: its '
+        'people hold their devices.',
       );
     }
     var opened = _open = OpenWorld(
@@ -308,7 +313,10 @@ class WorldsCore extends PluginCore {
 
   /// A world another process opened on this worktree, as its people's Run
   /// handles say — whoever opened it owns it, so this one cannot.
-  ({String world, int pid})? openElsewhere() {
+  ///
+  /// The handles name the world but not its owner: each is announced by the
+  /// guest it describes, so the pid on it is one person's app.
+  String? openElsewhere() {
     var own = {
       for (var person in _open?.people.values ?? const <WorldPerson>[])
         ?person.guest?.pid,
@@ -318,7 +326,7 @@ class WorldsCore extends PluginCore {
           when handle.worktree == host.worktree.path &&
               !own.contains(handle.launcherPid) &&
               isProcessAlive(handle.launcherPid)) {
-        return (world: world, pid: handle.launcherPid);
+        return world;
       }
     }
     return null;
@@ -380,9 +388,9 @@ class WorldsCore extends PluginCore {
     if (_open case var open?) return open;
     if (openElsewhere() case var other?) {
       throw WorldRefusal(
-        '${other.world} is open in another process (pid ${other.pid}), which '
-        'owns it: its people are Run apps you can drive, but only that '
-        'process can restart or close it.',
+        '$other is open in another process — the studio, `fw` or the MCP '
+        'server that opened it — which owns it: its people are Run apps you '
+        'can drive, but only that process can restart or close it.',
       );
     }
     throw WorldRefusal('No world is open. `worlds open` opens one.');

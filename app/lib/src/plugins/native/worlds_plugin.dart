@@ -116,9 +116,9 @@ class _WorldList extends StatelessWidget {
               FwSpacing.lg,
             ),
             child: Text(
-              '${elsewhere.world} is open in another process (pid '
-              '${elsewhere.pid}), which owns it. Its people are Run apps, '
-              'in pictures; only that process can restart or close it.',
+              '$elsewhere is open in another process, which owns it — `fw` or '
+              'the MCP server. Its people are Run apps, in pictures; only '
+              'that process can restart or close it.',
               style: context.type.bodyMuted,
             ),
           ),

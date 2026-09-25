@@ -1,5 +1,9 @@
 /// Worlds: several people on your real server, set up by a script.
 ///
+/// **Experimental.** This library can change in any release while worlds are
+/// being built, and a world opens only on macOS for now. The guide is
+/// `doc/worlds.md` in flutterware's repository.
+///
 /// A world is one Dart file in the package that can start your server and
 /// seed it — for a Dart server, the server's own — declared in
 /// `tool/flutterware.dart` with `WorldScript(...)`. Opening it runs the file

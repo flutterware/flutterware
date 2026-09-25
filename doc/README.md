@@ -25,6 +25,7 @@ code. The guides link into it rather than repeat it.
 | [Server inspection](server_inspection.md) | Requests to your Dart server, the SQL each one ran, and N+1 warnings. |
 | [Database watch](database_watch.md) | Your app's SQLite database, readable while the app runs. |
 | [Dev stack](dev_stack.md) | Start, stop and watch the local services your app needs. |
+| [Worlds](worlds.md) | Several people on your real server, each with their own app, set up by a script. Experimental, macOS only. |
 
 ## The project
 

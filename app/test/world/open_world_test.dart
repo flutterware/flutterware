@@ -49,6 +49,24 @@ void main() {
       );
     });
 
+    test('off macOS each world says why it cannot open', () {
+      var [pickup, missing] = declaredWorlds(
+        config: {
+          'path': 'server',
+          'worlds': [
+            {'path': 'tool/worlds/pickup_order.dart'},
+            {'path': 'tool/worlds/team_invite.dart'},
+          ],
+        },
+        packageRoot: package.path,
+        unsupported: worldsUnsupported(macOS: false),
+      );
+      expect(pickup.problem, startsWith('Worlds open on macOS only'));
+      // The more specific reason wins.
+      expect(missing.problem, endsWith('does not exist.'));
+      expect(worldsUnsupported(macOS: true), isNull);
+    });
+
     test('a package that declares none has none', () {
       expect(
         declaredWorlds(config: {'path': 'x'}, packageRoot: package.path),
