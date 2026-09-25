@@ -33,6 +33,7 @@ const _declaredPlugins = [
   'flutterware.lints',
   'flutterware.dev_stack',
   'flutterware.run',
+  'flutterware.worlds',
   'flutterware.scenarios',
   'flutterware.translations',
 ];

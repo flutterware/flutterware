@@ -1,0 +1,282 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
+
+import '../embedder/protocol.dart';
+import '../embedder/raw_frame.dart';
+import '../run/handle.dart';
+import '../run/launch.dart';
+import '../utils/run_dir.dart';
+import '../utils/run_git.dart';
+import 'guest_log.dart';
+
+/// One person's app in an embedded guest with nobody looking at it: the
+/// process, its control socket, and nothing drawn anywhere — for a tool or a
+/// probe. The studio shows a guest through `EmbeddedEngine` instead, which
+/// bridges the same socket into a texture.
+///
+/// [send] is the studio's half of the socket, so a probe that sends pointer and
+/// key messages exercises exactly the path a human's input takes.
+class GuestProcess {
+  GuestProcess._(this.person, this.process, this._socket, this.log);
+
+  final String person;
+  final Process process;
+  final Socket _socket;
+
+  /// Its output as a `flutter run` log, for Run to read — when it keeps one.
+  final GuestLog? log;
+
+  /// The guest's VM service, once it has printed it.
+  final vmService = Completer<String>();
+
+  /// When the guest presented its first frame.
+  late final DateTime drewAt;
+
+  final _captured = <String, Completer<void>>{};
+  final _output = StreamController<String>.broadcast();
+  RunHandle? _handle;
+
+  /// Every line the guest prints from now on — its `print`, the engine's
+  /// log, and the host's `[platform]` notes. Pass `onOutput` to [start] for
+  /// the lines before its first frame.
+  Stream<String> get output => _output.stream;
+
+  /// Starts [person]'s guest over the kernel in [assetsDir] and answers once
+  /// it has drawn. [environment] is the world's — `guestEnvironment` — since
+  /// the world keeps each person's home and knobs.
+  static Future<GuestProcess> start({
+    required String person,
+    required String hostPath,
+    required String assetsDir,
+    required String icuData,
+    required String workingDirectory,
+    required Map<String, String> environment,
+    GuestLog? log,
+    (int, int, double) size = (1179, 2556, 3),
+    (double, double, double, double) insets = (0, 0, 0, 0),
+    Future<Uint8List?> Function(String channel, Uint8List bytes)? platform,
+    void Function(String line)? onOutput,
+  }) async {
+    var socketPath = checkSocketPath(
+      p.join(flutterwareRunDir(), 'world-$pid-$person.sock'),
+    );
+    if (File(socketPath).existsSync()) File(socketPath).deleteSync();
+    var server = await ServerSocket.bind(
+      InternetAddress(socketPath, type: InternetAddressType.unix),
+      0,
+    );
+    var (width, height, ratio) = size;
+    var process = await Process.start(
+      hostPath,
+      [assetsDir, icuData, socketPath, '$width', '$height'],
+      environment: environment,
+      workingDirectory: workingDirectory,
+    );
+    // Kept by the guest and closed by [shutdown].
+    // ignore: close_sinks
+    var socket = await server.first;
+    await server.close();
+    var guest = GuestProcess._(person, process, socket, log);
+    if (log != null) guest.output.listen(log.line);
+    // From the first line: what a guest prints before its first frame — its
+    // plugins answering at boot — is exactly what a late listener misses.
+    if (onOutput != null) guest.output.listen(onOutput);
+    guest.send(
+      ResizeMessage(
+        width: width,
+        height: height,
+        pixelRatio: ratio,
+        insetTop: insets.$1 * ratio,
+        insetRight: insets.$2 * ratio,
+        insetBottom: insets.$3 * ratio,
+        insetLeft: insets.$4 * ratio,
+      ),
+    );
+
+    var drew = Completer<void>();
+    var reader = FrameReader();
+    socket.listen((chunk) {
+      for (var message in reader.addBytes(chunk)) {
+        switch (message) {
+          case FrameReadyMessage() when !drew.isCompleted:
+            guest.drewAt = DateTime.now();
+            drew.complete();
+          case CapturedMessage(:var path):
+            guest._captured.remove(path)?.complete();
+          case GuestPlatformMessage(:var id, :var channel, :var bytes):
+            unawaited(
+              Future(() => platform?.call(channel, bytes))
+                  .catchError((Object e) {
+                    // Answered empty rather than not at all: a guest waiting
+                    // on a reply that never comes waits forever.
+                    guest._output.add('[studio] $channel failed: $e');
+                    return null;
+                  })
+                  .then((reply) {
+                    if (id != 0) {
+                      guest.send(
+                        PlatformReplyMessage(id, reply ?? Uint8List(0)),
+                      );
+                    }
+                  }),
+            );
+          case ErrorMessage(:var message):
+            guest._output.add('guest error: $message');
+          default:
+        }
+      }
+    });
+    String? lastError;
+    for (var stream in [process.stdout, process.stderr]) {
+      stream.transform(utf8.decoder).transform(const LineSplitter()).listen((
+        line,
+      ) {
+        guest._output.add(line);
+        if (line.contains('Unhandled Exception') ||
+            line.contains('MissingPluginException')) {
+          lastError = line.substring(line.indexOf(RegExp('Unhandled|Missing')));
+        }
+        var uri = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
+        if (uri != null && !guest.vmService.isCompleted) {
+          guest.vmService.complete(uri.group(1));
+        }
+      });
+    }
+    await drew.future.timeout(
+      const Duration(minutes: 1),
+      onTimeout: () => throw StateError(
+        'The app drew nothing within a minute'
+        '${lastError == null ? '.' : '. It last said: $lastError'}',
+      ),
+    );
+    return guest;
+  }
+
+  /// Sends one message down the control socket, as the studio would.
+  void send(EmbedderMessage message) => _socket.add(encodeMessage(message));
+
+  /// Sends a message into the app on [channel], as the platform would.
+  void sendPlatform(String channel, Uint8List bytes) =>
+      send(PlatformSendMessage(channel, bytes));
+
+  Future<void> capturePng(String png) async {
+    var raw = '$png.raw';
+    var done = _captured[raw] = Completer<void>();
+    send(CaptureMessage(raw));
+    await done.future.timeout(const Duration(seconds: 10));
+    File(png).writeAsBytesSync(
+      img.encodePng(decodeRawFrame(File(raw).readAsBytesSync())),
+    );
+    File(raw).deleteSync();
+  }
+
+  /// The physical footprint and resident size, as `footprint` and `ps` say.
+  Future<String> memory() async {
+    var footprint = await Process.run('footprint', ['${process.pid}']);
+    var line = LineSplitter.split('${footprint.stdout}')
+        .firstWhere((l) => l.contains('Footprint:'), orElse: () => '?');
+    var rss = await Process.run('ps', ['-o', 'rss=', '-p', '${process.pid}']);
+    var mb = (int.tryParse('${rss.stdout}'.trim()) ?? 0) ~/ 1024;
+    return '${line.trim()}, $mb MB resident';
+  }
+
+  /// Announces this guest to Run — see [announceGuest].
+  Future<RunHandle> announce({
+    required String packageRoot,
+    required String entrypoint,
+    String? package,
+  }) async => _handle = await announceGuest(
+    person: person,
+    pid: process.pid,
+    vmService: await vmService.future,
+    packageRoot: packageRoot,
+    entrypoint: entrypoint,
+    package: package,
+    startedAt: drewAt,
+    log: log,
+  );
+
+  Future<void> shutdown() async {
+    _handle?.delete();
+    send(const ShutdownMessage());
+    await _socket.flush();
+    await _socket.close();
+    await process.exitCode.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        process.kill();
+        return -1;
+      },
+    );
+    await _output.close();
+  }
+}
+
+/// Announces a guest to Run as an app on the device `studio-<person>`, so
+/// `act` and `observe` reach inside it like any app Run launched — which only
+/// needs its VM service, and the guest carries Run's drive extensions. Reload
+/// and restart reach it only when its owner stands in for the `flutter run` it
+/// does not have — see `GuestLauncher`. Delete the handle when the guest goes.
+Future<RunHandle> announceGuest({
+  required String person,
+  required int pid,
+  required String vmService,
+  required String packageRoot,
+  required String entrypoint,
+  String? package,
+  DateTime? startedAt,
+  GuestLog? log,
+  String? world,
+  Map<String, Object?> knobs = const {},
+}) async {
+  log?.started('guest-$person');
+  var worktree = await _worktreeOf(packageRoot);
+  var handle = RunHandle(
+    worktree: worktree.$1,
+    worktreeName: worktree.$2,
+    device: guestDeviceId(person),
+    deviceName: 'Studio · $person',
+    entrypoint: entrypoint,
+    entrypointName: person,
+    package: package,
+    launcherPid: pid,
+    // As Run stores one: the websocket, where the guest prints the page.
+    vmService: '${vmService.replaceFirst('http://', 'ws://')}ws',
+    logPath: log?.path,
+    world: world,
+    knobs: {
+      for (var MapEntry(:key, :value) in knobs.entries)
+        key: value is String ? value : jsonEncode(value),
+    },
+    startedAt: startedAt ?? DateTime.now(),
+  ).publish(flutterwareRunDir());
+  // As a launch does: a guest of the same person that died unannounced is
+  // old news once this one is up.
+  RunFailure.forget(flutterwareRunDir(), handle.key);
+  return handle;
+}
+
+/// The device a person's guest is to Run: `studio-ana`, `studio-ana-lopez`.
+String guestDeviceId(String person) =>
+    'studio-${person.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}';
+
+/// The worktree a handle belongs to, as Run names it: its path, and `~` for
+/// the main checkout or its git name for any other.
+Future<(String, String)> _worktreeOf(String directory) async {
+  var top = await runGit([
+    'rev-parse',
+    '--show-toplevel',
+  ], workingDirectory: directory);
+  var path = '${top.stdout}'.trim();
+  // A directory in the main checkout, a file in a linked worktree.
+  var dotGit = File(p.join(path, '.git'));
+  if (!dotGit.existsSync()) return (path, '~');
+  // `gitdir: <common>/worktrees/<name>`
+  var gitdir = dotGit.readAsStringSync().trim().replaceFirst('gitdir: ', '');
+  return (path, p.basename(gitdir));
+}

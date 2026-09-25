@@ -31,6 +31,7 @@ import '../plugins/native/splash_core.dart';
 import '../plugins/native/store_core.dart';
 import '../plugins/native/previews_core.dart';
 import '../plugins/native/translations_core.dart';
+import '../plugins/native/worlds_core.dart';
 import '../plugins/plugin_core.dart';
 import '../shell/workspace.dart';
 import '../shell/worktree.dart';
@@ -625,6 +626,7 @@ PluginCoreRegistry defaultCoreRegistry() => PluginCoreRegistry({
   devStackPluginId: devStackCoreFactory,
   translationsPluginId: translationsCoreFactory,
   lintsPluginId: lintsCoreFactory,
+  worldsPluginId: worldsCoreFactory,
 });
 
 class SessionException implements Exception {

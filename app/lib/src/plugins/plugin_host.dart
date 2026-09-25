@@ -20,6 +20,7 @@ class PluginHost {
     this.projectClock,
     this.catalogRoots = const {},
     this.projectNetwork,
+    this.peers = const {},
   });
 
   /// The declared id — also the registry key its implementation was found by.
@@ -81,6 +82,19 @@ class PluginHost {
     }
     return defaultCatalogRoot;
   }
+
+  /// Every plugin the project declared, by id, as its config — for a plugin
+  /// that works with what another declares. A world's people launch Run's
+  /// entry points, so worlds read Run's declaration rather than ask the
+  /// project to name them twice.
+  final Map<String, Map<String, Object?>> peers;
+
+  /// The `packages:` entries plugin [id] was declared with, as raw maps —
+  /// what [packageConfigs] is for this one.
+  List<Map<String, Object?>> packageConfigsOf(String id) => [
+    for (var entry in (peers[id]?['packages'] as List? ?? const []))
+      if (entry is Map) entry.cast<String, Object?>(),
+  ];
 
   /// Reads a string setting, or [fallback] when absent or the wrong type.
   String? string(String key, [String? fallback]) {

@@ -1,0 +1,34 @@
+name: world_lab_app
+description: The worlds lab's customer app — a pickup order, with the plugin profile of a real app.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0-0
+
+resolution: workspace
+
+# **The plugins are the point.** Each one is here because a real app has one
+# like it, and the guest experiment (docs/superpowers/specs/
+# 2026-09-25-worlds-guest-experiment-plan.md) asks what each costs off a real
+# platform. lib/src/plugin_check.dart touches every one at boot and reports
+# how it went, so a runner that cannot carry one says which.
+dependencies:
+  app_links:
+  flutter:
+    sdk: flutter
+  flutter_local_notifications: ^22.0.0
+  flutter_secure_storage:
+  http:
+  material_ui: ^1.4.0
+  package_info_plus:
+  path:
+  path_provider:
+  shared_preferences:
+  # A native library through build hooks, as a real local database brings.
+  sqlite3:
+  url_launcher:
+  web_socket_channel:
+
+flutter:
+  uses-material-design: true

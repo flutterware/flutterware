@@ -18,7 +18,10 @@ enum MessageType {
   keyEvent(7),
   shutdown(8),
   capture(9),
-  captured(10);
+  captured(10),
+  platformMessage(11),
+  platformReply(12),
+  platformSend(13);
 
   const MessageType(this.tag);
   final int tag;
@@ -70,6 +73,35 @@ class CapturedMessage extends EmbedderMessage {
   const CapturedMessage(this.path);
 
   final String path;
+}
+
+/// Guest to GUI: a platform message the app sent, forwarded because the guest
+/// was started with `FW_FORWARD_PLATFORM=1`. Answer it with a
+/// [PlatformReplyMessage] carrying the same [id] — an [id] of 0 wants none.
+class GuestPlatformMessage extends EmbedderMessage {
+  const GuestPlatformMessage(this.id, this.channel, this.bytes);
+
+  final int id;
+  final String channel;
+  final Uint8List bytes;
+}
+
+/// GUI to guest: the answer to [GuestPlatformMessage] [id]. Empty [bytes]
+/// is "no implementation", which the app reads as `MissingPluginException`.
+class PlatformReplyMessage extends EmbedderMessage {
+  const PlatformReplyMessage(this.id, this.bytes);
+
+  final int id;
+  final Uint8List bytes;
+}
+
+/// GUI to guest: a message into the app on [channel] — an event channel's
+/// event, a lifecycle change — with no reply.
+class PlatformSendMessage extends EmbedderMessage {
+  const PlatformSendMessage(this.channel, this.bytes);
+
+  final String channel;
+  final Uint8List bytes;
 }
 
 /// Guest to GUI: here is the ring, and here is how to find each slot in it.
@@ -313,6 +345,23 @@ Uint8List encodeMessage(EmbedderMessage message) {
     case CapturedMessage():
       body.addByte(MessageType.captured.tag);
       body.add(utf8.encode(message.path));
+    case GuestPlatformMessage():
+      body.addByte(MessageType.platformMessage.tag);
+      _u32(body, message.id);
+      var channel = utf8.encode(message.channel);
+      _u32(body, channel.length);
+      body.add(channel);
+      body.add(message.bytes);
+    case PlatformReplyMessage():
+      body.addByte(MessageType.platformReply.tag);
+      _u32(body, message.id);
+      body.add(message.bytes);
+    case PlatformSendMessage():
+      body.addByte(MessageType.platformSend.tag);
+      var channel = utf8.encode(message.channel);
+      _u32(body, channel.length);
+      body.add(channel);
+      body.add(message.bytes);
   }
   var bodyBytes = body.toBytes();
   var frame = BytesBuilder();
@@ -338,6 +387,24 @@ EmbedderMessage decodeMessageBody(Uint8List body) {
       return CaptureMessage(utf8.decode(body.sublist(1)));
     case MessageType.captured:
       return CapturedMessage(utf8.decode(body.sublist(1)));
+    case MessageType.platformMessage:
+      var channelLength = data.getUint32(4, Endian.little);
+      return GuestPlatformMessage(
+        data.getUint32(0, Endian.little),
+        utf8.decode(body.sublist(1 + 8, 1 + 8 + channelLength)),
+        Uint8List.fromList(body.sublist(1 + 8 + channelLength)),
+      );
+    case MessageType.platformReply:
+      return PlatformReplyMessage(
+        data.getUint32(0, Endian.little),
+        Uint8List.fromList(body.sublist(1 + 4)),
+      );
+    case MessageType.platformSend:
+      var channelLength = data.getUint32(0, Endian.little);
+      return PlatformSendMessage(
+        utf8.decode(body.sublist(1 + 4, 1 + 4 + channelLength)),
+        Uint8List.fromList(body.sublist(1 + 4 + channelLength)),
+      );
     case MessageType.surfacesAllocated:
       var generation = data.getUint32(0, Endian.little);
       var count = data.getUint32(4, Endian.little);

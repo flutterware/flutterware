@@ -14,6 +14,8 @@ const app = Pkg('app');
 const fixture = Pkg('fixtures/probe_app');
 const brewline = Pkg('examples/brewline');
 const webDemo = Pkg('web_demo');
+const worldLab = Pkg('fixtures/world_lab/app');
+const worldLabServer = Pkg('fixtures/world_lab/server');
 
 void main() => Flutterware.configure((fw) {
   // **What to surface first on the changes screen, for this repository.**
@@ -384,6 +386,57 @@ void main() => Flutterware.configure((fw) {
                   'The shop, with a plugin that pushes a notification into '
                   'it — the sample for driving an app from the cockpit, '
                   '`fw` or an agent',
+            ),
+          ],
+        ),
+        // The worlds lab's customer app — what the lab's worlds launch for
+        // each person, with their server, session and name as knobs. See
+        // `fixtures/world_lab/README.md`.
+        .new(
+          worldLab,
+          entrypoints: [
+            Entrypoint(
+              'lib/main.dart',
+              name: 'Lab',
+              description:
+                  'The pickup app, against the lab server on :8090 unless '
+                  'told otherwise',
+              knobs: [
+                Knob(
+                  'person',
+                  label: 'Person',
+                  description: 'Whose app this is, shown in its title',
+                ),
+                Knob(
+                  'session',
+                  label: 'Session',
+                  description:
+                      'A session token from the server, which signs the app '
+                      'in without a code',
+                ),
+                Knob('server', label: 'Server'),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+  // The lab's worlds, run in the lab server's package: they host the server
+  // and seed it through its own API.
+  fw.use(
+    Worlds(
+      packages: [
+        .new(
+          worldLabServer,
+          worlds: [
+            WorldScript(
+              'tool/worlds/pickup_order.dart',
+              name: 'Pickup order',
+              description:
+                  'A barista and a regular. Ana runs the counter, signed in; '
+                  'Leo has never used the app and signs up with a code by '
+                  "SMS, which is in the world's log",
             ),
           ],
         ),

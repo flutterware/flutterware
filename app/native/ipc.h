@@ -17,6 +17,11 @@ enum {
   kMsgShutdown = 8,
   kMsgCapture = 9,
   kMsgCaptured = 10,
+  // Forwarded platform traffic, when the guest was started with
+  // FW_FORWARD_PLATFORM=1 — see ForwardPlatformMessage in host.c.
+  kMsgPlatformMessage = 11,  // guest → GUI: [u32 id][u32 n][channel][bytes]
+  kMsgPlatformReply = 12,    // GUI → guest: [u32 id][bytes]
+  kMsgPlatformSend = 13,     // GUI → guest: [u32 n][channel][bytes]
 };
 
 // Connects to the GUI's Unix domain socket. Returns the fd, or -1 on failure.

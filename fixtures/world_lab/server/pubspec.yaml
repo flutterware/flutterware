@@ -1,0 +1,16 @@
+name: world_lab_server
+description: The worlds lab's server — a coffee shop's pickup orders, in memory.
+publish_to: none
+
+environment:
+  sdk: ^3.13.0-0
+
+resolution: workspace
+
+dependencies:
+  flutterware:
+    path: ../../..
+  logging:
+  shelf:
+  shelf_web_socket:
+  web_socket_channel:

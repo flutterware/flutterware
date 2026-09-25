@@ -32,6 +32,9 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
     required this.flutterSdkRoot,
     this.buildGuest,
     this.workingDirectory,
+    this.environment,
+    this.platform,
+    this.onOutput,
     this.name = 'gui',
   });
 
@@ -63,6 +66,28 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
   /// a built binary that is the `app/` directory, and nothing of the project
   /// is there.
   final String? workingDirectory;
+
+  /// Added to the guest process's environment — how a world hands one
+  /// person's app its knobs, its home and its locales without a build.
+  final Map<String, String>? environment;
+
+  /// Answers the platform messages a guest forwards — one started with
+  /// `FW_FORWARD_PLATFORM=1` in [environment] — standing in for the platform
+  /// a plugin's native half would have run on. Null bytes are "no
+  /// implementation". Unset, every forwarded message is answered that way.
+  final Future<Uint8List?> Function(String channel, Uint8List bytes)? platform;
+
+  /// Every line the guest prints, as it prints it.
+  final void Function(String line)? onOutput;
+
+  /// Sends a message into the app on [channel] — an event channel's event, a
+  /// lifecycle change — with no reply.
+  void sendPlatform(String channel, Uint8List bytes) =>
+      _send(PlatformSendMessage(channel, bytes));
+
+  /// The guest process, once it has started — what a handle announcing it to
+  /// Run names as its launcher.
+  int? get guestPid => _guest?.pid;
 
   static const _channel = MethodChannel('flutterware/embedder_texture');
 
@@ -165,6 +190,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
         build.hostPath,
         [build.assetsDir, build.icuData, socketPath, '$width', '$height'],
         workingDirectory: workingDirectory,
+        environment: environment,
         mode: ProcessStartMode.normal,
       );
       _guest!.stdout
@@ -173,6 +199,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
           .listen((line) {
             debugPrint('[guest] $line');
             _rememberGuestOutput(line);
+            onOutput?.call(line);
             var match = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
             if (match != null && !_vmServiceUri.isCompleted) {
               _vmServiceUri.complete(match.group(1));
@@ -181,6 +208,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
       _guest!.stderr.transform(const SystemEncoding().decoder).listen((line) {
         debugPrint('[guest:err] $line');
         _rememberGuestOutput(line);
+        onOutput?.call(line);
       });
 
       // Accept the guest's connection, but don't hang forever if the guest
@@ -285,13 +313,29 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
         _fail(message.message);
       case CapturedMessage():
         _capture.acknowledge(message);
+      case GuestPlatformMessage(:var id, :var channel, :var bytes):
+        // Not awaited: a handler that takes its time must not hold up the
+        // frames queued behind it.
+        unawaited(_answerPlatform(id, channel, bytes));
       case ResizeMessage():
       case PointerEventMessage():
       case KeyEventMessage():
       case ShutdownMessage():
       case CaptureMessage():
+      case PlatformReplyMessage():
+      case PlatformSendMessage():
         break; // GUI-to-guest messages; never received here.
     }
+  }
+
+  Future<void> _answerPlatform(int id, String channel, Uint8List bytes) async {
+    Uint8List? reply;
+    try {
+      reply = await platform?.call(channel, bytes);
+    } catch (e) {
+      debugPrint('[guest platform] $channel: $e');
+    }
+    if (id != 0) _send(PlatformReplyMessage(id, reply ?? Uint8List(0)));
   }
 
   Future<void> _onSurfaces(SurfacesAllocatedMessage message) async {

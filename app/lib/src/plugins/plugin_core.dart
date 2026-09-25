@@ -216,6 +216,10 @@ class PluginCoreRegistry {
     // Resolved once and handed to every plugin: the catalog is one compiler
     // per package, and a plugin that works out its own roots forks it.
     var catalogRoots = catalogRootsFrom(manifest);
+    var peers = {
+      for (var declaration in manifest.plugins)
+        declaration.id: declaration.config,
+    };
     return [
       for (var declaration in manifest.plugins)
         create(
@@ -228,6 +232,7 @@ class PluginCoreRegistry {
             projectClock: manifest.clock,
             projectNetwork: manifest.network,
             catalogRoots: catalogRoots,
+            peers: peers,
           ),
         ),
     ];

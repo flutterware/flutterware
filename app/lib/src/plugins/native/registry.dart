@@ -16,6 +16,7 @@ import 'splash_plugin.dart';
 import 'store_plugin.dart';
 import 'previews_plugin.dart';
 import 'translations_plugin.dart';
+import 'worlds_plugin.dart';
 
 /// The panels compiled into this GUI binary.
 ///
@@ -42,4 +43,5 @@ PluginRegistry buildNativeRegistry() => PluginRegistry({
   devStackPluginId: panelFor<DevStackCore>(DevStackPlugin.new),
   translationsPluginId: panelFor<TranslationsCore>(TranslationsPlugin.new),
   lintsPluginId: panelFor<LintsCore>(LintsPlugin.new),
+  worldsPluginId: panelFor<WorldsCore>(WorldsPlugin.new),
 });

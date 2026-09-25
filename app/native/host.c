@@ -7,6 +7,8 @@
 // into shared memory elsewhere — and it is confined to the two blocks marked
 // `__APPLE__` below plus `surface.m` / `surface_gl.c`. Everything else here —
 // the socket loop, resize, capture, window metrics, input — is written once.
+#include <fcntl.h>
+#include <poll.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -14,11 +16,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #ifndef __APPLE__
 #include <EGL/egl.h>
 #endif
 
+#include "clipboard.h"
 #include "flutter_embedder.h"
 #include "input.h"
 #include "ipc.h"
@@ -63,6 +67,243 @@ static bool g_free_vsync = false;
 static void OnVsyncRequest(void* user_data, intptr_t baton) {
   uint64_t now = FlutterEngineGetCurrentTime();
   FlutterEngineOnVsync(g_engine, baton, now, now + kFrameIntervalNanos);
+}
+
+// ── The platform thread ─────────────────────────────────────────────────────
+//
+// The engine runs platform work — every platform message, and the replies to
+// them — as tasks on the thread that called `FlutterEngineRun`, and it is the
+// embedder's job to run them. Without a custom runner the engine installs its
+// own message loop on this thread and waits for somebody to pump it; this
+// host's main thread spends its life in a socket read, so nobody did, and a
+// platform call from Dart was never answered at all. An app's first plugin call
+// hung it forever (`2026-07-26-s1-scenario-in-embedder-findings.md`).
+//
+// So the engine is handed a runner of ours: tasks go into a list ordered by
+// target time, a byte down a pipe wakes the main loop, and the main loop polls
+// the socket and the pipe together with a timeout of "until the next task is
+// due". Written on any engine thread, drained on the main thread only.
+
+typedef struct PlatformTask {
+  FlutterTask task;
+  uint64_t target_nanos;
+  struct PlatformTask* next;
+} PlatformTask;
+
+static pthread_mutex_t g_tasks_lock = PTHREAD_MUTEX_INITIALIZER;
+static PlatformTask* g_tasks = NULL;
+static int g_wake[2] = {-1, -1};
+static pthread_t g_platform_thread;
+
+static bool RunsOnPlatformThread(void* user_data) {
+  (void)user_data;
+  return pthread_equal(pthread_self(), g_platform_thread) != 0;
+}
+
+static void PostPlatformTask(FlutterTask task, uint64_t target_nanos,
+                             void* user_data) {
+  (void)user_data;
+  PlatformTask* entry = (PlatformTask*)malloc(sizeof(PlatformTask));
+  entry->task = task;
+  entry->target_nanos = target_nanos;
+  pthread_mutex_lock(&g_tasks_lock);
+  PlatformTask** at = &g_tasks;
+  while (*at && (*at)->target_nanos <= target_nanos) at = &(*at)->next;
+  entry->next = *at;
+  *at = entry;
+  pthread_mutex_unlock(&g_tasks_lock);
+  char byte = 1;
+  // A full pipe already means "wake up", so a short write is not an error.
+  ssize_t ignored = write(g_wake[1], &byte, 1);
+  (void)ignored;
+}
+
+// Runs every task that is due and answers how long, in milliseconds, until the
+// next one is: the timeout the main loop's poll waits for. -1 when nothing is
+// queued.
+static int RunDuePlatformTasks(void) {
+  for (;;) {
+    uint64_t now = FlutterEngineGetCurrentTime();
+    pthread_mutex_lock(&g_tasks_lock);
+    PlatformTask* due = NULL;
+    if (g_tasks && g_tasks->target_nanos <= now) {
+      due = g_tasks;
+      g_tasks = due->next;
+    }
+    uint64_t next = g_tasks ? g_tasks->target_nanos : 0;
+    bool any = g_tasks != NULL;
+    pthread_mutex_unlock(&g_tasks_lock);
+    if (due) {
+      // One at a time, and the list re-read after each: a task may post
+      // another that is due at once.
+      FlutterEngineRunTask(g_engine, &due->task);
+      free(due);
+      continue;
+    }
+    if (!any) return -1;
+    uint64_t wait_nanos = next > now ? next - now : 0;
+    // Rounded up, so a task due in 0.4ms is not polled for with 0 forever.
+    return (int)((wait_nanos + 999999) / 1000000);
+  }
+}
+
+// ── The studio as the platform ──────────────────────────────────────────────
+//
+// With FW_FORWARD_PLATFORM=1 every platform message the host does not answer
+// itself goes to the GUI instead, with an id; the GUI answers each by that id,
+// and can send messages of its own into the app. That is how a world's studio
+// stands in for the platform a plugin's native half would have run on — and
+// how it sees what the app asks for: a notification, a link, a cursor.
+//
+// Pending replies are a list, not a table: there are a handful in flight at
+// any time, and every one of them is answered by the GUI promptly, if only
+// with the empty "no implementation" reply.
+static bool g_forward_platform = false;
+static uint32_t g_next_platform_id = 1;
+
+typedef struct PendingReply {
+  uint32_t id;
+  const FlutterPlatformMessageResponseHandle* handle;
+  struct PendingReply* next;
+} PendingReply;
+static PendingReply* g_pending_replies = NULL;
+
+static void ForwardPlatformMessage(const FlutterPlatformMessage* message) {
+  uint32_t id = 0;
+  if (message->response_handle) {
+    id = g_next_platform_id++;
+    PendingReply* pending = (PendingReply*)malloc(sizeof(PendingReply));
+    pending->id = id;
+    pending->handle = message->response_handle;
+    pending->next = g_pending_replies;
+    g_pending_replies = pending;
+  }
+  uint32_t channel_length = (uint32_t)strlen(message->channel);
+  size_t length = 8 + channel_length + message->message_size;
+  uint8_t* payload = (uint8_t*)malloc(length);
+  memcpy(payload, &id, 4);
+  memcpy(payload + 4, &channel_length, 4);
+  memcpy(payload + 8, message->channel, channel_length);
+  if (message->message_size > 0) {
+    memcpy(payload + 8 + channel_length, message->message,
+           message->message_size);
+  }
+  ipc_send(g_socket, kMsgPlatformMessage, payload, length);
+  free(payload);
+}
+
+// The GUI's answer to message [id]: empty is "no implementation".
+static void ReplyToPlatformMessage(const uint8_t* payload, size_t length) {
+  if (length < 4) return;
+  uint32_t id;
+  memcpy(&id, payload, 4);
+  for (PendingReply** at = &g_pending_replies; *at; at = &(*at)->next) {
+    if ((*at)->id != id) continue;
+    PendingReply* pending = *at;
+    *at = pending->next;
+    FlutterEngineSendPlatformMessageResponse(
+        g_engine, pending->handle, length > 4 ? payload + 4 : NULL, length - 4);
+    free(pending);
+    return;
+  }
+}
+
+// A message from the GUI into the app, on a channel the app listens to — an
+// event channel's event, a lifecycle change. Sent without a reply.
+static void SendPlatformMessage(const uint8_t* payload, size_t length) {
+  if (length < 4) return;
+  uint32_t channel_length;
+  memcpy(&channel_length, payload, 4);
+  if (length < 4 + (size_t)channel_length) return;
+  char* channel = (char*)malloc(channel_length + 1);
+  memcpy(channel, payload + 4, channel_length);
+  channel[channel_length] = '\0';
+  FlutterPlatformMessage message = {0};
+  message.struct_size = sizeof(FlutterPlatformMessage);
+  message.channel = channel;
+  message.message = payload + 4 + channel_length;
+  message.message_size = length - 4 - channel_length;
+  FlutterEngineSendPlatformMessage(g_engine, &message);
+  free(channel);
+}
+
+// Every platform message the app sends, answered empty — but for the
+// clipboard's, see clipboard.h — which Dart reads as "no implementation" and
+// throws `MissingPluginException` for, the way a test or a real app with an
+// unregistered plugin does. A plugin the app has not replaced with a fake now
+// fails loudly and at once instead of hanging.
+//
+// Each channel is named on stdout the first time it is used, so a run says
+// which parts of the platform an app reached for.
+#define MAX_SEEN_CHANNELS 128
+static char* g_seen_channels[MAX_SEEN_CHANNELS];
+static int g_seen_count = 0;
+
+static void OnPlatformMessage(const FlutterPlatformMessage* message,
+                              void* user_data) {
+  (void)user_data;
+  uint8_t* reply = NULL;
+  size_t reply_length = 0;
+  if (strcmp(message->channel, "flutter/platform") == 0 &&
+      clipboard_answer(message->message, message->message_size, &reply,
+                       &reply_length)) {
+    if (message->response_handle) {
+      FlutterEngineSendPlatformMessageResponse(
+          g_engine, message->response_handle, reply, reply_length);
+    }
+    free(reply);
+    return;
+  }
+  bool seen = false;
+  for (int i = 0; i < g_seen_count; i++) {
+    if (strcmp(g_seen_channels[i], message->channel) == 0) {
+      seen = true;
+      break;
+    }
+  }
+  if (!seen && !g_forward_platform && g_seen_count < MAX_SEEN_CHANNELS) {
+    g_seen_channels[g_seen_count++] = strdup(message->channel);
+    printf("[platform] unanswered: %s\n", message->channel);
+    fflush(stdout);
+  }
+  if (g_forward_platform) {
+    ForwardPlatformMessage(message);
+    return;
+  }
+  if (message->response_handle) {
+    FlutterEngineSendPlatformMessageResponse(g_engine, message->response_handle,
+                                             NULL, 0);
+  }
+}
+
+// Tells the engine which locales the "device" prefers: `FW_GUEST_LOCALES`,
+// comma-separated (`en-US,fr-FR`), else `en-US`.
+//
+// An embedder that says nothing leaves the app with the undetermined locale
+// `und`, and an app that resolves its localizations from the platform then
+// finds none: a real app's first frame was the red error screen, a failed cast
+// to `WidgetsLocalizations`. Previews never noticed, because the catalog host
+// supplies its own localizations. Written once, at start; nothing changes it.
+static void SendLocales(void) {
+  const char* configured = getenv("FW_GUEST_LOCALES");
+  char* list = strdup(configured && configured[0] ? configured : "en-US");
+  FlutterLocale storage[16];
+  const FlutterLocale* locales[16];
+  size_t count = 0;
+  for (char* tag = strtok(list, ","); tag && count < 16;
+       tag = strtok(NULL, ",")) {
+    char* separator = strpbrk(tag, "-_");
+    if (separator) *separator = '\0';
+    storage[count] = (FlutterLocale){
+        .struct_size = sizeof(FlutterLocale),
+        .language_code = tag,
+        .country_code = separator ? separator + 1 : NULL,
+    };
+    locales[count] = &storage[count];
+    count++;
+  }
+  FlutterEngineUpdateLocales(g_engine, locales, count);
+  free(list);
 }
 
 // Receives engine log output, including Dart print(). Kept on stdout so the
@@ -358,12 +599,35 @@ int main(int argc, char** argv) {
   renderer.open_gl.gl_proc_resolver = GlProcResolver;
 #endif
 
+  if (pipe(g_wake) != 0) {
+    const char* msg = "wake pipe failed";
+    ipc_send(g_socket, kMsgError, (const uint8_t*)msg, strlen(msg));
+    return 1;
+  }
+  // Both ends non-blocking: a poster must never wait on a full pipe, and the
+  // drain must stop when it is empty.
+  fcntl(g_wake[0], F_SETFL, O_NONBLOCK);
+  fcntl(g_wake[1], F_SETFL, O_NONBLOCK);
+  g_platform_thread = pthread_self();
+  const char* forward = getenv("FW_FORWARD_PLATFORM");
+  g_forward_platform = forward != NULL && strcmp(forward, "1") == 0;
+  FlutterTaskRunnerDescription platform_runner = {0};
+  platform_runner.struct_size = sizeof(FlutterTaskRunnerDescription);
+  platform_runner.runs_task_on_current_thread_callback = RunsOnPlatformThread;
+  platform_runner.post_task_callback = PostPlatformTask;
+  platform_runner.identifier = 1;
+  FlutterCustomTaskRunners task_runners = {0};
+  task_runners.struct_size = sizeof(FlutterCustomTaskRunners);
+  task_runners.platform_task_runner = &platform_runner;
+
   FlutterProjectArgs args = {0};
   args.struct_size = sizeof(FlutterProjectArgs);
   args.assets_path = assets_path;
   args.icu_data_path = icu_data_path;
   args.log_message_callback = OnLogMessage;
   args.log_tag = "embedder";
+  args.custom_task_runners = &task_runners;
+  args.platform_message_callback = OnPlatformMessage;
   if (g_free_vsync) args.vsync_callback = OnVsyncRequest;
 
   // Impeller, unless the escape hatch says otherwise. Two reasons it is not
@@ -405,13 +669,28 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  SendLocales();
   ipc_send(g_socket, kMsgReady, NULL, 0);
   SendSurfacesAllocated();
   const double no_insets[4] = {0, 0, 0, 0};
   SendWindowMetrics(width, height, g_pixel_ratio, no_insets);
 
-  // Socket read loop on the main thread.
+  // The main thread's loop: platform tasks when they are due, a socket message
+  // when one arrives, and a wake-up whenever an engine thread posts a task.
   for (;;) {
+    int timeout_ms = RunDuePlatformTasks();
+    struct pollfd fds[2] = {
+        {.fd = g_socket, .events = POLLIN},
+        {.fd = g_wake[0], .events = POLLIN},
+    };
+    if (poll(fds, 2, timeout_ms) < 0) continue;  // EINTR: go round again.
+    if (fds[1].revents & POLLIN) {
+      char drain[64];
+      ssize_t ignored = read(g_wake[0], drain, sizeof(drain));
+      (void)ignored;
+    }
+    if (!(fds[0].revents & (POLLIN | POLLHUP | POLLERR))) continue;
+
     uint8_t* payload = NULL;
     size_t len = 0;
     int type = ipc_read(g_socket, &payload, &len);
@@ -446,6 +725,10 @@ int main(int argc, char** argv) {
       g_capture_path = path;
       pthread_mutex_unlock(&g_capture_lock);
       FlutterEngineScheduleFrame(g_engine);
+    } else if (type == kMsgPlatformReply) {
+      ReplyToPlatformMessage(payload, len);
+    } else if (type == kMsgPlatformSend) {
+      SendPlatformMessage(payload, len);
     } else if (type == kMsgShutdown) {
       free(payload);
       break;

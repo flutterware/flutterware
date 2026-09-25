@@ -20,18 +20,21 @@ if(NOT FLUTTER_ENGINE_DIR)
 endif()
 
 if(APPLE)
-  add_executable(host host.c surface.m ipc.c input.c)
-  # surface.m is Objective-C and uses ARC for its Metal object lifetimes.
-  set_source_files_properties(surface.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+  add_executable(host host.c surface.m clipboard.m ipc.c input.c)
+  # The Objective-C files use ARC: surface.m for its Metal object lifetimes,
+  # clipboard.m for the pasteboard's.
+  set_source_files_properties(surface.m clipboard.m
+    PROPERTIES COMPILE_FLAGS "-fobjc-arc")
   target_link_options(host PRIVATE "-F${FLUTTER_ENGINE_DIR}")
   target_link_libraries(host PRIVATE
     "-framework FlutterEmbedder"
     "-framework IOSurface"
     "-framework CoreFoundation"
     "-framework Foundation"
+    "-framework AppKit"
     "-framework Metal")
 else()
-  add_executable(host host.c surface_gl.c ipc.c input.c)
+  add_executable(host host.c surface_gl.c clipboard_none.c ipc.c input.c)
   # The engine ships as a plain shared object next to its header, so the engine
   # directory is both an include path and a link path.
   target_link_directories(host PRIVATE "${FLUTTER_ENGINE_DIR}")

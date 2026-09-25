@@ -71,6 +71,9 @@ List<String> get shapeSources => [
   // script reads `run.json` through it), and its hand-written `toJson`s are
   // what the `run` action's shape is read from.
   '../lib/src/scenarios/report.dart',
+  // Same reason: the worlds results write their own `toJson`, keyed by what
+  // an agent reads rather than by the fields of the world they describe.
+  'lib/src/plugins/native/worlds_results.dart',
 ];
 
 /// Relative to the `app/` package, which is where the generator and both tests
