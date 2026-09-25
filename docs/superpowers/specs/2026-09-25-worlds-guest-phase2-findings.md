@@ -3,13 +3,13 @@
 **Date:** 2026-09-25
 **Plan:** `2026-09-25-worlds-guest-experiment-plan.md`, phase 2. Before it:
 `2026-09-25-worlds-guest-phase1-findings.md`.
-**Result:** everything the agent can reach passes — from the studio, into
-either of two guests: clicking, selecting by dragging, the wheel, typing,
-editing keys, Tab, ⌘A/⌘C/⌘V, and the keyboard going to whichever guest was
-clicked; the clipboard crosses between a guest and the Mac both ways. Two
-rows are left for a person at a real keyboard and trackpad: dead keys, which
-only the Mac's own key translation produces, and the trackpad. **The kill
-point stands on those two.**
+**Result:** phase 2 passes — the second kill point is cleared. Every row of
+the checklist works from the studio into either of two guests: clicking,
+selecting by dragging, the wheel and the trackpad, typing, dead keys, editing
+keys, Tab, ⌘A/⌘C/⌘V, and the keyboard going to whichever guest was clicked;
+the clipboard crosses between a guest and the Mac both ways. The owner
+checked dead keys and the trackpad by hand, the two rows only a real
+keyboard and trackpad exercise.
 
 The first run of the key rows failed, and the cause was this experiment's
 own host, not an old bug (finding 1).
@@ -46,12 +46,12 @@ own key translation, which dead keys need, is outside it.
 | | inside the guest | through the studio |
 |---|---|---|
 | type an email address | — | **works** — characters and editing keys; ⌘A and Backspace clear the field first |
-| type é and ü through dead keys | — | **by hand**: only a real keyboard goes through the Mac's key translation |
+| type é and ü through dead keys | — | **works**, checked by hand: only a real keyboard goes through the Mac's key translation |
 | paste a code with ⌘V | **works** — the Mac's clipboard lands in the field | **works** |
 | copy text out | **works** — ⌘C reaches the Mac's clipboard | **works**, by the same shortcut |
 | select text with the mouse | — | **works** — a drag selected `na@exa`, and ⌘C copied exactly that |
 | scroll with a wheel | — | **works** |
-| scroll with a trackpad | — | **by hand**: drive has no trackpad verb |
+| scroll with a trackpad | — | **works**, checked by hand: drive has no trackpad verb |
 | move between fields with Tab | — | **works** — focus moved to the next control in the app's traversal order, and Enter activated it |
 | two guests side by side | — | **works** — clicks land in the guest clicked, at the point clicked, and typing goes to that guest only |
 | the app's shortcuts reach the app | ⌘A, ⌘C, ⌘V work | **work**. The pane reserves no chord, by design; a studio with shortcuts of its own has to keep the list to those it binds |
@@ -107,8 +107,6 @@ disposed; a killed studio is never disposed.
 
 ## Open
 
-- **Dead keys and the trackpad, by hand** — open *World lab (dev)*, click a
-  phone's field, type `⌥e` then `e`, and scroll with two fingers.
 - The cursor (finding 3), with phase 3.
 - The `flutter/keyboard` exception in `host.c`, once the guest keyboard's own
   fix is on master (finding 1).
