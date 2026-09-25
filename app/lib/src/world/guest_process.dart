@@ -79,7 +79,7 @@ class GuestProcess {
       [build.assetsDir, build.cache.icuData, socketPath, '$width', '$height'],
       environment: guestEnvironment(
         home: home.path,
-        knobs: knobs,
+        knobsFile: build.writeKnobs(person, knobs),
         locales: locales,
         forward: platform != null,
       ),

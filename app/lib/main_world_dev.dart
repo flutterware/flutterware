@@ -1,9 +1,8 @@
-import 'dart:convert';
-
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 
 import 'src/ui/theme.dart';
+import 'src/world/app_guest.dart';
 import 'src/world/world_lab_screen.dart';
 
 /// Dev entry point: a world's people side by side in embedded guests — the
@@ -52,23 +51,10 @@ void main({
                 for (var spec in people.split('|'))
                   (
                     spec.split(';').first,
-                    {
-                      for (var knob in spec.split(';').skip(1))
-                        knob.substring(0, knob.indexOf('=')): _value(
-                          knob.substring(knob.indexOf('=') + 1),
-                        ),
-                    },
+                    parseKnobs(spec.split(';').skip(1).join(';')),
                   ),
               ],
             ),
     ),
   );
-}
-
-Object? _value(String text) {
-  try {
-    return jsonDecode(text);
-  } on FormatException {
-    return text;
-  }
 }

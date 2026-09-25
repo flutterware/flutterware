@@ -5,10 +5,12 @@
 studio's embedded guest — live on the canvas, no native build — rather than in
 a macOS window, a simulator or a phone? (`2026-09-25-worlds-design.md`, *The
 device experiment*.)
-**Answer:** not known. This is the plan that finds out: five phases, two kill
-points early, a scorecard filled for every candidate, and three possible
-outcomes decided before anything is measured.
-**Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes for both apps; phase 2 passes, both kill points cleared; phase 3 passes — 35 lines a plugin on average, isolation per person without the app's help (`2026-09-25-worlds-guest-phase3-findings.md`); phase 4 passes — 4 guests at rest in 949 MB at 0.4 % CPU, every Run tab working through the guest's registration alone, changing knobs the one gap (`2026-09-25-worlds-guest-phase4-findings.md`). Phase 5 next.
+**Answer:** **go** — the guest, with the studio answering the platform, is
+the default for every person whose app it can carry
+(`2026-09-25-worlds-guest-phase5-decision.md`). This is the plan that found
+out: five phases, two kill points early, a scorecard filled for every
+candidate, and three possible outcomes decided before anything was measured.
+**Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes for both apps; phase 2 passes, both kill points cleared; phase 3 passes — 35 lines a plugin on average, isolation per person without the app's help (`2026-09-25-worlds-guest-phase3-findings.md`); phase 4 passes — 4 guests at rest in 949 MB at 0.4 % CPU, every Run tab working through the guest's registration alone, changing knobs the one gap (`2026-09-25-worlds-guest-phase4-findings.md`); phase 5 decided **go** on the rule below — every phase passed, and a cold two-person world opens 2.8× faster than macOS windows at the slowest measure (`2026-09-25-worlds-guest-phase5-decision.md`).
 
 ## What is actually in question
 
@@ -177,6 +179,9 @@ Fill the scorecard; pick the outcome by the rule below; write the findings
 next to this plan; amend the design — the default device, and the slices.
 
 ## The scorecard
+
+Filled in `2026-09-25-worlds-guest-phase5-decision.md`; the empty form stays
+here as it was set.
 
 | | 1 · guest, fakes | 2 · guest, studio answers | 4 · macOS window | 5 · simulator |
 |---|---|---|---|---|

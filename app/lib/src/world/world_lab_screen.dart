@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
@@ -76,9 +77,12 @@ class WorldLabScreen extends StatefulWidget {
 }
 
 class _Person {
-  _Person(this.name, this.engine, this.platform, this.log);
+  _Person(this.name, this.engine, this.platform, this.log, this.knobs);
 
   final String name;
+
+  /// What their app was last started with.
+  Map<String, Object?> knobs;
   final EmbeddedEngine engine;
   final StudioPlatform? platform;
   final GuestLog log;
@@ -138,7 +142,7 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
           workingDirectory: build.package,
           environment: guestEnvironment(
             home: home.path,
-            knobs: knobs,
+            knobsFile: build.writeKnobs(name, knobs),
             forward: platform != null,
           ),
           platform: platform == null
@@ -155,7 +159,7 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
           name: 'world-$name',
         );
         platform?.platform.send = engine.sendPlatform;
-        _people.add(_Person(name, engine, platform, log));
+        _people.add(_Person(name, engine, platform, log, knobs));
       }
       _say('Starting ${_people.length} guests');
       if (!mounted) return;
@@ -215,20 +219,25 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
     );
   }
 
-  /// Starts [person]'s app again from scratch, the others untouched — but
-  /// brought to the same code first, since the whole program this compiles
-  /// is what every later delta builds on.
-  Future<void> _restart(_Person person) => _serial(() async {
-    var watch = Stopwatch()..start();
-    await _reloadEveryone();
-    var (_, whole) = await _build!.recompileWhole();
-    if (!whole.ok) throw StateError(whole.output.join('\n'));
-    await person.launcher!.restartFrom(
-      whole.dillOutput!,
-      assets: _build!.assetsDir,
-    );
-    _say('Restarted ${person.name} in ${watch.elapsedMilliseconds} ms');
-  });
+  /// Starts [person]'s app again from scratch, with [knobs] when given, the
+  /// others untouched — but brought to the same code first, since the whole
+  /// program this compiles is what every later delta builds on.
+  Future<void> _restart(_Person person, {Map<String, Object?>? knobs}) =>
+      _serial(() async {
+        var watch = Stopwatch()..start();
+        if (knobs != null) {
+          _build!.writeKnobs(person.name, knobs);
+          person.knobs = knobs;
+        }
+        await _reloadEveryone();
+        var (_, whole) = await _build!.recompileWhole();
+        if (!whole.ok) throw StateError(whole.output.join('\n'));
+        await person.launcher!.restartFrom(
+          whole.dillOutput!,
+          assets: _build!.assetsDir,
+        );
+        _say('Restarted ${person.name} in ${watch.elapsedMilliseconds} ms');
+      });
 
   /// One compile at a time: the compiler is shared, and a delta is only
   /// right for guests that took every delta before it.
@@ -306,6 +315,9 @@ class _WorldLabScreenState extends State<WorldLabScreen> {
                               child: _PlatformPanel(
                                 person: person.name,
                                 platform: platform,
+                                knobs: person.knobs,
+                                onRestart: (knobs) =>
+                                    _restart(person, knobs: knobs),
                                 width: 220,
                               ),
                             ),
@@ -447,11 +459,18 @@ class _PlatformPanel extends StatefulWidget {
   const _PlatformPanel({
     required this.person,
     required this.platform,
+    required this.knobs,
+    required this.onRestart,
     required this.width,
   });
 
   final String person;
   final StudioPlatform platform;
+
+  /// What the app was started with, and a restart with other values — what a
+  /// world restart does to every person.
+  final Map<String, Object?> knobs;
+  final Future<void> Function(Map<String, Object?> knobs) onRestart;
   final double width;
 
   @override
@@ -460,6 +479,12 @@ class _PlatformPanel extends StatefulWidget {
 
 class _PlatformPanelState extends State<_PlatformPanel> {
   final _link = TextEditingController();
+  late final _knobs = TextEditingController(
+    text: [
+      for (var MapEntry(:key, :value) in widget.knobs.entries)
+        '$key=${value is String ? value : jsonEncode(value)}',
+    ].join(';'),
+  );
   final _subscriptions = <StreamSubscription<Object?>>[];
   String? _said;
   var _background = false;
@@ -479,6 +504,7 @@ class _PlatformPanelState extends State<_PlatformPanel> {
       unawaited(subscription.cancel());
     }
     _link.dispose();
+    _knobs.dispose();
     super.dispose();
   }
 
@@ -551,6 +577,13 @@ class _PlatformPanelState extends State<_PlatformPanel> {
               setState(() => _background = !_background);
               platform.system.lifecycle(_background ? 'paused' : 'resumed');
             },
+          ),
+          const SizedBox(height: FwSpacing.sm),
+          TextField(controller: _knobs, style: context.type.mono),
+          const SizedBox(height: FwSpacing.sm),
+          FwActionButton(
+            label: 'Restart with these knobs',
+            onPressed: () => widget.onRestart(parseKnobs(_knobs.text)),
           ),
         ],
       ),

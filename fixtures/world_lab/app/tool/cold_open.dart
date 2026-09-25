@@ -10,7 +10,7 @@
 /// ```sh
 /// fvm dart fixtures/world_lab/app/tool/cold_open.dart <worktree> macos
 /// fvm dart fixtures/world_lab/app/tool/cold_open.dart <worktree> simulator <udid> <udid>
-/// fvm dart fixtures/world_lab/app/tool/cold_open.dart <worktree> guest [seeds | <seed.dill>]
+/// fvm dart fixtures/world_lab/app/tool/cold_open.dart <worktree> guest [seeds | <seed.dill>] [--studio-answers]
 /// ```
 ///
 /// `guest` stands this checkout's `app/tool/embedder/run_app.dart` in for the
@@ -19,7 +19,9 @@
 /// does. `seeds` uses the studio's machine-level seed store — the half of the
 /// program under the SDK and the pub cache, left by any checkout that compiled
 /// it before (`app/lib/src/embedder/seed_kernel.dart`); a path is a kernel to
-/// start from instead.
+/// start from instead. `--studio-answers` is candidate 2: the plugins' own
+/// Dart halves, their platform answered by the harness, instead of the lab's
+/// fakes.
 ///
 /// The worktree is prepared by the caller (`git worktree add`), because
 /// checking out is not part of opening a world. The machine is warm — the pub
@@ -45,7 +47,8 @@ Future<void> main(List<String> args) async {
     stderr.writeln(
       'usage: cold_open.dart <worktree> macos\n'
       '       cold_open.dart <worktree> simulator <udid> <udid>\n'
-      '       cold_open.dart <worktree> guest [seeds | <seed.dill>]',
+      '       cold_open.dart <worktree> guest [seeds | <seed.dill>] '
+      '[--studio-answers]',
     );
     exitCode = 64;
     return;
@@ -58,7 +61,8 @@ Future<void> main(List<String> args) async {
     exitCode = 1;
     return;
   }
-  var devices = args.skip(2).toList();
+  var answers = args.contains('--studio-answers');
+  var devices = args.skip(2).where((a) => a != '--studio-answers').toList();
   if (args[1] == 'simulator') await _prepareSimulators(devices);
 
   _start = DateTime.now();
@@ -66,7 +70,11 @@ Future<void> main(List<String> args) async {
   await _step('resolve', () => _run(_flutter, ['pub', 'get'], worktree));
   List<DateTime> frames;
   if (args[1] == 'guest') {
-    frames = await _guests(app, seed: args.length > 2 ? args[2] : null);
+    frames = await _guests(
+      app,
+      seed: devices.firstOrNull,
+      studioAnswers: answers,
+    );
   } else if (args[1] == 'macos') {
     await _step(
       'build',
@@ -118,7 +126,8 @@ Future<void> main(List<String> args) async {
   var last = frames.reduce((a, b) => a.isAfter(b) ? a : b);
   stdout.writeln(
     'world open: ${_seconds(last.difference(_start))} '
-    '(${args[1]}, cold worktree, warm machine)',
+    '(${args[1]}${answers ? ', studio answers' : ''}, cold worktree, '
+    'warm machine)',
   );
   for (var process in _started) {
     process.kill();
@@ -128,7 +137,11 @@ Future<void> main(List<String> args) async {
 /// Both people in embedded guests, by this checkout's harness, answering the
 /// moment each guest drew — measured on the harness's clock, which starts when
 /// the worktree's work does, and placed on this script's.
-Future<List<DateTime>> _guests(String app, {String? seed}) async {
+Future<List<DateTime>> _guests(
+  String app, {
+  String? seed,
+  bool studioAnswers = false,
+}) async {
   var checkout = File.fromUri(Platform.script)
       .parent
       .parent
@@ -140,8 +153,12 @@ Future<List<DateTime>> _guests(String app, {String? seed}) async {
     'tool/embedder/run_app.dart',
     '--package',
     app,
-    '--fakes',
-    '$app/guest/fakes.dart',
+    if (studioAnswers)
+      '--studio-answers'
+    else ...[
+      '--fakes',
+      '$app/guest/fakes.dart',
+    ],
     '--person',
     'Ana;person=Ana',
     '--person',

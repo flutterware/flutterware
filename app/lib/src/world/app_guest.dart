@@ -17,10 +17,11 @@ import 'plugin_registrant.dart';
 /// person in a world. The worlds guest experiment
 /// (`docs/superpowers/specs/2026-09-25-worlds-guest-experiment-plan.md`).
 ///
-/// **One kernel, every person.** The generated entry reads its knobs from the
-/// environment at run time and hands them to `main` by name, so a second
-/// person is a second process over the same kernel rather than a second
-/// build, and a reload compiles once for all of them.
+/// **One kernel, every person.** The generated entry reads its knobs at run
+/// time — from a file of that person's, on every start — and hands them to
+/// `main` by name, so a second person is a second process over the same
+/// kernel rather than a second build, a reload compiles once for all of them,
+/// and a restart takes whatever knobs were written since.
 ///
 /// The entry wraps `main` in Run's own `runGuest`, so a guest carries the same
 /// drive, inspection and log extensions as an app Run launched, and installs
@@ -76,6 +77,16 @@ class AppGuestBuild {
   String get assetsDir => p.join(buildDir, 'assets');
   String get kernel => p.join(assetsDir, 'kernel_blob.bin');
   String homeOf(String person) => p.join(buildDir, 'people', person);
+
+  /// Writes the knobs [person]'s app is started with — and restarted with,
+  /// since the entry reads them again each time `main` runs — and answers
+  /// where, for [guestEnvironment].
+  String writeKnobs(String person, Map<String, Object?> knobs) {
+    var file = File(p.join(buildDir, 'knobs', '$person.json'))
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync(jsonEncode(knobs));
+    return file.path;
+  }
 
   late final String packageConfig = packageConfigFor(package);
 
@@ -271,8 +282,10 @@ void main() => GuestLogs.instance.install<Object?>(() {
     GuestTextInput.instance.install();
     ${fakesUri == null || studioAnswers ? '' : "fakes.installGuestFakes(home: Directory(Platform.environment['FW_PERSON_HOME']!), answerChannel: (channel, answer) => _answers[channel] = answer);"}
     ${[for (var (i, plugin) in plugins.indexed) 'plugin$i.${plugin.type}.registerWith();'].join('\n    ')}
-    var knobs = (jsonDecode(Platform.environment['FW_KNOBS'] ?? '{}') as Map)
-        .cast<String, Object?>();
+    // Read on every start, so a restart takes the knobs written since.
+    var knobs = (jsonDecode(
+      File(Platform.environment['FW_KNOBS_FILE']!).readAsStringSync(),
+    ) as Map).cast<String, Object?>();
     return Function.apply(app.main, const [], {
       for (var knob in knobs.entries) Symbol(knob.key): knob.value,
     });
@@ -283,9 +296,10 @@ void main() => GuestLogs.instance.install<Object?>(() {
   }
 }
 
-/// What one person's guest process runs with: its knobs, its home, its
-/// locales. Only knobs somebody named — `main` is called by name, and a name
-/// it does not declare fails the call.
+/// What one person's guest process runs with: its knobs, as the file
+/// [AppGuestBuild.writeKnobs] wrote, its home, its locales. Only knobs
+/// somebody named — `main` is called by name, and a name it does not declare
+/// fails the call.
 ///
 /// [forward] is candidate 2: the guest hands its platform messages to the
 /// studio, and CoreFoundation's idea of the home directory is the person's
@@ -294,12 +308,11 @@ void main() => GuestLogs.instance.install<Object?>(() {
 /// finds the person's own folders without the app knowing.
 Map<String, String> guestEnvironment({
   required String home,
-  required Map<String, Object?> knobs,
+  required String knobsFile,
   String locales = 'en-US',
   bool forward = false,
 }) => {
-  // JSON, so an `int` knob stays an `int` on its way to `main`.
-  'FW_KNOBS': jsonEncode(knobs),
+  'FW_KNOBS_FILE': knobsFile,
   'FW_PERSON_HOME': home,
   'FW_GUEST_LOCALES': locales,
   if (forward) ...{'FW_FORWARD_PLATFORM': '1', 'CFFIXED_USER_HOME': home},
@@ -324,5 +337,23 @@ String packageConfigFor(String package) {
     if (p.dirname(dir) == dir) {
       throw StateError('$package is not resolved; run `flutter pub get`.');
     }
+  }
+}
+
+/// `person=Ana;serverPort=8090` as knobs: `;`-separated `name=value` pairs,
+/// each value read as JSON when it parses, so `8090` reaches `main` as an int.
+Map<String, Object?> parseKnobs(String pairs) => {
+  for (var pair in pairs.split(';'))
+    if (pair.contains('='))
+      pair.substring(0, pair.indexOf('=')).trim(): _knobValue(
+        pair.substring(pair.indexOf('=') + 1),
+      ),
+};
+
+Object? _knobValue(String text) {
+  try {
+    return jsonDecode(text);
+  } on FormatException {
+    return text;
   }
 }

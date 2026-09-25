@@ -13,10 +13,14 @@ an embedded guest, a macOS window, a simulator, a phone, a browser. The studio
 launches their apps, redirects the server's edges (email, SMS, push, jobs)
 into view, delivers links and pushes into the right app, and draws all of it
 on one zoomable canvas.
-**Decision:** the shape below was agreed with the owner in a brainstorm;
-nothing is built. Where a person's app runs *by default* — a guest or a macOS
-window — is for the device experiment to decide, not this document. External
-devices are first-class whichever wins.
+**Decision:** the shape below was agreed with the owner in a brainstorm. The
+device experiment then settled where a person's app runs by default: **in the
+studio's embedded guest, the studio answering its plugins' platform calls**
+(*go*, `2026-09-25-worlds-guest-phase5-decision.md`). A person whose app needs
+what a guest cannot carry — a camera, a view the OS draws, Bluetooth — runs on
+a simulator, a phone or a macOS window, and external devices stay
+first-class. Built so far: the experiment's lab (`fixtures/world_lab/`) and
+its *World lab* pane; no world script yet.
 **Method:** one brainstorm (2026-09-24/25) with three rounds of clickable
 mockups; a read of a consumer's monorepo — a Dart server, a staff dashboard,
 a client phone app, a local stack in docker compose — through its code and its
@@ -221,10 +225,13 @@ And what a world may do beyond setting up — all optional:
 
 **Restart is close, then run again.** `onClose` runs, the script runs anew,
 new users come out, and each person's app gets a hot restart with new knob
-values — not a rebuild. Knobs already arrive by regenerating the run wrapper,
-measured at 262 ms on macOS against 29.6 s for the same change as a define
-(`2026-08-12-run-knobs-spike-findings.md`). A world restart costs the seed
-plus one hot restart per person.
+values — not a rebuild. On a Run device, knobs arrive by regenerating the run
+wrapper, measured at 262 ms on macOS against 29.6 s for the same change as a
+define (`2026-08-12-run-knobs-spike-findings.md`). A guest reads its knobs
+from a file of that person's each time `main` runs, so the world writes the
+new values and restarts the app in place: 347 ms, measured with a user the
+server had just made (phase 5 of the experiment). A world restart costs the
+seed plus one hot restart per person.
 
 **Identities are fresh every time.** `w.email('ana')` is unique to the world
 instance, `w.phone()` draws from a reserved range, `w.unique(name)` suffixes.
@@ -375,8 +382,10 @@ show; typing is honest about that.
 
 **Mechanism, per kind of device:**
 
-- **Guest** — through the plugin's own channel, answered by the studio (the
-  experiment's second candidate), otherwise through a devbar panel.
+- **Guest** — through the plugin's own channel, answered by the studio: a
+  link arrives on the link plugin's event channel, a notification's tap on
+  the notification plugin's own callback — both measured
+  (`2026-09-25-worlds-guest-phase3-findings.md`).
 - **macOS window, simulator, phone** — through the app: a devbar panel that
   calls the app's own link and notification handling. The consumer already
   exposes an `open(url)` action straight into its deep-link pipe; brewline's
@@ -398,13 +407,20 @@ question as a card with its choices.
 
 ## Where a person's app runs
 
-Every person's app is a **Run launch**; the guest becomes one more Run device,
-*Studio*. Logs, network, inspection, panels and drive therefore come from Run
-unchanged, and the world adds none of its own.
+Every person's app is **a Run app**, whatever runs it, so logs, network,
+inspection, panels and drive come from Run unchanged and the world adds none
+of its own. On a simulator, a phone or a macOS window it is a Run launch. A
+guest is not launched by Run: the world builds one kernel for all its guests,
+starts one process per person, and announces each to Run as the device
+`studio-<person>` — and as that app's launcher, registering the reload and
+restart services `flutter run` registers, so Run's reload and restart reach
+it too. Measured: every Run tab and verb works on a guest, and drive round
+trips are no slower than a macOS window's
+(`2026-09-25-worlds-guest-phase4-findings.md`).
 
 | runs on | on the canvas | plugins | cost to start | known traps |
 |---|---|---|---|---|
-| embedded guest | live, sharp at any zoom | faked, or answered by the studio | no native build — a kernel compile | an unanswered platform call hangs forever (`app/native/host.c` sets no platform-message callback); no text composition or clipboard as of July; the guest's `print` is not forwarded |
+| embedded guest — **the default** | live, sharp at any zoom | the app's own Dart halves, their native half answered by the studio — 18–60 lines a plugin, written once in flutterware | no native build: a two-person world in 8.6–11.3 s from a cold worktree, 2 s warm; a person ~240 MB, plus one compiler per world | a plugin nobody has answered yet fails at once, by name; the Mac's fonts, not the phone's; background is only a lifecycle message; a guest off screen renders until it is paused; macOS only for now |
 | macOS window | a picture after each step; a strip drawn inside the app names the person | real, where the plugin supports macOS | a native build once, cached; hot restart after | two people on the same app share one sandbox container — prefs, keychain; a phone UI needs a platform override; placing the window beside the studio probably needs accessibility access |
 | simulator or emulator | a picture after each step | real | a native build | iOS suspends apps in the background; with Simulator.app closed a booted app sits inactive |
 | physical device | a picture; there is no window on the Mac | real | build and install | a live mirror is its own feature |
@@ -418,7 +434,12 @@ And **most plugins a real app carries are the kind scenarios already fake**
 (paths, preferences, permissions, links, package info, notifications), thin
 and stable, unlike the API fake that drifted. What a guest cannot carry is
 the camera, a native capture SDK, the photo library and file dialogs: a
-person who captures runs on a device.
+person who captures runs on a device. The experiment confirmed the first
+finding on a real app — its sync library's native core loaded through its
+build hook in a guest and synced against the local server — and measured the
+second: six plugins answered in 35 lines each on average, and a real app
+carrying 21 plugins with a native half needs about 14 more, sqflite the
+largest.
 
 **Where a person's app runs is chosen for what the case needs.** A map drawn
 by a native view cannot render in a guest; one drawn in Flutter from tiles
@@ -439,7 +460,7 @@ The mechanism depends on the kind of device, and the coverage is uneven:
 
 | | location | network | background |
 |---|---|---|---|
-| guest | answered by the studio (candidate 2) or a fake (candidate 1) | only for the app's `dart:io` traffic, through a proxy the run wrapper installs | a lifecycle message; no OS limits behind it |
+| guest | a plugin answer in the studio — not built yet | only for the app's `dart:io` traffic, through a proxy the run wrapper installs — not built | a lifecycle message — built: frames and CPU stop, memory is given back; no OS limits behind it |
 | iOS simulator | `simctl location` — a point or a route | — the network conditioner is machine-wide | Home, as the native `foreground` verb already presses |
 | Android emulator | `adb emu geo fix` | `svc wifi` / `svc data`, `emu network` | the Home key over adb |
 | physical Android | a mock-location app | `svc wifi` / `svc data` | the Home key over adb |
@@ -450,7 +471,8 @@ Two things fall out. A world must say which controls a person's device
 *cannot* honour rather than silently ignore them — the same rule as Run's
 device strip, where a toggle nothing reads is worse than no toggle. And the
 guest whose platform calls the studio answers is the only kind that controls
-location and permissions uniformly — one more reason to test it hardest.
+location and permissions uniformly — one of the reasons it became the
+default.
 
 ### One device per person
 
@@ -464,8 +486,11 @@ device is one person's by definition.
 
 Two people on one app must not share storage. Per kind:
 
-- **guest** — each guest is its own process; with the studio answering
-  path lookups, each person gets a directory without the app knowing;
+- **guest** — each guest is its own process with a home of its own: the
+  studio keeps its answers there, and `CFFIXED_USER_HOME` points Foundation
+  at it, so even a plugin that calls Foundation directly — `path_provider` —
+  finds the person's folders. Measured: no shared state, nothing asked of
+  the app;
 - **simulators and phones** — one per person, by allocation;
 - **macOS windows** — two windows of one app share one sandbox container
   (preferences, keychain, files), so it takes a data-directory knob the app
@@ -495,7 +520,11 @@ a Bluetooth pairing, dashed while disconnected; later, messages travelling.
 a card: who, where it runs, one status line. From 70 %, live screens with a
 label above them, so text is never drawn too small to read. The same
 threshold saves work: a guest drawn as a card, or off screen, stops producing
-frames, so a ten-person world costs little until you look at it.
+frames, so a ten-person world costs little until you look at it. The canvas
+has to make that true: a guest does not know it is not drawn — one scrolled
+out of view kept rendering at 12.5 % CPU and ~430 MB while it animated — so
+the canvas sends it to the background, which stops its frames and gives the
+memory back, and brings it forward on zoom.
 
 **A guest stays sharp at any zoom.** Its logical size must stay the device's —
 layout depends on it — but it can render at zoom × pixel ratio without laying
@@ -609,20 +638,27 @@ restart with new knob values, so an earlier draft's rule — *restarts a world
 worktree until every screen is showing, whether a human can type in it, and
 what each plugin costs to answer.
 
-**The plan that settles it** — the lab fixture, five phases with kill points
+**The plan that settled it** — the lab fixture, five phases with kill points
 after the second and fourth day or so, a scorecard per candidate, and a
 go / narrow go / no-go rule fixed before measuring — is
-`2026-09-25-worlds-guest-experiment-plan.md`. It runs as its own track: the
-slices below that do not name the guest stand whichever way it goes.
+`2026-09-25-worlds-guest-experiment-plan.md`.
+
+**The result: go** (`2026-09-25-worlds-guest-phase5-decision.md`). Every phase
+passed, and a two-person world opened from a cold worktree in 11.3 s against
+31.6 s for macOS windows and 43.2 s for simulators. Candidate 2 is the
+default: its answers are flutterware's, written once per plugin, where
+candidate 1's fakes are every project's to write. Candidate 3 was never
+triggered.
 
 ## Slices
 
 0. **World script v0, no canvas.** `package:flutterware/world.dart` with
    `World.run`, `w.person` (any subset of identity), unique identities,
-   progress, actions that take time, and `onClose`; one simulator allocated
-   per person; `worlds open` from the CLI and MCP, launching every person's
-   app through today's Run on macOS windows and simulators. Proves the
-   contract, whatever the experiment decides.
+   progress, actions that take time, and `onClose`; `worlds open` from the CLI
+   and MCP. Every person's app in a guest by default — the lab's build,
+   processes, launcher and Run announcement, promoted out of the lab — and on
+   a simulator, allocated one per person, or a macOS window when the script
+   says so. Restart with new knobs per person, as measured.
 1. **The outbox.** The SMTP catcher; typed `mail`, `sms`, `push` and `job`
    events carrying who they reached; questions (`w.outbox.ask`); the viewers;
    newcomers; the three kinds of delivery, through a devbar panel convention
@@ -632,15 +668,16 @@ slices below that do not name the guest stand whichever way it goes.
 3. **Server panels** over `FlutterwareServer.handle`.
 4. **The device as an input,** where the mechanism already exists —
    `simctl location`, adb — refusing the rest by name.
-5. **The guest as a Run device, and live nodes on the canvas** — if the
-   experiment says go or narrow go.
+5. **Live nodes on the canvas** — guests drawn live and sharp at any zoom,
+   sent to the background when drawn as a card or off screen.
+   **Answers for more plugins** run beside every slice, as worlds need them —
+   sqflite first, then what a real app's first screen needs.
 6. **Later:** peripherals, people in a browser, live mirrors of external
    devices, a world as a live scenario's setup.
 
-The guest experiment runs beside these from the start
-(`2026-09-25-worlds-guest-experiment-plan.md`); its fixture is the first piece
-of the lab, `fixtures/world_lab/`, which then hosts the paper cases in the
-order `2026-09-25-worlds-paper-cases.md` gives.
+The guest experiment ran beside these and is done; its fixture is the first
+piece of the lab, `fixtures/world_lab/`, which now hosts the paper cases in
+the order `2026-09-25-worlds-paper-cases.md` gives.
 
 ## Not in this design
 
@@ -676,6 +713,14 @@ sandbox over a mocked API.
     removed on close.
 12. **A question nobody answers.** How long the server waits, and what the
     adapter answers when the world closes first.
+13. **Run changing a guest's knobs.** The world restarts its people with new
+    knobs itself; Run's own `setKnobs` refuses a guest, because it rewrites
+    a wrapper a guest does not have. A knobs door any launcher could answer
+    would close it — worth building only when something outside a world
+    needs it.
+14. **A guest on Linux and Windows.** Linux renders guests today but has run
+    no world: it needs a clipboard, and homes through the XDG variables.
+    Windows waits for its embedder host.
 
 ## Evidence
 
@@ -701,8 +746,9 @@ sandbox over a mocked API.
 
 **From this repository:**
 
-- `app/native/host.c` sets no platform-message callback: an unanswered
-  platform call in a guest hangs.
+- `app/native/host.c` set no platform-message callback, so an unanswered
+  platform call in a guest hung; the experiment's phase 1 gave it a platform
+  task runner, and it now answers or forwards every message.
 - `FlutterwareServer.handle` exists (`lib/src/server/inspector.dart:134`);
   the Server panel invokes no server handler.
 - `lib/src/channels/panels.dart` and what it imports are Flutter-free.
