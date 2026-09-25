@@ -462,7 +462,8 @@ finding on a real app — its sync library's native core loaded through its
 build hook in a guest and synced against the local server — and measured the
 second: six plugins answered in 35 lines each on average, and a real app
 carrying 21 plugins with a native half needs about 14 more, sqflite the
-largest.
+largest. Its first screen needed three of them, and reached it signed in and
+synced (slice 0).
 
 **Where a person's app runs is chosen for what the case needs.** A map drawn
 by a native view cannot render in a guest; one drawn in Flutter from tiles
@@ -691,7 +692,8 @@ triggered.
    - Restart with new knobs per person, as measured. Run's `setKnobs` keeps
      refusing a guest, and its refusal names the world's restart.
    - Proved on the lab's *Pickup order*, then on the consumer's first world,
-     with the plugin answers its first screen turns out to need.
+     with the plugin answers its first screen turns out to need — three.
+     **Done** (`2026-09-25-worlds-slice0-findings.md`).
 1. **The outbox.** The SMTP catcher; typed `mail`, `sms`, `push` and `job`
    events carrying who they reached; questions (`w.outbox.ask`); the viewers;
    newcomers; the three kinds of delivery, through a devbar panel convention

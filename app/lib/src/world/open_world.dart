@@ -38,6 +38,7 @@ class OpenWorld {
     required this.entrypoints,
     required this.guests,
     this.onChanged,
+    this.buildRoot,
   });
 
   final WorldFile file;
@@ -58,6 +59,9 @@ class OpenWorld {
 
   /// Called whenever anything below changes.
   final void Function()? onChanged;
+
+  /// Where each app's guest build goes; its package's own `build/` when null.
+  final String? buildRoot;
 
   WorldPhase phase = WorldPhase.opening;
 
@@ -334,6 +338,7 @@ class OpenWorld {
       person: name,
       home: home,
       package: build.app.package,
+      device: device,
     );
     var log = person.log = GuestLog(
       p.join(build.app.buildDir, 'logs', '$name.log'),
@@ -426,9 +431,9 @@ class OpenWorld {
           studioAnswers: true,
           seeds: true,
           buildDir: p.join(
-            package,
-            'build',
+            buildRoot ?? p.join(package, 'build'),
             'flutterware_worlds',
+            p.basename(package),
             look == null ? stem : '$stem-${look.toLowerCase()}',
           ),
         ),

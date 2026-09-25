@@ -1,12 +1,17 @@
 import 'dart:io';
 
+import 'package:flutterware/devices.dart';
+
 import '../guest_platform.dart';
+import 'device_info.dart';
+import 'firebase.dart';
 import 'links.dart';
 import 'notifications.dart';
 import 'package_info.dart';
 import 'preferences.dart';
 import 'secure_storage.dart';
 import 'system.dart';
+import 'timezone.dart';
 import 'urls.dart';
 
 export 'links.dart' show GuestLinks;
@@ -26,10 +31,14 @@ class StudioPlatform {
     required String person,
     required Directory home,
     required String package,
+    Device device = Devices.iphone16,
   }) : platform = GuestPlatform(person: person, home: home) {
     answerPreferences(platform);
     answerSecureStorage(platform);
     answerPackageInfo(platform, package: package);
+    answerFirebaseCore(platform);
+    answerDeviceInfo(platform, device: device, person: person);
+    answerTimezone(platform);
     links = GuestLinks(platform);
     notifications = GuestNotifications(platform);
     urls = GuestUrls(platform);

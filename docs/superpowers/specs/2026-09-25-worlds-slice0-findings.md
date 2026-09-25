@@ -3,11 +3,13 @@
 **Date:** 2026-09-25
 **Design:** `2026-09-25-worlds-design.md`, slice 0. The device it runs people
 on was settled by the guest experiment (`-guest-phase5-decision.md`).
-**Result:** a world opens, restarts and closes from the studio, from `fw` and
-through the MCP server's core, on the lab's *Pickup order*. Two people signed
-in against a server the world hosts, one of them signing up with a code the
-world printed, and an order placed in one app reached the other's live. Not
-yet done: the consumer's first world, which closes the slice.
+**Result:** slice 0 is done. A world opens, restarts and closes from the
+studio, from `fw` and through the MCP server's core, on the lab's *Pickup
+order*: two people signed in against a server the world hosts, one of them
+signing up with a code the world printed, and an order placed in one app
+reached the other's live. Then the consumer's first world: two colleagues,
+each signed in to the real local stack and synced, in 7.3 s — with three new
+studio answers and nothing written in the consumer's project.
 
 ## What was built
 
@@ -43,6 +45,7 @@ On this machine, warm — the guest host built, the app's kernel seeded:
 |---|---|
 | open *Pickup order*, from the script's start to both apps drawn | **3.7 s** headless (`fw`), **4.2 s** in the studio |
 | restart it with a knob changed — the script closed and run again, the server started and seeded again, both apps restarted in place | **2.9 s** |
+| open the consumer's first world, two people on its local stack, headless | **7.3 s** |
 | close it | nothing left: no script, no guest, no Run handle, the server's port free |
 
 A world restart runs the script in a new process rather than asking the old
@@ -92,11 +95,53 @@ returns. `open --hold=true` keeps it until Ctrl-C and prints the world's log
 as it comes, which is the only way to read a code a server texted when
 nothing else shows the world.
 
+### 5. The consumer's first world took three answers
+
+Its project pins a flutterware without `world.dart`, so the world was a
+scratch script opened by a scratch harness around the same owner, with the
+entry point named there instead of read from its config. Nothing was written
+in its repository; the builds went to the scratchpad. Each blocker showed up
+as the one thing its app waited on at boot:
+
+| plugin | answer | lines |
+|---|---|---|
+| `firebase_core` | `initializeApp` answers with the options the app passed; there is no plist to read | 30 |
+| `device_info_plus` | the person's device — an iPhone 16 says it is one | 56 |
+| `flutter_timezone` | the Mac's zone, as a simulator gives | 17 |
+
+Lines without comments or blanks. With those, both colleagues reached their
+home screens with their own data: the first sees four records marked as
+theirs, the second none, and the totals differ. The world's isolation held
+without the app's help, as it did in the lab.
+
+Two things were wrong in flutterware rather than missing:
+
+- **A Pigeon method with no parameters sends no message at all**, which
+  reached the studio as zero bytes and was read as a corrupt message.
+  `initializeCore` is such a method; it is answered now.
+- **An app asks `dart:io`'s `Platform`, and in a guest that says macOS**,
+  whatever the look. The consumer's app asked for macOS device info on an
+  iPhone-looking guest. The device info answer carries both shapes, each
+  describing the person's device; an app that branches on `Platform.isIOS`
+  elsewhere will take its macOS branch in a guest, which is worth knowing
+  before its first world.
+
+A guest that never draws used to fail after a minute with
+`TimeoutException`. It now says what the app last threw, which is how each of
+the three answers above was found.
+
 ## Open
 
-- **The consumer's first world**, which the slice ends with. Its app needs
-  studio answers it does not have yet — about 14 plugins, sqflite the largest
-  — and its project pins flutterware to a commit that has no `world.dart`.
+- **The consumer opening worlds itself** needs its flutterware pin moved to
+  a commit with `world.dart`, a `Worlds(...)` declaration, and seeding: its
+  first world signs in as accounts the stack seeds at first boot rather than
+  fresh ones, which the design's open question on seeding is about.
+- **The rest of its plugins** — about 11 of the 14 — answered as its screens
+  reach them; sqflite is still the largest.
+- **Its runs are not this session's.** A person's Run handle belongs to the
+  checkout their app is in, and the MCP server of one repository lists that
+  repository's runs only, so the consumer's people were observed straight
+  over their VM services.
 - **`worlds` over the MCP server** is the same core `fw` ran, but the server
   connected to this session predates the plugin, so no call has gone through
   it yet. The next session's server has it.

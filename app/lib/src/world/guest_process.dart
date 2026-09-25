@@ -166,18 +166,29 @@ class GuestProcess {
         }
       }
     });
+    String? lastError;
     for (var stream in [process.stdout, process.stderr]) {
       stream.transform(utf8.decoder).transform(const LineSplitter()).listen((
         line,
       ) {
         guest._output.add(line);
+        if (line.contains('Unhandled Exception') ||
+            line.contains('MissingPluginException')) {
+          lastError = line.substring(line.indexOf(RegExp('Unhandled|Missing')));
+        }
         var uri = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
         if (uri != null && !guest.vmService.isCompleted) {
           guest.vmService.complete(uri.group(1));
         }
       });
     }
-    await drew.future.timeout(const Duration(minutes: 1));
+    await drew.future.timeout(
+      const Duration(minutes: 1),
+      onTimeout: () => throw StateError(
+        'The app drew nothing within a minute'
+        '${lastError == null ? '.' : '. It last said: $lastError'}',
+      ),
+    );
     return guest;
   }
 

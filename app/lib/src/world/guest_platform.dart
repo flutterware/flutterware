@@ -79,8 +79,11 @@ class GuestPlatform {
   }) {
     for (var MapEntry(key: name, value: handle) in methods.entries) {
       _channels['$api.$name'] = (bytes) async {
-        var arguments =
-            codec.decodeMessage(ByteData.sublistView(bytes)) as List? ?? [];
+        // A method with no parameters sends no message at all, which reaches
+        // here as no bytes — not an encoded null.
+        var arguments = bytes.isEmpty
+            ? const <Object?>[]
+            : codec.decodeMessage(ByteData.sublistView(bytes)) as List? ?? [];
         try {
           return _bytes(codec.encodeMessage([await handle(arguments)]));
         } on GuestPlatformError catch (e) {
