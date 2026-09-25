@@ -60,6 +60,7 @@ class _HomeState extends State<_Home> {
   String? _highlight;
   WebSocketChannel? _live;
   StreamSubscription<Uri>? _links;
+  StreamSubscription<Uri>? _tapped;
 
   @override
   void initState() {
@@ -72,6 +73,7 @@ class _HomeState extends State<_Home> {
     if (!mounted) return;
     setState(() => _plugins = plugins);
     _links = AppLinks().uriLinkStream.listen(_openLink, onError: (Object _) {});
+    _tapped = notificationLinks.stream.listen(_openLink);
 
     // The knob wins over what was stored, so a world can hand every person's
     // app its session without anybody typing a code.
@@ -147,6 +149,7 @@ class _HomeState extends State<_Home> {
   @override
   void dispose() {
     unawaited(_links?.cancel());
+    unawaited(_tapped?.cancel());
     unawaited(_live?.sink.close());
     _phone.dispose();
     _code.dispose();

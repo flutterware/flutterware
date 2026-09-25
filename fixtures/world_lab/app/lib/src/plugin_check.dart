@@ -140,6 +140,13 @@ Future<List<PluginResult>> checkPlugins(Api api) async {
     );
     var ok = await notifications.initialize(
       settings: InitializationSettings(macOS: darwin, iOS: darwin),
+      // A tapped notification opens the link it carries, the way the app
+      // opens one the OS hands it.
+      onDidReceiveNotificationResponse: (response) {
+        if (response.payload case var link? when link.isNotEmpty) {
+          notificationLinks.add(Uri.parse(link));
+        }
+      },
     );
     return 'initialized: $ok';
   });
@@ -169,6 +176,9 @@ Future<List<PluginResult>> checkPlugins(Api api) async {
 }
 
 final notifications = FlutterLocalNotificationsPlugin();
+
+/// The links carried by notifications the person tapped.
+final notificationLinks = StreamController<Uri>.broadcast();
 
 /// The app's secure storage, left at the plugin's defaults on purpose.
 ///

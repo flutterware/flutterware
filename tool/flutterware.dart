@@ -322,6 +322,13 @@ void main() => Flutterware.configure((fw) {
                 Knob('entrypoint', label: 'Entry point'),
                 Knob('fakes', label: 'Guest fakes'),
                 Knob('platform', label: 'Look'),
+                Knob(
+                  'studioAnswers',
+                  label: 'Studio answers',
+                  description:
+                      "The plugins' own Dart halves, their platform answered "
+                      "by the studio, instead of the app's guest fakes",
+                ),
               ],
             ),
             Entrypoint(

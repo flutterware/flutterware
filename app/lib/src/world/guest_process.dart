@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
@@ -36,8 +37,9 @@ class GuestProcess {
   final _output = StreamController<String>.broadcast();
   RunHandle? _handle;
 
-  /// Every line the guest printed, as it prints it — its `print`, the engine's
-  /// log, and the host's `[platform]` notes.
+  /// Every line the guest prints from now on — its `print`, the engine's
+  /// log, and the host's `[platform]` notes. Pass `onOutput` to [start] for
+  /// the lines before its first frame.
   Stream<String> get output => _output.stream;
 
   /// Spawns [person]'s guest over [build]'s kernel and answers once it has
@@ -51,6 +53,8 @@ class GuestProcess {
     (int, int, double) size = (1179, 2556, 3),
     (double, double, double, double) insets = (0, 0, 0, 0),
     String locales = 'en-US',
+    Future<Uint8List?> Function(String channel, Uint8List bytes)? platform,
+    void Function(String line)? onOutput,
   }) async {
     var home = Directory(build.homeOf(person));
     if (home.existsSync()) home.deleteSync(recursive: true);
@@ -71,6 +75,7 @@ class GuestProcess {
         home: home.path,
         knobs: knobs,
         locales: locales,
+        forward: platform != null,
       ),
       workingDirectory: build.package,
     );
@@ -79,6 +84,9 @@ class GuestProcess {
     var socket = await server.first;
     await server.close();
     var guest = GuestProcess._(person, process, socket);
+    // From the first line: what a guest prints before its first frame — its
+    // plugins answering at boot — is exactly what a late listener misses.
+    if (onOutput != null) guest.output.listen(onOutput);
     guest.send(
       ResizeMessage(
         width: width,
@@ -101,6 +109,23 @@ class GuestProcess {
             drew.complete();
           case CapturedMessage(:var path):
             guest._captured.remove(path)?.complete();
+          case GuestPlatformMessage(:var id, :var channel, :var bytes):
+            unawaited(
+              Future(() => platform?.call(channel, bytes))
+                  .catchError((Object e) {
+                    // Answered empty rather than not at all: a guest waiting
+                    // on a reply that never comes waits forever.
+                    guest._output.add('[studio] $channel failed: $e');
+                    return null;
+                  })
+                  .then((reply) {
+                    if (id != 0) {
+                      guest.send(
+                        PlatformReplyMessage(id, reply ?? Uint8List(0)),
+                      );
+                    }
+                  }),
+            );
           case ErrorMessage(:var message):
             guest._output.add('guest error: $message');
           default:
@@ -124,6 +149,10 @@ class GuestProcess {
 
   /// Sends one message down the control socket, as the studio would.
   void send(EmbedderMessage message) => _socket.add(encodeMessage(message));
+
+  /// Sends a message into the app on [channel], as the platform would.
+  void sendPlatform(String channel, Uint8List bytes) =>
+      send(PlatformSendMessage(channel, bytes));
 
   Future<void> capturePng(String png) async {
     var raw = '$png.raw';

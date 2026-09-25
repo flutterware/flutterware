@@ -6,6 +6,7 @@ import 'package:flutterware_app/src/embedder/flutter_cache.dart';
 import 'package:flutterware_app/src/embedder/guest_vm_service.dart';
 import 'package:flutterware_app/src/world/app_guest.dart';
 import 'package:flutterware_app/src/world/guest_process.dart';
+import 'package:flutterware_app/src/world/platform/studio_platform.dart';
 import 'package:path/path.dart' as p;
 
 /// Runs an app's own `main` in embedded guests, one per person, and times each
@@ -44,6 +45,7 @@ Future<void> main(List<String> args) async {
     buildDir: options.buildDir,
     seeds: options.seeds,
     seedDill: options.seed,
+    studioAnswers: options.studioAnswers,
   );
 
   var hostPath = await _step(
@@ -66,6 +68,16 @@ Future<void> main(List<String> args) async {
     exit(1);
   }
 
+  // `--studio-answers`: each person's platform, answered here.
+  var platforms = {
+    if (options.studioAnswers)
+      for (var (person, _) in options.people)
+        person: StudioPlatform(
+          person: person,
+          home: Directory(build.homeOf(person)),
+          package: build.package,
+        ),
+  };
   var guests = await _step(
     'start ${options.people.length} guest(s), until each has drawn',
     () => Future.wait([
@@ -78,8 +90,10 @@ Future<void> main(List<String> args) async {
           size: options.size,
           insets: options.insets,
           locales: options.locales,
+          platform: platforms[person]?.platform.answer,
+          onOutput: (line) => stdout.writeln('[$person] $line'),
         ).then((guest) {
-          guest.output.listen((line) => stdout.writeln('[$person] $line'));
+          platforms[person]?.platform.send = guest.sendPlatform;
           return guest;
         }),
     ]),
@@ -105,6 +119,13 @@ Future<void> main(List<String> args) async {
   }
   for (var guest in guests) {
     stdout.writeln('[world] ${guest.person}: ${await guest.memory()}');
+    if (platforms[guest.person]?.platform case var platform?) {
+      stdout.writeln(
+        '[world] ${guest.person}: asked the platform on '
+        '${platform.asked.length} channels; nothing answered '
+        '${platform.unanswered.isEmpty ? 'none' : platform.unanswered.join(', ')}',
+      );
+    }
   }
   if (options.seeds) {
     // After the world is open, as a studio would do it in the background.
@@ -213,6 +234,7 @@ class _Options {
     required this.shots,
     required this.seed,
     required this.seeds,
+    required this.studioAnswers,
     required this.hold,
     required this.platform,
     required this.insets,
@@ -264,6 +286,7 @@ class _Options {
       shots: value('--shots'),
       seed: value('--seed'),
       seeds: args.contains('--seeds'),
+      studioAnswers: args.contains('--studio-answers'),
       hold: args.contains('--hold'),
       platform: value('--platform'),
       locales: value('--locale') ?? 'en-US',
@@ -295,6 +318,9 @@ class _Options {
   final String? shots;
   final String? seed;
   final bool seeds;
+
+  /// Candidate 2: the plugins' own Dart halves, answered by the studio.
+  final bool studioAnswers;
   final bool hold;
 
   /// A `TargetPlatform` name — `iOS` — for the look of a phone the guest is

@@ -21,6 +21,7 @@ void main({
   String fakes = '',
   String people = 'Ana;person=Ana|Leo;person=Leo',
   String platform = 'iOS',
+  bool studioAnswers = false,
 }) {
   WidgetsFlutterBinding.ensureInitialized();
   var lab = p.join(p.dirname(appRoot), 'fixtures', 'world_lab', 'app');
@@ -46,6 +47,7 @@ void main({
                   ? p.join(lab, 'guest', 'fakes.dart')
                   : (fakes.isEmpty ? null : fakes),
               platform: platform.isEmpty ? null : platform,
+              studioAnswers: studioAnswers,
               people: [
                 for (var spec in people.split('|'))
                   (

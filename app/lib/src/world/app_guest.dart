@@ -11,6 +11,7 @@ import '../embedder/resident_compiler.dart';
 import '../embedder/seed_kernel.dart';
 import '../embedder/source_invalidator.dart';
 import '../previews/asset_bundle.dart';
+import 'plugin_registrant.dart';
 
 /// An app's own `main`, built to run in embedded guests — one kernel for every
 /// person in a world. The worlds guest experiment
@@ -38,6 +39,7 @@ class AppGuestBuild {
     String? buildDir,
     this.seeds = false,
     this.seedDill,
+    this.studioAnswers = false,
   }) : package = p.normalize(p.absolute(package)),
        fakes = fakes == null ? null : p.normalize(p.absolute(fakes)),
        buildDir =
@@ -65,6 +67,12 @@ class AppGuestBuild {
   /// A kernel to start the compile from instead.
   final String? seedDill;
 
+  /// Candidate 2 of the guest experiment rather than 1: the plugins' own Dart
+  /// halves registered, as `flutter run` registers them, and their platform
+  /// calls answered by the studio (`StudioPlatform`) — instead of [fakes].
+  /// Its guests need `guestEnvironment(forward: true)`.
+  final bool studioAnswers;
+
   String get assetsDir => p.join(buildDir, 'assets');
   String get kernel => p.join(assetsDir, 'kernel_blob.bin');
   String homeOf(String person) => p.join(buildDir, 'people', person);
@@ -89,7 +97,19 @@ class AppGuestBuild {
 
   /// Writes the entry and compiles it whole, into [kernel].
   Future<CompileOutcome> compile() async {
-    var entry = _writeEntry();
+    var entry = _writeEntry(
+      studioAnswers
+          ? await dartPluginRegistrations(
+              packageConfig: packageConfig,
+              package: package,
+              // The look decides, not the Mac the guest runs on: a plugin
+              // that picks its implementation by the target platform — the
+              // notifications plugin does — finds none for iOS if the macOS
+              // half was registered, and every call does nothing.
+              platform: platform == 'iOS' ? 'ios' : 'macos',
+            )
+          : const [],
+    );
     if (seeds) {
       _store = SeedStore(
         engineRevision: cache.engineRevision,
@@ -142,7 +162,7 @@ class AppGuestBuild {
   Future<PackageConfig> _resolution() =>
       loadPackageConfigUri(Uri.file(packageConfig));
 
-  String _writeEntry() {
+  String _writeEntry(List<PluginRegistration> plugins) {
     var name = RegExp(
       r'^name:\s*(\S+)',
       multiLine: true,
@@ -168,7 +188,8 @@ import 'package:flutterware/previews_guest.dart'
     show GuestKeyboard, GuestLogs, GuestTextInput;
 import 'package:flutterware/run_guest.dart';
 import '$main' as app;
-${fakesUri == null ? '' : "import '$fakesUri' as fakes;"}
+${fakesUri == null || studioAnswers ? '' : "import '$fakesUri' as fakes;"}
+${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/${plugin.file}' as plugin$i;"].join('\n')}
 
 /// The guest's binding. Two things only a binding can do for an app whose
 /// `runApp` is its own:
@@ -240,7 +261,8 @@ void main() => GuestLogs.instance.install<Object?>(() {
     ${platform == null ? '' : 'debugDefaultTargetPlatformOverride = TargetPlatform.$platform;'}
     GuestKeyboard.instance.install();
     GuestTextInput.instance.install();
-    ${fakesUri == null ? '' : "fakes.installGuestFakes(home: Directory(Platform.environment['FW_PERSON_HOME']!), answerChannel: (channel, answer) => _answers[channel] = answer);"}
+    ${fakesUri == null || studioAnswers ? '' : "fakes.installGuestFakes(home: Directory(Platform.environment['FW_PERSON_HOME']!), answerChannel: (channel, answer) => _answers[channel] = answer);"}
+    ${[for (var (i, plugin) in plugins.indexed) 'plugin$i.${plugin.type}.registerWith();'].join('\n    ')}
     var knobs = (jsonDecode(Platform.environment['FW_KNOBS'] ?? '{}') as Map)
         .cast<String, Object?>();
     return Function.apply(app.main, const [], {
@@ -256,15 +278,23 @@ void main() => GuestLogs.instance.install<Object?>(() {
 /// What one person's guest process runs with: its knobs, its home, its
 /// locales. Only knobs somebody named — `main` is called by name, and a name
 /// it does not declare fails the call.
+///
+/// [forward] is candidate 2: the guest hands its platform messages to the
+/// studio, and CoreFoundation's idea of the home directory is the person's
+/// — `CFFIXED_USER_HOME`, the variable the iOS simulator gives each device —
+/// so a plugin whose macOS half calls Foundation directly, `path_provider`,
+/// finds the person's own folders without the app knowing.
 Map<String, String> guestEnvironment({
   required String home,
   required Map<String, Object?> knobs,
   String locales = 'en-US',
+  bool forward = false,
 }) => {
   // JSON, so an `int` knob stays an `int` on its way to `main`.
   'FW_KNOBS': jsonEncode(knobs),
   'FW_PERSON_HOME': home,
   'FW_GUEST_LOCALES': locales,
+  if (forward) ...{'FW_FORWARD_PLATFORM': '1', 'CFFIXED_USER_HOME': home},
 };
 
 /// The machine's half of a guest: the engine and the C host, built once per
