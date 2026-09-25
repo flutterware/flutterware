@@ -32,6 +32,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
     required this.flutterSdkRoot,
     this.buildGuest,
     this.workingDirectory,
+    this.environment,
     this.name = 'gui',
   });
 
@@ -63,6 +64,14 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
   /// a built binary that is the `app/` directory, and nothing of the project
   /// is there.
   final String? workingDirectory;
+
+  /// Added to the guest process's environment — how a world hands one
+  /// person's app its knobs, its home and its locales without a build.
+  final Map<String, String>? environment;
+
+  /// The guest process, once it has started — what a handle announcing it to
+  /// Run names as its launcher.
+  int? get guestPid => _guest?.pid;
 
   static const _channel = MethodChannel('flutterware/embedder_texture');
 
@@ -165,6 +174,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
         build.hostPath,
         [build.assetsDir, build.icuData, socketPath, '$width', '$height'],
         workingDirectory: workingDirectory,
+        environment: environment,
         mode: ProcessStartMode.normal,
       );
       _guest!.stdout

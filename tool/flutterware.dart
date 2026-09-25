@@ -285,6 +285,45 @@ void main() => Flutterware.configure((fw) {
                 ),
               ],
             ),
+            // The worlds guest experiment's pane: a world's people side by
+            // side in embedded guests, with the studio's mouse and keyboard
+            // handed to whichever one is clicked. `docs/superpowers/specs/
+            // 2026-09-25-worlds-guest-experiment-plan.md`, phase 2.
+            Entrypoint(
+              'lib/main_world_dev.dart',
+              name: 'World lab (dev)',
+              description:
+                  'People side by side in embedded guests — the lab app by '
+                  'default, any app with a package and its fakes',
+              platforms: [RunPlatform.desktop],
+              knobs: [
+                Knob(
+                  'flutterSdkRoot',
+                  label: 'Flutter SDK',
+                  from: ValueSource.flutterSdk,
+                  required: true,
+                ),
+                Knob(
+                  'appRoot',
+                  label: 'App root',
+                  description:
+                      'The flutterware_app package root, where the guest host '
+                      'is built',
+                  required: true,
+                ),
+                Knob(
+                  'people',
+                  label: 'People',
+                  description:
+                      "`|`-separated, each a name then that person's knobs: "
+                      '`Ana;person=Ana|Leo;person=Leo`',
+                ),
+                Knob('package', label: 'Package'),
+                Knob('entrypoint', label: 'Entry point'),
+                Knob('fakes', label: 'Guest fakes'),
+                Knob('platform', label: 'Look'),
+              ],
+            ),
             Entrypoint(
               'lib/canvas_toy/main.dart',
               name: 'Canvas toy',

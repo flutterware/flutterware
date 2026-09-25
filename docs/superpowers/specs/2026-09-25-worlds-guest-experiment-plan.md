@@ -8,7 +8,7 @@ device experiment*.)
 **Answer:** not known. This is the plan that finds out: five phases, two kill
 points early, a scorecard filled for every candidate, and three possible
 outcomes decided before anything is measured.
-**Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes for both apps — the lab at 9.1 s, 4.6 s seeded; the consumer signed in and synced (`2026-09-25-worlds-guest-phase1-findings.md`). Phase 2 next.
+**Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes for both apps — the lab at 9.1 s, 4.6 s seeded, the consumer signed in and synced; phase 2 under way — the mouse and the clipboard work, the studio's key path into a guest is broken and being fixed (`2026-09-25-worlds-guest-phase2-findings.md`).
 
 ## What is actually in question
 
