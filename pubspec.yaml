@@ -13,6 +13,8 @@ environment:
 workspace:
   - app
   - fixtures/probe_app
+  - fixtures/world_lab/app
+  - fixtures/world_lab/server
   - examples/brewline
   - web_demo
 

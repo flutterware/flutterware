@@ -8,7 +8,7 @@ device experiment*.)
 **Answer:** not known. This is the plan that finds out: five phases, two kill
 points early, a scorecard filled for every candidate, and three possible
 outcomes decided before anything is measured.
-**Status:** thresholds confirmed; phase 0 under way.
+**Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes on the lab — 9.1 s, 4.6 s seeded — and waits on the consumer's signed-in screen (`2026-09-25-worlds-guest-phase1-findings.md`).
 
 ## What is actually in question
 
@@ -20,8 +20,11 @@ harder things, and any one can fail on its own:
    not a widget handed its data.
 2. **It is faster where it matters.** Every candidate restarts a world the
    same way, by hot restart with new knob values, so restart does not
-   discriminate. What might: opening a world from cold, and adding a person
-   while it runs.
+   discriminate. What does is **opening a world from a cold worktree** —
+   nothing resolved, nothing built — timed until every person's screen is
+   showing, each candidate on its fastest path. That is the moment somebody
+   waits through, and it counts everything a candidate needs on the way:
+   resolving, build hooks, a native build or none, installing, starting.
 3. **A human can use it all day.** Typing an email address, an accented
    letter through a dead key, pasting a code, selecting text, scrolling, and
    two guests side by side with typing going where focus is.
@@ -179,7 +182,7 @@ next to this plan; amend the design — the default device, and the slices.
 |---|---|---|---|---|
 | first frame, clean build | | | | |
 | first frame, build cached | | | | |
-| open a two-person world from cold | | | | |
+| open a two-person world from a cold worktree | | | | |
 | add a person while it runs | | | | |
 | hot restart | | | | |
 | memory per person | | | | |
@@ -198,12 +201,15 @@ fails.
 
 ## The rule, set before measuring
 
-The owner confirmed these thresholds on 2026-09-25, before phase 0.
+The owner confirmed these thresholds on 2026-09-25, before phase 0, and after
+it fixed the speed clause's measure: a cold worktree, every candidate on its
+fastest path. Phase 0 had shown that a clause with builds cached, or one about
+adding a person, is decided by which native path it is compared against — a
+built app starts in about a second, and through `flutter run` in eleven.
 
 - **Go** — the guest is the default for every person whose app it can carry:
-  phases 1 to 4 pass, and opening a two-person world from cold is at least
-  twice as fast as with macOS windows (builds cached), or adding a person
-  takes under 3 s against 10 s or more.
+  phases 1 to 4 pass, and it opens a two-person world from a cold worktree at
+  least twice as fast as the faster of macOS windows and simulators.
 - **Narrow go** — phases 1 and 2 pass, phase 3 does not: the guest with Dart
   fakes, for people whose app carries few plugins — a dashboard, a console —
   and macOS windows for the rest.

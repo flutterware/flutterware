@@ -14,6 +14,7 @@ const app = Pkg('app');
 const fixture = Pkg('fixtures/probe_app');
 const brewline = Pkg('examples/brewline');
 const webDemo = Pkg('web_demo');
+const worldLab = Pkg('fixtures/world_lab/app');
 
 void main() => Flutterware.configure((fw) {
   // **What to surface first on the changes screen, for this repository.**
@@ -385,6 +386,37 @@ void main() => Flutterware.configure((fw) {
                   'it — the sample for driving an app from the cockpit, '
                   '`fw` or an agent',
             ),
+          ],
+        ),
+        // The worlds lab's customer app. One file, declared once per person:
+        // a run is keyed by its entry point, so two people on one device need
+        // two names — which is how the lab puts a second instance of the same
+        // app beside the first. See `fixtures/world_lab/README.md`.
+        .new(
+          worldLab,
+          entrypoints: [
+            for (var person in ['Ana', 'Leo'])
+              Entrypoint(
+                'lib/main.dart',
+                name: 'Lab · $person',
+                description:
+                    "$person's pickup app, against the lab server on :8090",
+                knobs: [
+                  Knob(
+                    'person',
+                    label: 'Person',
+                    description: 'Whose app this is, shown in its title',
+                  ),
+                  Knob(
+                    'session',
+                    label: 'Session',
+                    description:
+                        'A session token from the server, which signs the '
+                        'app in without a code',
+                  ),
+                  Knob('server', label: 'Server'),
+                ],
+              ),
           ],
         ),
       ],

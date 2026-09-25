@@ -605,9 +605,9 @@ the only one that controls location and permissions the same way everywhere.
 
 **Restart does not discriminate.** Every candidate restarts a world by hot
 restart with new knob values, so an earlier draft's rule — *restarts a world
-3× faster* — measured nothing. What might: opening a world from cold, adding
-a person while it runs, whether a human can type in it, and what each
-plugin costs to answer.
+3× faster* — measured nothing. What does: opening a world from a cold
+worktree until every screen is showing, whether a human can type in it, and
+what each plugin costs to answer.
 
 **The plan that settles it** — the lab fixture, five phases with kill points
 after the second and fourth day or so, a scorecard per candidate, and a
