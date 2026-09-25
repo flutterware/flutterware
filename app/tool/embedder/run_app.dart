@@ -250,7 +250,11 @@ String _writeEntry(String buildDir, String package, _Options options) {
     r'^name:\s*(\S+)',
     multiLine: true,
   ).firstMatch(File(p.join(package, 'pubspec.yaml')).readAsStringSync())!;
-  var main = options.entrypoint.replaceFirst('lib/', '');
+  // A `lib/` entry point by its package URI; anything else — a `demo/` or
+  // `tool/` entry point, which no package URI reaches — by its file.
+  var main = options.entrypoint.startsWith('lib/')
+      ? 'package:${name.group(1)}/${options.entrypoint.substring(4)}'
+      : '${Uri.file(p.join(package, options.entrypoint))}';
   var fakes = options.fakes == null
       ? null
       : Uri.file(p.normalize(p.absolute(options.fakes!)));
@@ -267,7 +271,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutterware/previews_guest.dart'
     show GuestKeyboard, GuestLogs, GuestTextInput;
 import 'package:flutterware/run_guest.dart';
-import 'package:${name.group(1)}/$main' as app;
+import '$main' as app;
 ${fakes == null ? '' : "import '$fakes' as fakes;"}
 
 /// The guest's binding. Two things only a binding can do for an app whose
@@ -478,6 +482,16 @@ class _Guest {
   }
 }
 
+/// A knob's value as `main` declares it: `8090` an int, `true` a bool,
+/// anything that is not JSON a string.
+Object? _knobValue(String text) {
+  try {
+    return jsonDecode(text);
+  } on FormatException {
+    return text;
+  }
+}
+
 class _Options {
   _Options({
     required this.package,
@@ -520,16 +534,16 @@ class _Options {
             spec.split(';').first,
             {
               for (var knob in spec.split(';').skip(1))
-                knob.substring(0, knob.indexOf('=')): knob.substring(
-                  knob.indexOf('=') + 1,
+                knob.substring(0, knob.indexOf('=')): _knobValue(
+                  knob.substring(knob.indexOf('=') + 1),
                 ),
             },
           ),
       ],
       knobs: {
         for (var knob in all('--knob'))
-          knob.substring(0, knob.indexOf('=')): knob.substring(
-            knob.indexOf('=') + 1,
+          knob.substring(0, knob.indexOf('=')): _knobValue(
+            knob.substring(knob.indexOf('=') + 1),
           ),
       },
       size: (
@@ -565,8 +579,8 @@ class _Options {
   final String package;
   final String entrypoint;
   final String? fakes;
-  final List<(String, Map<String, String>)> people;
-  final Map<String, String> knobs;
+  final List<(String, Map<String, Object?>)> people;
+  final Map<String, Object?> knobs;
   final (int, int, double) size;
   final String? shots;
   final String? seed;

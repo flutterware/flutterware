@@ -3,14 +3,16 @@
 **Date:** 2026-09-25
 **Plan:** `2026-09-25-worlds-guest-experiment-plan.md`, phase 1. Baselines:
 `2026-09-25-worlds-guest-phase0-findings.md`.
-**Result:** the lab passes. Its customer app runs its own `main` in embedded
-guests — signed in against the real server, live updates over its socket,
-all ten plugins answering. It opens a two-person world **9.1 s** from a cold
-worktree (**4.6 s** with the machine's seed kernel), against 31.6 s for macOS
-windows, so the speed clause holds with room to spare. The consumer's mobile
-app reaches its first screen in a guest with no change to its code. Its
-**signed-in** screen — the rest of the kill point — waits on its local
-server, which is not running here (*Open*).
+**Result:** phase 1 passes — the first kill point is cleared by both apps.
+The lab's customer app runs its own `main` in embedded guests, signed in
+against the real server, live updates over its socket, all ten plugins
+answering; it opens a two-person world **9.1 s** from a cold worktree
+(**4.6 s** with the machine's seed kernel), against 31.6 s for macOS windows,
+so the speed clause holds with room to spare. The consumer's mobile app,
+unchanged, signs in against its local server and shows its home screen with
+data its sync library pulled — **3.9 s** after the worktree's work started,
+signed in and synced about a second later — from a guest entry point and 89
+lines of fakes.
 
 ## What was built
 
@@ -148,11 +150,30 @@ Three things this run showed about the plan itself:
 - **Its SDK is newer than the guest's engine.** It pins 3.48.0-0.5.pre; the
   harness ran it on this checkout's 0.2.pre engine. It compiled and ran.
 
+### 8. The consumer's app, signed in and synced
+
+With its own stack up — containers, then its Dart server, both by its own
+tooling — the guest ran its *local* mobile entry point, the one its Run
+config already declares with knobs for the server's host and port and a
+seeded account to start signed in as. Those knobs went in exactly as Run
+passes them, read at run time. Two more things stood in the way:
+
+- **The server refused the app** — `510: App update required: 1.0.0 <
+  5.2.0` — because the package-info fake reported `1.0.0`. A fake that
+  stands in for the platform has to tell the truth the server checks: the
+  version came from the app's own pubspec. A studio-supplied package-info
+  answer should read it from there.
+- App links' event channel, answered by a fake like the lab's.
+
+Then: the account loaded, the session database opened, the sync library's
+native core — loaded through its build hook, as the lab's `sqlite3` was —
+validated and applied its first checkpoint, and the home screen showed the
+synced data. 89 lines of fakes for 8 plugins, a scratch file outside this
+repository; no line of the app changed. The guest held 889 MB a few seconds
+after start, twice the lab's — a larger app, not yet at rest.
+
 ## Open
 
-- **The consumer's signed-in screen and its sync.** Its local server is not
-  running, and the stacks that are belong to other worktrees. The kill point
-  cannot be called for it until it is up.
 - **Typing is broken in guests, before this work.** `tool/embedder/input_probe.dart`
   fails on master's host too — typed characters and backspace never reach
   the field. Phase 2 starts there.
