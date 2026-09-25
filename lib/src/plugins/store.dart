@@ -88,18 +88,25 @@ class StoreCanvas {
 
 /// A display class of Apple's, and the device that renders it.
 ///
-/// Two of them, because since 2024 you supply only the largest of each family
-/// and Apple scales the rest — so these two *are* the whole iOS obligation.
-/// Both come out of the device table to the pixel, which is why no App Store
-/// class declares a canvas of its own.
+/// Apple scales a family's screenshots down from the largest set it is given,
+/// so one iPhone class and one iPad class cover every device. iPhone has two
+/// sizes that can be that set: 6.5" is required of a listing that has no 6.9",
+/// and App Store Connect does not always offer the 6.9" slot to drop one in.
+/// A listing exports both unless it narrows [AppStoreListing.classes].
+///
+/// Every class comes out of the device table to the pixel, which is why no App
+/// Store class declares a canvas of its own.
 ///
 /// An enum of Apple's rather than one shared with [PlayClass]: a shared one
 /// would let an App Store listing name a phone class Apple has never heard of,
 /// and then something downstream would have to refuse it. Two enums make that
 /// sentence unwritable.
 enum AppStoreClass {
-  /// 1320×2868 — required.
+  /// 1320×2868.
   iphone69('iphone-6-9', 'iPhone 6.9"', Devices.iphone16ProMax),
+
+  /// 1284×2778. Required where there is no 6.9" set.
+  iphone65('iphone-6-5', 'iPhone 6.5"', Devices.iphone12ProMax),
 
   /// 2048×2732 — required of an app that runs on iPad.
   ipad13('ipad-13', 'iPad 13"', Devices.iPadPro13);

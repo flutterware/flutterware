@@ -65,11 +65,14 @@ You never type a pixel size. Each listing brings its own:
 | Store | Slot | Rendered as | Image |
 |---|---|---|---|
 | App Store | iPhone 6.9" | iPhone 16 Pro Max | 1320×2868 |
+| App Store | iPhone 6.5" | iPhone 12 Pro Max | 1284×2778 |
 | App Store | iPad 13" | iPad Pro 13" | 2048×2732 |
 | Google Play | Phone | a 20:9 Android phone | 1080×2160 |
 | Google Play | 10" tablet | an Android tablet | 1600×2560 |
 
-Apple scales these two to its smaller slots. Google Play needs one extra step:
+Apple scales these to its smaller slots. It needs one iPhone set: 6.5" is
+required when there is no 6.9", and App Store Connect does not always offer the
+6.9" slot, so both are exported. Google Play needs one extra step:
 it refuses images taller than twice their width, and modern Android phones are
 taller than that. So a Play phone image is always a composition, with the real
 phone screen placed on a 2:1 canvas. If you don't declare a frame, that one set
