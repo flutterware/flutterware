@@ -121,15 +121,27 @@ world*, for what the edges talk to.
 
 One file per world, in the package that owns seeding and the server's typed
 client — for a Dart server, the server package, which already depends on
-flutterware for inspection. Declared by folder:
+flutterware for inspection. Each is declared, the way Run's entry points are:
 
 ```dart
-fw.use(Worlds(packages: [.new(server, directory: 'worlds')]));
+fw.use(Worlds(packages: [
+  .new(server, worlds: [
+    WorldScript('tool/worlds/pickup_order.dart', name: 'Pickup order'),
+  ]),
+]));
 ```
 
-The studio lists the folder, runs the file in that package when a world opens,
-keeps the process alive while it is open and stops it on close. The name comes
-from the file, the description from its doc comment.
+Declared rather than scanned for, because a project has a few worlds, each
+named on purpose — scanning pays for many small things, like scenarios and
+previews. The first build listed a `worlds/` folder and kept the files that
+mentioned `World.run(`: a folder Dart does not know and a guess at what a
+file is. `tool/worlds/` is where the files go, since they are scripts the
+project runs rather than code it ships; the declaration is what makes them
+worlds. `worlds open` takes a world by its file's name, so two of one name
+are refused in the config.
+
+The studio runs the file in that package when a world opens, keeps the
+process alive while it is open and stops it on close.
 
 **As built in slice 0,** the owner — the studio, `fw` or the MCP server —
 binds a unix socket before it starts the script with `dart run`, and names it
@@ -146,7 +158,7 @@ Sketched on a coffee shop with a staff dashboard and a customer phone app —
 the consumer's shape, none of its names:
 
 ```dart
-// server/worlds/join_the_loyalty_card.dart
+// server/tool/worlds/join_the_loyalty_card.dart
 import 'package:flutterware/world.dart';
 
 import 'src/local.dart';
@@ -186,7 +198,7 @@ the host, the world can **host the server in its own process**, and wiring an
 edge becomes a constructor argument:
 
 ```dart
-// server/worlds/src/local.dart
+// server/tool/worlds/src/local.dart
 Future<LocalServer> startLocalServer(World w) async {
   await w.stack('Local stack').up(); // the declared DevStack: probe, start if down
   var app = await startServer(       // the local entry point's main, as a function
@@ -728,8 +740,8 @@ sandbox over a mocked API.
 1. **People in a browser or a webview.** A browser can be live on the canvas
    (embedded, or screencast) before Run can drive web at all. Worth having
    observed-only?
-2. **Discovery.** A folder per package, as sketched, or entries in the
-   config? The folder matches how scenarios are found.
+2. ~~**Discovery.**~~ Declared in the config, like Run's entry points —
+   decided after slice 0 first built a folder scan (above).
 3. **Seeding.** Through the public API, debug endpoints, or both — and who
    owns the helpers when the server team and the app team differ.
 4. **Large worlds.** Cards scale; three baristas and five customers may still

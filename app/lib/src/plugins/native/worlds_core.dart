@@ -44,10 +44,9 @@ class WorldsCore extends PluginCore {
     _worlds = [
       for (var config in host.packageConfigs)
         if (config['path'] case String path when host.workspace.exists(path))
-          ...scanWorlds(
-            package: path,
+          ...declaredWorlds(
+            config: config,
             packageRoot: host.workspace.absolutePathOf(path),
-            directory: config['directory'] as String? ?? defaultWorldsDirectory,
           ),
     ];
     notifyChanged();
@@ -96,9 +95,8 @@ class WorldsCore extends PluginCore {
       'List',
       returns: WorldListResult,
       description:
-          "Every world the project declares — a file in a declared package's "
-          'worlds folder whose `main` calls `World.run` — with the doc comment '
-          'that says what it sets up.',
+          'Every world the project declares in `tool/flutterware.dart` — a '
+          'script whose `main` calls `World.run` — with what it sets up.',
     ),
     PluginAction(
       'open',
@@ -193,8 +191,9 @@ class WorldsCore extends PluginCore {
       if (open == null)
         ViewText(
           _worlds.isEmpty
-              ? 'No worlds yet: a world is a file in the folder `Worlds` '
-                    'declares, whose `main` calls `World.run`.'
+              ? 'No worlds yet: a world is a script whose `main` calls '
+                    '`World.run`, declared with `WorldScript` in '
+                    '`tool/flutterware.dart`.'
               : 'None open.',
         )
       else ...[
@@ -276,6 +275,7 @@ class WorldsCore extends PluginCore {
         '${_worlds.isEmpty ? 'This project declares none.' : 'Declared: ${_worlds.map((w) => w.id).join(', ')}.'}',
       );
     }
+    if (file.problem case var problem?) throw WorldRefusal(problem);
     if (openElsewhere() case var other?) {
       throw WorldRefusal(
         '${other.world} is open in another process (pid ${other.pid}) on '

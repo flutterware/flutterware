@@ -16,8 +16,8 @@ import '../utils/run_dir.dart';
 /// asking the script to run its body again: a script whose file changed since
 /// it opened would otherwise restart as the old code, and nothing a script
 /// kept in a global survives into the next opening by accident.
-class WorldScript {
-  WorldScript._(this.process, this._socket, this.messages);
+class WorldScriptProcess {
+  WorldScriptProcess._(this.process, this._socket, this.messages);
 
   final Process process;
   final Socket _socket;
@@ -30,7 +30,7 @@ class WorldScript {
   /// Runs [file] in the package at [packageRoot] with [dart] — `dart run`, so
   /// it resolves as any script of that package does — and opens the world
   /// with [knobs]. [onOutput] gets what it prints: its server's log, usually.
-  static Future<WorldScript> start({
+  static Future<WorldScriptProcess> start({
     required String dart,
     required String packageRoot,
     required String file,
@@ -84,7 +84,7 @@ class WorldScript {
         .transform(const LineSplitter())
         .map(decodeWorldMessage)
         .asBroadcastStream();
-    var script = WorldScript._(process, socket, messages);
+    var script = WorldScriptProcess._(process, socket, messages);
     script.send(WorldMessage.open, {'knobs': knobs});
     return script;
   }

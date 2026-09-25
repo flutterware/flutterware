@@ -5,6 +5,7 @@ import 'package:flutterware/world.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../ui/action_button.dart';
+import '../../ui/code_block.dart';
 import '../../ui/empty_state.dart';
 import '../../ui/panel_header.dart';
 import '../../ui/picker.dart';
@@ -123,21 +124,14 @@ class _WorldList extends StatelessWidget {
           ),
         Expanded(
           child: core.worlds.isEmpty
-              ? const EmptyState(
-                  icon: Icons.public,
-                  title: 'No worlds yet',
-                  message:
-                      'A world is a Dart file whose main calls World.run, in '
-                      'the folder Worlds declares — for a Dart server, in the '
-                      "server's own package.",
-                )
+              ? const _NoWorlds()
               : ListView(
                   padding: const EdgeInsets.symmetric(horizontal: panelGutter),
                   children: [
                     for (var world in core.worlds)
                       _WorldRow(
                         world: world,
-                        onOpen: elsewhere == null
+                        onOpen: elsewhere == null && world.problem == null
                             ? () => core.openWorld(world.id)
                             : null,
                       ),
@@ -172,12 +166,53 @@ class _WorldRow extends StatelessWidget {
                 '${world.package}/${world.path}',
                 style: context.type.bodyMuted,
               ),
+              if (world.problem case var problem?)
+                Text(
+                  problem,
+                  style: context.type.body.copyWith(color: context.colors.red),
+                ),
             ],
           ),
         ),
         const SizedBox(width: FwSpacing.lg),
         FwActionButton(label: 'Open', primary: true, onPressed: onOpen),
       ],
+    ),
+  );
+}
+
+/// A project that declares no world yet: what one is, and the line that
+/// declares it.
+class _NoWorlds extends StatelessWidget {
+  const _NoWorlds();
+
+  static const _declaration = """
+fw.use(Worlds(packages: [
+  .new(server, worlds: [
+    WorldScript('tool/worlds/pickup_order.dart', name: 'Pickup order'),
+  ]),
+]));""";
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 560),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('No worlds yet', style: context.type.bodyStrong),
+          const SizedBox(height: FwSpacing.sm),
+          Text(
+            'A world is a script whose main calls World.run, in the package '
+            "that can start your server — for a Dart server, the server's "
+            'own. Declare each one in tool/flutterware.dart:',
+            style: context.type.body,
+          ),
+          const SizedBox(height: FwSpacing.md),
+          const FwCodeBlock(_declaration, language: 'dart'),
+        ],
+      ),
     ),
   );
 }

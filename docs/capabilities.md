@@ -2760,7 +2760,7 @@ Several people on your real server, set up by a script. Opening a world runs it;
 
 #### `list` — List
 
-Every world the project declares — a file in a declared package's worlds folder whose `main` calls `World.run` — with the doc comment that says what it sets up.
+Every world the project declares in `tool/flutterware.dart` — a script whose `main` calls `World.run` — with what it sets up.
 
 ```sh
 fw run worlds list

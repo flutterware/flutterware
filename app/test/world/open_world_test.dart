@@ -10,49 +10,48 @@ import 'package:flutterware_app/src/world/world_files.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
-  group('scanWorlds', () {
+  group('declaredWorlds', () {
     late Directory package;
 
     setUp(() {
-      package = Directory.systemTemp.createTempSync('worlds_scan');
-      Directory(p.join(package.path, 'worlds', 'src'))
+      package = Directory.systemTemp.createTempSync('worlds_declared');
+      Directory(p.join(package.path, 'tool', 'worlds'))
           .createSync(recursive: true);
+      File(p.join(package.path, 'tool', 'worlds', 'pickup_order.dart'))
+          .writeAsStringSync('void main(List<String> args) {}');
     });
 
     tearDown(() => package.deleteSync(recursive: true));
 
-    test('finds the files that call World.run, named from the file', () {
-      File(p.join(package.path, 'worlds', 'pickup_order.dart'))
-          .writeAsStringSync('''
-import 'package:flutterware/world.dart';
-
-/// A barista and a regular.
-///
-/// Leo signs up himself.
-void main(List<String> args) => World.run(args, (w) {});
-''');
-      File(p.join(package.path, 'worlds', 'helpers.dart'))
-          .writeAsStringSync('int twice(int x) => 2 * x;');
-      File(p.join(package.path, 'worlds', 'src', 'nested.dart'))
-          .writeAsStringSync('void main() => World.run([], (w) {});');
-
-      var [world] = scanWorlds(
-        package: 'server',
+    test('lists what the config declares, named by it or by the file', () {
+      var worlds = declaredWorlds(
+        config: {
+          'path': 'server',
+          'worlds': [
+            {
+              'path': 'tool/worlds/pickup_order.dart',
+              'description': 'A barista and a regular.',
+            },
+            {'path': 'tool/worlds/team_invite.dart', 'name': 'Invite'},
+          ],
+        },
         packageRoot: package.path,
-        directory: 'worlds',
       );
-      expect(world.id, 'pickup_order');
-      expect(world.name, 'Pickup order');
-      expect(world.path, 'worlds/pickup_order.dart');
+      var [pickup, invite] = worlds;
+      expect(pickup.id, 'pickup_order');
+      expect(pickup.name, 'Pickup order');
+      expect(pickup.description, 'A barista and a regular.');
+      expect(pickup.problem, isNull);
+      expect(invite.name, 'Invite');
       expect(
-        world.description,
-        'A barista and a regular.\n\nLeo signs up himself.',
+        invite.problem,
+        'server/tool/worlds/team_invite.dart does not exist.',
       );
     });
 
-    test('a package with no worlds folder has no worlds', () {
+    test('a package that declares none has none', () {
       expect(
-        scanWorlds(package: 'x', packageRoot: package.path, directory: 'nope'),
+        declaredWorlds(config: {'path': 'x'}, packageRoot: package.path),
         isEmpty,
       );
     });

@@ -579,10 +579,21 @@ class ScenePackage extends PluginPackage {
 /// Worlds: several people on your real server, set up by a script.
 ///
 /// A world is a Dart file whose `main` calls `World.run`, from
-/// `package:flutterware/world.dart`, in the folder [WorldsPackage] names, in
-/// the package that can start the server and seed it: for a Dart server, the
-/// server's own package. Opening one runs it there; the people it declares get
-/// their apps, each launched from one of Run's entry points.
+/// `package:flutterware/world.dart`, in the package that can start the server
+/// and seed it: for a Dart server, the server's own package. Each is declared
+/// here, by [WorldScript], the way Run's entry points are — a project has a
+/// few worlds, each named on purpose, so nothing is scanned for:
+///
+/// ```dart
+/// fw.use(Worlds(packages: [
+///   .new(server, worlds: [
+///     WorldScript('tool/worlds/pickup_order.dart', name: 'Pickup order'),
+///   ]),
+/// ]));
+/// ```
+///
+/// Opening one runs it in its package; the people it declares get their
+/// apps, each launched from one of Run's entry points.
 class Worlds extends Plugin {
   Worlds({this.packages = const [], String? label})
     : super('flutterware.worlds', label: label ?? 'Worlds');
@@ -590,25 +601,71 @@ class Worlds extends Plugin {
   final List<WorldsPackage> packages;
 
   @override
-  Map<String, Object?> get config => {
-    'packages': [for (var p in packages) p.toJson()],
-  };
+  Map<String, Object?> get config {
+    // A world is opened by its file's name — `worlds open --world=…` — so two
+    // of one name would be one world written twice.
+    var seen = <String, String>{};
+    for (var package in packages) {
+      for (var world in package.worlds) {
+        if (seen[world.id] case var other?) {
+          throw StateError(
+            'Two worlds are called "${world.id}": ${world.path} in '
+            '"${package.path}" and one in "$other". A world is opened by its '
+            "file's name, so rename one of the files.",
+          );
+        }
+        seen[world.id] = package.path;
+      }
+    }
+    return {
+      'packages': [for (var p in packages) p.toJson()],
+    };
+  }
 }
 
 class WorldsPackage extends PluginPackage {
-  const WorldsPackage(super.pkg, {this.directory = defaultWorldsDirectory});
+  const WorldsPackage(super.pkg, {this.worlds = const []});
 
-  /// Where the package keeps its worlds, relative to it — one world a file.
-  /// Only the folder's own files are worlds: helpers the worlds share go in a
-  /// subfolder, `worlds/src/`.
-  final String directory;
+  /// The package's worlds.
+  final List<WorldScript> worlds;
 
   @override
-  Map<String, Object?> toJson() => {...super.toJson(), 'directory': directory};
+  Map<String, Object?> toJson() => {
+    ...super.toJson(),
+    'worlds': [for (var world in worlds) world.toJson()],
+  };
 }
 
-/// Where [WorldsPackage] looks when it is not told.
-const defaultWorldsDirectory = 'worlds';
+/// One world: its file, and what to call it.
+class WorldScript {
+  const WorldScript(this.path, {this.name, this.description});
+
+  /// Relative to the package, `/`-separated. `tool/worlds/` is the place to
+  /// keep them: they are scripts the project runs, not code it ships.
+  final String path;
+
+  /// What the studio and `worlds list` call it; the file's name as words,
+  /// `Pickup order`, when not given.
+  final String? name;
+
+  /// What it sets up, in a sentence or two — who is in it, and what state
+  /// they start in.
+  final String? description;
+
+  /// What `worlds open` takes: the file's name without `.dart`.
+  String get id {
+    var file = path.split('/').last;
+    return file.endsWith('.dart')
+        ? file.substring(0, file.length - '.dart'.length)
+        : file;
+  }
+
+  Map<String, Object?> toJson() => {
+    'path': path,
+    'name': ?name,
+    'description': ?description,
+  };
+}
 
 /// The native splash screen: what `flutter_native_splash` will produce, on
 /// every surface and in both themes.

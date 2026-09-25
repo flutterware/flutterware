@@ -1,15 +1,15 @@
 /// Worlds: several people on your real server, set up by a script.
 ///
 /// A world is one Dart file in the package that can start your server and
-/// seed it — for a Dart server, the server's own — in the folder
-/// `tool/flutterware.dart` declares with `Worlds(...)`. Opening it runs the
-/// file there: it brings the server up, makes fresh users through the
+/// seed it — for a Dart server, the server's own — declared in
+/// `tool/flutterware.dart` with `WorldScript(...)`. Opening it runs the file
+/// there: it brings the server up, makes fresh users through the
 /// server's own API, and declares the [Person]s who use it, each with an app.
 /// flutterware launches their apps — in the studio's embedded guest by
 /// default — signed in as whoever the script made.
 ///
 /// ```dart
-/// // server/worlds/pickup_order.dart
+/// // server/tool/worlds/pickup_order.dart
 /// import 'package:flutterware/world.dart';
 ///
 /// /// A barista and a regular who has never used the app.

@@ -8,8 +8,9 @@ should: `docs/superpowers/specs/2026-09-25-worlds-guest-phase5-decision.md`)
 - **`server/`** — a coffee shop's pickup orders, in memory. Its edges — SMS
   and push — report to flutterware instead of reaching a carrier, naming who
   each message reached.
-- **`server/worlds/`** — the lab's worlds, one a file. They host the server
-  in their own process and seed it through its admin API.
+- **`server/tool/worlds/`** — the lab's worlds, one a file, each declared in
+  the repo root's `tool/flutterware.dart`. They host the server in their own
+  process and seed it through its admin API.
 - **`app/`** — the customer app, with the plugin profile of a real one on
   purpose. At boot it touches every plugin once and prints how each answered,
   and it prints the time of its first frame, so a runner that cannot carry a
@@ -34,7 +35,7 @@ launching any app: it prints what it declares, and `name=value` arguments are
 its knob values.
 
 ```sh
-cd fixtures/world_lab/server && fvm dart run worlds/pickup_order.dart 'Leo=signed in'
+cd fixtures/world_lab/server && fvm dart run tool/worlds/pickup_order.dart 'Leo=signed in'
 ```
 
 ## The server and the app alone

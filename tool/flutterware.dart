@@ -422,9 +422,27 @@ void main() => Flutterware.configure((fw) {
       ],
     ),
   );
-  // The lab's worlds, run in the lab server's package: it hosts the server
-  // and seeds it through its own API.
-  fw.use(Worlds(packages: [.new(worldLabServer)]));
+  // The lab's worlds, run in the lab server's package: they host the server
+  // and seed it through its own API.
+  fw.use(
+    Worlds(
+      packages: [
+        .new(
+          worldLabServer,
+          worlds: [
+            WorldScript(
+              'tool/worlds/pickup_order.dart',
+              name: 'Pickup order',
+              description:
+                  'A barista and a regular. Ana runs the counter, signed in; '
+                  'Leo has never used the app and signs up with a code by '
+                  "SMS, which is in the world's log",
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
   // The fixture's scenarios pin the runner; the demo app's are the sample.
   fw.use(
     Scenarios(

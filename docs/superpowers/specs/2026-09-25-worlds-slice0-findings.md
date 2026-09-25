@@ -28,8 +28,8 @@ studio answers and nothing written in the consumer's project.
   `close`, the same for `fw`, the MCP server and the studio. In the studio, a
   *Worlds* panel: the worlds a project declares, then the open one's people
   side by side, its knobs as pickers and its actions as buttons.
-- **The lab's first world**, `fixtures/world_lab/server/worlds/
-  pickup_order.dart`: Ana, staff, signed in; Leo, a phone number who has
+- **The lab's first world**, `fixtures/world_lab/server/tool/worlds/
+  pickup_order.dart`, declared in the repo's `tool/flutterware.dart`: Ana, staff, signed in; Leo, a phone number who has
   never used the app; a knob that starts him signed in; an action that has a
   customer with no app order.
 - **Run** refuses to change a world person's knobs and names the world's

@@ -89,7 +89,7 @@ class OpenWorld {
   late final _cache = FlutterCache(p.join(flutterSdkRoot, 'bin', 'cache'));
   late final Future<String> _host = ensureGuestHost(_cache, appRoot);
   final _builds = <String, _Build>{};
-  WorldScript? _script;
+  WorldScriptProcess? _script;
   var _nextRun = 1;
   Completer<void>? _settled;
   var _seeded = false;
@@ -190,9 +190,9 @@ class OpenWorld {
     }
 
     _say('Starting ${file.path}');
-    WorldScript script;
+    WorldScriptProcess script;
     try {
-      script = _script = await WorldScript.start(
+      script = _script = await WorldScriptProcess.start(
         dart: p.join(flutterSdkRoot, 'bin', 'dart'),
         packageRoot: p.join(worktree, file.package),
         file: file.path,
