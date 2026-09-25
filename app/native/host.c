@@ -22,6 +22,7 @@
 #include <EGL/egl.h>
 #endif
 
+#include "clipboard.h"
 #include "flutter_embedder.h"
 #include "input.h"
 #include "ipc.h"
@@ -146,7 +147,8 @@ static int RunDuePlatformTasks(void) {
   }
 }
 
-// Every platform message the app sends, answered empty — which Dart reads as
+// Every platform message the app sends, answered empty — but for the
+// clipboard's, see clipboard.h — which Dart reads as
 // "no implementation" and throws `MissingPluginException` for, the way a test
 // or a real app with an unregistered plugin does. A plugin the app has not
 // replaced with a fake now fails loudly and at once instead of hanging.
@@ -160,6 +162,18 @@ static int g_seen_count = 0;
 static void OnPlatformMessage(const FlutterPlatformMessage* message,
                               void* user_data) {
   (void)user_data;
+  uint8_t* reply = NULL;
+  size_t reply_length = 0;
+  if (strcmp(message->channel, "flutter/platform") == 0 &&
+      clipboard_answer(message->message, message->message_size, &reply,
+                       &reply_length)) {
+    if (message->response_handle) {
+      FlutterEngineSendPlatformMessageResponse(
+          g_engine, message->response_handle, reply, reply_length);
+    }
+    free(reply);
+    return;
+  }
   bool seen = false;
   for (int i = 0; i < g_seen_count; i++) {
     if (strcmp(g_seen_channels[i], message->channel) == 0) {
