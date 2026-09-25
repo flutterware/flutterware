@@ -22,7 +22,9 @@ a simulator, a phone or a macOS window, and external devices stay
 first-class. Built so far: slice 0 — `package:flutterware/world.dart`, the
 `worlds` plugin (`fw`, the MCP server, and a *Worlds* panel in the studio)
 and the lab's first world, *Pickup order*
-(`2026-09-25-worlds-slice0-findings.md`).
+(`2026-09-25-worlds-slice0-findings.md`) — then hardened on the consumer's
+first round with it (same findings, *Round 1*), whose team also drafted the
+system beside the people, now folded in below.
 **Method:** one brainstorm (2026-09-24/25) with three rounds of clickable
 mockups; a read of a consumer's monorepo — a Dart server, a staff dashboard,
 a client phone app, a local stack in docker compose — through its code and its
@@ -144,13 +146,18 @@ The studio runs the file in that package when a world opens, keeps the
 process alive while it is open and stops it on close.
 
 **As built in slice 0,** the owner — the studio, `fw` or the MCP server —
-binds a unix socket before it starts the script with `dart run`, and names it
-in the script's environment; the two speak JSON lines over it
-(`lib/src/world/protocol.dart`). No handle file: the owner started the
-script, so it already knows where it is. What other processes need to know —
-that a world is open, and whose — is on each person's Run handle, which
-carries the world's name. A script run with no owner prints what it declares
-instead, which is how its setup is debugged.
+binds a unix socket before it starts the script, and names it in the
+script's environment; the two speak JSON lines over it
+(`lib/src/world/protocol.dart`). The script runs with `dart run --resident`:
+a resident compiler per opening, shut down when the world closes, whose
+kernels outlive it on disk — so a script that imports a whole server compiles
+once, and every later opening and restart starts it in a fraction of a
+second (round 1). Other processes find the world through a handle, one file
+per worktree in the run directory, naming the owner's pid and a second
+socket on which the owner answers `status`, `invoke`, `restart` and `close`
+for them (`app/lib/src/world/world_owner.dart`): whoever opened a world
+owns it, and everyone else can still ask it. A script run with no owner
+prints what it declares instead, which is how its setup is debugged.
 
 ### A sketch
 
@@ -289,6 +296,16 @@ the values. Two ways to be signed in: register the user with the real auth
 server (exercises the login path, slower), or hand the app a debug session
 knob (fast, skips the login screen). A world *about* signing in uses the
 first.
+
+**Reload reaches the process; restart runs the setup.** Making people is
+the script's `main`, and running it again means new people — a restart, by
+definition, as Flutter's hot restart runs `main` again. But the process
+outlives its setup: it hosts the server, when the world does, and holds the
+actions' bodies and the cards' readers. An edit there should reach the
+running world without new people, the way a hot reload reaches an app: the
+script run under a VM service and reloaded from the resident compiler that
+already compiles it (slice 3). A world attached to someone else's server
+reloads that server by that server's own means.
 
 **Cleanup is by tag.** Everything the helpers create carries the world id.
 `onClose` removes what the script chooses; a *clean up old worlds* command
@@ -461,10 +478,11 @@ trips are no slower than a macOS window's
 | physical device | a picture; there is no window on the Mac | real | build and install | a live mirror is its own feature |
 | browser — `Launch.web(name, path:, session:)` on `Browser()` | live if the studio embeds or screencasts it | web | a web build | Run does not drive web today (DWDS): script actions stand in for the agent |
 
-Two findings changed what the guest costs. **PowerSync 2.4 and sqlite3 3.x
-load their native libraries through build hooks** — `powersync_flutter_libs`
-is now a `+eol` package that "no longer does anything" — and the guest's
-asset bundle already runs build hooks, so real sync in a guest is plausible.
+Two findings changed what the guest costs. **A sync library and sqlite3 3.x
+load their native libraries through build hooks** — the sync library's old
+Flutter plugin package is marked end-of-life and "no longer does anything" —
+and the guest's asset bundle already runs build hooks, so real sync in a
+guest is plausible.
 And **most plugins a real app carries are the kind scenarios already fake**
 (paths, preferences, permissions, links, package info, notifications), thin
 and stable, unlike the API fake that drifted. What a guest cannot carry is
@@ -548,8 +566,9 @@ Two people on one app must not share storage. Per kind:
  └───────────────────────────────────────────────────────────┘└───────────────────┘
 ```
 
-**Everything in the world is a node,** not only the people: the server and
-any peripheral sit beside the apps. A relationship between nodes is a line —
+**Everything in the world is a node,** not only the people: the server, the
+services it uses (*The system beside the people*) and any peripheral sit
+beside the apps. A relationship between nodes is a line —
 a Bluetooth pairing, dashed while disconnected; later, messages travelling.
 
 **Zoom changes what a node is, not only its size.** Below 70 % every node is
@@ -608,10 +627,138 @@ groups; it never gives coordinates.
 person's app is also a row in Run, because it is a Run launch. The address is
 `fw:///worktrees/<worktree>/flutterware.worlds/<world>[/<person>]`.
 
+## The system beside the people
+
+The consumer's first round with worlds asked for more than people: the
+system they use, drawn beside them. Its team prototyped it as a page the
+world serves, over its own stack, before asking for an API — so what follows
+was designed against real traffic, and its numbers are that world's.
+
+**A service is a node,** like a person: a card with what it holds — the mails
+sent, the files in a bucket, the rows the world made — links to its own
+console, and a status. Work passing from one node to another is a **flow**: a
+dot travelling along the line between them, and a row on the timeline in its
+person's colour.
+
+**Movement has three sources,** and they reach different places:
+
+| source | how | the world hosts the server | the world attaches to one |
+|---|---|---|---|
+| the server | wrappers the world puts around a server it hosts: request middleware, a query observer, the mail, SMS and job services | requests, reads and writes, messages, jobs | nothing: another process reports nothing to the world |
+| the script | `w.flow` from an action | works | works |
+| each person's app | Run already records its HTTP and its logs; a service declares the origins it answers on, and a person's traffic to one is a flow | works | works — it needs nothing from the server |
+
+The third is the one to build first. The prototype got *the change reached
+Leo* by decoding a sync service's binary stream on the server's proxy —
+protocol-specific and fragile — while the app already logs each checkpoint it
+applies, and the studio already sees every app's traffic.
+
+**Layers.** Watching a world, the question is rarely *what did the sync
+service do*; it is *did Leo get it*, or *is the photo still processing*.
+Every node, flow and span carries a layer, and the viewer picks one, seeing it
+and every layer above it:
+
+| layer | what |
+|---|---|
+| **Product** | what a person does, what reaches someone else, work people wait on |
+| **System** | the parts, and the work passed between them: calls, messages, jobs, files |
+| **Wire** | the plumbing: SQL, sync streams opening, sync operations |
+
+On one world, from opening to a record one person shared with another, the
+prototype recorded 60 events: 4 on Product, 14 more on System, 42 more on
+Wire. With every phone syncing every 30 s, Wire keeps growing while nothing
+happens; Product does not. The canvas opens on Product.
+
+What building it taught, each an ask of the canvas:
+
+- **Product is named by the project, never derived.** A route means nothing
+  until someone says *places an order*; a domain event the server reports —
+  *the photo is ready* — is the other way in. A **moment**
+  (`w.moment('Ana', 'places an order')`) is its own kind of event, beside
+  flows.
+- **A coarser layer folds the hops it hides,** not only hides them. On
+  Product, Ana → API → database → sync → Leo is one arrow, Ana → Leo. Within
+  a request the chain is the request's; across to the sync that follows it,
+  the prototype could only bind by timing. That wants a trace id that
+  survives what the server hands off, and chains folded by the canvas rather
+  than by each project.
+- **Flows are about people, and a person comes before their account.** A
+  flow names its person by any identity the world knows — email, phone, user
+  id — and identities are added as the world learns them: an invitation
+  leaves before its recipient has an account.
+- **Receiving is not everything that arrives.** A person's first sync carries
+  everything written before they connected; only what was written after
+  reaches them. And a message sent while someone acts is that person reaching
+  its recipient.
+- **The world's own reads are not traffic.** Opening a card reads its
+  service; those reads are tagged as the world's and never drawn.
+- **History matters more than live.** Most flows happen while the world
+  opens — sign-ups, invitations, a first sync — before anyone looks. Flows are
+  kept with the world, and the timeline starts at its opening.
+- **Coalesce.** One request runs several queries; one checkpoint completes
+  several times. Same from, to and label within a short window is one dot,
+  with a count.
+- **Contents are pulled, and slow.** Read when a card opens or a flow touches
+  it; the last contents shown at once and refreshed behind them.
+- **Degraded, and saying so.** A card whose source is silent in this world —
+  attached, or not wired — is marked *unreported*, with the reason: never an
+  empty card that looks quiet. Run's device strip keeps the same rule.
+- **Long work needs a start.** `FlutterwareServer.span` reports once, when
+  the work ends, so a job that takes minutes shows nothing until then. A span
+  reports its start, and how far it is.
+- **Lines are architecture, not traffic.** Straight lines between every pair
+  crossed every card by the fourth service: lines are routed, or drawn faint
+  and lit while something moves along them.
+
+**The outbox is part of it.** The mail and SMS cards are the outbox's
+viewers, and their items carry the deliveries (*Open in Leo's app*), so the
+outbox is built as the first cards rather than as a list of its own.
+
+A draft API, from the prototype's stand-in:
+
+```dart
+w.service(
+  'photos',
+  label: 'Storage · photos',
+  kind: ServiceKind.storage, // the icon
+  group: 'Stack', // the lane
+  links: {'Console': consoleUrl},
+  origins: [storageUrl], // a person's traffic here is a flow
+  contents: () async => [
+    for (var object in await bucket.list())
+      WorldItem(object.key, detail: '${object.size} B', opens: object.url),
+  ],
+  layer: Layer.system,
+);
+w.line('api', 'photos');
+
+w.flow('Ana', 'api', 'places an order');
+w.moment('Ana', 'places an order'); // Product
+var job = w.span('menu', 'photo 42', person: 'Ana');
+job.progress(0.4);
+job.end();
+```
+
+From a server — the world's own, or one it attaches to — over the channel
+servers already report on:
+`FlutterwareServer.event('world.flow', {'from': 'api', 'to': 'mail', 'label': subject, 'email': recipient})`.
+
+The readers and reporters stay in the project's `tool/`: nothing in its
+`lib/` knows about worlds, and labels carry steps, statuses, ids and
+durations only.
+
+**Not planned: a web page in the panel.** The consumer asked for
+`w.view(name, url)`, to draw its prototype's page beside the people until the
+canvas exists. The studio has no web view, and one would put a native plugin
+in every user's build for a stopgap; the page opens from a world action
+meanwhile.
+
 ## The agent's surface
 
 - `worlds list`; `worlds open {world, knobs}` returns the people and their
-  apps' run keys; `worlds restart`; `worlds close`.
+  apps' run keys; `worlds restart`; `worlds close`. Any process can ask a
+  world another one owns: `status`, `invoke`, `restart` and `close` are
+  forwarded to the owner (round 1).
 - `flutterware_act` gains a `person` selector beside `device`, `entrypoint`
   and `run` (`_selectApp`, `run_core.dart:5201`). Its existing `actor`
   argument keeps saying who is driving.
@@ -706,15 +853,28 @@ triggered.
    - Proved on the lab's *Pickup order*, then on the consumer's first world,
      with the plugin answers its first screen turns out to need — three.
      **Done** (`2026-09-25-worlds-slice0-findings.md`).
-1. **The outbox.** The SMTP catcher; typed `mail`, `sms`, `push` and `job`
-   events carrying who they reached; questions (`w.outbox.ask`); the viewers;
-   newcomers; the three kinds of delivery, through a devbar panel convention
-   flutterware publishes for links and notifications.
-2. **Canvas v1.** Nodes with their credentials, the timeline, pending
-   questions, focus, the drawer. Guests are live from the first version, as
-   the lab already draws them, and sent to the background when drawn as a
-   card or off screen; external devices are pictures.
-3. **Server panels** over `FlutterwareServer.handle`.
+   - **Round 1**, from the consumer's first day: any process reaches a world
+     another owns; the script compiled once by a resident compiler; a log
+     stamped with the time since the opening; each guest in its person's own
+     folder; `w.phone(prefix:)`; `permission_handler`; and an older studio or
+     MCP server saying it is older rather than that a plugin has no actions.
+1. **A design round, then the system beside the people.** Clickable mockups
+   of the canvas with people *and* services, flows on three layers, the
+   timeline, focus and credentials, agreed before anything is built. Then
+   the first cards: the outbox — the SMTP catcher; typed `mail`, `sms`,
+   `push` and `job` events carrying who they reached; questions
+   (`w.outbox.ask`); the viewers; newcomers; the three kinds of delivery,
+   through a devbar panel convention flutterware publishes for links and
+   notifications — and flows from each person's traffic to the origins a
+   service declares.
+2. **Canvas v1.** Nodes — people and services — with their credentials and
+   contents, the timeline, pending questions, focus, the drawer. Guests are
+   live from the first version, as the lab already draws them, and sent to
+   the background when drawn as a card or off screen; external devices are
+   pictures.
+3. **Server panels** over `FlutterwareServer.handle`, and **reload of the
+   world's process**: an edit to the server it hosts, or to an action,
+   reaches the running world without new people.
 4. **Other devices, and the device as an input.** A simulator allocated per
    person, a macOS window when the script asks for one, and the controls
    where the mechanism already exists — `simctl location`, adb — refusing the
@@ -772,6 +932,13 @@ sandbox over a mocked API.
 14. **A guest on Linux and Windows.** Linux renders guests today but has run
     no world: it needs a clipboard, and homes through the XDG variables.
     Windows waits for its embedder host.
+15. **Services on the canvas.** Lanes by group, then dragged and remembered
+    like people — or a fixed diagram the script draws?
+16. **Traces.** Whether a flow carries the request id `FlutterwareServer`
+    already puts on events, so one trace — Ana's tap to Leo's screen — replays
+    as one.
+17. **Busy worlds.** Every phone syncing every 30 s, a job queue: how many
+    dots before the canvas aggregates.
 
 ## Evidence
 
@@ -794,6 +961,23 @@ sandbox over a mocked API.
   not in compose.
 - The app already exposes a devbar action that pushes a URL into its
   deep-link pipe.
+
+**From the consumer's first round (run, 2026-09-25):**
+
+- Two worlds, opened from `fw` a few dozen times: two colleagues signed in
+  and synced, one's new record reaching the other at the same sync
+  checkpoint; two different apps in one world, two kernels built in parallel
+  from one seed; an invitation by text delivered through the app's own devbar
+  deep-link panel.
+- From nothing — no stack, no database — one `fw` command opened a world in
+  57.5 s, 33.0 s of it the stack; warm, ~21 s, of which `dart run` spent
+  11.9 s before the script's first line (a 7.4 s, 92 MB kernel compile of the
+  whole server) against 1.25 s from a precompiled kernel. Close: 0.4 s,
+  nothing left behind.
+- At rest: two guests 540 and 493 MB, the script and its server 139 MB.
+- One plugin unanswered, `permission_handler`, caught by the app.
+- The world could host its own server on a stack of its own, or attach to
+  the developer's running server and only make its people there.
 
 **From this repository:**
 
