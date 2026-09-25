@@ -291,6 +291,11 @@ Future<ProcessLog?> _prepare(
       ok: (result) => result.ok,
     );
     if (!result.ok) {
+      // The copy is stamped as complete, and a stamped copy is never resolved
+      // again: without this, one failed `pub get` — offline, say — left every
+      // later run building an unresolved tree until `--force-compile`.
+      var stamp = workingCopyStampFile(root);
+      if (stamp.existsSync()) stamp.deleteSync();
       plan.finish();
       describeFailure(stderr, 'could not resolve the flutterware app.', result);
       exit(70);

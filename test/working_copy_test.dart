@@ -89,6 +89,36 @@ void main() {
     });
   });
 
+  group('the workspace is the one the copy carries', () {
+    test('members the archive leaves out are dropped from the list', () {
+      // This repository's own root pubspec, so the shape under test is the one
+      // that ships.
+      var real = File(p.join(Directory.current.path, 'pubspec.yaml'))
+          .readAsStringSync();
+      expect(real, contains('\n  - fixtures/probe_app\n'));
+      _write(p.join(source, 'pubspec.yaml'), real);
+
+      copyPackageInto(source, destination, 'stamp');
+
+      var copied = File(p.join(destination, 'pubspec.yaml')).readAsStringSync();
+      expect(copied, contains('workspace:\n  - app\n'));
+      for (var absent in ['fixtures/probe_app', 'examples/brewline']) {
+        expect(copied, isNot(contains('- $absent')));
+      }
+      // Only the list moves: what follows it is still there.
+      expect(copied, contains('\nplatforms:'));
+    });
+
+    test('a pubspec with no workspace is copied as it is', () {
+      copyPackageInto(source, destination, 'stamp');
+
+      expect(
+        File(p.join(destination, 'pubspec.yaml')).readAsStringSync(),
+        'name: flutterware\n',
+      );
+    });
+  });
+
   test('the stamp records what the copy was made from', () {
     var stamp = workingCopyStamp(source, sdk: 'dart 3.13');
 

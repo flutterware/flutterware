@@ -184,6 +184,48 @@ jobs:
           fi
           echo "pana: $granted/$max"
 
+  install:
+    name: Install from the archive (${{ matrix.sdk }})
+    # Every other job starts flutterware from this checkout, which the launcher
+    # treats as a path dependency: no copy, no `pub get` of its own, nothing
+    # `.pubignore` leaves out. Everyone who installs it from pub.dev takes the
+    # other branch, and that branch broke twice with nothing here seeing it —
+    # the archive named workspace members it did not carry, and it left out two
+    # shaders the studio's pubspec declares. This stages exactly what
+    # `pub publish` would upload inside the pub cache, runs
+    # `dart run flutterware --version` against it and builds the studio there,
+    # which is a first run short of opening the window.
+    #
+    # Twice: on the pin, and on the newest stable, because that is what most
+    # people install with and what pub.dev grades with — and the pin is a beta.
+    # A stable Flutter exported less than the pin once (`ScrollCacheExtent`),
+    # and the studio did not compile for anyone on it. Unpinned on purpose: a
+    # new stable that breaks this is a new stable that breaks every install.
+    #
+    # macOS: the studio's own platform, and the one previews run live on.
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [pin, stable]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned Flutter version
+        id: pin
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          if [ -z "$version" ]; then echo "::error::.fvmrc names no Flutter version"; exit 1; fi
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.sdk == 'pin' && steps.pin.outputs.version || '' }}
+          channel: ${{ matrix.sdk == 'pin' && steps.pin.outputs.channel || 'stable' }}
+      - run: flutter --version
+      - run: flutter pub get
+      - run: dart tool/publish/install_check.dart --gui
+
   demo_export:
     name: Demo export
     # `examples/brewline` is the demo a stranger clones. It is a workspace

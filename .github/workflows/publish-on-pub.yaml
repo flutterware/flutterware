@@ -1,45 +1,44 @@
-name: Publish package to pub.dev
+name: Release
 
-# The tag is the trigger, and `v{{version}}` is the tag pattern to enter in the
-# package's Admin tab on pub.dev. The trailing `*` is what lets a prerelease
-# through — `v0.7.0-beta.1` publishes, `v0.7.0` publishes, `nightly` does not.
+# **Publishing is one action: create a GitHub release.** Its tag, `v<version>`,
+# is the trigger — pub.dev accepts a publish only from a workflow a tag push
+# started, and a release made in the GitHub UI pushes its tag. `v{{version}}`
+# is the tag pattern entered in the package's Admin tab on pub.dev; the
+# trailing `*` lets a prerelease through (`v0.7.0-beta.1`), and a tag like
+# `nightly` never starts this.
+#
+# The version is master's, not the release's: `fvm dart tool/release.dart
+# <version>` moves it and opens its changelog entry in an ordinary PR, and the
+# release names what master already says. Then, in order:
+#
+#   verify   the tag is master's version, on master, and master's CI passed
+#            on it — which includes installing from exactly what pub would
+#            upload, on the pin and on the newest stable
+#   pictures media/v<version>/, rendered from this tag
+#   publish  pub.dev, through dart-lang/setup-dart's publish workflow
+#   demo     github.com/flutterware/flutterware_example synced, and a fresh
+#            clone of it installed from pub.dev — what a stranger does first
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
-jobs:
-  # The pictures the package page links to, rendered from this tag and pushed
-  # to `media/v<version>/` before anything is published: pub.dev shows a
-  # version's README for ever, and a picture missing when it goes up is a
-  # broken image nobody can fix. Publishing freezes the folder.
-  pictures:
-    uses: ./.github/workflows/media.yaml
-    permissions:
-      contents: write
+# Two releases never interleave: each writes the media branch and the demo.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
-  publish:
-    name: Publish to pub.dev
-    needs: pictures
+jobs:
+  verify:
+    name: Check the release
     runs-on: ubuntu-latest
-    # **The whole authentication story.** GitHub mints a short-lived OIDC token
-    # for this run, pub.dev checks its claims against the repository and tag
-    # pattern configured on the package, and that is the credential. There is
-    # nothing to store and nothing to rotate — the `OAUTH_ACCESS_TOKEN` and
-    # `OAUTH_REFRESH_TOKEN` secrets this workflow used to write into a
-    # `pub-credentials.json` are no longer read by anything and can be deleted.
     permissions:
-      id-token: write
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
-
-      # The pinned SDK, read from the same committed file every other job reads.
-      # `dart-lang/setup-dart`'s reusable publish workflow would do the OIDC
-      # exchange for us, but it publishes with a bare Dart SDK — and this
-      # package depends on `flutter` from the SDK, so resolution fails before
-      # publishing is even attempted. Hence a Flutter toolchain and the exchange
-      # written out below.
+        with:
+          fetch-depth: 0
       - name: Read the pinned Flutter version
         id: pin
         run: |
@@ -52,35 +51,149 @@ jobs:
         with:
           flutter-version: ${{ steps.pin.outputs.version }}
           channel: ${{ steps.pin.outputs.channel }}
-      - run: flutter --version
       - run: flutter pub get
 
-      # The tag and the pubspec have to agree. Cheap, and the failure it catches
-      # — a tag naming a version the archive does not contain — is one nobody
-      # can fix after the fact, because a published version is permanent.
-      - run: dart tool/publish/check_version.dart ${GITHUB_REF}
+      # A published version is permanent, and so is the changelog pub.dev
+      # shows beside it: both are checked before anything leaves.
+      - name: The tag names master's version, and the changelog says what it is
+        run: dart tool/publish/check_release.dart "$GITHUB_REF_NAME"
 
-      # Every picture README.md and doc/ link to answers, as WebP, at the URL
-      # naming this version — asked of the CDN a reader's browser will ask.
-      - run: dart tool/media.dart check
-
-      # The exchange, in full. `--env-var` stores *the name of the variable* to
-      # read at request time rather than the token itself, so the secret never
-      # reaches `pub-tokens.json` on disk.
-      - name: Authenticate to pub.dev with a GitHub OIDC token
+      - name: The tag is on master
         run: |
-          token="$(curl -sSf \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://pub.dev" \
-            | jq -r '.value')"
-          if [ -z "$token" ] || [ "$token" = "null" ]; then
-            echo "::error::no OIDC token — is 'id-token: write' still granted?"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::$GITHUB_REF_NAME is not on master. Delete the release and its tag, and create it again from master."
             exit 1
           fi
-          echo "::add-mask::$token"
-          echo "PUB_TOKEN=$token" >> "$GITHUB_ENV"
-          dart pub token add https://pub.dev --env-var PUB_TOKEN
 
-      # `--force` skips the prompt, not the validation: the archive is still
-      # built and checked, and a package that fails validation is not published.
-      - run: flutter pub publish --force
+      # The tests are master's CI, and it has run on this commit — or is
+      # running, if the release was created right after the merge, in which
+      # case this waits for it. Its *Install from the archive* jobs are the
+      # ones that install the package the way pub.dev will hand it out. `Suites on Windows` is left out: its app suite
+      # reports rather than blocks, and when it takes its runner down the job
+      # fails without saying anything about the release.
+      - name: Master's CI passed on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          advisory='Suites on Windows'
+          for attempt in $(seq 1 90); do
+            run="$(gh run list --workflow analyze-and-test.yaml --commit "$GITHUB_SHA" --event push \
+                    --json databaseId --jq '.[0].databaseId // empty')"
+            if [ -n "$run" ]; then
+              jobs="$(gh run view "$run" --json jobs --jq "[.jobs[] | select(.name != \"$advisory\")]")"
+              failed="$(jq -r '[.[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped") | .name] | join(", ")' <<<"$jobs")"
+              if [ -n "$failed" ]; then
+                echo "::error::master's CI failed on this commit: $failed"
+                exit 1
+              fi
+              if [ "$(jq length <<<"$jobs")" != 0 ] && [ "$(jq '[.[] | select(.status != "completed")] | length' <<<"$jobs")" = 0 ]; then
+                echo "Master's CI passed on $GITHUB_SHA."
+                exit 0
+              fi
+            fi
+            sleep 60
+          done
+          echo "::error::master's CI did not finish on $GITHUB_SHA within 90 minutes"
+          exit 1
+
+  # The pictures the package page links to, rendered from this tag and pushed
+  # to `media/v<version>/` before anything is published: pub.dev shows a
+  # version's README for ever, and a picture missing when it goes up is a
+  # broken image nobody can fix. Publishing freezes the folder.
+  pictures:
+    needs: verify
+    uses: ./.github/workflows/media.yaml
+    permissions:
+      contents: write
+    with:
+      check: true
+
+  # The reusable workflow pub.dev's documentation points at: it exchanges the
+  # run's OIDC token for pub.dev's, installs the newest stable Flutter — the
+  # SDK pub.dev grades with, and the one *Install from the archive (stable)*
+  # builds on — and runs `pub get`, a dry run and `pub publish`. Nothing to
+  # store and nothing to rotate. An older version of it installed a bare Dart,
+  # which cannot resolve a package that depends on `flutter`; that is why this
+  # job was once written out by hand.
+  publish:
+    needs: pictures
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+
+  # What a stranger does first, done by the release instead: the demo repo is
+  # brought up to this version, then cloned fresh and installed from pub.dev
+  # with no override — the README's "Try it on your machine", verbatim.
+  #
+  # Pushing needs a deploy key with write access to flutterware_example, stored
+  # here as the `EXAMPLE_DEPLOY_KEY` secret. A key reaches one repository;
+  # `GITHUB_TOKEN` reaches none but this one.
+  demo:
+    name: Sync the demo and install it from pub.dev
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned Flutter version
+        id: pin
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          if [ -z "$version" ]; then echo "::error::.fvmrc names no Flutter version"; exit 1; fi
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.pin.outputs.version }}
+          channel: ${{ steps.pin.outputs.channel }}
+      - run: flutter pub get
+
+      # The demo resolves `flutterware` from pub.dev, so it goes out only once
+      # pub.dev answers for this version.
+      - name: Wait for pub.dev to list this version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for attempt in $(seq 1 60); do
+            if curl -sSf "https://pub.dev/api/packages/flutterware/versions/$version" > /dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::pub.dev does not list flutterware $version after ten minutes"
+          exit 1
+
+      - name: Push the demo to flutterware_example
+        env:
+          DEPLOY_KEY: ${{ secrets.EXAMPLE_DEPLOY_KEY }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::no EXAMPLE_DEPLOY_KEY secret: add a deploy key with write access to flutterware/flutterware_example"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/example_deploy
+          chmod 600 ~/.ssh/example_deploy
+          export GIT_SSH_COMMAND='ssh -i ~/.ssh/example_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new'
+          # The script clones and fetches over https, which needs nothing, and
+          # pushes over ssh with the key.
+          git config --global \
+            url."git@github.com:flutterware/flutterware_example.git".pushInsteadOf \
+            https://github.com/flutterware/flutterware_example.git
+          dart tool/publish_example.dart
+
+      - name: A fresh clone installs flutterware from pub.dev
+        working-directory: ${{ runner.temp }}
+        run: |
+          git clone --depth 1 https://github.com/flutterware/flutterware_example demo
+          cd demo
+          flutter pub get
+          flutter analyze
+          flutter test
+          dart run flutterware --version

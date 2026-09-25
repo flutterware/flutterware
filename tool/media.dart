@@ -55,7 +55,7 @@ Future<void> main(List<String> arguments) async {
   var version = pubspecVersion(root);
   switch (arguments.firstOrNull) {
     case 'links':
-      _links(root, version);
+      relinkPictures(root, version);
     case 'publish':
       await _publish(
         root,
@@ -96,7 +96,7 @@ String pubspecVersion(String root) {
 
 /// Rewrites every picture link to name [version]: the step after a version
 /// bump, which `test/media_links_test.dart` asks for.
-void _links(String root, String version) {
+void relinkPictures(String root, String version) {
   for (var file in documents(root)) {
     var before = file.readAsStringSync();
     var after = before.replaceAllMapped(

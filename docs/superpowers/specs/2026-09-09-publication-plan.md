@@ -665,6 +665,14 @@ exchange itself: one `curl` against `ACTIONS_ID_TOKEN_REQUEST_URL` with
 stores *the name of the variable* rather than the token, so the secret never
 reaches `pub-tokens.json` on disk.
 
+**Corrected 2026-09-25: the reusable workflow is what publishes now.** Its
+current `@v1` installs a Flutter SDK (`flutter-actions/setup-flutter`, newest
+stable) before `dart pub get`, so the objection above no longer holds. On
+Flutter 3.47.5 its three steps run clean against this package: `pub get` leaves
+the tree unchanged, and the dry run reports 0 warnings. The hand-written
+exchange is gone. `media.dart check`, which ran inside the old job, now runs at
+the end of the pictures job.
+
 The trigger is `v[0-9]+.[0-9]+.[0-9]+*` — the trailing `*` is what lets
 `v0.7.0-beta.1` through. **On pub.dev's Admin tab this pairs with repository
 `flutterware/flutterware` and tag pattern `v{{version}}`**; without that

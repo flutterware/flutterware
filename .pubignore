@@ -31,6 +31,15 @@ doc/ideas/
 # copies `app/` to build the GUI from it, and nothing there compiles, reads or
 # lists a test. Measured 2026-09-11: 548 files, 4.4 MB uncompressed, half of
 # the archive's file count.
-test/
-app/test/
+#
+# Except the two shaders the scene tests use. `app/pubspec.yaml` declares
+# them, because `flutter test` compiles only declared shaders, and so every
+# build of the studio bundles them — the installed one failed on the first:
+# "No file or variants found for asset: test/scene/shaders/probe.frag".
+# A directory cannot be re-included under an excluded parent, hence the steps.
+/test/
+app/test/*
+!app/test/scene/
+app/test/scene/*
+!app/test/scene/shaders/
 app/integration_test/
