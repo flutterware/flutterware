@@ -34,8 +34,12 @@ studio answers and nothing written in the consumer's project.
   customer with no app order.
 - **Run** refuses to change a world person's knobs and names the world's
   restart instead, as decided before the slice.
-- **Removed:** the experiment's *World lab* pane and its entry point. The
-  Worlds panel does what it did.
+- **Removed:** the experiment's *World lab* pane and its entry point, which
+  the Worlds panel replaces; its harnesses, `app/tool/embedder/run_app.dart`
+  and the lab's `tool/cold_open.dart`, which `worlds open` replaces; and
+  candidate 1 — the lab's `guest/fakes.dart` and the guest build's door for a
+  project's fakes. A guest's plugins are always their own, answered by the
+  studio. The findings keep the numbers those harnesses measured.
 
 ## Measured
 

@@ -355,7 +355,6 @@ class OpenWorld {
         environment: guestEnvironment(
           home: home.path,
           knobsFile: build.app.writeKnobs(name, person.knobs),
-          forward: true,
         ),
         device: device,
         platform: platform.platform.answer,
@@ -428,7 +427,6 @@ class OpenWorld {
           cache: _cache,
           entrypoint: entry.path,
           platform: look,
-          studioAnswers: true,
           seeds: true,
           buildDir: p.join(
             buildRoot ?? p.join(package, 'build'),
@@ -753,7 +751,7 @@ class HeadlessWorldGuest implements WorldGuest {
   Future<void> start(WorldGuestStart start) async {
     var device = start.device;
     var ratio = device.pixelRatio;
-    _process = await GuestProcess.spawn(
+    _process = await GuestProcess.start(
       person: start.person,
       hostPath: start.hostPath,
       assetsDir: start.assetsDir,

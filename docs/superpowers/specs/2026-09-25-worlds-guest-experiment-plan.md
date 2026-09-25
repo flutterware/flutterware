@@ -11,6 +11,10 @@ the default for every person whose app it can carry
 out: five phases, two kill points early, a scorecard filled for every
 candidate, and three possible outcomes decided before anything was measured.
 **Status:** thresholds confirmed; phase 0 done (the bar: 15.8 s from a cold worktree); phase 1 passes for both apps; phase 2 passes, both kill points cleared; phase 3 passes — 35 lines a plugin on average, isolation per person without the app's help (`2026-09-25-worlds-guest-phase3-findings.md`); phase 4 passes — 4 guests at rest in 949 MB at 0.4 % CPU, every Run tab working through the guest's registration alone, changing knobs the one gap (`2026-09-25-worlds-guest-phase4-findings.md`); phase 5 decided **go** on the rule below — every phase passed, and a cold two-person world opens 2.8× faster than macOS windows at the slowest measure (`2026-09-25-worlds-guest-phase5-decision.md`).
+**Since:** slice 0 removed the harnesses this plan names — `run_app.dart`,
+`cold_open.dart` and the lab's fakes — once `worlds open` did their job
+(`2026-09-25-worlds-slice0-findings.md`). The numbers stand; to measure again,
+time `worlds open`, which prints how long a world took.
 
 ## What is actually in question
 

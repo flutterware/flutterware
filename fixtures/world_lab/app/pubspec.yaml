@@ -30,15 +30,5 @@ dependencies:
   url_launcher:
   web_socket_channel:
 
-# The platform interfaces `guest/fakes.dart` replaces the plugins at, for the
-# embedded guest. Outside `lib/`, so they never reach the app itself.
-dev_dependencies:
-  app_links_platform_interface:
-  flutter_local_notifications_platform_interface:
-  flutter_secure_storage_platform_interface:
-  path_provider_platform_interface:
-  shared_preferences_platform_interface:
-  url_launcher_platform_interface:
-
 flutter:
   uses-material-design: true

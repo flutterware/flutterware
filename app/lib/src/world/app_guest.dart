@@ -25,24 +25,22 @@ import 'plugin_registrant.dart';
 ///
 /// The entry wraps `main` in Run's own `runGuest`, so a guest carries the same
 /// drive, inspection and log extensions as an app Run launched, and installs
-/// the guest keyboard and text input Previews uses. [fakes] names a file with
-/// `installGuestFakes({required Directory home, required answerChannel})`, the
-/// project's replacements for its plugins: `home` is that person's own
-/// directory, and `answerChannel(name, (call) async => …)` answers a channel a
-/// plugin with no platform interface calls directly.
+/// the guest keyboard and text input Previews uses.
+///
+/// **The app's plugins are its own.** Their Dart halves are registered the way
+/// `flutter run` registers them, and what they send the platform is answered
+/// by the studio (`StudioPlatform`) — so the guests need
+/// [guestEnvironment]'s forwarding.
 class AppGuestBuild {
   AppGuestBuild({
     required String package,
     required this.cache,
     this.entrypoint = 'lib/main.dart',
-    String? fakes,
     this.platform,
     String? buildDir,
     this.seeds = false,
     this.seedDill,
-    this.studioAnswers = false,
   }) : package = p.normalize(p.absolute(package)),
-       fakes = fakes == null ? null : p.normalize(p.absolute(fakes)),
        buildDir =
            buildDir ??
            p.join(p.normalize(p.absolute(package)), 'build', 'world_guest');
@@ -52,7 +50,6 @@ class AppGuestBuild {
 
   /// Package-relative: `lib/main.dart`, or a `demo/` or `tool/` entry point.
   final String entrypoint;
-  final String? fakes;
 
   /// A `TargetPlatform` name — `iOS` — for the look of a phone the guest is
   /// not: it runs on the Mac, so without this it draws the Mac's.
@@ -67,12 +64,6 @@ class AppGuestBuild {
 
   /// A kernel to start the compile from instead.
   final String? seedDill;
-
-  /// Candidate 2 of the guest experiment rather than 1: the plugins' own Dart
-  /// halves registered, as `flutter run` registers them, and their platform
-  /// calls answered by the studio (`StudioPlatform`) — instead of [fakes].
-  /// Its guests need `guestEnvironment(forward: true)`.
-  final bool studioAnswers;
 
   String get assetsDir => p.join(buildDir, 'assets');
   String get kernel => p.join(assetsDir, 'kernel_blob.bin');
@@ -109,17 +100,15 @@ class AppGuestBuild {
   /// Writes the entry and compiles it whole, into [kernel].
   Future<CompileOutcome> compile() async {
     var entry = _writeEntry(
-      studioAnswers
-          ? await dartPluginRegistrations(
-              packageConfig: packageConfig,
-              package: package,
-              // The look decides, not the Mac the guest runs on: a plugin
-              // that picks its implementation by the target platform — the
-              // notifications plugin does — finds none for iOS if the macOS
-              // half was registered, and every call does nothing.
-              platform: platform == 'iOS' ? 'ios' : 'macos',
-            )
-          : const [],
+      await dartPluginRegistrations(
+        packageConfig: packageConfig,
+        package: package,
+        // The look decides, not the Mac the guest runs on: a plugin that
+        // picks its implementation by the target platform — the
+        // notifications plugin does — finds none for iOS if the macOS half
+        // was registered, and every call does nothing.
+        platform: platform == 'iOS' ? 'ios' : 'macos',
+      ),
     );
     if (seeds) {
       _store = SeedStore(
@@ -191,7 +180,6 @@ class AppGuestBuild {
     var main = entrypoint.startsWith('lib/')
         ? 'package:${name.group(1)}/${entrypoint.substring(4)}'
         : '${Uri.file(p.join(package, entrypoint))}';
-    var fakesUri = fakes == null ? null : Uri.file(fakes!);
     var entry = File(p.join(buildDir, 'entry.dart'))
       ..createSync(recursive: true)
       ..writeAsStringSync('''
@@ -201,30 +189,18 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutterware/previews_guest.dart'
     show GuestKeyboard, GuestLogs, GuestTextInput;
 import 'package:flutterware/run_guest.dart';
 import '$main' as app;
-${fakesUri == null || studioAnswers ? '' : "import '$fakesUri' as fakes;"}
 ${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/${plugin.file}' as plugin$i;"].join('\n')}
 
-/// The guest's binding. Two things only a binding can do for an app whose
-/// `runApp` is its own:
-///
-/// * **Answer a plugin that has no platform interface.** Such a plugin calls a
-///   `MethodChannel` directly, so no Dart fake can take its place — except the
-///   messenger every channel sends through. The project's fakes name the
-///   channels they answer; every other message goes to the platform as before.
-/// * **Give the app a device's safe areas.** They reach a guest as view
-///   *insets* — `FlutterWindowMetricsEvent` has no padding field — so they are
-///   turned back into padding under the root `View`.
+/// The guest's binding, for what only a binding can do for an app whose
+/// `runApp` is its own: give it a device's safe areas. They reach a guest as
+/// view *insets* — `FlutterWindowMetricsEvent` has no padding field — so they
+/// are turned back into padding under the root `View`.
 class _GuestBinding extends WidgetsFlutterBinding {
-  @override
-  BinaryMessenger createBinaryMessenger() =>
-      _AnsweringMessenger(super.createBinaryMessenger());
-
   @override
   Widget wrapWithDefaultView(Widget rootWidget) =>
       super.wrapWithDefaultView(Builder(builder: (context) {
@@ -240,36 +216,6 @@ class _GuestBinding extends WidgetsFlutterBinding {
       }));
 }
 
-final _answers = <String, Future<Object?> Function(MethodCall)>{};
-
-class _AnsweringMessenger implements BinaryMessenger {
-  _AnsweringMessenger(this._platform);
-
-  final BinaryMessenger _platform;
-  static const _codec = StandardMethodCodec();
-
-  @override
-  Future<ByteData?>? send(String channel, ByteData? message) {
-    var answer = _answers[channel];
-    if (answer == null || message == null) {
-      return _platform.send(channel, message);
-    }
-    return answer(_codec.decodeMethodCall(message))
-        .then(_codec.encodeSuccessEnvelope);
-  }
-
-  @override
-  void setMessageHandler(String channel, MessageHandler? handler) =>
-      _platform.setMessageHandler(channel, handler);
-
-  @override
-  Future<void> handlePlatformMessage(
-    String channel,
-    ByteData? data,
-    PlatformMessageResponseCallback? callback,
-  ) => _platform.handlePlatformMessage(channel, data, callback);
-}
-
 // The binding is created before `runGuest` makes its own, and inside the log
 // zone `runGuest` would open: `install` does not nest, so `runGuest` runs in
 // this same zone, finds the binding, and the zone the binding captured is the
@@ -280,7 +226,6 @@ void main() => GuestLogs.instance.install<Object?>(() {
     ${platform == null ? '' : 'debugDefaultTargetPlatformOverride = TargetPlatform.$platform;'}
     GuestKeyboard.instance.install();
     GuestTextInput.instance.install();
-    ${fakesUri == null || studioAnswers ? '' : "fakes.installGuestFakes(home: Directory(Platform.environment['FW_PERSON_HOME']!), answerChannel: (channel, answer) => _answers[channel] = answer);"}
     ${[for (var (i, plugin) in plugins.indexed) 'plugin$i.${plugin.type}.registerWith();'].join('\n    ')}
     // Read on every start, so a restart takes the knobs written since.
     var knobs = (jsonDecode(
@@ -309,21 +254,20 @@ Directory emptyGuestHome(String path) {
 /// somebody named — `main` is called by name, and a name it does not declare
 /// fails the call.
 ///
-/// [forward] is candidate 2: the guest hands its platform messages to the
-/// studio, and CoreFoundation's idea of the home directory is the person's
-/// — `CFFIXED_USER_HOME`, the variable the iOS simulator gives each device —
-/// so a plugin whose macOS half calls Foundation directly, `path_provider`,
-/// finds the person's own folders without the app knowing.
+/// The guest hands its platform messages to the studio, and CoreFoundation's
+/// idea of the home directory is the person's — `CFFIXED_USER_HOME`, the
+/// variable the iOS simulator gives each device — so a plugin whose macOS half
+/// calls Foundation directly, `path_provider`, finds the person's own folders
+/// without the app knowing.
 Map<String, String> guestEnvironment({
   required String home,
   required String knobsFile,
   String locales = 'en-US',
-  bool forward = false,
 }) => {
   'FW_KNOBS_FILE': knobsFile,
-  'FW_PERSON_HOME': home,
   'FW_GUEST_LOCALES': locales,
-  if (forward) ...{'FW_FORWARD_PLATFORM': '1', 'CFFIXED_USER_HOME': home},
+  'FW_FORWARD_PLATFORM': '1',
+  'CFFIXED_USER_HOME': home,
 };
 
 /// The machine's half of a guest: the engine and the C host, built once per

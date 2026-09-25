@@ -15,7 +15,7 @@ import 'package:standard_message_codec/standard_message_codec.dart';
 /// — and speaks to this as it would to its Swift half. What each plugin needs
 /// is in `platform/`, a file each, so what one costs can be counted.
 ///
-/// Flutter-free on purpose: the headless harness answers with the same code
+/// Flutter-free on purpose: a world `fw` opens answers with the same code
 /// the studio does. The codecs are the standard ones, written against
 /// `package:standard_message_codec`.
 class GuestPlatform {

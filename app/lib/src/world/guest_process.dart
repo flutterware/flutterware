@@ -12,7 +12,6 @@ import '../run/handle.dart';
 import '../run/launch.dart';
 import '../utils/run_dir.dart';
 import '../utils/run_git.dart';
-import 'app_guest.dart';
 import 'guest_log.dart';
 
 /// One person's app in an embedded guest with nobody looking at it: the
@@ -47,44 +46,10 @@ class GuestProcess {
   /// the lines before its first frame.
   Stream<String> get output => _output.stream;
 
-  /// Spawns [person]'s guest over [build]'s kernel and answers once it has
-  /// drawn. The home directory is emptied first: a world creates what it
-  /// needs every time it opens.
+  /// Starts [person]'s guest over the kernel in [assetsDir] and answers once
+  /// it has drawn. [environment] is the world's — `guestEnvironment` — since
+  /// the world keeps each person's home and knobs.
   static Future<GuestProcess> start({
-    required AppGuestBuild build,
-    required String hostPath,
-    required String person,
-    required Map<String, Object?> knobs,
-    (int, int, double) size = (1179, 2556, 3),
-    (double, double, double, double) insets = (0, 0, 0, 0),
-    String locales = 'en-US',
-    Future<Uint8List?> Function(String channel, Uint8List bytes)? platform,
-    void Function(String line)? onOutput,
-  }) async {
-    var home = emptyGuestHome(build.homeOf(person));
-    return spawn(
-      person: person,
-      hostPath: hostPath,
-      assetsDir: build.assetsDir,
-      icuData: build.cache.icuData,
-      workingDirectory: build.package,
-      environment: guestEnvironment(
-        home: home.path,
-        knobsFile: build.writeKnobs(person, knobs),
-        locales: locales,
-        forward: platform != null,
-      ),
-      log: GuestLog(p.join(build.buildDir, 'logs', '$person.log')),
-      size: size,
-      insets: insets,
-      platform: platform,
-      onOutput: onOutput,
-    );
-  }
-
-  /// [start] with everything worked out by the caller — a world, which keeps
-  /// each person's home and knobs itself.
-  static Future<GuestProcess> spawn({
     required String person,
     required String hostPath,
     required String assetsDir,
