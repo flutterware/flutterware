@@ -253,6 +253,19 @@ void main() {
       expect(File(await daemon.hostPath()).existsSync(), isTrue);
     }, skip: Platform.isMacOS ? null : 'the embedder guest is macOS-only');
 
+    test('builds the host again when asked again, so an edit is never served stale', () async {
+      var host = File(await daemon.hostPath());
+      // What an edit to `native/host.c` looks like to the build — a binary
+      // older than what it is made from — without touching a source. A
+      // daemon that memoised the host answered this with the same stale file
+      // until it exited.
+      var stale = DateTime(2000);
+      host.setLastModifiedSync(stale);
+
+      expect(await daemon.hostPath(), host.path);
+      expect(host.lastModifiedSync().isAfter(stale), isTrue);
+    }, skip: Platform.isMacOS ? null : 'the embedder guest is macOS-only');
+
     test('discovers the demos, and groups a file that declares several', () {
       expect(ready.entries.length, greaterThanOrEqualTo(5));
       expect(ready.entries.map((e) => e.group), contains('Avatar tile'));

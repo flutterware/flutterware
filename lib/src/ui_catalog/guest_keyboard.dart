@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
@@ -33,8 +34,24 @@ class GuestKeyboard {
   /// Takes over key delivery. Call after the binding exists — it is
   /// `ServicesBinding` that installs the handler being replaced — and before
   /// `runApp`.
+  ///
+  /// Taken twice, because the framework takes it back. `ServicesBinding` asks
+  /// the platform for `getKeyboardState` as it starts and installs its own
+  /// handler *when the answer arrives* — which is after this has run, on a
+  /// host that answers at all. `flutter/keyboard` is an optional channel, so
+  /// even the empty reply of a host that implements nothing counts. A host
+  /// that never runs its platform tasks never answers, which is how this hid;
+  /// one that does puts every key back in the queue. So a sync of our own:
+  /// asked after the framework's on the same channel, it is answered after
+  /// it too, and its answer is the moment the handler is ours to keep.
   void install() {
-    WidgetsBinding.instance.platformDispatcher.onKeyData = _handleKeyData;
+    var dispatcher = WidgetsBinding.instance.platformDispatcher;
+    dispatcher.onKeyData = _handleKeyData;
+    unawaited(
+      HardwareKeyboard.instance.syncKeyboardState().then((_) {
+        dispatcher.onKeyData = _handleKeyData;
+      }),
+    );
   }
 
   bool _handleKeyData(ui.KeyData data) {

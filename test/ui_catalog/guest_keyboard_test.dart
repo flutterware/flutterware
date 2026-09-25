@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
@@ -80,6 +81,48 @@ void main() {
 
     send(data(ui.KeyEventType.down, character: 'a'));
     expect(seen.single, isA<KeyDownEvent>());
+    expect(seen.single.character, 'a');
+  });
+
+  // `ServicesBinding` installs its own `onKeyData` once `getKeyboardState` is
+  // answered — after `install` has run, on a host that answers at all. Held
+  // here so the answer lands where it does in a guest: after the install.
+  testWidgets('keeps the keys when the keyboard sync is answered late', (
+    tester,
+  ) async {
+    var answer = Completer<void>();
+    var messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.keyboard, (call) async {
+      await answer.future;
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.keyboard, null),
+    );
+
+    GuestKeyboard.instance.install();
+    // What the framework does when its own sync is answered — deprecated, and
+    // still exactly the handler it installs.
+    tester.binding.platformDispatcher.onKeyData =
+        // ignore: deprecated_member_use
+        ServicesBinding.instance.keyEventManager.handleKeyData;
+    answer.complete();
+    await tester.pump();
+
+    var seen = <KeyEvent>[];
+    await tester.pumpWidget(
+      Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          seen.add(event);
+          return KeyEventResult.handled;
+        },
+        child: const SizedBox(),
+      ),
+    );
+    await tester.pump();
+
+    send(data(ui.KeyEventType.down, character: 'a'));
     expect(seen.single.character, 'a');
   });
 

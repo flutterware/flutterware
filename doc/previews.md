@@ -58,6 +58,10 @@ fw.use(
   covers the whole package; a path like `'demo/tablet'` covers one folder, and
   the longest match wins. Without a canvas a preview renders on a plain 900×700
   rectangle, which is rarely what a phone screen should be checked on.
+- A canvas takes devices from `Devices` only. A `Device` you build yourself is
+  refused, because previews pass devices by id. For a size no device has, such
+  as store artwork, leave the canvas without devices and pass `--width` and
+  `--height` to `previews screenshot`.
 
 ## Give previews what the app would
 
@@ -144,6 +148,12 @@ fw run previews build-web                                       # your previews 
 renders with the real fonts and theme, at the device's pixel ratio, and
 `--node=<name>` crops to one widget. Over MCP the same actions go through
 `flutterware_invoke`.
+
+A preview can also be the source of an image you publish, such as store
+artwork. On the plain rectangle (`--device=fit`, or a canvas with no devices),
+`--width` and `--height` are pixels, so they give the exact size a store asks
+for. `--opaque` writes the PNG without an alpha channel, which Google Play
+requires for a feature graphic.
 
 ## Check every preview in CI
 

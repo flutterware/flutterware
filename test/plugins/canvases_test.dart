@@ -217,6 +217,78 @@ void main() {
       );
     });
 
+    test('a device that is not in the table is refused', () {
+      // A canvas crosses to the renderer as ids. This one would resolve to
+      // nothing there, and its entries would render on the plain rectangle
+      // with no word about why.
+      const artwork = Device(
+        'artwork',
+        'Artwork',
+        kind: DeviceKind.desktop,
+        platform: DevicePlatform.android,
+        group: 'Store',
+        width: 1024,
+        height: 500,
+        pixelRatio: 1,
+      );
+      // And a table id on another screen would resolve to the table's.
+      var turned = Devices.iphone16.rotated();
+
+      for (var package in [
+        PreviewsPackage(
+          app,
+          canvases: const [
+            PreviewCanvas('demo/store', devices: [artwork]),
+          ],
+        ),
+        PreviewsPackage(
+          app,
+          canvases: [
+            PreviewCanvas('demo', devices: [Devices.iphoneSe, turned]),
+          ],
+        ),
+        PreviewsPackage(app, device: artwork),
+      ]) {
+        expect(
+          () => Flutterware.configure(
+            (fw) => fw.use(Previews(packages: [package])),
+            emit: (_) {},
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('Devices'), contains('width')),
+            ),
+          ),
+        );
+      }
+    });
+
+    test('every device of the table is accepted, renamed ones too', () {
+      expect(
+        () => Flutterware.configure(
+          (fw) => fw.use(
+            Previews(
+              packages: [
+                PreviewsPackage(
+                  app,
+                  device: Devices.iphone16,
+                  canvases: const [
+                    PreviewCanvas('demo', devices: Devices.all),
+                    // ignore: deprecated_member_use_from_same_package
+                    PreviewCanvas('old', devices: [Devices.macbookPro]),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          emit: (_) {},
+        ),
+        returnsNormally,
+      );
+    });
+
     test('a package declaring none says nothing about them', () {
       late String emitted;
       Flutterware.configure(

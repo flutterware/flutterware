@@ -113,7 +113,10 @@ both installed by the generated catalog entrypoint and both in
   `flutter/keyevent` platform message that normally follows and flushes the
   queue. With no platform channels there is no flush, so **no key reached a
   demo at all** — not a shortcut, not an arrow. This replaces `onKeyData` and
-  dispatches to both destinations itself.
+  dispatches to both destinations itself. It replaces it twice: the framework
+  installs its own handler when its startup `getKeyboardState` is answered,
+  so a host that answers platform messages — even with nothing — takes every
+  key back to the queue unless the guest reclaims it after that answer.
 - **`GuestTextInput`** — insertion *and the editing commands*. A `TextField`
   gets its text from the platform IME, and there is none; this is a
   `TextInputControl` that builds editing state from the character each key
