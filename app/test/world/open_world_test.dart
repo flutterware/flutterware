@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/ui_catalog/knob.dart';
 import 'package:flutterware_app/src/run/entrypoint_knobs.dart';
 import 'package:flutterware_app/src/utils/parameter_knobs.dart';
+import 'package:flutterware_app/src/utils/run_dir.dart';
 import 'package:flutterware_app/src/world/open_world.dart';
 import 'package:flutterware_app/src/world/world_files.dart';
+import 'package:flutterware_app/src/world/world_script.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -149,6 +151,16 @@ void main() {
     });
   });
 
+  test("`dart run`'s notes about itself leave the script's log", () {
+    expect(withoutToolNoise('Running build hooks...'), isNull);
+    // No newline after it: it arrives glued to the script's first line.
+    expect(
+      withoutToolNoise('Running build hooks...Running build hooks...Serving'),
+      'Serving',
+    );
+    expect(withoutToolNoise(''), '');
+  });
+
   test('opens a script in its own process, restarts it with new people, and '
       'closes it', () async {
     var worktree = p.dirname(Directory.current.path);
@@ -172,7 +184,8 @@ void main() {
     expect(world.people['Ana']!.phase, PersonPhase.headless);
     expect(world.people['Ana']!.spec.email, 'ana.$first@example.com');
     expect(world.knobs['mood']!.options, ['calm', 'busy']);
-    expect(world.log, contains('Mood is calm'));
+    // Each line stamped with the seconds since the opening started.
+    expect(world.log, contains(matches(r'^\d+\.\ds  Mood is calm$')));
 
     var wave = await world.invoke('Wave');
     expect(wave.running, isFalse);
@@ -183,10 +196,15 @@ void main() {
     expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
     expect(world.id, isNot(first));
     expect(world.people.keys, ['Ana', 'Leo']);
-    expect(world.log, contains('closing $first'));
+    expect(world.log, contains(endsWith('  closing $first')));
 
     await world.close();
     expect(world.phase, WorldPhase.closed);
     expect(world.people, isEmpty);
+    // The script's resident compiler went with it.
+    expect(
+      Directory(flutterwareRunDir()).listSync().map((e) => p.basename(e.path)),
+      isNot(contains(startsWith('world-compiler-$pid-'))),
+    );
   }, timeout: const Timeout(Duration(minutes: 2)));
 }

@@ -166,20 +166,33 @@ final class World {
   String email(String name, {String domain = 'example.com'}) =>
       '${_slug(name)}.$id@$domain';
 
-  /// A phone number from the range the UK reserves for fiction,
-  /// `+447700900000` to `+447700900999`, and not one this world has handed
-  /// out already.
+  /// A phone number this world has not handed out already: [prefix]
+  /// followed by [digits] random digits.
+  ///
+  /// By default, from the range the UK reserves for fiction, `+447700900000`
+  /// to `+447700900999`, so a text sent to one reaches nobody. But a server
+  /// that validates numbers the way libphonenumber does refuses that range,
+  /// so such a world names a range its server accepts —
+  /// `w.phone(prefix: '+32470', digits: 6)` — knowing a valid number may be
+  /// somebody's: only for a server whose texts the world catches.
   ///
   /// A thousand numbers is small: a server that keeps its users between
-  /// worlds may already know one. A world that cannot afford that makes its
-  /// own number.
-  String phone() {
-    if (_phones.length >= 1000) {
-      throw StateError('This world has used every number in the range.');
+  /// worlds may already know one. More [digits] make that unlikely.
+  String phone({String prefix = '+447700900', int digits = 3}) {
+    if (digits < 1 || digits > 9) {
+      throw ArgumentError.value(digits, 'digits', 'must be 1 to 9');
+    }
+    var range = pow(10, digits).toInt();
+    var used = _phones.where(
+      (n) => n.startsWith(prefix) && n.length == prefix.length + digits,
+    );
+    if (used.length >= range) {
+      throw StateError('This world has used every number from $prefix.');
     }
     String number;
     do {
-      number = '+447700900${_random.nextInt(1000).toString().padLeft(3, '0')}';
+      number =
+          '$prefix${_random.nextInt(range).toString().padLeft(digits, '0')}';
     } while (!_phones.add(number));
     return number;
   }

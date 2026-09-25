@@ -28,13 +28,15 @@ class WorldScriptProcess {
   static var _count = 0;
 
   /// Runs [file] in the package at [packageRoot] with [dart] — `dart run`, so
-  /// it resolves as any script of that package does — and opens the world
-  /// with [knobs]. [onOutput] gets what it prints: its server's log, usually.
+  /// it resolves and runs its build hooks as any script of that package does,
+  /// through [compiler] — and opens the world with [knobs]. [onOutput] gets
+  /// what it prints: its server's log, usually.
   static Future<WorldScriptProcess> start({
     required String dart,
     required String packageRoot,
     required String file,
     required Map<String, Object?> knobs,
+    WorldCompiler? compiler,
     void Function(String line)? onOutput,
     Duration connectTimeout = const Duration(minutes: 2),
   }) async {
@@ -50,7 +52,7 @@ class WorldScriptProcess {
     try {
       process = await Process.start(
         dart,
-        ['run', file],
+        ['run', ...?compiler?.runArguments, file],
         workingDirectory: packageRoot,
         environment: {worldSocketVariable: socketPath},
       );
@@ -62,6 +64,9 @@ class WorldScriptProcess {
       stream
           .transform(utf8.decoder)
           .transform(const LineSplitter())
+          .map(withoutToolNoise)
+          .where((line) => line != null)
+          .cast<String>()
           .listen(onOutput ?? (_) {});
     }
     // Refused before it connects — a compile error, a missing dependency —
@@ -121,4 +126,84 @@ class WorldScriptExited implements Exception {
 
   @override
   String toString() => 'The world script exited ($exitCode) before it started.';
+}
+
+/// [line] without what `dart run` says about itself, or null when that was
+/// all of it. `Running build hooks...` ends in no newline, so it arrives glued
+/// to the start of the script's own first line, sometimes twice.
+String? withoutToolNoise(String line) {
+  var own = line.replaceFirst(_toolNoise, '');
+  return own.isEmpty && own.length != line.length ? null : own;
+}
+
+final _toolNoise = RegExp(r'^(Running build hooks\.\.\.)+');
+
+/// The resident compiler a world script is compiled by — `dart run
+/// --resident` — so an opening after the first, and every restart, starts
+/// the script in a fraction of a second rather than compiling it whole: a
+/// script that hosts a large server spends most of an opening there.
+///
+/// One per `OpenWorld`, shut down when it closes: the compiler keeps its
+/// kernels on disk, keyed on the script's path, so the next process's
+/// compiler starts from them — measured on a heavy script, 0.76 s against 6 s
+/// for a plain `dart run` — and nothing is left running after the world.
+class WorldCompiler {
+  WorldCompiler(this.dart)
+    : infoFile = p.join(
+        flutterwareRunDir(),
+        'world-compiler-$pid-${_count++}.info',
+      );
+
+  /// The `dart` it belongs to: a compiler serves the SDK that started it.
+  final String dart;
+
+  /// How `dart` finds this compiler; it starts one if the file names none.
+  final String infoFile;
+
+  static var _count = 0;
+
+  List<String> get runArguments => [
+    '--resident',
+    '--quiet',
+    '--resident-compiler-info-file=$infoFile',
+  ];
+
+  /// Stops the compiler, if one started.
+  Future<void> shutdown() => _shutdown(dart, infoFile);
+
+  /// Stops the compilers of processes that ended without closing their world
+  /// — killed, or crashed. Housekeeping: nothing fails over it.
+  static Future<void> sweep(String dart, {String? directory}) async {
+    try {
+      for (var entity in Directory(
+        directory ?? flutterwareRunDir(),
+      ).listSync()) {
+        var match = _infoName.firstMatch(p.basename(entity.path));
+        if (match == null || isProcessAlive(int.parse(match[1]!))) continue;
+        await _shutdown(dart, entity.path);
+      }
+    } on Object {
+      // A run directory that is not there has nothing to sweep.
+    }
+  }
+
+  static final _infoName = RegExp(r'^world-compiler-(\d+)-\d+\.info$');
+
+  static Future<void> _shutdown(String dart, String infoFile) async {
+    if (!File(infoFile).existsSync()) return;
+    try {
+      await Process.run(dart, [
+        'compilation-server',
+        'shutdown',
+        '--resident-compiler-info-file=$infoFile',
+      ]);
+    } on Object {
+      // Gone already, or never started: the file is all that is left.
+    }
+    try {
+      File(infoFile).deleteSync();
+    } on FileSystemException {
+      // `shutdown` removed it.
+    }
+  }
 }

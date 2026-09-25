@@ -95,6 +95,38 @@ class WorldStateResult implements PluginResult, ReportsFailure {
         note: note,
       );
 
+  /// [toJson] read back: the answer of a world another process owns.
+  factory WorldStateResult.fromJson(
+    Map<String, Object?> json, {
+    String? note,
+  }) => WorldStateResult(
+    world: json['world']! as String,
+    name: json['name']! as String,
+    phase: json['phase']! as String,
+    id: json['id'] as String?,
+    problem: json['problem'] as String?,
+    people: [
+      for (var person in json['people'] as List? ?? const [])
+        WorldPersonEntry.fromJson((person as Map).cast()),
+    ],
+    actions: [
+      for (var action in json['actions'] as List? ?? const [])
+        if (action case {'name': String name})
+          WorldActionEntry(name, description: action['description'] as String?),
+    ],
+    knobs: [
+      for (var knob in json['knobs'] as List? ?? const [])
+        if (knob case {'name': String name, 'value': String value})
+          WorldKnobEntry(
+            name,
+            value,
+            options: [...(knob['options'] as List? ?? const []).cast<String>()],
+          ),
+    ],
+    log: [...(json['log'] as List? ?? const []).cast<String>()],
+    note: note ?? json['note'] as String?,
+  );
+
   /// The world's id, what `worlds open` took.
   final String world;
   final String name;
@@ -167,6 +199,21 @@ class WorldPersonEntry {
     knobs: person.knobs,
     problem: person.problem,
   );
+
+  factory WorldPersonEntry.fromJson(Map<String, Object?> json) =>
+      WorldPersonEntry(
+        name: json['name']! as String,
+        phase: json['phase']! as String,
+        device: json['device'] as String?,
+        run: json['run'] as String?,
+        app: json['app'] as String?,
+        email: json['email'] as String?,
+        phone: json['phone'] as String?,
+        userId: json['userId'] as String?,
+        password: json['password'] as String?,
+        knobs: (json['knobs'] as Map? ?? const {}).cast(),
+        problem: json['problem'] as String?,
+      );
 
   final String name;
 
@@ -248,6 +295,15 @@ class WorldActionResult implements PluginResult, ReportsFailure {
     progress: run.progress,
     error: run.error,
   );
+
+  factory WorldActionResult.fromJson(Map<String, Object?> json) =>
+      WorldActionResult(
+        action: json['action']! as String,
+        run: json['run']! as int,
+        running: json['running']! as bool,
+        progress: json['progress'] as String?,
+        error: json['error'] as String?,
+      );
 
   final String action;
   final int run;
