@@ -118,6 +118,17 @@ class Previews extends Plugin {
           'twice — put its devices in a single PreviewCanvas.',
         );
       }
+      if (package.unknownDevice case var device?) {
+        throw StateError(
+          'Package "${package.path}" frames previews on the device '
+          '"${device.id}", which is not one of `Devices`. A preview names its '
+          'device by id, so this one would be dropped and its entries drawn '
+          'on the plain $previewPanelWidth × $previewPanelHeight rectangle. '
+          'Pick a device from `Devices`. For a size no device has, leave the '
+          'canvas without devices and give the screenshot a width and a '
+          'height.',
+        );
+      }
     }
     return {
       'packages': [for (var p in packages) p.toJson()],
@@ -222,6 +233,24 @@ class PreviewsPackage extends PluginPackage {
     var seen = <String>{};
     for (var canvas in canvases) {
       if (!seen.add(canvas.root)) return canvas.root;
+    }
+    return null;
+  }
+
+  /// The first device in [device] or [canvases] that is not in [Devices], or
+  /// null when each of them is.
+  ///
+  /// Refused rather than dropped. A device crosses to the renderer as its id,
+  /// and the far side looks the id up in the table: an id it does not have
+  /// resolves to nothing, and one it does resolves to the table's screen, not
+  /// this one. Either way the picture is taken on something nobody declared,
+  /// and it looks like a preview rather than like a mistake.
+  ///
+  /// `const Device(...)` is public, and a size of one's own — store artwork is
+  /// a fixed number of pixels — is exactly what reaches for it.
+  Device? get unknownDevice {
+    for (var candidate in [?device, for (var c in canvases) ...c.devices]) {
+      if (!identical(deviceById(candidate.id), candidate)) return candidate;
     }
     return null;
   }

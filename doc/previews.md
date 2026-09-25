@@ -58,6 +58,10 @@ fw.use(
   covers the whole package; a path like `'demo/tablet'` covers one folder, and
   the longest match wins. Without a canvas a preview renders on a plain 900×700
   rectangle, which is rarely what a phone screen should be checked on.
+- A canvas takes devices from `Devices` only. A `Device` you build yourself is
+  refused, because previews pass devices by id. For a size no device has, such
+  as store artwork, leave the canvas without devices and pass `--width` and
+  `--height` to `previews screenshot`.
 
 ## Give previews what the app would
 
