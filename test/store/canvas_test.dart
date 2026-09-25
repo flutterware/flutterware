@@ -8,15 +8,16 @@ import 'package:flutterware/plugins.dart';
 /// them is here, once, at build time — not in a panel that inspects the output
 /// afterwards and tells somebody their upload will bounce.
 ///
-/// It is also the guard on the device table. `iphone-16-pro-max` and
-/// `ipad-pro-13` land on Apple's two required sizes *exactly*, and that is a
-/// coincidence of numbers rather than a thing either file promises the other. A
-/// well-meant edit to a pixel ratio would move a store size and nothing else
-/// would notice.
+/// It is also the guard on the device table. `iphone-16-pro-max`,
+/// `iphone-12-pro-max` and `ipad-pro-13` land on Apple's sizes *exactly*, and
+/// that is a coincidence of numbers rather than a thing either file promises
+/// the other. A well-meant edit to a pixel ratio would move a store size and
+/// nothing else would notice.
 void main() {
   group('the App Store', () {
-    test('gets its two required sizes out of the device table', () {
+    test('gets its sizes out of the device table', () {
       expect(AppStoreClass.iphone69.canvas.label, '1320×2868');
+      expect(AppStoreClass.iphone65.canvas.label, '1284×2778');
       expect(AppStoreClass.ipad13.canvas.label, '2048×2732');
     });
 
