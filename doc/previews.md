@@ -149,6 +149,12 @@ renders with the real fonts and theme, at the device's pixel ratio, and
 `--node=<name>` crops to one widget. Over MCP the same actions go through
 `flutterware_invoke`.
 
+A preview can also be the source of an image you publish, such as store
+artwork. On the plain rectangle (`--device=fit`, or a canvas with no devices),
+`--width` and `--height` are pixels, so they give the exact size a store asks
+for. `--opaque` writes the PNG without an alpha channel, which Google Play
+requires for a feature graphic.
+
 ## Check every preview in CI
 
 `fw run previews audit` renders every preview on its canvas, reports each one

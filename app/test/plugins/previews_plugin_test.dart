@@ -753,6 +753,13 @@ Widget field() => const Placeholder();
       action.parameters.firstWhere((p) => p.id == 'output').required,
       isFalse,
     );
+    var opaque = action.parameters.firstWhere((p) => p.id == 'opaque');
+    expect(opaque.kind, ActionParameterKind.boolean);
+    expect(
+      opaque.defaultValue,
+      'false',
+      reason: 'a preview is looked at, and its transparency is part of that',
+    );
   });
 
   test('the action survives a JSON round trip', () async {
