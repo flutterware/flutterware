@@ -2,10 +2,10 @@
 
 **Date:** 2026-09-25
 **Question:** flutterware can run one app against a real server (Run), script
-one app against a faked outside world or a real one (scenarios, both lanes),
+one app against faked outside services or real ones (scenarios, both lanes),
 and render one widget (Previews). Nothing shows a *system* in use: several
 people on their own apps, the server they share, and everything that server
-sends to the world outside it. What would, and what would it look like?
+sends to the services outside it. What would, and what would it look like?
 **Answer:** a **world**. A Dart script, written in the project, brings up or
 attaches to the real server, creates fresh users through the server's own
 API, and declares the **people** who use it — each with an app running somewhere:
@@ -34,7 +34,7 @@ below — two words, eight places the API grew, and a section on the device.
 
 | | used freely | driven by a script |
 |---|---|---|
-| **the outside world faked** | — | Scenarios (fake time) |
+| **the outside services faked** | — | Scenarios (fake time) |
 | **the real system** | Run — *one* app | Scenarios (live lane) |
 | **the real system, several people, its edges in view** | **Worlds** | a world as a live scenario's setup (later) |
 
@@ -81,7 +81,7 @@ starts from a script, never from a step.
   plural is *people*. A person can exist before their account does.
 - **Newcomer** — a person nobody declared, who turns up because someone typed
   their address into a form. Newcomers get the world's default app and device.
-- **Edge** — where the server talks to the outside world: email, SMS, push,
+- **Edge** — where the server talks to outside services: email, SMS, push,
   background jobs, payments, outbound webhooks. Most edges tell; some ask.
 - **Outbox** — everything the edges sent, as one feed.
 - **Question** — an outbox item from an edge that waits for an answer: a
@@ -99,6 +99,19 @@ pulled the trigger*, and it keeps that meaning. A world's participant is a
 **person**, so the two compose instead of colliding: a step on Leo's app that
 the agent took is `person: Leo, actor: agent`, and the Steps tab reads
 *Leo · by agent*. The owner first said *actor*; the collision decided it.
+
+**Why not *sandbox* or *playground*.** Checked before slice 0, and *world*
+kept. *Sandbox* is taken at both ends of a world: the app sandbox is how
+this design isolates people (*two windows share one sandbox container*), and
+the edges a world redirects each have a sandbox mode of their own — the push
+sandbox, a payment provider's, the SMS provider's. It also promises that
+nothing is real, which is the idea this design replaced. *Playground* reads
+as "try code here", which in the studio is Previews. *World* says a
+populated place with a server in it, which you open, restart and close; its
+one weakness is that alone it says little, so wherever a stranger first
+meets it, it carries a subtitle: *several people on your real server*. For
+the same reason the prose says *outside services*, never *the outside
+world*, for what the edges talk to.
 
 ## The world script
 
@@ -652,26 +665,40 @@ triggered.
 
 ## Slices
 
-0. **World script v0, no canvas.** `package:flutterware/world.dart` with
-   `World.run`, `w.person` (any subset of identity), unique identities,
-   progress, actions that take time, and `onClose`; `worlds open` from the CLI
-   and MCP. Every person's app in a guest by default — the lab's build,
-   processes, launcher and Run announcement, promoted out of the lab — and on
-   a simulator, allocated one per person, or a macOS window when the script
-   says so. Restart with new knobs per person, as measured.
+0. **World script v0: guests only, no canvas.**
+   - `package:flutterware/world.dart`: `World.run`, `w.person` (any subset
+     of identity), unique identities, progress, actions that take time,
+     knobs and `onClose`.
+   - `worlds list`, `open`, `restart`, `close` and `invoke` from the CLI and
+     the MCP.
+   - Every person's app in a guest: the lab's build, processes, launcher and
+     Run announcement, promoted out of the lab. Any other device is refused
+     by name until its slice.
+   - **Whoever opens a world owns it,** as with a Run launch. Opened in the
+     studio, its guests are live in a plain *Worlds* panel, the lab's row of
+     phones. Opened by the CLI or the MCP, they run headless in that
+     process, and the studio sees them as Run apps, in pictures.
+   - Restart with new knobs per person, as measured. Run's `setKnobs` keeps
+     refusing a guest, and its refusal names the world's restart.
+   - Proved on the lab's *Pickup order*, then on the consumer's first world,
+     with the plugin answers its first screen turns out to need.
 1. **The outbox.** The SMTP catcher; typed `mail`, `sms`, `push` and `job`
    events carrying who they reached; questions (`w.outbox.ask`); the viewers;
    newcomers; the three kinds of delivery, through a devbar panel convention
    flutterware publishes for links and notifications.
-2. **Canvas v1.** Nodes as pictures with their credentials, the timeline,
-   pending questions, focus, the drawer. Works with slice 0's devices.
+2. **Canvas v1.** Nodes with their credentials, the timeline, pending
+   questions, focus, the drawer. Guests are live from the first version, as
+   the lab already draws them, and sent to the background when drawn as a
+   card or off screen; external devices are pictures.
 3. **Server panels** over `FlutterwareServer.handle`.
-4. **The device as an input,** where the mechanism already exists —
-   `simctl location`, adb — refusing the rest by name.
-5. **Live nodes on the canvas** — guests drawn live and sharp at any zoom,
-   sent to the background when drawn as a card or off screen.
-   **Answers for more plugins** run beside every slice, as worlds need them —
-   sqflite first, then what a real app's first screen needs.
+4. **Other devices, and the device as an input.** A simulator allocated per
+   person, a macOS window when the script asks for one, and the controls
+   where the mechanism already exists — `simctl location`, adb — refusing the
+   rest by name.
+5. **Sharp at any zoom,** and a canvas that shows live the guests a CLI or
+   the MCP owns. **Answers for more plugins** run beside every slice, as
+   worlds need them — sqflite first, then what a real app's first screen
+   needs.
 6. **Later:** peripherals, people in a browser, live mirrors of external
    devices, a world as a live scenario's setup.
 
@@ -713,11 +740,11 @@ sandbox over a mocked API.
     removed on close.
 12. **A question nobody answers.** How long the server waits, and what the
     adapter answers when the world closes first.
-13. **Run changing a guest's knobs.** The world restarts its people with new
-    knobs itself; Run's own `setKnobs` refuses a guest, because it rewrites
-    a wrapper a guest does not have. A knobs door any launcher could answer
-    would close it — worth building only when something outside a world
-    needs it.
+13. ~~**Run changing a guest's knobs.**~~ Decided before slice 0: Run's
+    `setKnobs` keeps refusing a guest — it rewrites a wrapper a guest does
+    not have — and its refusal names the world's restart, which gives each
+    person new knobs. A knobs door any launcher could answer waits until
+    something outside a world needs it.
 14. **A guest on Linux and Windows.** Linux renders guests today but has run
     no world: it needs a clipboard, and homes through the XDG variables.
     Windows waits for its embedder host.

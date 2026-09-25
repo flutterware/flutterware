@@ -95,7 +95,7 @@ not guessed:
   with new ones in place (below). Recommended: leave Run's `setKnobs`
   refusing a guest, and have its sentence name the world's restart; add a
   knobs door for launchers only when something outside a world needs one.
-  The owner's call.
+  The owner agreed, before slice 0.
 - **A guest on Linux and Windows.** On Linux the host renders (Previews
   uses it) but no phase ran a world there. Linux needs two things before it
   can: a clipboard, and a home per person through the XDG variables rather
@@ -147,7 +147,7 @@ compile.
 - **The plan** records the outcome and carries the filled scorecard.
 - **Kept, as the plan promised whatever the outcome:** `host.c` failing fast,
   the clipboard, the lab's server and app, and the baselines.
-- **Still to clean up:** `host.c` leaves `flutter/keyboard` unanswered until
-  the guest keyboard reclaims its handler itself. That fix is on master (#386),
-  so the exception goes when this branch takes master, and the input probe
-  proves it.
+- **Cleaned up since:** `host.c` left `flutter/keyboard` unanswered until
+  the guest keyboard reclaimed its handler itself. That fix landed on master
+  (#386); with master taken, the exception is gone and the input probe
+  passes — typing, backspace, the caret and the wheel.
