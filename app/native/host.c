@@ -147,6 +147,86 @@ static int RunDuePlatformTasks(void) {
   }
 }
 
+// ── The studio as the platform ──────────────────────────────────────────────
+//
+// With FW_FORWARD_PLATFORM=1 every platform message the host does not answer
+// itself goes to the GUI instead, with an id; the GUI answers each by that id,
+// and can send messages of its own into the app. That is how a world's studio
+// stands in for the platform a plugin's native half would have run on — and
+// how it sees what the app asks for: a notification, a link, a cursor.
+//
+// Pending replies are a list, not a table: there are a handful in flight at
+// any time, and every one of them is answered by the GUI promptly, if only
+// with the empty "no implementation" reply.
+static bool g_forward_platform = false;
+static uint32_t g_next_platform_id = 1;
+
+typedef struct PendingReply {
+  uint32_t id;
+  const FlutterPlatformMessageResponseHandle* handle;
+  struct PendingReply* next;
+} PendingReply;
+static PendingReply* g_pending_replies = NULL;
+
+static void ForwardPlatformMessage(const FlutterPlatformMessage* message) {
+  uint32_t id = 0;
+  if (message->response_handle) {
+    id = g_next_platform_id++;
+    PendingReply* pending = (PendingReply*)malloc(sizeof(PendingReply));
+    pending->id = id;
+    pending->handle = message->response_handle;
+    pending->next = g_pending_replies;
+    g_pending_replies = pending;
+  }
+  uint32_t channel_length = (uint32_t)strlen(message->channel);
+  size_t length = 8 + channel_length + message->message_size;
+  uint8_t* payload = (uint8_t*)malloc(length);
+  memcpy(payload, &id, 4);
+  memcpy(payload + 4, &channel_length, 4);
+  memcpy(payload + 8, message->channel, channel_length);
+  if (message->message_size > 0) {
+    memcpy(payload + 8 + channel_length, message->message,
+           message->message_size);
+  }
+  ipc_send(g_socket, kMsgPlatformMessage, payload, length);
+  free(payload);
+}
+
+// The GUI's answer to message [id]: empty is "no implementation".
+static void ReplyToPlatformMessage(const uint8_t* payload, size_t length) {
+  if (length < 4) return;
+  uint32_t id;
+  memcpy(&id, payload, 4);
+  for (PendingReply** at = &g_pending_replies; *at; at = &(*at)->next) {
+    if ((*at)->id != id) continue;
+    PendingReply* pending = *at;
+    *at = pending->next;
+    FlutterEngineSendPlatformMessageResponse(
+        g_engine, pending->handle, length > 4 ? payload + 4 : NULL, length - 4);
+    free(pending);
+    return;
+  }
+}
+
+// A message from the GUI into the app, on a channel the app listens to — an
+// event channel's event, a lifecycle change. Sent without a reply.
+static void SendPlatformMessage(const uint8_t* payload, size_t length) {
+  if (length < 4) return;
+  uint32_t channel_length;
+  memcpy(&channel_length, payload, 4);
+  if (length < 4 + (size_t)channel_length) return;
+  char* channel = (char*)malloc(channel_length + 1);
+  memcpy(channel, payload + 4, channel_length);
+  channel[channel_length] = '\0';
+  FlutterPlatformMessage message = {0};
+  message.struct_size = sizeof(FlutterPlatformMessage);
+  message.channel = channel;
+  message.message = payload + 4 + channel_length;
+  message.message_size = length - 4 - channel_length;
+  FlutterEngineSendPlatformMessage(g_engine, &message);
+  free(channel);
+}
+
 // Every platform message the app sends, answered empty — but for the
 // clipboard's, see clipboard.h, and the keyboard's, below — which Dart reads as
 // "no implementation" and throws `MissingPluginException` for, the way a test
@@ -181,7 +261,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message,
       break;
     }
   }
-  if (!seen && g_seen_count < MAX_SEEN_CHANNELS) {
+  if (!seen && !g_forward_platform && g_seen_count < MAX_SEEN_CHANNELS) {
     g_seen_channels[g_seen_count++] = strdup(message->channel);
     printf("[platform] unanswered: %s\n", message->channel);
     fflush(stdout);
@@ -199,6 +279,10 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message,
   // so the input probe is again what proves the handler survives — and so
   // nothing awaiting the keyboard's state waits forever.
   if (strcmp(message->channel, "flutter/keyboard") == 0) return;
+  if (g_forward_platform) {
+    ForwardPlatformMessage(message);
+    return;
+  }
   if (message->response_handle) {
     FlutterEngineSendPlatformMessageResponse(g_engine, message->response_handle,
                                              NULL, 0);
@@ -538,6 +622,8 @@ int main(int argc, char** argv) {
   fcntl(g_wake[0], F_SETFL, O_NONBLOCK);
   fcntl(g_wake[1], F_SETFL, O_NONBLOCK);
   g_platform_thread = pthread_self();
+  const char* forward = getenv("FW_FORWARD_PLATFORM");
+  g_forward_platform = forward != NULL && strcmp(forward, "1") == 0;
   FlutterTaskRunnerDescription platform_runner = {0};
   platform_runner.struct_size = sizeof(FlutterTaskRunnerDescription);
   platform_runner.runs_task_on_current_thread_callback = RunsOnPlatformThread;
@@ -652,6 +738,10 @@ int main(int argc, char** argv) {
       g_capture_path = path;
       pthread_mutex_unlock(&g_capture_lock);
       FlutterEngineScheduleFrame(g_engine);
+    } else if (type == kMsgPlatformReply) {
+      ReplyToPlatformMessage(payload, len);
+    } else if (type == kMsgPlatformSend) {
+      SendPlatformMessage(payload, len);
     } else if (type == kMsgShutdown) {
       free(payload);
       break;

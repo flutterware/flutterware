@@ -33,6 +33,7 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
     this.buildGuest,
     this.workingDirectory,
     this.environment,
+    this.platform,
     this.name = 'gui',
   });
 
@@ -68,6 +69,17 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
   /// Added to the guest process's environment — how a world hands one
   /// person's app its knobs, its home and its locales without a build.
   final Map<String, String>? environment;
+
+  /// Answers the platform messages a guest forwards — one started with
+  /// `FW_FORWARD_PLATFORM=1` in [environment] — standing in for the platform
+  /// a plugin's native half would have run on. Null bytes are "no
+  /// implementation". Unset, every forwarded message is answered that way.
+  final Future<Uint8List?> Function(String channel, Uint8List bytes)? platform;
+
+  /// Sends a message into the app on [channel] — an event channel's event, a
+  /// lifecycle change — with no reply.
+  void sendPlatform(String channel, Uint8List bytes) =>
+      _send(PlatformSendMessage(channel, bytes));
 
   /// The guest process, once it has started — what a handle announcing it to
   /// Run names as its launcher.
@@ -295,13 +307,29 @@ class EmbeddedEngine extends ChangeNotifier implements GuestSurface {
         _fail(message.message);
       case CapturedMessage():
         _capture.acknowledge(message);
+      case GuestPlatformMessage(:var id, :var channel, :var bytes):
+        // Not awaited: a handler that takes its time must not hold up the
+        // frames queued behind it.
+        unawaited(_answerPlatform(id, channel, bytes));
       case ResizeMessage():
       case PointerEventMessage():
       case KeyEventMessage():
       case ShutdownMessage():
       case CaptureMessage():
+      case PlatformReplyMessage():
+      case PlatformSendMessage():
         break; // GUI-to-guest messages; never received here.
     }
+  }
+
+  Future<void> _answerPlatform(int id, String channel, Uint8List bytes) async {
+    Uint8List? reply;
+    try {
+      reply = await platform?.call(channel, bytes);
+    } catch (e) {
+      debugPrint('[guest platform] $channel: $e');
+    }
+    if (id != 0) _send(PlatformReplyMessage(id, reply ?? Uint8List(0)));
   }
 
   Future<void> _onSurfaces(SurfacesAllocatedMessage message) async {
