@@ -21,14 +21,16 @@
 ///   var server = await startServer(port: await w.freePort());
 ///   w.onClose(server.close);
 ///
-///   var ana = await server.admin.createStaff(w.email('ana'));
+///   // New every opening: the world's id, in the names the server gets.
+///   var ana = await server.admin.createStaff('ana.${w.id}@example.com');
 ///   w.person(
 ///     'Ana',
 ///     email: ana.email,
 ///     app: Launch('Shop', knobs: {'server': '${server.url}', 'session': ana.token}),
 ///     on: Studio(Devices.iPad),
 ///   );
-///   w.person('Leo', phone: w.phone(), app: Launch('Shop', knobs: {'server': '${server.url}'}));
+///   // A number your server accepts: its rule, so your helper.
+///   w.person('Leo', phone: testPhone(w.id), app: Launch('Shop', knobs: {'server': '${server.url}'}));
 /// });
 /// ```
 ///

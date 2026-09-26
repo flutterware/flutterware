@@ -146,60 +146,20 @@ final class World {
   }
 
   /// This opening's id: six characters, new every time the world opens or
-  /// restarts. Everything [email], [phone] and [unique] make carries it.
+  /// restarts. Fold it into the names, emails and phone numbers the script
+  /// makes — `'ana.\${w.id}@example.com'` — and each opening's people are
+  /// new. What a valid address or number looks like is the server's rule, so
+  /// the script, which knows the server, writes them.
   final String id;
 
   final Map<String, Object?> _knobValues;
   final void Function(String type, [Map<String, Object?> fields]) _send;
 
   final _people = <String>{};
-  final _phones = <String>{};
   final _actions = <String, FutureOr<void> Function(ActionRun run)>{};
   final _runs = <int, ActionRun>{};
   final _closers = <FutureOr<void> Function()>[];
   final _ready = Completer<void>();
-
-  /// An email address nobody has used: `ana.k3f9x2@example.com`.
-  ///
-  /// `example.com` is reserved for exactly this, so nothing a world sends
-  /// reaches anyone; pass [domain] for a server that only accepts its own.
-  String email(String name, {String domain = 'example.com'}) =>
-      '${_slug(name)}.$id@$domain';
-
-  /// A phone number this world has not handed out already: [prefix]
-  /// followed by [digits] random digits.
-  ///
-  /// By default, from the range the UK reserves for fiction, `+447700900000`
-  /// to `+447700900999`, so a text sent to one reaches nobody. But a server
-  /// that validates numbers the way libphonenumber does refuses that range,
-  /// so such a world names a range its server accepts —
-  /// `w.phone(prefix: '+32470', digits: 6)` — knowing a valid number may be
-  /// somebody's: only for a server whose texts the world catches.
-  ///
-  /// A thousand numbers is small: a server that keeps its users between
-  /// worlds may already know one. More [digits] make that unlikely.
-  String phone({String prefix = '+447700900', int digits = 3}) {
-    if (digits < 1 || digits > 9) {
-      throw ArgumentError.value(digits, 'digits', 'must be 1 to 9');
-    }
-    var range = pow(10, digits).toInt();
-    var used = _phones.where(
-      (n) => n.startsWith(prefix) && n.length == prefix.length + digits,
-    );
-    if (used.length >= range) {
-      throw StateError('This world has used every number from $prefix.');
-    }
-    String number;
-    do {
-      number =
-          '$prefix${_random.nextInt(range).toString().padLeft(digits, '0')}';
-    } while (!_phones.add(number));
-    return number;
-  }
-
-  /// [name] made unique to this opening: `Canal Street k3f9x2`. For anything
-  /// the server insists is unique — a shop's name, a team's.
-  String unique(String name) => '$name $id';
 
   /// Declares someone using the system, and answers them.
   ///
@@ -353,9 +313,6 @@ final class World {
       for (var i = 0; i < 6; i++) alphabet[_random.nextInt(alphabet.length)],
     ].join();
   }
-
-  static String _slug(String name) =>
-      name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '.');
 }
 
 /// Someone using the system, as [World.person] declared them.

@@ -21,11 +21,11 @@ void main(List<String> args) => World.run(args, (w) async {
     server,
     'Ana',
     role: 'staff',
-    email: w.email('ana'),
+    email: 'ana.${w.id}@example.com',
   );
   w.person(
     'Ana',
-    email: w.email('ana'),
+    email: 'ana.${w.id}@example.com',
     userId: ana.id,
     app: Launch(
       'Lab',
@@ -33,7 +33,7 @@ void main(List<String> args) => World.run(args, (w) async {
     ),
   );
 
-  var phone = w.phone();
+  var phone = newPhone();
   var leo = leoSignedIn == 'signed in'
       ? await createUser(server, 'Leo', phone: phone)
       : null;
@@ -52,7 +52,7 @@ void main(List<String> args) => World.run(args, (w) async {
   );
 
   w.action('Mia orders a flat white', (run) async {
-    var mia = await createUser(server, 'Mia', phone: w.phone());
+    var mia = await createUser(server, 'Mia', phone: newPhone());
     run.progress('Mia is ${mia.id}');
     await call(server, 'POST', '/orders', {'item': 'Flat white'}, mia.token);
   }, description: 'A customer with no app puts an order on the board');

@@ -24,6 +24,12 @@ Future<LabServer> startLabServer(World w) async {
   return server;
 }
 
+/// A phone number no other person of this process has had. The lab server
+/// takes any number, so a counter is enough; a project writes numbers its
+/// own server accepts — flutterware cannot know that rule.
+String newPhone() => '+44770090${(_phones++).toString().padLeft(4, '0')}';
+var _phones = 0;
+
 /// A user the lab server made through its admin API, and their session.
 typedef LabUser = ({String id, String name, String token});
 
