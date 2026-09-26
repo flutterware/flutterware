@@ -23,6 +23,7 @@ import 'guest_process.dart';
 import 'platform/studio_platform.dart';
 import 'world_files.dart';
 import 'world_script.dart';
+import 'world_trace.dart';
 
 /// A world while it is open, from its owner's side: the script, one build per
 /// app its people use, and a guest per person — announced to Run as that
@@ -85,6 +86,11 @@ class OpenWorld {
   /// The script's progress and what it printed, newest last, each line
   /// stamped with the seconds since this opening started: `12.4s  Built Shop`.
   final log = <String>[];
+
+  /// What this opening's people did and what it caused — each step on an
+  /// app, joined to the requests, server events and synced records that
+  /// followed. New with every opening, as the people are.
+  WorldTracer? tracer;
 
   /// Each line of [log] as it is said.
   Stream<String> get lines => _lines.stream;
@@ -161,7 +167,9 @@ class OpenWorld {
     await Future.wait([
       for (var person in people.values) person._stop(),
       _compiler.shutdown(),
+      ?tracer?.close(),
     ]);
+    tracer = null;
     people.clear();
     await Future.wait([for (var build in _builds.values) build.app.dispose()]);
     _builds.clear();
@@ -190,6 +198,8 @@ class OpenWorld {
       ..start();
     // The stamps start again at 0.0; a long log says which opening it is.
     if (_restarts > 0) _say('Restart $_restarts');
+    unawaited(tracer?.close());
+    tracer = WorldTracer(worktree: worktree)..onSync = _changed;
 
     void settle() {
       if (!setUp || settled.isCompleted) return;
@@ -203,6 +213,7 @@ class OpenWorld {
       settled.complete();
       _changed();
       _rememberApps();
+      unawaited(tracer?.scanServers());
       // Once, with the world up: the shared half of each app's program, left
       // for the next checkout's first open. Not before — it queues on the
       // compiler every reload goes through.
@@ -451,6 +462,7 @@ class OpenWorld {
         // keeps each person's apart. Nothing a guest needs is found from it.
         workingDirectory: home.path,
         environment: guestEnvironment(
+          person: name,
           home: home.path,
           knobsFile: build.app.writeKnobs(name, person.knobs),
         ),
@@ -478,6 +490,14 @@ class OpenWorld {
     );
     build.people.add(person);
     person.phase = PersonPhase.running;
+    unawaited(
+      tracer?.follow(
+        name,
+        person.handle!,
+        userId: person.spec.userId,
+        phone: person.spec.phone,
+      ),
+    );
   }
 
   /// The entry point [app] names, and its knobs as its `main` takes them.

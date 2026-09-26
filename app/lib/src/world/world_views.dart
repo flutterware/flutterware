@@ -139,16 +139,21 @@ class _Cursor extends StatelessWidget {
 /// What one person's app did through the platform the studio stands in for —
 /// the notifications it posted, the URLs it opened — and what the studio can
 /// do to it: open a link in it, delivered where the OS would deliver one, and
-/// send it to the background.
+/// send it to the background. Above it, where the app's synced database
+/// stands, for an app with one.
 class WorldPlatformPanel extends StatefulWidget {
   const WorldPlatformPanel({
     super.key,
     required this.person,
     required this.platform,
+    this.sync,
   });
 
   final String person;
   final StudioPlatform platform;
+
+  /// The app's database panel's `sync` state, as the world last read it.
+  final Map<String, Object?>? sync;
 
   @override
   State<WorldPlatformPanel> createState() => _WorldPlatformPanelState();
@@ -184,6 +189,12 @@ class _WorldPlatformPanelState extends State<WorldPlatformPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (widget.sync case var sync?) ...[
+          Text('Sync', style: context.type.sectionLabel),
+          const SizedBox(height: FwSpacing.xs),
+          _Sync(sync),
+          const SizedBox(height: FwSpacing.md),
+        ],
         Text('Notifications', style: context.type.sectionLabel),
         const SizedBox(height: FwSpacing.xs),
         if (platform.notifications.shown.isEmpty)
@@ -237,4 +248,40 @@ class _WorldPlatformPanelState extends State<WorldPlatformPanel> {
       ],
     );
   }
+}
+
+/// A synced database at a glance: when it last synced, what is waiting to
+/// upload, and the client id its sync service logs it by. A clock time rather
+/// than an age, since nothing redraws this while nothing changes.
+class _Sync extends StatelessWidget {
+  const _Sync(this.state);
+
+  final Map<String, Object?> state;
+
+  @override
+  Widget build(BuildContext context) {
+    var synced = switch (state['lastSyncedAt']) {
+      String at when DateTime.tryParse(at) != null =>
+        'Synced at ${_clock(DateTime.parse(at).toLocal())}',
+      _ => 'Not synced yet',
+    };
+    var pending = state['pendingUploads'];
+    var client = state['clientId'];
+    return SelectableText(
+      [
+        synced,
+        pending is int && pending > 0
+            ? '$pending to upload'
+            : 'Nothing to upload',
+        if (client is String) 'Client ${client.split('-').first}',
+      ].join('\n'),
+      style: context.type.body,
+    );
+  }
+
+  static String _clock(DateTime at) => [
+    at.hour,
+    at.minute,
+    at.second,
+  ].map((part) => '$part'.padLeft(2, '0')).join(':');
 }

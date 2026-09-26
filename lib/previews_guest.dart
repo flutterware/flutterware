@@ -38,6 +38,7 @@ export 'src/inspect/guest_watch.dart' show GuestWatch;
 // a host can subscribe to the watch without them but cannot name what arrives.
 export 'src/inspect/watch.dart' show WatchBox, WatchPush, WatchStats;
 export 'src/inspect/semantics.dart' show InspectSemantics;
+export 'src/world/guest_steps.dart' show WorldSteps;
 // The layout types come with the node rather than after it: a consumer can
 // reach `InspectNode.layout` without them but cannot name what it got, which
 // made the shorter list an export that only looked complete.

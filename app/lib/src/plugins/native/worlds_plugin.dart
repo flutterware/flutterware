@@ -324,7 +324,11 @@ class _OpenWorldView extends StatelessWidget {
                               padding: const EdgeInsets.only(
                                 right: FwSpacing.xxl,
                               ),
-                              child: _PersonView(person: person, scale: scale),
+                              child: _PersonView(
+                                person: person,
+                                scale: scale,
+                                sync: world.tracer?.syncOf(person.name),
+                              ),
                             ),
                         ],
                       ),
@@ -421,9 +425,12 @@ class _Log extends StatelessWidget {
 /// One person: who they are, their app, and what it did through the
 /// platform the studio answers.
 class _PersonView extends StatelessWidget {
-  const _PersonView({required this.person, required this.scale});
+  const _PersonView({required this.person, required this.scale, this.sync});
 
   final WorldPerson person;
+
+  /// Where their app's synced database stands, if it has one.
+  final Map<String, Object?>? sync;
 
   /// How much smaller than the device the phone is drawn — its logical size
   /// is the device's whatever this is, so its layout is the one the device
@@ -492,6 +499,7 @@ class _PersonView extends StatelessWidget {
               child: WorldPlatformPanel(
                 person: person.name,
                 platform: platform,
+                sync: sync,
               ),
             ),
           ),

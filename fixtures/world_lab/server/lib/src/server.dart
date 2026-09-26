@@ -393,5 +393,8 @@ Middleware _inspect() {
   };
 }
 
-/// A path segment that is an id — `o3`, `u12` or a UUID — rather than a word.
-final _anId = RegExp(r'^([a-z]?\d+|[0-9a-f]{8}-[0-9a-f-]{27})$');
+/// A path segment that is an id — `o3`, `u3kx9-12` or a UUID — rather than a
+/// word.
+final _anId = RegExp(
+  r'^([a-z]?\d+|[a-z][a-z0-9]*-\d+|[0-9a-f]{8}-[0-9a-f-]{27})$',
+);

@@ -7099,4 +7099,15 @@ final resultShapes = <String, ResultShape>{
     ],
     'gates': true,
   }),
+  'WorldTraceResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldTraceResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'steps',
+        'type': 'List<Map<String, Object?>>',
+        'doc': 'Oldest first.',
+      },
+      <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
+    ],
+  }),
 };

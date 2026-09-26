@@ -30,6 +30,11 @@ Either way each person's app is a Run app on the device `studio-<name>`, so
 its server's log, and the SMS edge prints every text message there — which is
 where Leo's sign-up code is until the outbox exists.
 
+Every tap is a step the world follows through the lab server — whose adapter
+reads the `x-fw-step` header — and, in the synced world, through each phone's
+database. `fw run worlds trace` answers with the newest steps and what each
+one caused; Leo's code is under his *Send code* tap there too.
+
 A world script also runs on its own, which is how to debug its setup without
 launching any app: it prints what it declares, and `name=value` arguments are
 its knob values.

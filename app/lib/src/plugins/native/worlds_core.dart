@@ -22,8 +22,8 @@ const worldsPluginId = 'flutterware.worlds';
 /// the studio, `fw` or the MCP server — and go when it closes the world or
 /// ends. So one world at a time per worktree: two would give two people the
 /// same device, `studio-<name>`, in Run. Every other process forwards
-/// `status`, `invoke`, `restart` and `close` to the owner, which leaves a
-/// `WorldHandle` saying where to ask.
+/// `status`, `trace`, `invoke`, `restart` and `close` to the owner, which
+/// leaves a `WorldHandle` saying where to ask.
 class WorldsCore extends PluginCore {
   WorldsCore(super.host);
 
@@ -148,6 +148,40 @@ class WorldsCore extends PluginCore {
           "knobs, and its script's last lines.",
       parameters: [_worldParameter],
     ),
+    const PluginAction(
+      'trace',
+      'Trace',
+      returns: WorldTraceResult,
+      description:
+          "The newest steps taken on the people's apps — each tap, a "
+          "person's or an agent's — with what each one caused: the requests "
+          'it sent, what the servers did under them and whom they reached, '
+          'and where the records it wrote arrived. A server takes part by '
+          'reading the `x-fw-step` header into `FlutterwareServer.stepKey`; '
+          'a synced database, by its database panel reading the engine.',
+      parameters: [
+        ActionParameter(
+          'person',
+          'Person',
+          required: false,
+          description: "Only this person's steps",
+        ),
+        ActionParameter(
+          'step',
+          'Step',
+          required: false,
+          description: 'Only this step, by its name: `ben.3`',
+        ),
+        ActionParameter(
+          'limit',
+          'Limit',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description: 'How many of the newest steps, 10 by default',
+        ),
+        _worldParameter,
+      ],
+    ),
     PluginAction(
       'restart',
       'Restart',
@@ -230,6 +264,8 @@ class WorldsCore extends PluginCore {
                     person.phase.name,
                     ?person.handle?.device,
                     ?person.problem,
+                    if (open.tracer?.syncOf(person.name) case var sync?)
+                      syncLine(sync),
                   ].join(' · '),
                   tone: switch (person.phase) {
                     PersonPhase.running => Tone.good,
@@ -274,10 +310,11 @@ class WorldsCore extends PluginCore {
       hold: arguments['hold'] == true,
     ),
     // A world another process owns is asked there, in its own words.
-    'status' || 'restart' || 'invoke' || 'close'
+    'status' || 'trace' || 'restart' || 'invoke' || 'close'
         when _open == null && openElsewhere() != null =>
       await _forward(openElsewhere()!, actionId, arguments),
     'status' => WorldStateResult.of(_required),
+    'trace' => _traceAction(arguments),
     'restart' => await _restartAction(
       arguments['knobs'] == null
           ? null
@@ -306,15 +343,17 @@ class WorldsCore extends PluginCore {
       // Whatever it did there changes what this process shows.
       notifyChanged();
     }
-    return action == 'invoke'
-        ? WorldActionResult.fromJson(json)
-        : WorldStateResult.fromJson(
-            json,
-            note: action == 'close'
-                ? 'Closed by the process that owned it (pid ${owner.pid}).'
-                : '${owner.name} is open in another process (pid '
-                      '${owner.pid}), which answered this.',
-          );
+    return switch (action) {
+      'invoke' => WorldActionResult.fromJson(json),
+      'trace' => WorldTraceResult.fromJson(json),
+      _ => WorldStateResult.fromJson(
+        json,
+        note: action == 'close'
+            ? 'Closed by the process that owned it (pid ${owner.pid}).'
+            : '${owner.name} is open in another process (pid '
+                  '${owner.pid}), which answered this.',
+      ),
+    };
   }
 
   /// What another process asks of the world open here.
@@ -322,7 +361,13 @@ class WorldsCore extends PluginCore {
     String action,
     Map<String, Object?> arguments,
   ) async {
-    if (!const {'status', 'restart', 'invoke', 'close'}.contains(action)) {
+    if (!const {
+      'status',
+      'trace',
+      'restart',
+      'invoke',
+      'close',
+    }.contains(action)) {
       throw WorldRefusal('"$action" is not asked of a world across processes.');
     }
     var result = await invoke(action, arguments: arguments);
@@ -474,6 +519,36 @@ class WorldsCore extends PluginCore {
       return WorldStateResult.of(opened);
     }
     return result;
+  }
+
+  WorldTraceResult _traceAction(Map<String, Object?> arguments) {
+    var open = _required;
+    var person = arguments['person'] as String?;
+    if (person != null && !open.people.containsKey(person)) {
+      throw WorldRefusal(
+        'Nobody in ${open.file.name} is called $person: '
+        '${open.people.keys.join(', ')}.',
+      );
+    }
+    var limit = switch (arguments['limit']) {
+      int value => value,
+      String value => int.tryParse(value) ?? 10,
+      _ => 10,
+    };
+    var traced =
+        open.tracer?.trace.steps(
+          person: person,
+          step: arguments['step'] as String?,
+          limit: limit,
+        ) ??
+        const [];
+    return WorldTraceResult.of(
+      traced,
+      note: traced.isEmpty
+          ? 'No step yet: a step is a tap on one of the apps, by a person or '
+                'through `flutterware_act`.'
+          : null,
+    );
   }
 
   Future<WorldStateResult> _restartAction(Map<String, Object?>? knobs) async {

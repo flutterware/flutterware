@@ -125,9 +125,59 @@ and `device: "studio-leo"`, with the same verbs as any other app.
 
 A world belongs to the process that opened it (the studio, `fw` or the MCP
 server), and a checkout has one world open at a time. Every other process can
-still reach it: `fw run worlds status`, `invoke`, `restart` and `close` are
-answered by the process that owns it, so an agent can run an action on the
-world you opened in the studio, or close one it left held in a terminal.
+still reach it: `fw run worlds status`, `trace`, `invoke`, `restart` and
+`close` are answered by the process that owns it, so an agent can run an
+action on the world you opened in the studio, or close one it left held in a
+terminal.
+
+## See what a tap caused
+
+Every tap on a person's app, yours or an agent's, is a **step**, named after
+its person: `leo.2`. The world follows each one through the system:
+
+```shell
+fw run worlds trace --person=Leo
+```
+
+```json
+{
+  "step": "leo.2",
+  "person": "Leo",
+  "at": "2026-09-26T22:46:13.594",
+  "did": "tap \"Sign in\"",
+  "then": [
+    "+1 ms  Leo → lab  POST /auth/verify  200 in 0.4 ms",
+    "+4 ms  Leo → lab  GET /me  200 in 0.3 ms",
+    "+4 ms  lab  knows Leo as u2",
+    "+6 ms  Leo → lab  GET /orders  200 in 0.5 ms"
+  ]
+}
+```
+
+Every request an app sends carries its step in an `x-fw-step` header. A Dart
+server takes part with one line in its [inspection
+adapter](server_inspection.md), putting the header in the zone beside the
+request id:
+
+```dart
+zoneValues: {
+  FlutterwareServer.requestIdKey: id,
+  FlutterwareServer.stepKey: ?request.headers['x-fw-step'],
+},
+```
+
+Everything the server reports under that request then carries the step: its
+writes, the messages it sent and who they reached. Two calls say what only
+the server knows: `FlutterwareServer.identify(user.id)` once auth knows who
+the request is, so the world can tell whose a user is even when they signed
+up themselves, and `FlutterwareServer.reach(userId, what)` when it pushes
+something down a connection, such as a WebSocket frame.
+
+An app that keeps its data in a synced database follows its records instead:
+with `sync: DatabaseSync.powersync` on its [Database watch](database_watch.md)
+adapter, a record written on one phone is traced to the others as it
+arrives, and each person's sync state shows beside their phone and in
+`worlds status`.
 
 ## What an app can use in a world
 

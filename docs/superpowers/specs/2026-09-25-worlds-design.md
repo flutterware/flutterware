@@ -650,7 +650,7 @@ person's colour.
 
 | source | how | the world hosts the server | the world attaches to one |
 |---|---|---|---|
-| the server | wrappers the world puts around a server it hosts: request middleware, a query observer, the mail, SMS and job services | requests, reads and writes, messages, jobs | nothing: another process reports nothing to the world |
+| the server | its adapter, reporting through `FlutterwareServer`: request middleware, a query observer, the mail, SMS and job services | requests, reads and writes, messages, jobs | the same: the world attaches to every server announcing itself under the worktree, whichever process it is in |
 | the script | `w.flow` from an action | works | works |
 | each person's app | Run already records its HTTP and its logs; a service declares the origins it answers on, and a person's traffic to one is a flow | works | works — it needs nothing from the server |
 
@@ -753,6 +753,50 @@ The readers and reporters stay in the project's `tool/`: nothing in its
 `lib/` knows about worlds, and labels carry steps, statuses, ids and
 durations only.
 
+### Traces, as built
+
+A spike, then the world itself (`app/lib/src/world/world_trace.dart`), made
+the three sources above one thing: every **step** a person or an agent takes
+on an app, with what it caused. Dart servers only, and nothing a project
+imports beyond `package:flutterware/server.dart`.
+
+- **A step is born on the device.** The guest's binding dispatches each
+  gesture inside a zone naming it — `ben.3`, the person's own counter — and
+  publishes it on the app's channels with what it landed on, spelled as the
+  drive targets are (`tap "Order"`). Typing is not a step: a character never
+  arrives as a pointer.
+- **A request carries it.** An `HttpOverrides` stamps `x-fw-step` on every
+  request the app opens: the zone's step, or — for work a tap started outside
+  its callbacks, a sync engine's upload loop — the step that ended under
+  1.5 s ago, and each request says which way it joined.
+- **A server reads it in one line.** Its adapter puts the header in the zone
+  as `FlutterwareServer.stepKey`; every event reported under it — the
+  request, its writes, what it broadcast, the SMS it sent — then carries
+  `step`. Two primitives say what only the server knows: `identify(user)` —
+  who a request is, so a person who signed up themselves is learnt — and
+  `reach(user, what)`, for what arrives on a connection nobody asked on.
+- **A synced record joins by its key.** A tap writes locally and the engine
+  uploads later, from its own isolate; the service fans the change out. The
+  database panel reads the engine's own tables (`sync: DatabaseSync.powersync`)
+  into a `records` feed: each local write, each record a checkpoint brought
+  in. An arrival joins the step whose server write of that key came last.
+
+`worlds trace` answers with the newest steps, each with its consequences as
+lines — `+32 ms  Cleo  orders/08468cae arrived (op 24)` — and each person's
+`sync` line is in `worlds status` and beside their phone. What the canvas
+draws is this, and nothing invented: the rounds' boards were redrawn from
+real traces before anything was built.
+
+Measured on the lab (`2026-09-26-worlds-trace-spike-findings.md`): 8 of 8
+requests after a tap joined through the zone; a synced order reached the
+other phone 23–40 ms after the tap and was confirmed back after ~255 ms.
+
+What it does not do yet, each a known next step: the script's own actions
+take no steps, so what they cause is nobody's; a gesture's name is its
+nearest label, so one of several identical buttons is named by position; a
+request that is not `dart:io` HTTP — gRPC, a platform HTTP client — carries
+no step.
+
 **Not planned: a web page in the panel.** The consumer asked for
 `w.view(name, url)`, to draw its prototype's page beside the people until the
 canvas exists. The studio has no web view, and one would put a native plugin
@@ -763,8 +807,11 @@ meanwhile.
 
 - `worlds list`; `worlds open {world, knobs}` returns the people and their
   apps' run keys; `worlds restart`; `worlds close`. Any process can ask a
-  world another one owns: `status`, `invoke`, `restart` and `close` are
-  forwarded to the owner (round 1).
+  world another one owns: `status`, `trace`, `invoke`, `restart` and `close`
+  are forwarded to the owner (round 1).
+- `worlds trace {person?, step?, limit?}`: the newest steps on the people's
+  apps, each with what it caused (*Traces, as built*). The agent reads an SMS
+  code there as readily as the log.
 - `flutterware_act` gains a `person` selector beside `device`, `entrypoint`
   and `run` (`_selectApp`, `run_core.dart:5201`). Its existing `actor`
   argument keeps saying who is driving.
@@ -877,8 +924,10 @@ triggered.
    `push` and `job` events carrying who they reached; questions
    (`w.outbox.ask`); the viewers; newcomers; the three kinds of delivery,
    through a devbar panel convention flutterware publishes for links and
-   notifications — and flows from each person's traffic to the origins a
-   service declares.
+   notifications — and **traces**: each step on an app joined to what it
+   caused, through Dart servers and synced records (*Traces, as built*),
+   which replace flows guessed from traffic to the origins a service
+   declares. Begun: `worlds trace` and each person's sync line.
 2. **Canvas v1.** Nodes — people and services — with their credentials and
    contents, the timeline, pending questions, focus, the drawer. Guests are
    live from the first version, as the lab already draws them, and sent to

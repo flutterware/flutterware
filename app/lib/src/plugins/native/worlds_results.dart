@@ -2,6 +2,7 @@ import 'package:flutterware/plugins.dart';
 
 import '../../world/open_world.dart';
 import '../../world/world_files.dart';
+import '../../world/world_trace.dart';
 
 /// What `worlds list` answers: every world the project declares, and which
 /// one is open here.
@@ -79,7 +80,11 @@ class WorldStateResult implements PluginResult, ReportsFailure {
         id: world.id,
         problem: world.problem,
         people: [
-          for (var person in world.people.values) WorldPersonEntry.of(person),
+          for (var person in world.people.values)
+            WorldPersonEntry.of(
+              person,
+              sync: world.tracer?.syncOf(person.name),
+            ),
         ],
         actions: [
           for (var MapEntry(:key, :value) in world.actions.entries)
@@ -184,9 +189,13 @@ class WorldPersonEntry {
     this.password,
     this.knobs = const {},
     this.problem,
+    this.sync,
   });
 
-  factory WorldPersonEntry.of(WorldPerson person) => WorldPersonEntry(
+  factory WorldPersonEntry.of(
+    WorldPerson person, {
+    Map<String, Object?>? sync,
+  }) => WorldPersonEntry(
     name: person.name,
     phase: person.phase.name,
     device: person.spec.app == null ? null : person.handle?.device,
@@ -198,6 +207,7 @@ class WorldPersonEntry {
     password: person.spec.password,
     knobs: person.knobs,
     problem: person.problem,
+    sync: sync == null ? null : syncLine(sync),
   );
 
   factory WorldPersonEntry.fromJson(Map<String, Object?> json) =>
@@ -213,6 +223,7 @@ class WorldPersonEntry {
         password: json['password'] as String?,
         knobs: (json['knobs'] as Map? ?? const {}).cast(),
         problem: json['problem'] as String?,
+        sync: json['sync'] as String?,
       );
 
   final String name;
@@ -240,6 +251,10 @@ class WorldPersonEntry {
   /// Why they are `failed`.
   final String? problem;
 
+  /// Where their app's synced database stands — `PowerSync: synced 2 s ago,
+  /// 1 to upload` — for an app whose database panel reads one.
+  final String? sync;
+
   Map<String, Object?> toJson() => {
     'name': name,
     'phase': phase,
@@ -252,8 +267,33 @@ class WorldPersonEntry {
     'password': ?password,
     if (knobs.isNotEmpty) 'knobs': knobs,
     'problem': ?problem,
+    'sync': ?sync,
   };
 }
+
+/// A database panel's `sync` state in a line: `PowerSync: synced 2 s ago,
+/// 1 to upload`.
+String syncLine(Map<String, Object?> state, {DateTime? now}) {
+  var engine = switch (state['engine']) {
+    'powersync' => 'PowerSync',
+    var other => '${other ?? 'Sync'}',
+  };
+  var synced = switch (state['lastSyncedAt']) {
+    String at when DateTime.tryParse(at) != null =>
+      'synced ${_ago((now ?? DateTime.now()).difference(DateTime.parse(at)))}',
+    _ => 'not synced yet',
+  };
+  var pending = state['pendingUploads'];
+  return '$engine: $synced'
+      '${pending is int && pending > 0 ? ', $pending to upload' : ''}';
+}
+
+String _ago(Duration age) => switch (age.inSeconds) {
+  < 1 => 'just now',
+  < 60 => '${age.inSeconds} s ago',
+  < 3600 => '${age.inMinutes} min ago',
+  _ => '${age.inHours} h ago',
+};
 
 class WorldActionEntry {
   const WorldActionEntry(this.name, {this.description});
@@ -325,5 +365,89 @@ class WorldActionResult implements PluginResult, ReportsFailure {
     'running': running,
     'progress': ?progress,
     'error': ?error,
+  };
+}
+
+/// What `worlds trace` answers: the newest steps taken on the people's apps,
+/// each with what it caused — the requests it sent, what the servers did
+/// under them, and where the records it wrote arrived.
+class WorldTraceResult implements PluginResult {
+  const WorldTraceResult({required this.steps, this.note});
+
+  factory WorldTraceResult.of(
+    List<TracedStep> traced, {
+    String? note,
+  }) => WorldTraceResult(
+    steps: [
+      for (var (:step, :beats) in traced)
+        WorldTraceStep(
+          step: step.id,
+          person: step.person,
+          at: step.at!,
+          did: step.did,
+          then: [
+            for (var beat in beats)
+              '+${beat.at.difference(step.at!).inMilliseconds} ms  ${beat.what}',
+          ],
+        ),
+    ],
+    note: note,
+  );
+
+  factory WorldTraceResult.fromJson(Map<String, Object?> json) =>
+      WorldTraceResult(
+        steps: [
+          for (var step in json['steps'] as List? ?? const [])
+            WorldTraceStep.fromJson((step as Map).cast()),
+        ],
+        note: json['note'] as String?,
+      );
+
+  /// Oldest first.
+  final List<WorldTraceStep> steps;
+  final String? note;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'steps': [for (var step in steps) step.toJson()],
+    'note': ?note,
+  };
+}
+
+class WorldTraceStep {
+  const WorldTraceStep({
+    required this.step,
+    required this.person,
+    required this.at,
+    required this.did,
+    this.then = const [],
+  });
+
+  factory WorldTraceStep.fromJson(Map<String, Object?> json) => WorldTraceStep(
+    step: json['step']! as String,
+    person: json['person']! as String,
+    at: DateTime.parse(json['at']! as String),
+    did: json['did']! as String,
+    then: [...(json['then'] as List? ?? const []).cast<String>()],
+  );
+
+  /// The app's name for it — `ben.3` — what `worlds trace` takes as `step`.
+  final String step;
+  final String person;
+  final DateTime at;
+
+  /// `tap "Order"`.
+  final String did;
+
+  /// What it caused, each line its offset from the step and where it
+  /// happened: `+29 ms  Ben → lab  POST /orders  201 in 3 ms`.
+  final List<String> then;
+
+  Map<String, Object?> toJson() => {
+    'step': step,
+    'person': person,
+    'at': at.toIso8601String(),
+    'did': did,
+    if (then.isNotEmpty) 'then': then,
   };
 }

@@ -2835,6 +2835,28 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 |---|---|---|---|---|
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
+#### `trace` — Trace
+
+The newest steps taken on the people's apps — each tap, a person's or an agent's — with what each one caused: the requests it sent, what the servers did under them and whom they reached, and where the records it wrote arrived. A server takes part by reading the `x-fw-step` header into `FlutterwareServer.stepKey`; a synced database, by its database panel reading the engine.
+
+```sh
+fw run worlds trace [--person=…] [--step=…] [--limit=…] [--world=…]
+```
+
+Returns `WorldTraceResult`:
+
+```
+steps: List<Map<String, Object?>>   # Oldest first.
+note: String?
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `person` | string | no | — | Only this person's steps |
+| `step` | string | no | — | Only this step, by its name: `ben.3` |
+| `limit` | integer | no | — | How many of the newest steps, 10 by default |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
 #### `restart` — Restart
 
 Runs the script again — its `onClose` first — so the people are new, and restarts each app in place with the knobs the script now gives it. Nothing rebuilds. The script's own edits apply too.

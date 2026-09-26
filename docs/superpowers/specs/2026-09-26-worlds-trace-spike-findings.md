@@ -10,7 +10,8 @@ an app made after a tap carried that tap's step through a Dart zone, and every
 event the server reported under it inherited the step with no code of the
 project's beyond its adapter. The canvas board drawn from this run holds
 nothing invented.
-**Status:** a spike on its own branch, not for merging as is.
+**Status:** a spike on its own branch; the world now assembles the traces
+itself (*The world assembles them*, at the end).
 
 ## What was built
 
@@ -127,3 +128,60 @@ after she tapped.
   device's `ps_kv` holds — a source for the service's own node, not used yet.
 - **Sync rules** want every bucket parameter used by its data queries:
   "staff see every order" became "staff see their shop's orders", by id.
+
+## The world assembles them
+
+What the two spikes joined by hand, the world now joins as it runs
+(`app/lib/src/world/world_trace.dart`), and `worlds trace` answers with it.
+
+**What moved where:**
+
+- **The guest's half is in the package**, `lib/src/world/guest_steps.dart`,
+  instead of a string in the generated entry. A step is named by its person —
+  `ben.3` — so two devices never share one, and it is published on the app's
+  channels, `world/steps`, with the gesture and what it landed on
+  (`describeHit`, the journal's own naming). Each stamped request is published
+  too, on `world/requests`, with how it joined.
+- **The world attaches** to each person's app — the channels Run's panels
+  use — and to every server announcing itself under the worktree. It looks
+  for servers when the world is open and whenever an app sends a request, at
+  most once a second: a server announces itself on its first event, so the
+  one a request reaches is there by then.
+- **Sync state is read from the database panel** whenever records arrive,
+  and shown as a line per person in `worlds status` — `PowerSync: synced 5 s
+  ago` — and as a section beside the phone in the Worlds panel.
+
+**Measured**, both lab worlds, driven by the agent through
+`flutterware_act`, the trace asked from another process (1.1 s, forwarded
+to the owner):
+
+| | |
+|---|---|
+| *Synced pickup*, Ben orders | local write +4–5 ms, upload +6–7 ms (joined by time), server write +12–16 ms, on Cleo's phone +23–32 ms, confirmed to Ben +254–256 ms |
+| *Synced pickup*, Cleo advances | on Ben's phone +18–25 ms |
+| *Pickup order*, Leo signs up | the SMS with his code under his tap, named as his by the number before he had an account |
+| *Pickup order*, Leo signs in | four requests from one tap, and his user id learnt from the first |
+| *Pickup order*, Ana advances | both phones reached over the WebSocket; the push to Leo under the second tap |
+| opening, *Synced pickup* | 7.2 s first, then 3.3 s; a restart in the studio 1.7 s |
+
+**Findings:**
+
+- **An app answers after its process does.** In the studio, the world's
+  attach reached each guest before its `main` had registered the channels,
+  was refused, and was never tried again — `fw` had won the same race by
+  luck. The tracer now tries for 10 s, a quarter second apart. Found only by
+  looking at the panel.
+- **A devbar declares its panels after the attach, as often as not,** so the
+  sync panel is looked for again when the app says its panels changed.
+- **An identity the script declared is not news.** `knows Ana as u1` said
+  nothing; only a user the world learnt — someone who signed up themselves —
+  gets the line.
+- **A WebSocket upgrade is named by its host's server.** shelf never reports
+  it, but another request to the same host was answered by `lab`, so the
+  upgrade is `Leo → lab  GET /live` rather than a bare port.
+- **A server hosted in a world script goes by the script's file name,** so
+  the lab names itself: `FlutterwareServer.configure(name: 'lab')`.
+- **A route id the adapter did not know was not folded.** The lab's ids gained
+  the run in the spike — `u3kx9-12` — and its part pattern had to follow.
+- **Typing is not a step.** `enterText` arrives through text input, not a
+  pointer; the tap that follows it is the step.

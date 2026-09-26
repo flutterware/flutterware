@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutterware/server.dart';
 import 'package:flutterware/world.dart';
 import 'package:logging/logging.dart';
 import 'package:world_lab_server/world_lab_server.dart';
@@ -21,6 +22,8 @@ Future<LabServer> startLabServer(
     (record) => print('${record.loggerName}: ${record.message}'),
   );
   w.progress('Starting the lab server');
+  // Hosted here, it would go by the script's file name.
+  FlutterwareServer.configure(name: 'lab');
   var server = await startServer(
     orders: orders,
     sync: sync,
