@@ -22,7 +22,9 @@ class _FakeDb {
     bool withUpdates = true,
     bool writable = false,
     DatabaseWatch? watch,
+    DatabaseSync? sync,
   }) => DatabaseAdapter(
+    sync: sync,
     query: (sql, args) {
       queried.add((sql, args));
       return onQuery(sql, args);
@@ -83,6 +85,92 @@ void main() {
     var payload = (peer.frames.single['p']! as Map).cast<String, Object?>();
     return (payload['details']! as Map).cast<String, Object?>();
   }
+
+  group('PowerSync', () {
+    /// Its tables, as a checkpoint and the app leave them.
+    var crud = <Map<String, Object?>>[];
+    var oplog = <Map<String, Object?>>[];
+
+    setUp(() {
+      crud = [];
+      oplog = [
+        {'t': 'orders', 'k': 'o1', 'op': 3},
+      ];
+      db.onQuery = (sql, args) async => switch (sql) {
+        _ when sql.contains("key = 'client_id'") => [
+          {'value': 'client-7'},
+        ],
+        _ when sql.startsWith('SELECT count(*) FROM ps_crud') => [
+          {'count(*)': crud.length},
+        ],
+        _ when sql.contains('ps_sync_state') => [
+          {'max(last_synced_at)': 1790448958000000},
+        ],
+        _ when sql.startsWith('SELECT name, last_applied_op') => [
+          {'name': 'shop_orders["main"]', 'last_applied_op': 8, 'last_op': 8},
+        ],
+        _ when sql.contains('FROM ps_crud WHERE id >') => [
+          for (var row in crud)
+            if ((row['id']! as int) > (args.single! as int)) row,
+        ],
+        _ when sql.contains('FROM ps_oplog') => oplog,
+        _ => const [],
+      };
+    });
+
+    test('is said, not guessed: a plain database gets no sync surface', () {
+      var (panel, _) = mount(db.adapter());
+      expect(panel.descriptor.states.map((s) => s.id), ['schema']);
+      expect(
+        panel.descriptor.feeds.map((f) => f.id),
+        isNot(contains('records')),
+      );
+    });
+
+    test("reads the engine's own tables into a sync state", () async {
+      var (panel, _) = mount(db.adapter(sync: DatabaseSync.powersync));
+      expect(panel.descriptor.states.map((s) => s.id), ['schema', 'sync']);
+      crud = [
+        {'id': 4, 'data': '{}'},
+      ];
+      expect(await panel.readState('sync'), {
+        'engine': 'powersync',
+        'clientId': 'client-7',
+        'pendingUploads': 1,
+        'lastSyncedAt': '2026-09-26T18:55:58.000Z',
+        'buckets': [
+          {'name': 'shop_orders["main"]', 'appliedOp': 8, 'lastOp': 8},
+        ],
+      });
+    });
+
+    test('reports a local write, then what a checkpoint brought, record by '
+        'record', () async {
+      mount(db.adapter(sync: DatabaseSync.powersync));
+      await pumpEventQueue();
+      // What was there at the start is one line.
+      expect(ringed('db:main/records'), [
+        {'key': '1 records', 'change': 'present'},
+      ]);
+
+      crud = [
+        {'id': 1, 'data': '{"op":"PUT","type":"orders","id":"o2","data":{}}'},
+      ];
+      db.updates.add({'orders'});
+      await pumpEventQueue();
+      oplog = [
+        {'t': 'orders', 'k': 'o1', 'op': 3},
+        {'t': 'orders', 'k': 'o2', 'op': 9},
+      ];
+      db.updates.add({'orders'});
+      await pumpEventQueue();
+
+      expect(ringed('db:main/records').skip(1), [
+        {'key': 'o2', 'table': 'orders', 'change': 'local put'},
+        {'key': 'o2', 'table': 'orders', 'change': 'synced', 'op': 9},
+      ]);
+    });
+  });
 
   group('descriptor', () {
     test('declares only what the adapter can answer', () {

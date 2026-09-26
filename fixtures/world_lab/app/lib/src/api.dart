@@ -27,6 +27,13 @@ class User {
 }
 
 class Order {
+  Order({
+    required this.id,
+    required this.customerId,
+    required this.item,
+    required this.status,
+  });
+
   Order.fromJson(Map<String, Object?> json)
     : id = json['id']! as String,
       customerId = json['customerId']! as String,
@@ -100,6 +107,13 @@ class Api {
 
   Future<Order> advance(String id) async =>
       Order.fromJson(await _send('POST', '/orders/$id/advance'));
+
+  /// A token for the sync engine, and where it is.
+  Future<Map<String, Object?>> syncToken() => _send('GET', '/sync/token');
+
+  /// What the app changed locally, for the server to apply.
+  Future<void> upload(List<Map<String, Object?>> ops) =>
+      _send('POST', '/sync/upload', {'ops': ops});
 
   /// The server's socket: its greeting, then every order this user may see
   /// as it changes. Without a session the server greets and hangs up.

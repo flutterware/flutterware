@@ -1,0 +1,40 @@
+# The PowerSync service's configuration, for the lab only.
+
+replication:
+  connections:
+    - type: postgresql
+      uri: postgresql://postgres:postgres@postgres:5432/shop
+      sslmode: disable
+
+storage:
+  type: postgresql
+  uri: postgresql://postgres:postgres@postgres:5432/powersync_storage
+  sslmode: disable
+
+port: 8080
+
+# Tokens come from the lab server (`GET /sync/token`), signed with a secret the
+# two share. `k` is that secret, base64url — the lab server's `SyncAuth`.
+client_auth:
+  audience: [world-lab]
+  jwks:
+    keys:
+      - kty: oct
+        alg: HS256
+        kid: world-lab
+        k: d29ybGQtbGFiLWRldmVsb3BtZW50LXNlY3JldA
+
+# Customers see their own orders; staff see every order of the shop. (A bucket's
+# parameters must all be used by its data queries, so "every order" is the
+# shop's, by its id — the lab has one shop.)
+sync_rules:
+  content: |
+    bucket_definitions:
+      my_orders:
+        parameters: SELECT request.user_id() AS customer_id
+        data:
+          - SELECT * FROM orders WHERE customer_id = bucket.customer_id
+      shop_orders:
+        parameters: SELECT 'main' AS shop_id WHERE request.jwt() ->> 'role' = 'staff'
+        data:
+          - SELECT * FROM orders WHERE shop_id = bucket.shop_id
