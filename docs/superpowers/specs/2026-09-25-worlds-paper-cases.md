@@ -1,5 +1,7 @@
 # Worlds on paper — six invented products against the design
 
+*Since round 2 the scripts below would write their identities themselves — `'ana.${w.id}@example.com'` — rather than through `w.email`, `w.phone` and `w.unique`, which were removed; the cases are kept as they were written.*
+
 **Date:** 2026-09-25
 **Question:** does `2026-09-25-worlds-design.md` hold beyond the one consumer
 it was drawn from? Six invented products, each chosen to push on a different

@@ -194,6 +194,7 @@ void main() {
 
     await world.restart({'mood': 'busy'});
     expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+    expect(world.log, contains(endsWith('  Restart 1')));
     expect(world.id, isNot(first));
     expect(world.people.keys, ['Ana', 'Leo']);
     expect(world.log, contains(endsWith('  closing $first')));
@@ -206,5 +207,36 @@ void main() {
       Directory(flutterwareRunDir()).listSync().map((e) => p.basename(e.path)),
       isNot(contains(startsWith('world-compiler-$pid-'))),
     );
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('a script that dies on the resident compiler is started once more, '
+      'with a fresh compiler', () async {
+    var marker = File('build/flaky_world.marker');
+    if (marker.existsSync()) marker.deleteSync();
+    addTearDown(() {
+      if (marker.existsSync()) marker.deleteSync();
+    });
+    var world = OpenWorld(
+      file: const WorldFile(
+        package: 'app',
+        path: 'test/world/fixtures/flaky_world.dart',
+        name: 'Flaky',
+      ),
+      worktree: p.dirname(Directory.current.path),
+      flutterSdkRoot: Platform.environment['FLUTTER_ROOT']!,
+      appRoot: Directory.current.path,
+      entrypoints: const [],
+      guests: (_) => throw StateError('nobody here has an app'),
+    );
+    await world.open();
+    expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+    expect(
+      world.log,
+      contains(
+        endsWith('The resident compiler was gone; starting a fresh one'),
+      ),
+    );
+    expect(world.people.keys, ['Ana']);
+    await world.close();
   }, timeout: const Timeout(Duration(minutes: 2)));
 }

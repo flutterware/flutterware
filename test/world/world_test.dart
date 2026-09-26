@@ -41,12 +41,11 @@ void main() {
       w.progress('Starting the server');
       w.person(
         'Ana',
-        email: w.email('Ana Lopez'),
+        email: 'ana.${w.id}@example.com',
         app: const Launch('Shop', knobs: {'port': 8090, 'staff': true}),
         on: const Studio(Devices.iPad),
       );
-      w.person('Leo', phone: w.phone());
-      w.person('Mia', phone: w.phone(prefix: '+32470', digits: 6));
+      w.person('Leo', phone: '+32470000001');
     });
     owner.send(WorldMessage.open);
     var hello = await owner.next(WorldMessage.hello);
@@ -54,17 +53,15 @@ void main() {
 
     var id = hello['id']! as String;
     expect(id, hasLength(6));
-    var [ana, leo, mia] = [
+    var [ana, leo] = [
       for (var message in owner.of(WorldMessage.person))
         personFromJson(message),
     ];
-    expect(ana.email, 'ana.lopez.$id@example.com');
+    expect(ana.email, 'ana.$id@example.com');
     expect(ana.app!.entrypoint, 'Shop');
     expect(ana.app!.knobs, {'port': 8090, 'staff': true});
     expect((ana.on as Studio).device, same(Devices.iPad));
-    expect(leo.phone, matches(RegExp(r'^\+447700900\d{3}$')));
-    // A range a validating server accepts.
-    expect(mia.phone, matches(RegExp(r'^\+32470\d{6}$')));
+    expect(leo.phone, '+32470000001');
     expect(leo.app, isNull);
 
     owner.send(WorldMessage.close);

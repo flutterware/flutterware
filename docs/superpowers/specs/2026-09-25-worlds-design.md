@@ -175,9 +175,9 @@ import 'src/local.dart';
 void main(List<String> args) => World.run(args, (w) async {
   var server = await startLocalServer(w);
 
-  var shop = await server.shop(w.unique('Canal Street'));
-  var ana = await shop.staff(w.email('ana'), 'Ana', role: Role.barista);
-  var leo = await shop.customer('Leo', phone: w.phone());
+  var shop = await server.shop('Canal Street ${w.id}');
+  var ana = await shop.staff('ana.${w.id}@example.com', 'Ana', role: Role.barista);
+  var leo = await shop.customer('Leo', phone: testPhone(w.id));
 
   w.person(
     'Ana',
@@ -239,7 +239,7 @@ And what a world may do beyond setting up — all optional:
   w.action('Job: fail the next one', () => server.worker.failNext());
   var language = w.knob('language', options: ['en', 'fr'], initial: 'en');
 
-  var ben = await shop.staff(w.email('ben'), 'Ben', role: Role.manager);
+  var ben = await shop.staff('ben.${w.id}@example.com', 'Ben', role: Role.manager);
   w.person('Ben', email: ben.email, userId: ben.id); // headless
   w.action('Ben approves the refund', () => ben.api.approveRefund(leo));
 
@@ -266,18 +266,24 @@ And what a world may do beyond setting up — all optional:
 ### Semantics
 
 **Restart is close, then run again.** `onClose` runs, the script runs anew,
-new users come out, and each person's app gets a hot restart with new knob
-values — not a rebuild. On a Run device, knobs arrive by regenerating the run
-wrapper, measured at 262 ms on macOS against 29.6 s for the same change as a
-define (`2026-08-12-run-knobs-spike-findings.md`). A guest reads its knobs
-from a file of that person's each time `main` runs, so the world writes the
-new values and restarts the app in place: 347 ms, measured with a user the
-server had just made (phase 5 of the experiment). A world restart costs the
-seed plus one hot restart per person.
+new users come out, and each person's app starts afresh — a new guest over
+the program already compiled, in an emptied home — with the new knob values,
+not a rebuild. The people are new, so nothing of the last ones may open as
+them: a first build restarted each app in place, and at a consumer a
+newcomer left signed out by the script opened signed in as the person
+before, from the token and the database left in the same folder (round 2). A fresh guest costs about a
+second, and the kernel is rewritten first only when the code changed since
+it was written — a reload applies edits to running guests, not to disk. On a
+Run device, knobs arrive by regenerating the run wrapper, measured at 262 ms
+on macOS against 29.6 s for the same change as a define
+(`2026-08-12-run-knobs-spike-findings.md`). A world restart costs the seed
+plus one fresh start per person, in parallel.
 
-**Identities are fresh every time.** `w.email('ana')` is unique to the world
-instance, `w.phone()` draws from a reserved range, `w.unique(name)` suffixes.
-Worlds never collide, so two worktrees or two agents can each run one against
+**Identities are fresh every time.** `w.id` is new each opening, and the
+script folds it into the emails, names and numbers it makes. It writes them
+itself, because what a valid address or phone number looks like is its
+server's rule: flutterware's own helpers were removed after a consumer's
+server refused their fictional numbers (round 2). Worlds never collide, so two worktrees or two agents can each run one against
 the same server, and an app that keeps one local database per signed-in user
 starts clean without a wipe.
 
@@ -606,7 +612,7 @@ bring a simulator's or macOS window forward, and *Mirror* reserved for later.
 
 **A person's node carries their credentials** — email, phone, password, the
 last code sent to them — shown, copyable, and fillable into their app.
-Without it, a human re-reads the script to find the number `w.phone()` made
+Without it, a human re-reads the script to find the number it made
 up.
 
 **Questions wait where they are seen:** a pending question sits on the server
@@ -856,8 +862,14 @@ triggered.
    - **Round 1**, from the consumer's first day: any process reaches a world
      another owns; the script compiled once by a resident compiler; a log
      stamped with the time since the opening; each guest in its person's own
-     folder; `w.phone(prefix:)`; `permission_handler`; and an older studio or
+     folder; `permission_handler`; and an older studio or
      MCP server saying it is older rather than that a plugin has no actions.
+   - **Round 2**, from the consumer's second day: every restart starts fresh
+     guests in emptied homes; a script that dies on the resident compiler's
+     socket is started once more with a fresh one; a failed restart stops
+     the last opening's people; guest builds start as the script does, from
+     the apps the world used last time; `w.email`, `w.phone` and `w.unique`
+     are gone — the script writes its identities, with its server's rules.
 1. **A design round, then the system beside the people.** Clickable mockups
    of the canvas with people *and* services, flows on three layers, the
    timeline, focus and credentials, agreed before anything is built. Then

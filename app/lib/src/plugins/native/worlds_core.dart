@@ -146,6 +146,7 @@ class WorldsCore extends PluginCore {
       description:
           'The open world: its people and their devices, its actions and '
           "knobs, and its script's last lines.",
+      parameters: [_worldParameter],
     ),
     PluginAction(
       'restart',
@@ -155,7 +156,7 @@ class WorldsCore extends PluginCore {
           'Runs the script again — its `onClose` first — so the people are '
           'new, and restarts each app in place with the knobs the script now '
           "gives it. Nothing rebuilds. The script's own edits apply too.",
-      parameters: [_knobsParameter],
+      parameters: [_knobsParameter, _worldParameter],
     ),
     const PluginAction(
       'invoke',
@@ -171,6 +172,7 @@ class WorldsCore extends PluginCore {
           'Action',
           description: 'The action, by its name',
         ),
+        _worldParameter,
       ],
     ),
     const PluginAction(
@@ -180,8 +182,19 @@ class WorldsCore extends PluginCore {
       description:
           "Closes the open world: its script's `onClose` runs, and every "
           "person's app stops.",
+      parameters: [_worldParameter],
     ),
   ];
+
+  /// Optional, since a worktree has one world open at a time: named, it is
+  /// checked against that one, so a script's `--world` cannot act on another.
+  static const _worldParameter = ActionParameter(
+    'world',
+    'World',
+    required: false,
+    description:
+        'The world it is for, by its file name — checked against the one open',
+  );
 
   static const _knobsParameter = ActionParameter(
     'knobs',
@@ -234,7 +247,26 @@ class WorldsCore extends PluginCore {
   Future<Object?> invoke(
     String actionId, {
     Map<String, Object?> arguments = const {},
-  }) async => switch (actionId) {
+  }) async {
+    if (arguments['world'] case String named
+        when actionId != 'open' && actionId != 'list') {
+      var open = _open?.file.id ?? openElsewhere()?.world;
+      if (open == null) {
+        throw WorldRefusal('No world is open, so not $named either.');
+      }
+      if (open != named) {
+        throw WorldRefusal(
+          '$open is the world open on this worktree, not $named.',
+        );
+      }
+    }
+    return _invoke(actionId, arguments);
+  }
+
+  Future<Object?> _invoke(
+    String actionId,
+    Map<String, Object?> arguments,
+  ) async => switch (actionId) {
     'list' => await _listAction(),
     'open' => await _openAction(
       '${arguments['world']}',
