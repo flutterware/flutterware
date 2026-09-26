@@ -48,6 +48,11 @@ class _WorldCanvasState extends State<WorldCanvas> {
   /// True while a drag is moving the zoomed stage, which the phones under it
   /// must then not take as a drag of their own.
   final _panning = ValueNotifier(false);
+
+  /// How much smaller than life the phones are drawn to fit the stage, as
+  /// its last layout worked out; the zoom multiplies it.
+  var _fit = 1.0;
+  Timer? _sharpen;
   WorldTracer? _tracer;
   StreamSubscription<void>? _heard;
   Timer? _redraw;
@@ -62,6 +67,19 @@ class _WorldCanvasState extends State<WorldCanvas> {
   void initState() {
     super.initState();
     _follow();
+    _zoom.addListener(_zoomed);
+  }
+
+  /// Once a zoom settles, each phone renders for the size it is now drawn
+  /// at. Not on every frame of a pinch: each is a new surface for the guest.
+  void _zoomed() {
+    _sharpen?.cancel();
+    _sharpen = Timer(const Duration(milliseconds: 200), () {
+      var onScreen = _fit * _zoom.value.getMaxScaleOnAxis();
+      for (var person in widget.world.people.values) {
+        if (person.guest case LiveWorldGuest live) live.magnify(onScreen);
+      }
+    });
   }
 
   @override
@@ -91,6 +109,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
   void dispose() {
     unawaited(_heard?.cancel());
     _redraw?.cancel();
+    _sharpen?.cancel();
     _scroll.dispose();
     _zoom.dispose();
     _panning.dispose();
@@ -211,6 +230,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                   // What the stage keeps for itself, the phones leave alone:
                   // the same rule the stage applies, so the two agree.
                   ignores: (event) => _panning.value || stageOwnsPointer(event),
+                  onFit: (fit) => _fit = fit,
                   onOpen: (person) => setState(() => _drawer = person),
                 ),
               ),
@@ -297,6 +317,7 @@ class _People extends StatelessWidget {
     required this.colorOf,
     required this.anchors,
     required this.ignores,
+    required this.onFit,
     required this.onOpen,
   });
 
@@ -307,6 +328,9 @@ class _People extends StatelessWidget {
 
   /// Pointer events the stage keeps, which no phone acts on.
   final bool Function(PointerEvent event) ignores;
+
+  /// Told the scale the phones are drawn at, each layout.
+  final void Function(double fit) onFit;
   final void Function(String person) onOpen;
 
   @override
@@ -321,6 +345,7 @@ class _People extends StatelessWidget {
           wireGap -
           _PersonView.labelHeight;
       var scale = tallest == 0 ? 1.0 : min(1.0, room / tallest);
+      onFit(scale);
       return SingleChildScrollView(
         controller: scroll,
         scrollDirection: Axis.horizontal,
@@ -1462,23 +1487,26 @@ class TraceLinesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // One line per person, node and direction: a reach to the same phone
-    // twice is one line, labelled by the first.
-    var lines = <String, TraceBeat>{};
+    // One line per person and part, whichever way it ran: a request and
+    // the reach it sent back to the same phone are one line with a head at
+    // each end, not two lines side by side that read as one. Each way is
+    // labelled by its first beat.
+    var lines = <String, _Line>{};
     for (var beat in beats) {
-      if (beat.person == null || beat.node == null || beat.line == null) {
-        continue;
+      var (person, node, words) = (beat.person, beat.node, beat.line);
+      if (person == null || node == null || words == null) continue;
+      var line = lines.putIfAbsent('$person|$node', () => _Line(person, node));
+      if (beat.inbound) {
+        line.back ??= words;
+      } else {
+        line.out ??= words;
       }
-      lines.putIfAbsent(
-        '${beat.person}|${beat.node}|${beat.inbound}',
-        () => beat,
-      );
     }
     var perPerson = <String, int>{};
     var perNode = <String, int>{};
-    for (var beat in lines.values) {
-      perPerson[beat.person!] = (perPerson[beat.person!] ?? 0) + 1;
-      perNode[beat.node!] = (perNode[beat.node!] ?? 0) + 1;
+    for (var line in lines.values) {
+      perPerson[line.person] = (perPerson[line.person] ?? 0) + 1;
+      perNode[line.node] = (perNode[line.node] ?? 0) + 1;
     }
     // Several lines at one end fan out along it rather than overlap.
     double spread(int index, int count, double step) =>
@@ -1486,19 +1514,19 @@ class TraceLinesPainter extends CustomPainter {
     var fromPerson = <String, int>{};
     var toNode = <String, int>{};
     var routes = <_Route>[];
-    for (var beat in lines.values) {
-      var phone = anchors.rectOf(personAnchor(beat.person!));
-      var node = anchors.rectOf(beat.node!);
+    for (var line in lines.values) {
+      var phone = anchors.rectOf(personAnchor(line.person));
+      var node = anchors.rectOf(line.node);
       if (phone == null || node == null) continue;
-      var i = fromPerson[beat.person!] = (fromPerson[beat.person!] ?? -1) + 1;
-      var j = toNode[beat.node!] = (toNode[beat.node!] ?? -1) + 1;
-      var count = perNode[beat.node!]!;
+      var i = fromPerson[line.person] = (fromPerson[line.person] ?? -1) + 1;
+      var j = toNode[line.node] = (toNode[line.node] ?? -1) + 1;
+      var count = perNode[line.node]!;
       routes.add(
         _Route(
-          beat: beat,
+          line: line,
           phone: phone,
           start: Offset(
-            phone.center.dx + spread(i, perPerson[beat.person!]!, 16),
+            phone.center.dx + spread(i, perPerson[line.person]!, 16),
             phone.bottom + 1,
           ),
           channel: node.left - channelWidth / 2 + spread(j, count, 5),
@@ -1531,7 +1559,7 @@ class TraceLinesPainter extends CustomPainter {
     // Every line before any label, so no line runs over a label's words.
     var runs = <(_Route, Offset, Offset)>[];
     for (var route in routes) {
-      var color = colorOf(route.beat.person);
+      var color = colorOf(route.line.person);
       var points = [
         route.start,
         Offset(route.start.dx, route.track),
@@ -1546,17 +1574,22 @@ class TraceLinesPainter extends CustomPainter {
           ..strokeWidth = 1.5
           ..style = PaintingStyle.stroke,
       );
-      if (route.beat.inbound) {
-        _arrow(canvas, points[1], points[0], color);
-      } else {
-        _arrow(canvas, points[3], points[4], color);
-      }
+      if (route.line.back != null) _arrow(canvas, points[1], points[0], color);
+      if (route.line.out != null) _arrow(canvas, points[3], points[4], color);
       runs.add((route, points[1], points[2]));
     }
     var labels = <Rect>[];
     for (var (route, from, to) in runs) {
-      var color = colorOf(route.beat.person);
-      labels.add(_label(canvas, route.beat.line!, from, to, color, labels));
+      var color = colorOf(route.line.person);
+      // Both ways in one pill, the answer under the request and marked ←:
+      // two pills on one short run push each other off it.
+      var words = switch ((route.line.out, route.line.back)) {
+        (var out?, var back?) => '$out\n← $back',
+        (var out?, null) => out,
+        (null, var back?) => back,
+        (null, null) => '',
+      };
+      labels.add(_label(canvas, words, from, to, color, labels));
     }
   }
 
@@ -1619,7 +1652,7 @@ class TraceLinesPainter extends CustomPainter {
         style: label.copyWith(color: color),
       ),
       textDirection: TextDirection.ltr,
-      maxLines: 1,
+      maxLines: 2,
       ellipsis: '…',
     )..layout(maxWidth: 220);
     var pad = const EdgeInsets.symmetric(horizontal: 7, vertical: 2);
@@ -1633,7 +1666,10 @@ class TraceLinesPainter extends CustomPainter {
       rect = rectAt(t);
       if (!taken.any((other) => other.inflate(2).overlaps(rect))) break;
     }
-    var shape = RRect.fromRectAndRadius(rect, Radius.circular(rect.height / 2));
+    var shape = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(min(rect.height / 2, 9)),
+    );
     canvas
       ..drawRRect(shape, Paint()..color = pill)
       ..drawRRect(
@@ -1652,16 +1688,30 @@ class TraceLinesPainter extends CustomPainter {
 
 /// One line's way from a phone to a part: down into the gap, along it on
 /// its [track], down the channel beside the part, and into the part's side.
+/// What passed between one phone and one part, each way.
+class _Line {
+  _Line(this.person, this.node);
+
+  final String person;
+  final String node;
+
+  /// The words on the way out — the request — if there was one.
+  String? out;
+
+  /// The words on the way back — a reach, an arrival — if there was one.
+  String? back;
+}
+
 class _Route {
   _Route({
-    required this.beat,
+    required this.line,
     required this.phone,
     required this.start,
     required this.channel,
     required this.entry,
   });
 
-  final TraceBeat beat;
+  final _Line line;
   final Rect phone;
   final Offset start;
 
