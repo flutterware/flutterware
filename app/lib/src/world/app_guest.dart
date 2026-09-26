@@ -278,6 +278,7 @@ Future<String> ensureGuestHost(FlutterCache cache, String appRoot) async {
     nativeSourceDir: p.join(appRoot, 'native'),
     nativeBuildDir: p.join(appRoot, 'build', 'embedder', 'native'),
     engineDir: engineDir,
+    quiet: true,
   );
 }
 

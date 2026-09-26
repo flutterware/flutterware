@@ -2811,7 +2811,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 The open world: its people and their devices, its actions and knobs, and its script's last lines.
 
 ```sh
-fw run worlds status
+fw run worlds status [--world=…]
 ```
 
 Returns `WorldStateResult`:
@@ -2831,14 +2831,16 @@ note: String?   # A word about what to do next.
 
 Exits 1 when `ok` is false, so a job can gate on this action.
 
-Takes no parameters.
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `restart` — Restart
 
 Runs the script again — its `onClose` first — so the people are new, and restarts each app in place with the knobs the script now gives it. Nothing rebuilds. The script's own edits apply too.
 
 ```sh
-fw run worlds restart [--knobs=…]
+fw run worlds restart [--knobs=…] [--world=…]
 ```
 
 Returns `WorldStateResult`:
@@ -2861,13 +2863,14 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 | parameter | kind | required | default | |
 |---|---|---|---|---|
 | `knobs` | string | no | — | The world's knob values, `name=value` pairs split by `;`: `language=fr;network=offline` |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `invoke` — Invoke
 
 Runs one of the actions the world script declares, and answers when it ends — or after 30 s, still running, for one that takes longer.
 
 ```sh
-fw run worlds invoke --action=<string>
+fw run worlds invoke --action=<string> [--world=…]
 ```
 
 Returns `WorldActionResult`:
@@ -2885,13 +2888,14 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 | parameter | kind | required | default | |
 |---|---|---|---|---|
 | `action` | string | yes | — | The action, by its name |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `close` — Close
 
 Closes the open world: its script's `onClose` runs, and every person's app stops.
 
 ```sh
-fw run worlds close
+fw run worlds close [--world=…]
 ```
 
 Returns `WorldStateResult`:
@@ -2911,4 +2915,6 @@ note: String?   # A word about what to do next.
 
 Exits 1 when `ok` is false, so a job can gate on this action.
 
-Takes no parameters.
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |

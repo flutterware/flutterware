@@ -50,7 +50,7 @@ void main(List<String> args) => World.run(args, (w) async {
   var server = await startServer(port: await w.freePort());
   w.onClose(server.close);
 
-  var ana = await server.createStaff(email: w.email('ana'));
+  var ana = await server.createStaff(email: 'ana.${w.id}@example.com');
   w.person(
     'Ana',
     email: ana.email,
@@ -60,7 +60,7 @@ void main(List<String> args) => World.run(args, (w) async {
   // Leo has never used the app: he signs up with this number himself.
   w.person(
     'Leo',
-    phone: w.phone(),
+    phone: newPhone(), // a number your server accepts; see below
     app: Launch('Shop', knobs: {'server': '${server.url}'}),
   );
 
@@ -74,14 +74,13 @@ void main(List<String> args) => World.run(args, (w) async {
 script starts your server (or points at one already running) and makes its
 users through your server's API.
 
-- **Everything is new each time.** `w.email('ana')` and
-  `w.unique('Canal Street')` carry an id made every time the world opens, so
-  a world never trips over the users it made the last time. `w.phone()` draws
-  from a thousand UK numbers reserved for fiction, so a text sent to one
-  reaches nobody. A server that validates phone numbers refuses that range:
-  give it one it accepts, `w.phone(prefix: '+32470', digits: 6)`, but only if
-  the world catches your server's texts, since a valid number can be
-  someone's.
+- **Everything is new each time.** `w.id` is made every time the world opens
+  or restarts. Fold it into the emails, names and numbers the script makes —
+  `'ana.${w.id}@example.com'`, `'Canal Street ${w.id}'` — and a world never
+  trips over the users it made the last time. What a valid address or phone
+  number looks like is your server's rule, so the script writes them, a line
+  each; flutterware makes none up. Hand them to `w.person(email:, phone:)` so
+  the studio shows them beside the person.
 - **A person starts signed in through their app's knobs.** `Launch` names an
   entry point and the [knobs](run.md#knobs) its `main` is called with. A
   session token, a server URL or a starting page are all knobs.
@@ -109,8 +108,9 @@ cd server && dart run tool/worlds/pickup_order.dart 'Leo=signed in'
 In the studio, **Worlds** lists the worlds you declared. **Open** runs the
 script and starts every person's app, side by side, with the world's knobs
 as pickers and its actions as buttons. **Restart** runs the script again for
-new people and restarts each app in place, which takes a few seconds and
-rebuilds nothing. **Close** stops everything.
+new people and starts each app afresh, in an emptied home, so nothing of the
+last people opens as the new ones; it takes about a second and rebuilds
+nothing. **Close** stops everything.
 
 From the command line, the world lives as long as the command does:
 

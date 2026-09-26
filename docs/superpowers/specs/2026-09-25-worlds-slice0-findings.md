@@ -199,3 +199,39 @@ Left for later: starting guest builds before the first `w.person` — after
 the resident compiler, the script reaches its first person much sooner — and
 handing each person's traffic and logs to the script, which the design takes
 up as the system's third source of movement.
+
+## Round 2 — the consumer's second day
+
+The consumer re-measured on round 1: a script's first line in 1.4 s where it
+took 11.9, a warm open in 10.1 s where it took 20.7, a restart in about 3 s
+where there was none from `fw`, and `status`, `invoke`, `restart` and `close`
+all answered from another process while `fw … --hold` held the world. Then
+it found what round 2 fixes:
+
+- **A restart kept each person's home.** People on the same app were
+  restarted in place, so a newcomer the script left signed out opened signed
+  in as the person before, from the token and the local database in the same
+  folder. A restart now starts each app afresh — a new guest over the program
+  already compiled, in an emptied home. Measured on the lab: 1.0 s, where the
+  in-place restart took 2.5–3.3 s at the consumer, since nothing recompiles
+  when nothing changed; every restart shows a new install id and a first
+  launch. When the code did change, the kernel is rewritten first — an edit
+  made while the world was open ran after the restart, in 1.2 s.
+- **A restart hours later died on the resident compiler.** The SDK's
+  compiler goes down after 30 idle minutes; after the Mac slept, `dart run
+  --resident` found one on its way out, and the script died on its socket
+  before connecting. It is now started once more with a fresh compiler when
+  that is what it died of. And the failed restart had left the last
+  opening's people up, answering as nobody: they now stop with it.
+- **The guest build waited for the first person** — 6.4 s of the consumer's
+  10.1, after the stack and the seeding. A world now remembers the apps its
+  people used and builds them as the script starts: on the lab, the second
+  opening in 2.4 s where the first took 5.8.
+- **`w.email`, `w.phone` and `w.unique` are gone.** Whether an address or a
+  number is valid is each server's rule — the consumer's refused the UK's
+  fictional range, another accepts only its own domain — so round 1's
+  `prefix:` began a list with no end. A script folds `w.id` into the
+  identities it writes, a line each.
+- **Small:** a restart says `Restart N` in the log, whose stamps start again
+  at 0.0; the C host's CMake output is printed only when it fails; the world
+  actions take `--world` and refuse a world other than the one open.

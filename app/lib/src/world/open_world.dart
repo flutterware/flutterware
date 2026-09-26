@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutterware/devices.dart';
@@ -98,20 +100,24 @@ class OpenWorld {
   var _nextRun = 1;
   Completer<void>? _settled;
   var _seeded = false;
+  var _restarts = 0;
 
   /// Opens the world with [knobs] and answers once every person's app is up,
   /// or has failed, or the script has.
   Future<void> open([Map<String, Object?> knobs = const {}]) async {
     phase = WorldPhase.opening;
     unawaited(WorldCompiler.sweep(_dart));
+    _prebuild();
     await _run(knobs);
   }
 
   /// Closes the script and runs it again — new people, new knobs — and
-  /// restarts each person's app in place with what the script now says.
-  /// People it no longer declares go; new ones start.
+  /// starts each person's app afresh: a new process over the program already
+  /// compiled, in an emptied home. The people are new; nothing of the last
+  /// ones — a session, a local database — may open as them.
   Future<void> restart([Map<String, Object?>? knobs]) async {
     phase = WorldPhase.restarting;
+    _restarts++;
     _changed();
     await _script?.close();
     await _run(knobs ?? knobValues);
@@ -182,6 +188,8 @@ class OpenWorld {
     _clock
       ..reset()
       ..start();
+    // The stamps start again at 0.0; a long log says which opening it is.
+    if (_restarts > 0) _say('Restart $_restarts');
 
     void settle() {
       if (!setUp || settled.isCompleted) return;
@@ -194,6 +202,7 @@ class OpenWorld {
       );
       settled.complete();
       _changed();
+      _rememberApps();
       // Once, with the world up: the shared half of each app's program, left
       // for the next checkout's first open. Not before — it queues on the
       // compiler every reload goes through.
@@ -208,16 +217,14 @@ class OpenWorld {
     _say('Starting ${file.path}');
     WorldScriptProcess script;
     try {
-      script = _script = await WorldScriptProcess.start(
-        dart: _dart,
-        packageRoot: p.join(worktree, file.package),
-        file: file.path,
-        knobs: knobs,
-        compiler: _compiler,
-        onOutput: _say,
-      );
+      script = _script = await _startScript(knobs);
     } on Object catch (error) {
       _fail('$error');
+      // The people of the last opening belong to a world that is gone: left
+      // up, they would look alive and answer as nobody.
+      await Future.wait([for (var person in people.values) person._stop()]);
+      people.clear();
+      _changed();
       return;
     }
     unawaited(
@@ -292,8 +299,88 @@ class OpenWorld {
     await settled.future;
   }
 
-  /// Brings [spec]'s app up — or, for someone already here on the same app,
-  /// restarts it with the knobs the script now gives them.
+  /// Starts the script, once more with a fresh compiler if it died on the
+  /// compiler's socket before connecting: `dart run --resident` can find a
+  /// compiler whose idle timer — fired late, after the Mac slept — is taking
+  /// it down, and the script then dies with the connection reset.
+  Future<WorldScriptProcess> _startScript(Map<String, Object?> knobs) async {
+    for (var attempt = 1; ; attempt++) {
+      var starting = true;
+      var said = <String>[];
+      try {
+        var script = await WorldScriptProcess.start(
+          dart: _dart,
+          packageRoot: p.join(worktree, file.package),
+          file: file.path,
+          knobs: knobs,
+          compiler: _compiler,
+          onOutput: (line) {
+            if (starting) said.add(line);
+            _say(line);
+          },
+        );
+        starting = false;
+        return script;
+      } on WorldScriptExited {
+        if (attempt > 1 || !said.any((l) => l.contains('SocketException'))) {
+          rethrow;
+        }
+        _say('The resident compiler was gone; starting a fresh one');
+        await _compiler.shutdown();
+      }
+    }
+  }
+
+  /// Where this world remembers the apps its people used, so the next
+  /// opening builds them while the script is still starting its server —
+  /// rather than from the first `w.person`, after the stack and the seeding.
+  String get _appsFile => p.join(
+    buildRoot ?? p.join(worktree, file.package, 'build'),
+    'flutterware_worlds',
+    '${file.id}.apps.json',
+  );
+
+  void _prebuild() {
+    unawaited(_host.then<void>((_) {}, onError: (Object _) {}));
+    List<Object?> apps;
+    try {
+      apps = jsonDecode(File(_appsFile).readAsStringSync()) as List;
+    } on Object {
+      return; // Nothing remembered: the first opening builds as people come.
+    }
+    for (var app in apps.whereType<Map>()) {
+      var entry = entrypoints
+          .where((e) => e.package == app['package'] && e.path == app['path'])
+          .firstOrNull;
+      var device = app['device'];
+      if (entry == null || device is! Map) continue;
+      _buildFor(entry, deviceFromJson(device.cast()));
+    }
+  }
+
+  void _rememberApps() {
+    var apps = {
+      for (var person in people.values)
+        if (person.entry case var entry? when person.spec.on is Studio)
+          '${entry.package}|${entry.path}|${(person.spec.on as Studio).device.id}':
+              {
+                'package': entry.package,
+                'path': entry.path,
+                'device': deviceToJson((person.spec.on as Studio).device),
+              },
+    };
+    try {
+      File(_appsFile)
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(jsonEncode(apps.values.toList()));
+    } on FileSystemException {
+      // Only a head start is lost.
+    }
+  }
+
+  /// Brings [spec]'s app up, a fresh process in an emptied home — for a
+  /// newcomer and for someone the last opening had alike, since a world's
+  /// people are new every time it runs.
   ///
   /// Everything up to the person's entry in [people] happens before the first
   /// `await`, and must: a `set-up` in the same read as this `person` is
@@ -314,16 +401,6 @@ class OpenWorld {
         Studio(:var device) => device,
       };
       var build = _buildFor(entry, device);
-      if (previous != null && previous._build == build && previous.running) {
-        person = previous
-          ..spec = spec
-          ..knobs = knobs
-          ..phase = PersonPhase.starting;
-        _changed();
-        await build.restart(person);
-        person.phase = PersonPhase.running;
-        return;
-      }
       person = people[spec.name] = WorldPerson(spec)
         ..entry = entry
         ..knobs = knobs
@@ -331,6 +408,7 @@ class OpenWorld {
       _changed();
       await previous?._stop();
       await build.ready;
+      await build.freshKernel();
       await _start(person, build, device);
     } on Object catch (error) {
       if (person == null) {
@@ -458,7 +536,9 @@ class OpenWorld {
         _say,
         label: entry.name,
       );
-      build.ready = build.prepare(_host);
+      // Built ahead, it may serve nobody this time; its failure is then
+      // nobody's to handle.
+      build.ready = build.prepare(_host)..ignore();
       return build;
     });
   }
@@ -575,18 +655,38 @@ class _Build {
     _say('Built $label');
   }
 
-  /// Recompiles what changed and reloads everyone on this app from it.
-  Future<void> reload() => _serial(_reloadEveryone);
+  /// Whether the running guests are ahead of the kernel on disk — a reload
+  /// or a restart applied code a new process would not read.
+  var _stale = false;
 
-  Future<void> _reloadEveryone() async {
-    var (_, delta) = await app.recompile();
+  /// Recompiles what changed and reloads everyone on this app from it.
+  Future<void> reload() => _serial(() async {
+    if (await _reloadEveryone() > 0) _stale = true;
+  });
+
+  /// Reloads the running guests from what changed; answers how many files.
+  Future<int> _reloadEveryone() async {
+    var (changed, delta) = await app.recompile();
     if (!delta.ok) throw StateError(delta.output.join('\n'));
     await Future.wait([
       for (var person in people)
         if (person.launcher case var launcher? when person.running)
           launcher.reloadFrom(delta.dillOutput!),
     ]);
+    return changed;
   }
+
+  /// Leaves the program as it is now where a new guest reads it. Nothing
+  /// when nothing changed since the kernel was written, which is the usual
+  /// restart; otherwise the whole program, once.
+  Future<void> freshKernel() => _serial(() async {
+    if (await _reloadEveryone() > 0) _stale = true;
+    if (!_stale) return;
+    var (_, whole) = await app.recompileWhole();
+    if (!whole.ok) throw StateError(whole.output.join('\n'));
+    File(whole.dillOutput!).copySync(app.kernel);
+    _stale = false;
+  });
 
   /// Starts [person]'s app again in place, with the knobs they have now — the
   /// others brought to the same code first, since the whole program this
@@ -594,6 +694,7 @@ class _Build {
   Future<void> restart(WorldPerson person) => _serial(() async {
     app.writeKnobs(person.name, person.knobs);
     await _reloadEveryone();
+    _stale = true;
     var (_, whole) = await app.recompileWhole();
     if (!whole.ok) throw StateError(whole.output.join('\n'));
     await person.launcher!.restartFrom(

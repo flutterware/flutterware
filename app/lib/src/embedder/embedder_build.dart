@@ -166,20 +166,24 @@ Future<void> compileScene({
 
 /// Configures and builds the C host with CMake into [nativeBuildDir].
 /// Returns the path to the built `host` executable.
+///
+/// [quiet] says nothing unless CMake fails — for a caller that builds the
+/// host on every open, where CMake finding nothing to do is not news.
 Future<String> buildHost({
   required String nativeSourceDir,
   required String nativeBuildDir,
   required String engineDir,
+  bool quiet = false,
 }) async {
-  stdout.writeln('[embedder] configuring + building the C host');
+  if (!quiet) stdout.writeln('[embedder] configuring + building the C host');
   await _run('cmake', [
     '-S',
     nativeSourceDir,
     '-B',
     nativeBuildDir,
     '-DFLUTTER_ENGINE_DIR=$engineDir',
-  ]);
-  await _run('cmake', ['--build', nativeBuildDir]);
+  ], quiet: quiet);
+  await _run('cmake', ['--build', nativeBuildDir], quiet: quiet);
   return p.join(nativeBuildDir, 'host');
 }
 
@@ -211,7 +215,23 @@ String resolveExecutable(String name) {
   );
 }
 
-Future<void> _run(String executable, List<String> args) async {
+Future<void> _run(
+  String executable,
+  List<String> args, {
+  bool quiet = false,
+}) async {
+  if (quiet) {
+    var result = await Process.run(resolveExecutable(executable), args);
+    if (result.exitCode != 0) {
+      throw ProcessException(
+        executable,
+        args,
+        'exited with ${result.exitCode}:\n${result.stdout}${result.stderr}',
+        result.exitCode,
+      );
+    }
+    return;
+  }
   var process = await Process.start(
     resolveExecutable(executable),
     args,
