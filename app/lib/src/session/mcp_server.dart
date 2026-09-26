@@ -472,6 +472,9 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
             {
               'id': report.id,
               'label': report.label,
+              // A plugin with nothing to call says why — a build older than
+              // the project's flutterware, usually.
+              if (report.actions.isEmpty) 'description': ?report.description,
               'actions': [
                 for (var action in report.actions)
                   {
@@ -509,7 +512,10 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
       }
       actions = one;
     }
-    return _json(_describeActions(report.id, report.label, actions));
+    return _json({
+      ..._describeActions(report.id, report.label, actions),
+      if (core is MissingPluginCore) 'note': core.explanation,
+    });
   });
 
   /// One plugin's actions, with everything they share said once.

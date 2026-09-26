@@ -136,16 +136,66 @@ the three answers above was found.
 
 ## Open
 
-- **The consumer opening worlds itself** needs its flutterware pin moved to
-  a commit with `world.dart`, a `Worlds(...)` declaration, and seeding: its
-  first world signs in as accounts the stack seeds at first boot rather than
-  fresh ones, which the design's open question on seeding is about.
+- ~~**The consumer opening worlds itself.**~~ Done in round 1 (below). It
+  makes fresh users through its public API, about 0.5 s each, so seeding
+  needs no debug endpoint until a state the API cannot reach.
 - **The rest of its plugins** — about 11 of the 14 — answered as its screens
   reach them; sqflite is still the largest.
 - **Its runs are not this session's.** A person's Run handle belongs to the
   checkout their app is in, and the MCP server of one repository lists that
   repository's runs only, so the consumer's people were observed straight
   over their VM services.
-- **`worlds` over the MCP server** is the same core `fw` ran, but the server
-  connected to this session predates the plugin, so no call has gone through
-  it yet. The next session's server has it.
+- **`worlds` over the MCP server** is the same core `fw` ran. The consumer's
+  server predated its pin move and reported the plugin with no actions,
+  which round 1 turns into saying the server is older than the project.
+
+## Round 1 — the consumer's first day
+
+The consumer's own session moved its pin to slice 0, declared two worlds and
+opened them from `fw` a few dozen times — from nothing in 57.5 s, warm in
+~21 s — then handed back what broke and a draft of the system as cards (now
+*The system beside the people* in the design). Nothing in flutterware was
+patched from its side. What changed here:
+
+- **The script is compiled once.** `dart run` spent 11.9 s of a ~21 s warm
+  open compiling the whole server the script imports, and a restart paid it
+  again. The script now runs under `dart run --resident`, one compiler per
+  opening, shut down on close. Its kernels outlive it on disk, so a fresh
+  process starts warm. Measured on a script importing the studio's session
+  and the analyzer: plain `dart run` 5.9–7.4 s; resident, cold 3.2 s, warm
+  0.22 s, after an edit 0.30 s, with a new compiler after a shutdown 0.76 s —
+  and an edit made while no compiler ran was picked up. The lab world now
+  opens in 3.5 s and restarts in 0.4 s.
+- **Any process reaches a world another owns.** A world held by `fw … --hold`
+  refused even `status` from anywhere else, so an agent could drive the
+  people but never run an action. The owner now leaves a handle per worktree
+  and answers `status`, `invoke`, `restart` and `close` on a socket; every
+  other process forwards them. A held `fw` ends when another process closes
+  its world — a signal watched with `first` had kept it alive — and the
+  studio can close a world another process owns. Opening a second world on
+  the worktree is still refused, now naming the owner's pid, which the old
+  message took from a person's guest.
+- **`worlds list` reads the declarations.** It answered `{"worlds": []}` in
+  every fresh process.
+- **The log is stamped** with the seconds since the opening, and `dart run`'s
+  `Running build hooks...` — no newline, so glued to the script's first line
+  — is gone from it.
+- **`w.phone(prefix:, digits:)`.** The UK's fictional range fails
+  libphonenumber-style validation, so a validating server and app refused
+  every number `w.phone()` made. The default stays fictional; the guide says
+  a valid number can be somebody's.
+- **Each guest runs in its person's own folder.** A dev entry point writing
+  under `Directory.current` put every guest's local database in one folder;
+  a device's working directory means nothing, so the person's home stands in.
+- **`permission_handler`** is answered: nothing granted until the app asks,
+  then what it asked for.
+- **An older studio or MCP server says so.** Started before the pin moved but
+  first called after, the server's check for a changed resolution latched
+  onto the new one and stayed quiet, and `flutterware.worlds` came back as a
+  plugin with no actions. A first-party plugin missing from a build now
+  explains itself as the build being older than the project's flutterware.
+
+Left for later: starting guest builds before the first `w.person` — after
+the resident compiler, the script reaches its first person much sooner — and
+handing each person's traffic and logs to the script, which the design takes
+up as the system's third source of movement.

@@ -97,6 +97,15 @@ void main() {
     },
   );
 
+  test('a permission is granted once the app asks for it', () async {
+    const channel = 'flutter.baseflow.com/permissions/methods';
+    const camera = 1;
+    expect(await call(channel, 'checkPermissionStatus', camera), 0);
+    expect(await call(channel, 'requestPermissions', [camera]), {camera: 1});
+    expect(await call(channel, 'checkPermissionStatus', camera), 1);
+    expect(await call(channel, 'checkServiceStatus', camera), 1);
+  });
+
   test('the time zone is a zone name', () async {
     expect(
       await call('flutter_timezone', 'getLocalTimezone'),

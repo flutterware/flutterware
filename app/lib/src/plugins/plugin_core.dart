@@ -168,14 +168,31 @@ class MissingPluginCore extends PluginCore {
 
   final String reason;
 
+  /// Why it has no core, in a sentence for whoever reached for it.
+  ///
+  /// A first-party plugin missing from this build means only one thing: the
+  /// project declares it through a newer flutterware than this process was
+  /// built from. A studio or an MCP server started before the project moved
+  /// its flutterware keeps serving the old code, and every answer about the
+  /// new plugin would otherwise read as "it declares no actions" — which sends
+  /// the reader to a config that is fine.
+  String get explanation => host.id.startsWith('flutterware.')
+      ? 'This process runs a flutterware older than the one the project '
+            'declares "${host.id}" with, and has no such plugin. A studio or '
+            'an MCP server started before the project moved its flutterware '
+            'keeps the old one: restart it, or reconnect the MCP client. `fw` '
+            'is a fresh process and has it.'
+      : 'No core is registered for "${host.id}" in this build.';
+
   @override
   PluginReport get report => PluginReport(
     id: host.id,
     label: host.label,
+    description: explanation,
     status: Status.error(reason),
     badge: const StatusBadge.dot(Tone.error),
     view: PluginView([
-      ViewText('No core is registered for "${host.id}" in this build.'),
+      ViewText(explanation),
       ViewField('Declared in', 'tool/flutterware.dart'),
     ]),
   );

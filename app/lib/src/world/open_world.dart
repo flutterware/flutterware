@@ -80,7 +80,8 @@ class OpenWorld {
   final knobs = <String, WorldKnob>{};
   final runs = <int, WorldActionRun>{};
 
-  /// The script's progress and what it printed, newest last.
+  /// The script's progress and what it printed, newest last, each line
+  /// stamped with the seconds since this opening started: `12.4s  Built Shop`.
   final log = <String>[];
 
   /// Each line of [log] as it is said.
@@ -89,6 +90,9 @@ class OpenWorld {
 
   late final _cache = FlutterCache(p.join(flutterSdkRoot, 'bin', 'cache'));
   late final Future<String> _host = ensureGuestHost(_cache, appRoot);
+  late final _dart = p.join(flutterSdkRoot, 'bin', 'dart');
+  late final _compiler = WorldCompiler(_dart);
+  final _clock = Stopwatch();
   final _builds = <String, _Build>{};
   WorldScriptProcess? _script;
   var _nextRun = 1;
@@ -99,6 +103,7 @@ class OpenWorld {
   /// or has failed, or the script has.
   Future<void> open([Map<String, Object?> knobs = const {}]) async {
     phase = WorldPhase.opening;
+    unawaited(WorldCompiler.sweep(_dart));
     await _run(knobs);
   }
 
@@ -147,14 +152,22 @@ class OpenWorld {
     _changed();
     await _script?.close();
     _script = null;
-    await Future.wait([for (var person in people.values) person._stop()]);
+    await Future.wait([
+      for (var person in people.values) person._stop(),
+      _compiler.shutdown(),
+    ]);
     people.clear();
     await Future.wait([for (var build in _builds.values) build.app.dispose()]);
     _builds.clear();
     phase = WorldPhase.closed;
     _changed();
     await _lines.close();
+    if (!_closed.isCompleted) _closed.complete();
   }
+
+  /// Completes once the world has closed, whoever closed it.
+  Future<void> get whenClosed => _closed.future;
+  final _closed = Completer<void>();
 
   Future<void> _run(Map<String, Object?> knobs) async {
     knobValues = knobs;
@@ -166,7 +179,9 @@ class OpenWorld {
     var declared = <String>{};
     var settled = _settled = Completer<void>();
     var setUp = false;
-    var clock = Stopwatch()..start();
+    _clock
+      ..reset()
+      ..start();
 
     void settle() {
       if (!setUp || settled.isCompleted) return;
@@ -175,7 +190,7 @@ class OpenWorld {
       if (phase != WorldPhase.failed) phase = WorldPhase.open;
       _say(
         '${phase == WorldPhase.open ? 'Open' : 'Settled'} in '
-        '${(clock.elapsedMilliseconds / 1000).toStringAsFixed(1)} s',
+        '${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(1)} s',
       );
       settled.complete();
       _changed();
@@ -194,10 +209,11 @@ class OpenWorld {
     WorldScriptProcess script;
     try {
       script = _script = await WorldScriptProcess.start(
-        dart: p.join(flutterSdkRoot, 'bin', 'dart'),
+        dart: _dart,
         packageRoot: p.join(worktree, file.package),
         file: file.path,
         knobs: knobs,
+        compiler: _compiler,
         onOutput: _say,
       );
     } on Object catch (error) {
@@ -352,7 +368,10 @@ class OpenWorld {
         hostPath: await _host,
         assetsDir: build.app.assetsDir,
         icuData: _cache.icuData,
-        workingDirectory: build.app.package,
+        // The person's own, as their device's would be: an app that writes
+        // relative to where it runs — a dev entry point's local database —
+        // keeps each person's apart. Nothing a guest needs is found from it.
+        workingDirectory: home.path,
         environment: guestEnvironment(
           home: home.path,
           knobsFile: build.app.writeKnobs(name, person.knobs),
@@ -450,7 +469,9 @@ class OpenWorld {
     _say(why);
   }
 
-  void _say(String line) {
+  void _say(String said) {
+    var line =
+        '${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(1)}s  $said';
     _lines.add(line);
     log.add(line);
     if (log.length > 500) log.removeRange(0, log.length - 500);

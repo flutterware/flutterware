@@ -75,6 +75,13 @@ void main() {
       for (var core in bare.cores) {
         expect(core.report.status.isEmpty, isFalse);
       }
+      // A first-party plugin missing from a build means the build is older
+      // than the project's flutterware — said, rather than "no actions".
+      var result = await bare.invoke('run', 'devices').done;
+      expect(
+        '${result.error}',
+        contains('older than the one the project declares'),
+      );
     } finally {
       bare.dispose();
     }

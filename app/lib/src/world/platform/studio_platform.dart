@@ -8,6 +8,7 @@ import 'firebase.dart';
 import 'links.dart';
 import 'notifications.dart';
 import 'package_info.dart';
+import 'permissions.dart';
 import 'preferences.dart';
 import 'secure_storage.dart';
 import 'system.dart';
@@ -39,6 +40,7 @@ class StudioPlatform {
     answerFirebaseCore(platform);
     answerDeviceInfo(platform, device: device, person: person);
     answerTimezone(platform);
+    answerPermissions(platform);
     links = GuestLinks(platform);
     notifications = GuestNotifications(platform);
     urls = GuestUrls(platform);

@@ -409,7 +409,9 @@ class Session {
     Map<String, Object?> coerced;
     try {
       coerced = _coerce(core, action, arguments);
-    } on ArgumentError catch (e, stackTrace) {
+    } on Object catch (e, stackTrace) {
+      // A plugin this build lacks refuses in its own words.
+      if (e is! ArgumentError && e is! ActionRefusal) rethrow;
       // A value of the wrong kind is a failed job, not a throw — the same line
       // an unknown action falls on. A real plugin and a real action were named
       // and the run did not survive its arguments, which is a run, and both
@@ -473,6 +475,7 @@ class Session {
     // The words are `PluginCore`'s own, so a caller gets one sentence whether
     // they arrived through a session or straight at a core.
     if (declaredAction == null) {
+      if (core is MissingPluginCore) throw ActionRefusal(core.explanation);
       throw PluginCore.unknownAction(core.id, action, core.report.actions);
     }
     if (arguments.isEmpty) return arguments;

@@ -115,11 +115,29 @@ class _WorldList extends StatelessWidget {
               panelGutter,
               FwSpacing.lg,
             ),
-            child: Text(
-              '$elsewhere is open in another process, which owns it — `fw` or '
-              'the MCP server. Its people are Run apps, in pictures; only '
-              'that process can restart or close it.',
-              style: context.type.bodyMuted,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${elsewhere.name} is open in another process (pid '
+                    '${elsewhere.pid}), `fw` or the MCP server, which owns it. '
+                    'Its people are Run apps, in pictures.',
+                    style: context.type.bodyMuted,
+                  ),
+                ),
+                const SizedBox(width: FwSpacing.md),
+                FwActionButton(
+                  label: 'Close it',
+                  tooltip: 'Ask the process that owns it to close it',
+                  onPressed: () async {
+                    try {
+                      await core.invoke('close');
+                    } on Object {
+                      // It went on its own; the list says so either way.
+                    }
+                  },
+                ),
+              ],
             ),
           ),
         Expanded(
