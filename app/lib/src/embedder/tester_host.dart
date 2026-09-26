@@ -171,6 +171,8 @@ class TesterHost {
   StreamSubscription<Map<String, Object?>>? _events;
   Future<void>? _starting;
   var _disposed = false;
+  Future<void>? _disposing;
+  Future<void> Function()? _publishSeed;
 
   /// Whether the spawned guest is still running. Watched because a tester that
   /// dies mid-session is otherwise invisible: the VM service simply starts
@@ -204,7 +206,11 @@ class TesterHost {
   Future<void> _turn = Future.value();
 
   Future<T> exclusive<T>(Future<T> Function() action) {
-    var mine = _turn.then((_) => action());
+    if (_disposed) return Future.error(StateError('the harness is disposed'));
+    var mine = _turn.then((_) {
+      _checkNotDisposed();
+      return action();
+    });
     _turn = mine.then<void>((_) {}).catchError((Object _) {});
     return mine;
   }
@@ -237,23 +243,34 @@ class TesterHost {
   static Future<void> _booting = Future.value();
 
   /// Builds everything and leaves a warm guest behind: sources → generated
-  /// entrypoint → asset bundle → compile → spawn → connect. Idempotent, and
+  /// entrypoint → assets and compile → spawn → connect. Idempotent, and
   /// concurrent callers share the one startup.
   ///
   /// A **failed** start is forgotten rather than remembered: what it choked on
   /// — a compile error, an empty directory — is exactly what the user goes and
   /// fixes, so memoizing the failure would make every later call replay a
   /// diagnostic that is no longer true.
-  Future<void> start() => _starting ??= _startOnce();
+  Future<void> start() {
+    if (_disposed) return Future.error(StateError('the harness is disposed'));
+    return _starting ??= _startOnce();
+  }
+
+  void _checkNotDisposed() {
+    if (_disposed) throw StateError('the harness is disposed');
+  }
 
   Future<void> _startOnce() async {
     try {
       await _start();
     } catch (_) {
-      _starting = null;
+      _publishSeed = null;
       // Whatever the attempt did spawn before it threw goes with it, or the
       // retry would leave a compiler (and possibly a tester) behind.
-      await _teardown();
+      try {
+        await _teardown();
+      } finally {
+        _starting = null;
+      }
       rethrow;
     }
   }
@@ -283,8 +300,20 @@ class TesterHost {
     var packageConfig = _packageConfig = requirePackageConfig(packageRoot);
 
     _assetsDir = p.join(_buildDir, '${program.name}_assets');
-    await _syncAssetBundle();
+    // Neither consumes the other's output. Wait for both even on failure:
+    // cleanup must not race a compiler still starting or an asset write.
+    String? dill;
+    await Future.wait<void>([
+      _syncAssetBundle(),
+      () async {
+        dill = await _compile(entrypoint, packageConfig);
+      }(),
+    ]);
+    _checkNotDisposed();
+    await _spawnGuest(dill!);
+  }
 
+  Future<String> _compile(String entrypoint, String packageConfig) async {
     var outputDill = p.join(_buildDir, '${program.name}.dill');
     // Two questions, and they are not the same one. *What seed is on this
     // machine* is what the write below is judged against — whether this program
@@ -320,7 +349,7 @@ class TesterHost {
     // reads as a hung one.
     onLog?.call('[${program.name}] compiling the harness');
     var compiled = await compiler.compile();
-    if (compiled.errorCount > 0) {
+    if (!compiled.ok) {
       throw TesterCompileException(program.name, compiled.output);
     }
     // Said afterwards as well as before, because this is the step whose cost
@@ -337,17 +366,11 @@ class TesterHost {
     _invalidator = SourceInvalidator(ignoredRoots: _immutableRoots)
       ..sweep(compiler.sources);
 
-    // Before the guest, because it hands the compiler back exactly as it found
-    // it and the guest is about to be handed the kernel — and after the
-    // baseline, because the excursion is not an edit anybody should hear about.
-    // **Unconditional**, where this used to run only on a store with nothing in
-    // it. What is worth writing is `writeSeedKernel`'s question — a start that
-    // found a seed holding everything this program reaches is answered without
-    // a file being read — and the old condition is what let the first seed a
-    // machine happened to write be the one every project afterwards inherited.
-    await _writeSeed(compiler, outputDill, improving: existing);
-
-    await _spawnGuest(compiled.dillOutput ?? outputDill);
+    // Publishing takes two extra kernel emits. Pay for it on orderly
+    // shutdown, after requests have finished, rather than delaying the first
+    // usable result. This must never run alongside a reload or guest restart.
+    _publishSeed = () => _writeSeed(compiler, outputDill, improving: existing);
+    return compiled.dillOutput!;
   }
 
   /// The trees whose contents no checkout owns: the SDK and the pub cache. See
@@ -399,12 +422,20 @@ class TesterHost {
       // The kernel is not optional in the same way: the guest is spawned from
       // the output dill, and a failed excursion may have left the seed's own
       // program — an empty `main` — sitting there. Put this program back, and
-      // let a failure to do that end the start, because a harness that came up
-      // holding the wrong program answers every question wrongly.
-      compiler.reset();
-      var back = await compiler.compile();
-      if (!back.ok) throw TesterCompileException(program.name, back.output);
-      compiler.accept();
+      // report a failure to restore it rather than leaving a saved kernel
+      // whose next start would run the wrong program.
+      try {
+        compiler.reset();
+        var back = await compiler.compile();
+        if (!back.ok) throw TesterCompileException(program.name, back.output);
+        compiler.accept();
+      } catch (_) {
+        // Do not leave the seed's empty main available as a saved harness,
+        // including when the compiler died before replying.
+        var kernel = File(outputDill);
+        if (kernel.existsSync()) kernel.deleteSync();
+        rethrow;
+      }
     }
   }
 
@@ -821,10 +852,31 @@ class TesterHost {
     }
   }
 
-  Future<void> dispose() async {
-    if (_disposed) return;
+  /// Stops accepting requests, interrupts the guest, and drains compiler work
+  /// before publishing a shared seed. Callers should deliver their result
+  /// before awaiting this: publication moves work off the first-result path,
+  /// it does not remove that work. Concurrent callers share the whole drain.
+  Future<void> dispose() => _disposing ??= _dispose();
+
+  Future<void> _dispose() async {
     _disposed = true;
-    await _teardown();
+    var starting = _starting;
+    try {
+      // A request may be waiting on the guest indefinitely. Closing it lets
+      // that request release its turn; the compiler is kept alive until then.
+      await _stopGuest();
+      try {
+        await starting;
+      } catch (_) {
+        // The start's caller receives its error; _startOnce cleaned it up.
+      }
+      await _turn;
+      var publish = _publishSeed;
+      _publishSeed = null;
+      await publish?.call();
+    } finally {
+      await _teardown();
+    }
   }
 
   /// Everything this host spawned, gone. Shared with the failed-start path,
