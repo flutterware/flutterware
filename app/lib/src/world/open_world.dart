@@ -866,6 +866,9 @@ abstract class WorldGuest {
 class HeadlessWorldGuest implements WorldGuest {
   GuestProcess? _process;
 
+  /// Spike: the process, so a harness can send input as a person would.
+  GuestProcess? get process => _process;
+
   @override
   Future<void> start(WorldGuestStart start) async {
     var device = start.device;

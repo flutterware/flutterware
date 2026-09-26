@@ -42,6 +42,23 @@ class FlutterwareServer {
   /// The correlation id of the current zone, if an adapter installed one.
   static Object? get correlationId => Zone.current[requestIdKey];
 
+  /// The zone key a device's step travels under — the tap, by a person or an
+  /// agent, that caused the request. The adapter reads it from the request's
+  /// `x-fw-step` header and puts it in the zone beside [requestIdKey]; every
+  /// event emitted below it then carries it as `step`, so one tap's
+  /// consequences — queries, messages, broadcasts — gather as one trace.
+  static const Symbol stepKey = #fwStep;
+
+  /// Says which user the current request is — once auth knows. The world
+  /// maps the id to a person.
+  static void identify(String user) => event('identify', {'user': user});
+
+  /// Says the server delivered [what] to [user] outside any response to them:
+  /// a WebSocket frame, a sync, a push. The one kind of consequence no device
+  /// records, because it arrives on a connection nobody asked on.
+  static void reach(String user, String what) =>
+      event('reach', {'user': user, 'what': what});
+
   static ServerInspector? _inspector;
   static var _started = false;
   static String? _configuredName;
@@ -73,7 +90,15 @@ class FlutterwareServer {
     Map<String, Object?> payload, {
     Map<String, Object?>? details,
   }) {
-    _active?.addEvent(channel, payload, rid: _rid(), details: details);
+    var step = Zone.current[stepKey];
+    _active?.addEvent(
+      channel,
+      step == null || payload.containsKey('step')
+          ? payload
+          : {...payload, 'step': '$step'},
+      rid: _rid(),
+      details: details,
+    );
   }
 
   /// Publishes the server's self-description — base URL, environment, links,
