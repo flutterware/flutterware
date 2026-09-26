@@ -933,6 +933,24 @@ triggered.
    live from the first version, as the lab already draws them, and sent to
    the background when drawn as a card or off screen; external devices are
    pictures.
+   - **Begun, from traces only** (`app/lib/src/world/world_canvas.dart`):
+     - the people's phones above a band of the system — each server with
+       the parts of its API, the tables it wrote and what it sent outside,
+       and the sync engine with each person's client;
+     - a column of steps, newest first, that the stage follows until one is
+       held open as a waterfall;
+     - the shown step numbered on the parts it touched, and drawn as lines
+       between each phone and its part, in the person's colour, with what
+       crossed written in the gap between them — routed down the channels
+       between the parts, so that no line crosses one;
+     - the newest step that caused something followed until one is held;
+     - the whole stage zoomable as previews' is — a pinch or ⌘-scroll, a
+       drag once zoomed, fit to rest — with the phones still taking every
+       gesture the stage does not;
+     - each person's platform — notifications, links, sync — moved into a
+       drawer that opens from their name.
+   - Not yet: focus, credentials, contents, pending questions; a guest
+     rendered sharper as it is zoomed, as previews' guest is.
 3. **Server panels** over `FlutterwareServer.handle`, and **reload of the
    world's process**: an edit to the server it hosts, or to an action,
    reaches the running world without new people.

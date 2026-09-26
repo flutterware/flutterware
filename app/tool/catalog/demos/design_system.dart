@@ -97,6 +97,9 @@ class _Palette extends StatelessWidget {
           ('info', c.info),
           ('warningText', c.warningText),
         ]),
+        _Group('People', [
+          for (var (i, color) in c.people.indexed) ('person($i)', color),
+        ]),
         _Group('Menu chrome', [
           ('primaryOnMenu', c.primaryOnMenu),
           ('menuBackground', c.menuBackground),

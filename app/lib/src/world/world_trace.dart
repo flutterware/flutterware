@@ -41,12 +41,65 @@ class TraceStep {
 
 /// One thing a step caused, somewhere in the world.
 class TraceBeat {
-  const TraceBeat(this.at, this.what);
+  const TraceBeat(
+    this.at,
+    this.what, {
+    this.person,
+    this.node,
+    this.line,
+    this.inbound = false,
+  });
 
   final DateTime at;
 
   /// Where and what, in a line: `Ben → lab  POST /orders  201 in 12 ms`.
   final String what;
+
+  /// The person at the device end of it: who sent the request, who was
+  /// reached, whose phone the record arrived on.
+  final String? person;
+
+  /// The part of the system it touched — a [SystemServer] node id, or
+  /// [syncNode] — or null for what happened on a device alone.
+  final String? node;
+
+  /// The words on a line between [person] and [node], for a beat that
+  /// crossed from one to the other; null for one that did not.
+  final String? line;
+
+  /// Whether it ran from [node] to [person] — a reach, an arrival — rather
+  /// than from the person's app to the system.
+  final bool inbound;
+}
+
+/// The node every synced record arrives from: the sync engine's service,
+/// which is not Dart and reports nothing but what the apps' databases show.
+const syncNode = 'sync';
+
+/// What one server has reported since the world opened, as the canvas draws
+/// it: the parts of its API, the tables it wrote, what it sent outside.
+class SystemServer {
+  SystemServer(this.name);
+
+  /// As it announces itself: `lab`.
+  final String name;
+
+  /// Each part of its API — `POST /orders/:id/advance` — and how many times
+  /// it was asked. The adapter's `part` when it names one, the path when not.
+  final parts = <String, int>{};
+
+  /// Each table it wrote, and the records.
+  final tables = <String, Set<String>>{};
+
+  /// What it sent outside — `sms`, `push` — and how many.
+  final sent = <String, int>{};
+
+  /// How many times it reached someone on a connection they held open.
+  var reached = 0;
+
+  String partNode(String part) => '$name/part/$part';
+  String tableNode(String table) => '$name/table/$table';
+  String sentNode(String channel) => '$name/sent/$channel';
 }
 
 /// A step and what it caused, in the order it happened.
@@ -81,6 +134,16 @@ class WorldTrace {
   final _declared = <String>{};
   final _phones = <String, String>{};
   final _hosts = <String, String>{};
+  final _servers = <String, SystemServer>{};
+  final _parts = <String, String>{};
+  final _changed = StreamController<void>.broadcast(sync: true);
+
+  /// What each server has reported, in the order they first did.
+  Iterable<SystemServer> get servers => _servers.values;
+
+  /// Fires after anything new was heard. Synchronous and frequent: a
+  /// surface that draws this throttles it.
+  Stream<void> get changed => _changed.stream;
 
   /// How much is kept of each kind: a world left open all day is not a leak.
   static const cap = 5000;
@@ -140,11 +203,16 @@ class WorldTrace {
             op: payload['op'] as int?,
           ),
         );
+      default:
+        return;
     }
+    _changed.add(null);
   }
 
   void addServerEvent(String server, InspectorEvent event) {
     if (event.time.isBefore(since)) return;
+    _summarize(server, event);
+    _changed.add(null);
     var step = event.payload['step'];
     if (step is! String) return;
     var owner = _owners[worldStepOwner(step)];
@@ -161,6 +229,35 @@ class WorldTrace {
         _learnHost(request, served);
       }
     }
+  }
+
+  /// Counts [event] into its server's summary — every event since the world
+  /// opened, whoever caused it: the script's seeding is part of the system
+  /// too.
+  void _summarize(String name, InspectorEvent event) {
+    var server = _servers.putIfAbsent(name, () => SystemServer(name));
+    var payload = event.payload;
+    switch (event.channel) {
+      case 'http':
+        var part = '${payload['method']} ${payload['part'] ?? payload['path']}';
+        server.parts[part] = (server.parts[part] ?? 0) + 1;
+        if (event.rid case var rid?) _parts['$name/$rid'] = part;
+      case 'write':
+        server.tables
+            .putIfAbsent('${payload['table']}', () => {})
+            .add('${payload['key']}');
+      case 'sms' || 'push':
+        server.sent[event.channel] = (server.sent[event.channel] ?? 0) + 1;
+      case 'reach':
+        server.reached++;
+    }
+  }
+
+  /// The node of the request [event] happened under, once its `http` event —
+  /// reported when the response is — has arrived.
+  String? _partNode(_ServerEvent event) {
+    var part = _parts['${event.server}/${event.event.rid}'];
+    return part == null ? null : _servers[event.server]?.partNode(part);
   }
 
   /// The newest of [list] — where the other half of something that just
@@ -223,6 +320,7 @@ class WorldTrace {
             request.at,
             '${request.person} → ${_hosts[request.host] ?? request.host}  '
             '${request.method} ${request.path}$how',
+            person: request.person,
           ),
         );
         continue;
@@ -233,27 +331,34 @@ class WorldTrace {
           request.at,
           '${request.person} → ${served.server}  ${request.method} '
           '${request.path}  ${_answer(served.payload)}$how',
+          person: request.person,
+          node: _partNode(served),
+          line: '${request.method} ${request.path}',
         ),
       );
     }
     for (var event in _server) {
       if (event.step != step.id || answered.contains(event)) continue;
-      var line = _serverLine(event);
-      if (line != null) beats.add(TraceBeat(event.time, line));
+      if (_serverBeat(event) case var beat?) beats.add(beat);
     }
     for (var record in _records) {
       if (_causeOf(record) != step.id) continue;
       var key = _short(record.key);
       var name = record.table.isEmpty ? key : '${record.table}/$key';
       var op = record.op == null ? '' : ' (op ${record.op})';
+      var local = record.change.startsWith('local ');
       beats.add(
         TraceBeat(
           record.at,
-          record.change.startsWith('local ')
+          local
               ? '${record.person}  wrote $name locally'
               : record.person == step.person
               ? '${record.person}  $name confirmed$op'
               : '${record.person}  $name arrived$op',
+          person: record.person,
+          node: local ? null : syncNode,
+          line: local ? null : '$name$op',
+          inbound: !local,
         ),
       );
     }
@@ -302,40 +407,83 @@ class WorldTrace {
     return write?.step;
   }
 
-  String? _serverLine(_ServerEvent event) {
+  TraceBeat? _serverBeat(_ServerEvent event) {
     var server = event.server;
     var payload = event.payload;
+    var at = event.time;
+    var node = _partNode(event);
+    var system = _servers[server];
     String? personOf(Object? user) => user is String ? _users[user] : null;
     switch (event.channel) {
       case 'http':
-        return '$server  ${payload['method']} ${payload['path']}  '
-            '${_answer(payload)}';
+        return TraceBeat(
+          at,
+          '$server  ${payload['method']} ${payload['path']}  '
+          '${_answer(payload)}',
+          node: node,
+        );
       case 'identify':
         // Every request says who it is; only the first says something new,
         // and only of a user the script did not name.
         var user = '${payload['user']}';
         if (_declared.contains(user) || _identifiedBefore(event)) return null;
-        return '$server  knows ${personOf(user) ?? 'someone'} as $user';
+        return TraceBeat(
+          at,
+          '$server  knows ${personOf(user) ?? 'someone'} as $user',
+          node: node,
+        );
       case 'reach':
         var user = payload['user'];
-        return '$server → ${personOf(user) ?? user}  ${payload['what']}';
+        var person = personOf(user);
+        return TraceBeat(
+          at,
+          '$server → ${person ?? user}  ${payload['what']}',
+          person: person,
+          node: node,
+          line: '${payload['what']}',
+          inbound: true,
+        );
       case 'write':
-        return '$server  wrote ${payload['table']}/${_short(payload['key'])} '
-            '(${payload['op']})';
+        return TraceBeat(
+          at,
+          '$server  wrote ${payload['table']}/${_short(payload['key'])} '
+          '(${payload['op']})',
+          node: system?.tableNode('${payload['table']}'),
+        );
       case 'sms':
         var to = payload['to'];
-        return '$server → ${_phones[to] ?? to} by SMS  ${payload['body']}';
+        var person = _phones[to];
+        return TraceBeat(
+          at,
+          '$server → ${person ?? to} by SMS  ${payload['body']}',
+          person: person,
+          node: system?.sentNode('sms'),
+          line: 'SMS',
+          inbound: true,
+        );
       case 'push':
         var to = payload['to'] ?? payload['user'];
-        return '$server → ${personOf(to) ?? to} by push  ${payload['title']}';
+        var person = personOf(to);
+        return TraceBeat(
+          at,
+          '$server → ${person ?? to} by push  ${payload['title']}',
+          person: person,
+          node: system?.sentNode('push'),
+          line: '${payload['title']}',
+          inbound: true,
+        );
       case 'log':
-        return '$server  ${payload['message']}';
+        return TraceBeat(at, '$server  ${payload['message']}', node: node);
       case 'error':
-        return '$server  error: ${payload['message'] ?? payload['error']}';
+        return TraceBeat(
+          at,
+          '$server  error: ${payload['message'] ?? payload['error']}',
+          node: node,
+        );
       case 'info':
         return null;
       case var channel:
-        return '$server  $channel';
+        return TraceBeat(at, '$server  $channel', node: node);
     }
   }
 

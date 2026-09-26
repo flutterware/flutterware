@@ -18,6 +18,7 @@ class WorldPhone extends StatelessWidget {
     required this.guest,
     required this.size,
     this.platform,
+    this.shouldIgnorePointer,
   });
 
   final LiveWorldGuest guest;
@@ -27,6 +28,10 @@ class WorldPhone extends StatelessWidget {
 
   /// What the studio answers for the app — here, the cursor it asks for.
   final StudioPlatform? platform;
+
+  /// Pointer events the stage around the phone keeps: a pinch, a ⌘-scroll,
+  /// a drag that is moving the stage.
+  final bool Function(PointerEvent event)? shouldIgnorePointer;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +69,7 @@ class WorldPhone extends StatelessWidget {
             child: EmbedderInputRegion(
               engine: engine!,
               focusNode: guest.focus,
+              shouldIgnorePointer: shouldIgnorePointer,
               child: GuestTexture(textureId: textureId),
             ),
           ),

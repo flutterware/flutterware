@@ -4,6 +4,7 @@ import 'package:flutterware/src/server/attach_session.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware_app/src/plugins/native/worlds_results.dart';
+import 'package:flutterware_app/src/world/world_canvas.dart' show numberNodes;
 import 'package:flutterware_app/src/world/world_trace.dart';
 
 void main() {
@@ -11,19 +12,24 @@ void main() {
   late WorldTrace trace;
   var nextId = 1;
 
-  InspectorEvent at(int ms, String channel, Map<String, Object?> payload) =>
-      InspectorEvent(
-        channel: channel,
-        id: nextId++,
-        time: since.add(Duration(milliseconds: ms)),
-        payload: payload,
-        isReplay: false,
-      );
+  InspectorEvent at(
+    int ms,
+    String channel,
+    Map<String, Object?> payload, [
+    String? rid,
+  ]) => InspectorEvent(
+    channel: channel,
+    id: nextId++,
+    time: since.add(Duration(milliseconds: ms)),
+    payload: payload,
+    isReplay: false,
+    rid: rid,
+  );
 
   void app(String person, int ms, String channel, Map<String, Object?> data) =>
       trace.addGuestEvent(person, at(ms, channel, data));
-  void lab(int ms, String channel, Map<String, Object?> data) =>
-      trace.addServerEvent('lab', at(ms, channel, data));
+  void lab(int ms, String channel, Map<String, Object?> data, [String? rid]) =>
+      trace.addServerEvent('lab', at(ms, channel, data, rid));
 
   void step(String person, String id, int ms, String target) => app(
     person,
@@ -225,6 +231,135 @@ void main() {
       [for (var (:step, beats: _) in trace.steps(step: 'ben.2')) step.id],
       ['ben.2'],
     );
+  });
+
+  group('for the canvas', () {
+    /// Ana's advance, reported the way the lab's adapter reports it: every
+    /// event under the request's id, the request itself last.
+    void advance() {
+      step('Cleo', 'cleo.1', 1000, '"Advance"');
+      app('Cleo', 1002, worldRequestsChannel, {
+        'step': 'cleo.1',
+        'method': 'POST',
+        'url': 'localhost:5040/orders/o3/advance',
+        'how': 'zone',
+      });
+      lab(1003, 'write', {
+        'table': 'orders',
+        'key': 'o3',
+        'op': 'update',
+        'step': 'cleo.1',
+      }, 'req-7');
+      lab(1004, 'reach', {
+        'user': 'u1',
+        'what': 'order o3 · ready',
+        'step': 'cleo.1',
+      }, 'req-7');
+      lab(1005, 'push', {
+        'to': 'u1',
+        'title': 'Your flat white is ready',
+        'step': 'cleo.1',
+      }, 'req-7');
+      lab(1006, 'http', {
+        'method': 'POST',
+        'path': '/orders/o3/advance',
+        'part': '/orders/:id/advance',
+        'status': 200,
+        'step': 'cleo.1',
+      }, 'req-7');
+    }
+
+    test('each beat names the part it touched, and the ones that crossed '
+        'between a phone and the system say so', () {
+      advance();
+      var beats = trace.steps().single.beats;
+      expect(
+        [
+          for (var beat in beats)
+            (beat.person, beat.node, beat.line, beat.inbound),
+        ],
+        [
+          (
+            'Cleo',
+            'lab/part/POST /orders/:id/advance',
+            'POST /orders/o3/advance',
+            false,
+          ),
+          (null, 'lab/table/orders', null, false),
+          (
+            'Cleo',
+            'lab/part/POST /orders/:id/advance',
+            'order o3 · ready',
+            true,
+          ),
+          ('Cleo', 'lab/sent/push', 'Your flat white is ready', true),
+        ],
+      );
+      expect(numberNodes(trace.steps().single), {
+        'lab/part/POST /orders/:id/advance': 1,
+        'lab/table/orders': 2,
+        'lab/sent/push': 3,
+      });
+    });
+
+    test('an arrival crosses from the sync engine to the phone, a local '
+        'write stays on it', () {
+      step('Ben', 'ben.1', 1000, '"Order"');
+      app('Ben', 1003, 'db:main/records', {
+        'key': 'o5',
+        'table': 'orders',
+        'change': 'local insert',
+      });
+      lab(1010, 'write', {
+        'table': 'orders',
+        'key': 'o5',
+        'op': 'insert',
+        'step': 'ben.1',
+      });
+      app('Cleo', 1040, 'db:main/records', {
+        'key': 'o5',
+        'table': 'orders',
+        'change': 'synced',
+        'op': 16,
+      });
+      var beats = trace.steps().single.beats;
+      expect(
+        [for (var beat in beats) (beat.person, beat.node, beat.inbound)],
+        [
+          ('Ben', null, false),
+          (null, 'lab/table/orders', false),
+          ('Cleo', syncNode, true),
+        ],
+      );
+    });
+
+    test("a server's summary counts everything it reported since the world "
+        'opened, whoever caused it', () {
+      lab(-10, 'http', {'method': 'GET', 'path': '/old'}, 'req-0');
+      lab(10, 'http', {'method': 'POST', 'path': '/admin/users'}, 'req-1');
+      lab(20, 'http', {'method': 'POST', 'path': '/admin/users'}, 'req-2');
+      advance();
+      var server = trace.servers.single;
+      expect(server.name, 'lab');
+      expect(server.parts, {
+        'POST /admin/users': 2,
+        'POST /orders/:id/advance': 1,
+      });
+      expect(server.tables, {
+        'orders': {'o3'},
+      });
+      expect(server.sent, {'push': 1});
+      expect(server.reached, 1);
+    });
+
+    test('says when it heard something', () async {
+      var heard = 0;
+      trace.changed.listen((_) => heard++);
+      step('Ben', 'ben.1', 1000, '"Order"');
+      lab(1010, 'http', {'method': 'GET', 'path': '/me'});
+      app('Ben', 1020, 'something/else', {});
+      expect(heard, 2);
+    });
   });
 
   group('syncLine', () {

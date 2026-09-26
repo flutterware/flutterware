@@ -58,6 +58,7 @@ const shadcnDarkPalette = FwPalette(
   dividerDark: Color(0xFF27272A),
   tabDivider: Color(0xFF3F3F46),
   info: Color(0xFF60A5FA),
+  people: peopleOnDark,
 );
 
 /// shadcn/ui — neutral zinc, near-black primary, tight type.

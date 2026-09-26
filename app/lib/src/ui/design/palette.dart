@@ -73,6 +73,16 @@ class FwPalette {
   final Color tabDivider;
   final Color info;
 
+  // people
+  /// One hue per person in a world, in the order its script names them.
+  /// Categorical, never status: none is the good green or the warning amber,
+  /// so a person's colour never reads as how they are doing. [person] wraps
+  /// past the end.
+  final List<Color> people;
+
+  /// The colour of the [index]th person.
+  Color person(int index) => people[index % people.length];
+
   const FwPalette({
     required this.accent,
     required this.accentDark,
@@ -98,6 +108,7 @@ class FwPalette {
     required this.dividerDark,
     required this.tabDivider,
     required this.info,
+    this.people = peopleOnLight,
   });
 
   // Derived names that carry their own meaning — a status word rather than a
@@ -203,6 +214,7 @@ class FwPalette {
     Color? dividerDark,
     Color? tabDivider,
     Color? info,
+    List<Color>? people,
   }) {
     return FwPalette(
       accent: accent ?? this.accent,
@@ -230,6 +242,7 @@ class FwPalette {
       dividerDark: dividerDark ?? this.dividerDark,
       tabDivider: tabDivider ?? this.tabDivider,
       info: info ?? this.info,
+      people: people ?? this.people,
     );
   }
 
@@ -263,6 +276,10 @@ class FwPalette {
       dividerDark: c(a.dividerDark, b.dividerDark),
       tabDivider: c(a.tabDivider, b.tabDivider),
       info: c(a.info, b.info),
+      people: [
+        for (var i = 0; i < a.people.length && i < b.people.length; i++)
+          c(a.people[i], b.people[i]),
+      ],
     );
   }
 
@@ -283,3 +300,28 @@ class FwPalette {
     );
   }
 }
+
+/// [FwPalette.people] on a light surface: dark enough for a 1.5px line and a
+/// label in the same hue.
+///
+/// No yellow or brown: beside the status amber and the warning text they read
+/// as a warning. The most distinct hues come first, since most worlds have
+/// two or three people.
+const peopleOnLight = [
+  Color(0xFF0F766E), // teal
+  Color(0xFFC2410C), // orange
+  Color(0xFF7C3AED), // violet
+  Color(0xFFBE185D), // rose
+  Color(0xFF0369A1), // sky
+  Color(0xFF4338CA), // indigo
+];
+
+/// [FwPalette.people] on a dark surface: the same hues, lifted.
+const peopleOnDark = [
+  Color(0xFF2DD4BF),
+  Color(0xFFFB923C),
+  Color(0xFFA78BFA),
+  Color(0xFFF472B6),
+  Color(0xFF38BDF8),
+  Color(0xFF818CF8),
+];
