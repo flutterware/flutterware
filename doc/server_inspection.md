@@ -121,11 +121,47 @@ Middleware inspect() {
 // var handler = const Pipeline().addMiddleware(inspect()).addHandler(router);
 ```
 
+A world that hosts the server hot-reloads it on **Reload**, and a hot reload
+gives every function its new code, but not a closure made before it, and a
+router's handlers are closures made when it was built. Build it again after
+each reload with `FlutterwareServer.onReassemble`, which the world calls once
+the new code is in. The state it is built over stays:
+
+```dart
+late App app;
+await shelf_io.serve((request) => app.handler(request), 'localhost', 8080);
+app = App(database);
+FlutterwareServer.onReassemble(() {
+  unawaited(app.dispose());
+  app = App(database);
+});
+```
+
+A server whose handler is all it rebuilds has a shorter form,
+`FlutterwareServer.reloadable`, built on the same call:
+
+```dart
+var handler = FlutterwareServer.reloadable(() => routes(store));
+await shelf_io.serve(handler, 'localhost', 8080);
+
+// A named function: a closure made before a reload keeps its old body.
+Handler routes(Store store) => const Pipeline()
+    .addMiddleware(inspect())
+    .addHandler((Router()..get('/orders', store.list)).call);
+```
+
+Keep counters and caches out of what is rebuilt, in the state or a
+top-level variable: a rebuilt middleware starts from nothing. An entry point
+with its own hot reload, a file watcher calling back to rebuild the app, can
+hand the same callback to `onReassemble`.
+
 The step lasts as long as the zone does. Work the request hands off — a job
 a worker runs later, a storage callback — keeps it only if you carry it:
-store `FlutterwareServer.step` with the work and run the work under
-`FlutterwareServer.inStep(step, body)`. The [worlds guide](worlds.md#see-what-a-tap-caused)
-has the pattern.
+store `FlutterwareServer.step` with the work, and run a job through
+`FlutterwareServer.job(name, body, step:, id:)`, which also runs it as a
+request of its own and reports when it starts and ends; other work under
+`FlutterwareServer.inStep(step, body)`. The [worlds
+guide](worlds.md#see-what-a-tap-caused) has the pattern.
 
 A hijacked request is reported by nothing here, which is the honest answer:
 the response never existed and the socket's life is no longer the handler's.

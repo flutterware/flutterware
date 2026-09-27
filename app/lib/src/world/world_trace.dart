@@ -37,7 +37,7 @@ class TraceStep {
   DateTime? at;
 
   /// `tap`, `longPress` or `drag`; `type` or `open` for a delivery;
-  /// `action` for a world's own.
+  /// `start` for the app starting, its `.0`; `action` for a world's own.
   String? verb;
 
   /// What it landed on, spelled as the drive targets are: `"Order"`.
@@ -57,6 +57,7 @@ class TraceBeat {
     this.line,
     this.inbound = false,
     this.folded = const [],
+    this.children = const [],
   });
 
   final DateTime at;
@@ -80,11 +81,49 @@ class TraceBeat {
   /// than from the person's app to the system.
   final bool inbound;
 
-  /// What [what] counts rather than says: the statements a request ran, one
-  /// line each, for whoever opens them. A request that ran 23 of them is
-  /// still one line, and the writes among them are beats of their own.
+  /// What [what] counts rather than says, one line each, for whoever opens
+  /// them: the statements a request ran, its writes to a table in a layer
+  /// of its own, each write of a record updated many times in a row. A
+  /// request that ran 23 statements is still one line.
   final List<String> folded;
+
+  /// What happened within it — a request's or a job's writes, the messages
+  /// it sent, whom it reached — each a beat of its own, beneath it.
+  final List<TraceBeat> children;
 }
+
+/// [beats] and every beat beneath them, each after the one it is beneath.
+Iterable<TraceBeat> everyBeat(Iterable<TraceBeat> beats) =>
+    beatsByDepth(beats).map((entry) => entry.$1);
+
+/// [beats] and every beat beneath them, with how deep each sits: 0 for a
+/// step's own, 1 for what happened within one of those.
+Iterable<(TraceBeat, int)> beatsByDepth(
+  Iterable<TraceBeat> beats, [
+  int depth = 0,
+]) sync* {
+  for (var beat in beats) {
+    yield (beat, depth);
+    yield* beatsByDepth(beat.children, depth + 1);
+  }
+}
+
+/// [beats] as `worlds trace` prints them, offset from [since]: a line each,
+/// what happened within one indented beneath it, and — with [folded] — what
+/// a line counts, beneath it too.
+List<String> traceLines(
+  List<TraceBeat> beats,
+  DateTime since, {
+  bool folded = false,
+  String indent = '',
+}) => [
+  for (var beat in beats) ...[
+    '$indent+${beat.at.difference(since).inMilliseconds} ms  ${beat.what}',
+    if (folded)
+      for (var line in beat.folded) '$indent      $line',
+    ...traceLines(beat.children, since, folded: folded, indent: '$indent  '),
+  ],
+];
 
 /// The node every synced record arrives from: the sync engine's service,
 /// which is not Dart and reports nothing but what the apps' databases show.
@@ -412,6 +451,7 @@ class WorldTrace {
             change,
             op: payload['op'] as int?,
             bucket: payload['bucket'] as String?,
+            newBucket: payload['newBucket'] == true,
           ),
         );
       default:
@@ -651,7 +691,7 @@ class WorldTrace {
               detail: _written(written.last.payload),
               person: _callerOf(written.last),
               step: written.last.step,
-              life: _lifeOf(key),
+              life: _lifeOf(table, key),
             ),
         ]..sort((a, b) => b.at.compareTo(a.at));
         return contents(
@@ -678,30 +718,38 @@ class WorldTrace {
     return null;
   }
 
-  /// Every record a phone received through the sync engine, by key — the
-  /// ones a server here wrote; the rest are only counted.
+  /// Every record a phone received through the sync engine, by table and
+  /// key — the ones a server here wrote; the rest are only counted.
   NodeContents _synced(int limit) {
     var latest = <String, _Record>{};
     for (var record in _records) {
-      if (record.change == 'synced') latest[record.key] = record;
+      if (record.change == 'synced') {
+        latest['${record.table}/${record.key}'] = record;
+      }
     }
-    var written = {
-      for (var event in _server)
-        if (event.channel == 'write') '${event.payload['key']}',
-    };
-    var records = [
-      for (var MapEntry(:key, value: record) in latest.entries)
-        if (written.contains(key))
-          TraceItem(
-            record.at,
-            record.table.isEmpty
-                ? _short(key)
-                : '${record.table}/${_short(key)}',
-            detail: _holders(key),
-            step: _causeOf(record),
-            life: _lifeOf(key),
-          ),
-    ]..sort((a, b) => b.at.compareTo(a.at));
+    bool written(_Record record) => _server.any(
+      (event) => event.channel == 'write' && _sameRecord(event, record),
+    );
+    var unwritten = 0;
+    var records = <TraceItem>[];
+    for (var record in latest.values) {
+      if (!written(record)) {
+        unwritten++;
+        continue;
+      }
+      records.add(
+        TraceItem(
+          record.at,
+          record.table.isEmpty
+              ? _short(record.key)
+              : '${record.table}/${_short(record.key)}',
+          detail: _holders(record.table, record.key),
+          step: _causeOf(record),
+          life: _lifeOf(record.table, record.key),
+        ),
+      );
+    }
+    records.sort((a, b) => b.at.compareTo(a.at));
     return NodeContents(
       node: syncNode,
       kind: NodeKind.sync,
@@ -709,15 +757,41 @@ class WorldTrace {
       server: '',
       items: records.take(limit).toList(),
       earlier: max(0, records.length - limit),
-      unwritten: latest.keys.where((key) => !written.contains(key)).length,
+      unwritten: unwritten,
     );
   }
 
+  /// Whether some server here writes [table]: a phone table no server has
+  /// is one the phone keeps under a name of its own.
+  bool _serverHas(String table) =>
+      _servers.values.any((server) => server.tables.containsKey(table));
+
+  /// Whether [write], a server's, and [record], a phone's, are one record:
+  /// the same key in the same table — or, for a phone table no server here
+  /// has (`user_profiles` for the server's `users`), the same key in any.
+  /// A side table whose rows take their parent's id is on both, and stays
+  /// apart from its parent.
+  bool _sameRecord(_ServerEvent write, _Record record) =>
+      '${write.payload['key']}' == record.key &&
+      (record.table.isEmpty ||
+          '${write.payload['table']}' == record.table ||
+          !_serverHas(record.table));
+
+  /// Whether a phone's [record] belongs to the record [table]/[key], as
+  /// [_sameRecord] joins them.
+  bool _ofRecord(_Record record, String table, String key) =>
+      record.key == key &&
+      (record.table.isEmpty ||
+          record.table == table ||
+          !_serverHas(record.table) ||
+          !_serverHas(table));
+
   /// `on Cleo's and Ben's phones`: whose phones a record reached.
-  String _holders(String key) {
+  String _holders(String table, String key) {
     var people = {
       for (var record in _records)
-        if (record.key == key && record.change == 'synced') record.person,
+        if (record.change == 'synced' && _ofRecord(record, table, key))
+          record.person,
     }.toList();
     var names = people.map((person) => "$person's").toList();
     var spelled = names.length <= 1
@@ -726,11 +800,15 @@ class WorldTrace {
     return 'on $spelled ${people.length == 1 ? 'phone' : 'phones'}';
   }
 
-  /// A record's whole life, by its key: each write the server reported, and
-  /// each phone that wrote it itself or received it — oldest first.
-  List<TraceItem> _lifeOf(String key) => [
+  /// A record's whole life, by its table and key: each write the server
+  /// reported, and each phone that wrote it itself or received it — oldest
+  /// first. [table] is the server's or the phone's; a phone table no server
+  /// has joins by key alone.
+  List<TraceItem> _lifeOf(String table, String key) => [
     for (var event in _server)
-      if (event.channel == 'write' && event.payload['key'] == key)
+      if (event.channel == 'write' &&
+          '${event.payload['key']}' == key &&
+          ('${event.payload['table']}' == table || !_serverHas(table)))
         TraceItem(
           event.time,
           '${event.server} wrote it',
@@ -738,7 +816,7 @@ class WorldTrace {
           step: event.step,
         ),
     for (var record in _records)
-      if (record.key == key) _moment(record),
+      if (_ofRecord(record, table, key)) _moment(record),
   ]..sort((a, b) => a.at.compareTo(b.at));
 
   /// One phone's part in a record's life.
@@ -762,7 +840,8 @@ class WorldTrace {
         (null, null) => null,
         (var op, var bucket) => [
           if (op != null) 'op $op',
-          if (bucket != null) 'in $bucket',
+          if (bucket != null)
+            record.newBucket ? 'in $bucket, new to this phone' : 'in $bucket',
         ].join(' · '),
       },
       person: record.person,
@@ -915,7 +994,7 @@ class WorldTrace {
   String _written(Map<String, Object?> payload) => [
     '${payload['op']}',
     for (var MapEntry(:key, :value) in payload.entries)
-      if (!const {'table', 'key', 'op', 'step'}.contains(key))
+      if (!const {'table', 'key', 'op', 'step', 'layer'}.contains(key))
         '$key ${value is String ? _users[value] ?? _short(value) : value}',
   ].join(' · ');
 
@@ -926,17 +1005,20 @@ class WorldTrace {
 
   List<TraceBeat> _beatsOf(TraceStep step) {
     var beats = <TraceBeat>[];
-    var answered = <_ServerEvent>{};
-    // Statements fold into the request they ran under — or, run outside
-    // one (a job, an action's own), into one line per server.
-    var statements = <String, List<_ServerEvent>>{};
+    // What each request and each job did, by its request id: beneath its
+    // line. What ran under none — an action's own work between requests —
+    // stays a line of its own.
+    var groups = <String, List<_ServerEvent>>{};
+    var loose = <_ServerEvent>[];
     for (var event in _server) {
-      if (event.step == step.id && event.channel == 'sql') {
-        statements
-            .putIfAbsent('${event.server}/${event.event.rid}', () => [])
-            .add(event);
+      if (event.step != step.id) continue;
+      if (event.group case var group?) {
+        groups.putIfAbsent(group, () => []).add(event);
+      } else {
+        loose.add(event);
       }
     }
+    var answered = <_ServerEvent>{};
     for (var request in _requests) {
       if (request.step != step.id) continue;
       var served = _served(request, answered);
@@ -956,41 +1038,28 @@ class WorldTrace {
         continue;
       }
       answered.add(served);
-      var ran = served.event.rid == null
-          ? null
-          : statements.remove('${served.server}/${served.event.rid}');
       beats.add(
-        TraceBeat(
+        _grouped(
           request.at,
           '${request.person} → ${served.server}  ${request.method} '
-          '${request.path}  ${_answer(served.payload)}'
-          '${ran == null ? '' : ', ${_ran(ran)}'}$how',
+          '${request.path}  ${_answer(served.payload)}',
+          groups.remove(served.group) ?? [served],
+          how: how,
           person: request.person,
           node: _partNode(served),
           line: '${request.method} ${request.path}',
-          folded: ran == null ? const [] : _statements(ran),
         ),
       );
     }
-    for (var ran in statements.values) {
-      var first = ran.first;
-      beats.add(
-        TraceBeat(
-          first.time,
-          '${first.server}  ${_ran(ran)}',
-          node: _partNode(first),
-          folded: _statements(ran),
-        ),
-      );
+    for (var group in groups.values) {
+      beats.add(_serverGroup(group));
     }
-    for (var event in _server) {
-      if (event.step != step.id ||
-          event.channel == 'sql' ||
-          answered.contains(event)) {
-        continue;
-      }
-      if (_serverBeat(event) case var beat?) beats.add(beat);
-    }
+    beats.addAll(
+      _looseBeats([
+        for (var event in loose)
+          if (!answered.contains(event)) event,
+      ]),
+    );
     for (var record in _records) {
       if (_causeOf(record) != step.id) continue;
       var key = _short(record.key);
@@ -1013,6 +1082,256 @@ class WorldTrace {
       );
     }
     return beats..sort((a, b) => a.at.compareTo(b.at));
+  }
+
+  /// A request or a job no app recorded — an action's request, a storage
+  /// callback, a worker's job — as its [group] shows it: its own `http` or
+  /// `job` event heads it, or its first event does.
+  TraceBeat _serverGroup(List<_ServerEvent> group) {
+    var first = group.first;
+    var server = first.server;
+    // When it started: its report comes at its end, less how long it took —
+    // never after what happened within it.
+    DateTime began(_ServerEvent end, num? ms) {
+      if (ms == null) return first.time;
+      var start = end.time.subtract(
+        Duration(microseconds: (ms * 1000).round()),
+      );
+      return start.isBefore(first.time) ? start : first.time;
+    }
+
+    for (var event in group) {
+      if (event.channel == 'http') {
+        var ms = event.payload['ms'];
+        return _grouped(
+          began(event, ms is num ? ms : null),
+          '$server  ${event.payload['method']} ${event.payload['path']}  '
+          '${_answer(event.payload)}',
+          group,
+          node: _partNode(event),
+        );
+      }
+    }
+    var jobs = [
+      for (var event in group)
+        if (event.channel == 'job') event,
+    ];
+    if (jobs.isNotEmpty) {
+      var ended = jobs.where((job) => job.payload['ms'] is num).firstOrNull;
+      var ms = ended?.payload['ms'] as num?;
+      var error = ended?.payload['error'];
+      return _grouped(
+        ended == null || jobs.length > 1 ? jobs.first.time : began(ended, ms),
+        [
+          '$server  job ${_jobName(jobs.first.payload)}',
+          if (error != null)
+            'failed after ${_duration(ms!)}: $error'
+          else if (ms != null)
+            'done in ${_duration(ms)}'
+          else
+            'running',
+        ].join(', '),
+        group,
+        node: _partNode(first),
+      );
+    }
+    return _grouped(first.time, server, group, node: _partNode(first));
+  }
+
+  /// What a job is called: its name, and the queue it came off.
+  static String _jobName(Map<String, Object?> payload) => [
+    '${payload['name'] ?? payload['kind'] ?? payload['function'] ?? ''}',
+    if (payload['queue'] case var queue?) 'on $queue',
+  ].join(' ');
+
+  static String _duration(num ms) => ms < 1000
+      ? '${ms < 10 ? ms.toStringAsFixed(1) : ms.round()} ms'
+      : '${(ms / 1000).toStringAsFixed(ms < 10000 ? 2 : 1)} s';
+
+  /// A line headed [head], with what [group] did beneath it: its writes, the
+  /// messages it sent, whom it reached. Its statements, and its writes to a
+  /// table in a layer of its own — a job queue's — are counted on the line
+  /// and folded behind it.
+  TraceBeat _grouped(
+    DateTime at,
+    String head,
+    List<_ServerEvent> group, {
+    String how = '',
+    String? person,
+    String? node,
+    String? line,
+  }) {
+    var statements = <_ServerEvent>[];
+    var layered = <_ServerEvent>[];
+    var beneath = <_ServerEvent>[];
+    for (var event in group) {
+      switch (event.channel) {
+        case 'http' || 'job':
+          break;
+        case 'sql':
+          statements.add(event);
+        case 'write' when _layerOf(event) != null:
+          layered.add(event);
+        default:
+          beneath.add(event);
+      }
+    }
+    var counted = _counted(statements, layered);
+    return TraceBeat(
+      at,
+      [head, ?counted].join(', ') + how,
+      person: person,
+      node: node,
+      line: line,
+      folded: [..._statements(statements), ..._writeLines(layered)],
+      children: _merged(beneath),
+    );
+  }
+
+  /// What ran under no request, as lines: its messages and writes each, and
+  /// its statements and layered writes folded into one line for each burst
+  /// of them — not one line for everything a server did over the step.
+  List<TraceBeat> _looseBeats(List<_ServerEvent> loose) {
+    var beats = <TraceBeat>[];
+    var folding = <_ServerEvent>[];
+    void flush() {
+      if (folding.isEmpty) return;
+      var statements = [
+        for (var event in folding)
+          if (event.channel == 'sql') event,
+      ];
+      var layered = [
+        for (var event in folding)
+          if (event.channel == 'write') event,
+      ];
+      var first = folding.first;
+      beats.add(
+        TraceBeat(
+          first.time,
+          '${first.server}  ${_counted(statements, layered)}',
+          node: _partNode(first),
+          folded: [..._statements(statements), ..._writeLines(layered)],
+        ),
+      );
+      folding = [];
+    }
+
+    var rest = <_ServerEvent>[];
+    for (var event in loose) {
+      var folds =
+          event.channel == 'sql' ||
+          (event.channel == 'write' && _layerOf(event) != null);
+      if (!folds) {
+        rest.add(event);
+        continue;
+      }
+      if (folding.isNotEmpty &&
+          (folding.last.reporter != event.reporter ||
+              event.time.difference(folding.last.time) > _burst)) {
+        flush();
+      }
+      folding.add(event);
+    }
+    flush();
+    return beats..addAll(_merged(rest));
+  }
+
+  /// How far apart two statements run under no request can be and still
+  /// count as one burst of work.
+  static const _burst = Duration(seconds: 1);
+
+  /// `12 statements, 6.1 ms, 4 writes in jobs`, or null for nothing.
+  String? _counted(List<_ServerEvent> statements, List<_ServerEvent> layered) {
+    var layers = <String, int>{};
+    for (var write in layered) {
+      var layer = _layerOf(write)!;
+      layers[layer] = (layers[layer] ?? 0) + 1;
+    }
+    var counted = [
+      if (statements.isNotEmpty) _ran(statements),
+      for (var MapEntry(key: layer, value: n) in layers.entries)
+        '${n == 1 ? '1 write' : '$n writes'} in $layer',
+    ].join(', ');
+    return counted.isEmpty ? null : counted;
+  }
+
+  String? _layerOf(_ServerEvent write) =>
+      _servers[write.server]?.layers['${write.payload['table']}'];
+
+  List<String> _writeLines(List<_ServerEvent> writes) => [
+    for (var write in writes) _writeLine(write.payload),
+  ];
+
+  String _writeLine(Map<String, Object?> payload) =>
+      'wrote ${payload['table']}/${_short(payload['key'])} '
+      '(${_written(payload)})';
+
+  /// [events] as lines, a record's updates in a row one line: a status
+  /// moving through a queue is one record changing, not sixteen writes.
+  List<TraceBeat> _merged(List<_ServerEvent> events) {
+    var beats = <TraceBeat>[];
+    for (var i = 0; i < events.length; i++) {
+      var event = events[i];
+      var run = [event];
+      while (_isUpdate(event) &&
+          i + 1 < events.length &&
+          _isUpdate(events[i + 1]) &&
+          events[i + 1].payload['table'] == event.payload['table'] &&
+          events[i + 1].payload['key'] == event.payload['key']) {
+        run.add(events[++i]);
+      }
+      if (run.length == 1) {
+        if (_serverBeat(event, nested: event.group != null) case var beat?) {
+          beats.add(beat);
+        }
+        continue;
+      }
+      var table = '${event.payload['table']}';
+      beats.add(
+        TraceBeat(
+          event.time,
+          [
+            if (event.group == null) event.server,
+            [
+              'updated $table/${_short(event.payload['key'])} ×${run.length}',
+              if (_changes(run) case var changes when changes.isNotEmpty)
+                changes,
+            ].join(' · '),
+          ].join('  '),
+          node: _servers[event.server]?.tableNode(table),
+          folded: _writeLines(run),
+        ),
+      );
+    }
+    return beats;
+  }
+
+  static bool _isUpdate(_ServerEvent event) =>
+      event.channel == 'write' && event.payload['op'] == 'update';
+
+  /// What [writes] of one record changed, field by field: `status queued →
+  /// building → ready`, a long run by its ends — `status queued → … → ready`.
+  String _changes(List<_ServerEvent> writes) {
+    var values = <String, List<String>>{};
+    for (var write in writes) {
+      for (var MapEntry(:key, :value) in write.payload.entries) {
+        if (const {'table', 'key', 'op', 'step', 'layer'}.contains(key)) {
+          continue;
+        }
+        var said =
+            '${value is String ? _users[value] ?? _short(value) : value}';
+        var seen = values.putIfAbsent(key, () => []);
+        if (seen.isEmpty || seen.last != said) seen.add(said);
+      }
+    }
+    return [
+      for (var MapEntry(key: field, value: seen) in values.entries)
+        switch (seen.length) {
+          1 => '$field ${seen.single}',
+          2 || 3 => '$field ${seen.join(' → ')}',
+          _ => '$field ${seen.first} → … → ${seen.last}',
+        },
+    ].join(' · ');
   }
 
   /// The server's report of [request]: same step, method and path.
@@ -1048,16 +1367,16 @@ class WorldTrace {
     }
     _ServerEvent? write;
     for (var event in _server) {
-      if (event.channel != 'write' || event.payload['key'] != record.key) {
-        continue;
-      }
+      if (event.channel != 'write' || !_sameRecord(event, record)) continue;
       if (event.time.isAfter(record.at)) continue;
       if (write == null || event.time.isAfter(write.time)) write = event;
     }
     return write?.step;
   }
 
-  TraceBeat? _serverBeat(_ServerEvent event) {
+  /// [event] as a line of a step. [nested] beneath the request or job it
+  /// happened in, which already names the server.
+  TraceBeat? _serverBeat(_ServerEvent event, {bool nested = false}) {
     var server = event.server;
     var payload = event.payload;
     var at = event.time;
@@ -1065,14 +1384,17 @@ class WorldTrace {
     var system = _servers[server];
     String? personOf(Object? user) => user is String ? _users[user] : null;
     var how = event.byTime ? ', joined by time' : '';
+    String by(String said) => nested ? said : '$server  $said';
+    String toward(String said) => nested ? '→ $said' : '$server → $said';
     switch (event.channel) {
       case 'http':
         return TraceBeat(
           at,
-          '$server  ${payload['method']} ${payload['path']}  '
-          '${_answer(payload)}',
+          by('${payload['method']} ${payload['path']}  ${_answer(payload)}'),
           node: node,
         );
+      case 'job':
+        return TraceBeat(at, by('job ${_jobName(payload)}'), node: node);
       case 'identify':
         // Every request says who it is; only the first says something new,
         // and only of a user the script did not name.
@@ -1080,7 +1402,7 @@ class WorldTrace {
         if (_declared.contains(user) || _identifiedBefore(event)) return null;
         return TraceBeat(
           at,
-          '$server  knows ${personOf(user) ?? 'someone'} as $user',
+          by('knows ${personOf(user) ?? 'someone'} as $user'),
           node: node,
         );
       case 'reach':
@@ -1088,7 +1410,7 @@ class WorldTrace {
         var person = personOf(user);
         return TraceBeat(
           at,
-          '$server → ${person ?? user}  ${payload['what']}',
+          toward('${person ?? user}  ${payload['what']}'),
           person: person,
           node: node,
           line: '${payload['what']}',
@@ -1097,8 +1419,7 @@ class WorldTrace {
       case 'write':
         return TraceBeat(
           at,
-          '$server  wrote ${payload['table']}/${_short(payload['key'])} '
-          '(${payload['op']})',
+          by(_writeLine(payload)),
           node: system?.tableNode('${payload['table']}'),
         );
       case 'sms':
@@ -1106,7 +1427,7 @@ class WorldTrace {
         var person = _phones[to];
         return TraceBeat(
           at,
-          '$server → ${person ?? to} by SMS  ${payload['body']}$how',
+          toward('${person ?? to} by SMS  ${payload['body']}$how'),
           person: person,
           node: system?.sentNode('sms'),
           line: 'SMS',
@@ -1117,7 +1438,7 @@ class WorldTrace {
         var person = _emails[to.toLowerCase()];
         return TraceBeat(
           at,
-          '$server → ${person ?? to} by mail  ${payload['subject']}$how',
+          toward('${person ?? to} by mail  ${payload['subject']}$how'),
           person: person,
           node: system?.sentNode('mail'),
           line: 'Mail',
@@ -1129,28 +1450,24 @@ class WorldTrace {
         var said = [?payload['title'], ?payload['body']].join(' — ');
         return TraceBeat(
           at,
-          '$server → ${person ?? to} by push  $said$how',
+          toward('${person ?? to} by push  $said$how'),
           person: person,
           node: system?.sentNode('push'),
           line: '${payload['title'] ?? payload['body']}',
           inbound: true,
         );
       case 'log':
-        return TraceBeat(at, '$server  ${payload['message']}', node: node);
+        return TraceBeat(at, by('${payload['message']}'), node: node);
       case 'error':
         return TraceBeat(
           at,
-          '$server  error: ${payload['message'] ?? payload['error']}',
+          by('error: ${payload['message'] ?? payload['error']}'),
           node: node,
         );
       case 'info':
         return null;
       case var channel:
-        return TraceBeat(
-          at,
-          '$server  $channel  ${_gist(payload)}',
-          node: node,
-        );
+        return TraceBeat(at, by('$channel  ${_gist(payload)}'), node: node);
     }
   }
 
@@ -1274,8 +1591,19 @@ class _ServerEvent {
   final bool byTime;
   final InspectorEvent event;
 
-  /// `lab/42`: unique across the servers, whoever it is drawn as.
-  String get id => '$reporter/${event.id}';
+  /// `lab/42`: by whoever it is drawn as, and unique across the servers —
+  /// a message another service sent names that service and the process
+  /// that reported it, `identity/server-27`.
+  String get id => server == reporter
+      ? '$reporter/${event.id}'
+      : '$server/$reporter-${event.id}';
+
+  /// The request or job it happened in, across the servers — what gathers
+  /// it beneath that request's line — or null outside one.
+  String? get group => switch (event.rid) {
+    var rid? => '$reporter/$rid',
+    null => null,
+  };
 
   String get channel => event.channel;
   Map<String, Object?> get payload => event.payload;
@@ -1291,6 +1619,7 @@ class _Record {
     this.change, {
     this.op,
     this.bucket,
+    this.newBucket = false,
   });
 
   final String person;
@@ -1302,6 +1631,10 @@ class _Record {
 
   /// The sync engine's bucket it arrived in, when it says.
   final String? bucket;
+
+  /// Whether [bucket] was new to the phone: a stream the app had just
+  /// subscribed to, which is why a record written long ago arrives now.
+  final bool newBucket;
 }
 
 /// Feeds a [WorldTrace] from the live world: an attachment to each person's

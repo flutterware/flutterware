@@ -319,6 +319,27 @@ class WorldKnobEntry {
   };
 }
 
+/// What `worlds reload` answers: how long it took, and which apps were
+/// reloaded with the script.
+class WorldReloadResult implements PluginResult {
+  const WorldReloadResult({required this.ms, this.apps = const []});
+
+  factory WorldReloadResult.of(WorldReload reload) =>
+      WorldReloadResult(ms: reload.elapsed.inMilliseconds, apps: reload.apps);
+
+  factory WorldReloadResult.fromJson(Map<String, Object?> json) =>
+      WorldReloadResult(
+        ms: json['ms']! as int,
+        apps: [...(json['apps'] as List? ?? const []).cast<String>()],
+      );
+
+  final int ms;
+  final List<String> apps;
+
+  @override
+  Map<String, Object?> toJson() => {'ms': ms, 'apps': apps};
+}
+
 /// What `worlds invoke` answers: the action, ended or still running.
 class WorldActionResult implements PluginResult, ReportsFailure {
   const WorldActionResult({
@@ -383,7 +404,8 @@ class WorldActionResult implements PluginResult, ReportsFailure {
 class WorldTraceResult implements PluginResult {
   const WorldTraceResult({required this.steps, this.note});
 
-  /// [statements] lists what each request's line only counts.
+  /// [statements] lists what each line only counts: the statements a
+  /// request ran, its writes in a layer.
   factory WorldTraceResult.of(
     List<TracedStep> traced, {
     bool statements = false,
@@ -396,13 +418,7 @@ class WorldTraceResult implements PluginResult {
           person: step.person,
           at: step.at!,
           did: step.did,
-          then: [
-            for (var beat in beats) ...[
-              '+${beat.at.difference(step.at!).inMilliseconds} ms  ${beat.what}',
-              if (statements)
-                for (var statement in beat.folded) '    $statement',
-            ],
-          ],
+          then: traceLines(beats, step.at!, folded: statements),
         ),
     ],
     note: note,
@@ -665,10 +681,7 @@ class WorldDeliveryResult implements PluginResult {
     what: delivery.what,
     step: delivery.step,
     caused: switch (caused) {
-      (:var step, :var beats) => [
-        for (var beat in beats)
-          '+${beat.at.difference(step.at!).inMilliseconds} ms  ${beat.what}',
-      ],
+      (:var step, :var beats) => traceLines(beats, step.at!),
       null => delivery.step == null ? null : const [],
     },
   );

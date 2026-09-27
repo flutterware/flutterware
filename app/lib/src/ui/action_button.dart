@@ -42,9 +42,15 @@ class FwActionButton extends StatefulWidget {
     this.tooltip,
     this.primary = false,
     this.acknowledges = true,
+    this.icon,
   });
 
   final String label;
+
+  /// Drawn before [label] while idle or running: what kind of thing the
+  /// button does, where a row mixes kinds — an action that runs beside a
+  /// choice that restarts.
+  final IconData? icon;
 
   /// The tooltip while idle. The running, done and failed states describe
   /// themselves.
@@ -175,7 +181,18 @@ class _FwActionButtonState extends State<FwActionButton> {
           borderRadius: BorderRadius.circular(context.radii.radius),
           border: Border.all(color: border),
         ),
-        child: Text(label, style: context.type.caption.copyWith(color: fg)),
+        child: switch (widget.icon) {
+          var icon? when _phase == _Phase.idle || _phase == _Phase.running =>
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: FwIconSize.sm, color: fg),
+                const SizedBox(width: FwSpacing.xs),
+                Text(label, style: context.type.caption.copyWith(color: fg)),
+              ],
+            ),
+          _ => Text(label, style: context.type.caption.copyWith(color: fg)),
+        },
       ),
     );
 

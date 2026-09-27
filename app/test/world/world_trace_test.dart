@@ -284,10 +284,11 @@ void main() {
       'op': 5,
     });
     expect(traced(), {
+      // The action's request, with what the server did within it beneath.
       'world.1 action "Mia orders a flat white"': [
-        '+5 ms  lab  knows someone as u9',
-        '+6 ms  lab  wrote orders/o7 (insert)',
-        '+8 ms  lab  POST /orders  201',
+        '+5 ms  lab  POST /orders  201',
+        '  +5 ms  knows someone as u9',
+        '  +6 ms  wrote orders/o7 (insert)',
         '+30 ms  Cleo  orders/o7 arrived (op 5)',
       ],
     });
@@ -337,7 +338,7 @@ void main() {
     test('each beat names the part it touched, and the ones that crossed '
         'between a phone and the system say so', () {
       advance();
-      var beats = trace.steps().single.beats;
+      var beats = everyBeat(trace.steps().single.beats);
       expect(
         [
           for (var beat in beats)
@@ -387,7 +388,7 @@ void main() {
         'change': 'synced',
         'op': 16,
       });
-      var beats = trace.steps().single.beats;
+      var beats = everyBeat(trace.steps().single.beats);
       expect(
         [for (var beat in beats) (beat.person, beat.node, beat.inbound)],
         [
@@ -454,6 +455,47 @@ void main() {
         ('/me', '401', null, null),
         ('/me', '200', 'Cleo', null),
       ]);
+    });
+
+    test('a record is its table and its key: a side table sharing its '
+        "parent's id stays apart, a table only the phone has joins by key", () {
+      lab(10, 'write', {'table': 'cases', 'key': 'c1', 'op': 'insert'});
+      lab(11, 'write', {'table': 'case_details', 'key': 'c1', 'op': 'insert'});
+      lab(12, 'write', {'table': 'users', 'key': 'u1', 'op': 'insert'});
+      for (var (ms, table) in [(20, 'cases'), (21, 'case_details')]) {
+        app('Ben', ms, 'db:main/records', {
+          'key': 'c1',
+          'table': table,
+          'change': 'synced',
+          'op': ms,
+          if (table == 'case_details') 'bucket': 'case["c1"]',
+          if (table == 'case_details') 'newBucket': true,
+        });
+      }
+      app('Ben', 30, 'db:main/records', {
+        'key': 'u1',
+        'table': 'user_profiles',
+        'change': 'synced',
+        'op': 3,
+      });
+      List<String> life(String node) => [
+        for (var moment in trace.contentsOf(node)!.items.single.life)
+          [moment.title, ?moment.detail].join(' · '),
+      ];
+      expect(life('lab/table/cases'), [
+        'lab wrote it · insert',
+        "arrived on Ben's phone · op 20",
+      ]);
+      expect(life('lab/table/case_details'), [
+        'lab wrote it · insert',
+        "arrived on Ben's phone · op 21 · in case[\"c1\"], new to this phone",
+      ]);
+      // The phone's `user_profiles` is the server's `users`.
+      expect(life('lab/table/users'), [
+        'lab wrote it · insert',
+        "arrived on Ben's phone · op 3",
+      ]);
+      expect(trace.contentsOf(syncNode)!.items, hasLength(3));
     });
 
     test('a table holds each record once, with its life: every write the '
@@ -755,7 +797,8 @@ void main() {
         ('identity', 'leo.1', true, '48213'),
       );
       expect((welcome.step, welcome.byTime), (null, false));
-      expect(code.id, startsWith('lab/'));
+      // By the service that sent it, and the process that reported it.
+      expect(code.id, matches(r'^identity/lab-\d+$'));
       expect(trace.messageById(code.id)?.text, 'Your sign-up code');
       expect(traced()['leo.1 tap "Sign up"'], [
         '+10 ms  Leo → localhost:8080  POST /signup',
@@ -836,7 +879,7 @@ void main() {
       );
       expect(
         result.steps.single.then[1],
-        '    0.5 ms  SELECT * FROM menu  1 row',
+        '      0.5 ms  SELECT * FROM menu  1 row',
       );
     });
 
@@ -846,6 +889,100 @@ void main() {
       var server = trace.servers.single;
       expect(server.tables.keys, ['orders', 'jobs']);
       expect(server.layers, {'jobs': 'jobs'});
+    });
+  });
+
+  group('work handed off', () {
+    test('a request or a job heads what it did: its statements and layered '
+        'writes counted, its writes and messages beneath, a record updated '
+        'in a row one line', () {
+      trace.addActionStep(
+        'world.1',
+        'Upload',
+        since.add(const Duration(seconds: 1)),
+      );
+      Map<String, Object?> by(Map<String, Object?> payload) => {
+        ...payload,
+        'step': 'world.1',
+      };
+      // The action's own request, which no app recorded.
+      lab(1002, 'sql', by({'query': 'INSERT INTO uploads', 'ms': 1.0}), 'r1');
+      lab(
+        1003,
+        'write',
+        by({'table': 'uploads', 'key': 'u1', 'op': 'insert'}),
+        'r1',
+      );
+      lab(
+        1004,
+        'http',
+        by({'method': 'POST', 'path': '/uploads', 'status': 201, 'ms': 3}),
+        'r1',
+      );
+      // The job the upload queued, run later under the same step.
+      lab(1100, 'job', by({'name': 'thumbnail', 'queue': 'jobs'}), 'job-1');
+      lab(
+        1110,
+        'write',
+        by({
+          'table': 'jobs',
+          'key': 'j1',
+          'op': 'update',
+          'status': 'running',
+          'layer': 'jobs',
+        }),
+        'job-1',
+      );
+      lab(1120, 'sql', by({'query': 'SELECT 1', 'ms': 0.5}), 'job-1');
+      for (var (ms, status) in [
+        (1150, 'queued'),
+        (1200, 'building'),
+        (1250, 'ready'),
+      ]) {
+        lab(
+          ms,
+          'write',
+          by({
+            'table': 'uploads',
+            'key': 'u1',
+            'op': 'update',
+            'status': status,
+          }),
+          'job-1',
+        );
+      }
+      lab(
+        1260,
+        'push',
+        by({'to': 'u1', 'title': 'Mia', 'body': 'Your upload is ready'}),
+        'job-1',
+      );
+      lab(
+        1300,
+        'job',
+        by({'name': 'thumbnail', 'queue': 'jobs', 'ms': 200.0}),
+        'job-1',
+      );
+      // Statements run under no request, in two bursts far apart.
+      lab(2000, 'sql', by({'query': 'DELETE FROM leases', 'ms': 1.0}));
+      lab(2100, 'sql', by({'query': 'DELETE FROM leases', 'ms': 1.0}));
+      lab(9000, 'sql', by({'query': 'VACUUM', 'ms': 2.0}));
+
+      expect(traced(person: worldActionsOwner)['world.1 action "Upload"'], [
+        '+1 ms  lab  POST /uploads  201 in 3.0 ms, 1 statement, 1.0 ms',
+        '  +3 ms  wrote uploads/u1 (insert)',
+        [
+          '+100 ms  lab  job thumbnail on jobs',
+          'done in 200 ms',
+          '1 statement',
+          '0.5 ms',
+          '1 write in jobs',
+        ].join(', '),
+        '  +150 ms  updated uploads/u1 ×3 · status queued → building → ready',
+        '  +260 ms  → Cleo by push  Mia — Your upload is ready',
+        '+1000 ms  lab  2 statements, 2.0 ms',
+        '+8000 ms  lab  1 statement, 2.0 ms',
+      ]);
     });
   });
 

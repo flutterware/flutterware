@@ -107,17 +107,63 @@ cd server && dart run tool/worlds/pickup_order.dart 'Leo=signed in'
 
 In the studio, **Worlds** lists the worlds you declared. **Open** runs the
 script and starts every person's app, side by side, with the world's knobs
-as pickers and its actions as buttons. **Restart** runs the script again for
-new people and starts each app afresh, in an emptied home, so nothing of the
-last people opens as the new ones; it takes about a second and rebuilds
+as pickers and its actions as buttons. **Reload** brings the world to the
+code on disk with the same people: the script's process is hot-reloaded —
+the server it hosts, what its actions call — and every app is reloaded as
+Run reloads one, in well under a second. **Restart** runs the script again
+for new people and starts each app afresh, in an emptied home, so nothing of
+the last people opens as the new ones; it takes about a second and rebuilds
 nothing. **Close** stops everything.
+
+A reload keeps everything the world holds: the people, their sessions, the
+server's data. Its limits are the Dart VM's. The script's body does not run
+again, so a person, an action or a knob you add waits for a restart. And a
+closure made before the reload keeps its old body, so an edit *inside* the
+closure you hand `w.action` waits too, while an edit to anything it calls
+does not. Keep an action you are working on a line that calls a function:
+
+```dart
+w.action('Mia orders a flat white', (run) => miaOrders(server, run));
+```
+
+A server the world hosts takes the same care. Its route handlers are
+closures made when its router was built, so they would keep their old
+bodies, and a route you add would never exist. Rebuild it in
+`FlutterwareServer.onReassemble`, which the world calls after every reload,
+once the new code is in (see [the shelf adapter](server_inspection.md)):
+
+```dart
+FlutterwareServer.onReassemble(() {
+  unawaited(app.dispose());
+  app = App(database);
+});
+```
+
+For a server whose handler is all it rebuilds,
+`FlutterwareServer.reloadable(() => routes(store))` does the same in one
+line.
+
+Source that does not compile is refused with the compiler's message, and
+the world runs on as it was.
 
 From the command line, the world lives as long as the command does:
 
 ```shell
 fw run worlds list
 fw run worlds open --world=pickup_order --hold=true   # Ctrl-C closes it
+fw run worlds reload
 ```
+
+An open world is three columns. On the left, everything it holds: its
+people, each server with every route, table and message channel it has
+used, and the messages sent. In the middle, the stage: the people's apps,
+live, above a band that shows each server by its counts and the parts the
+chosen step touched — or, switched to **Sequence**, a lane for each person
+and each server with what crossed between them, step by step. On the
+right, the timeline: every step and every message, newest first, a step
+opening where it is on what it caused. Whatever you choose — a person, a
+part, a message — opens in one sheet over the timeline; Esc closes it. The
+world's log folds into the timeline's foot.
 
 Each person's app is a Run app on the device `studio-<name>`: an agent opens a
 world with `flutterware_invoke` and drives Leo's app with `flutterware_act`
@@ -125,15 +171,17 @@ and `device: "studio-leo"`, with the same verbs as any other app.
 
 A world belongs to the process that opened it (the studio, `fw` or the MCP
 server), and a checkout has one world open at a time. Every other process can
-still reach it: `fw run worlds status`, `trace`, `invoke`, `restart` and
-`close` are answered by the process that owns it, so an agent can run an
+still reach it: `fw run worlds status`, `trace`, `invoke`, `reload`,
+`restart` and `close` are answered by the process that owns it, so an agent can run an
 action on the world you opened in the studio, or close one it left held in a
 terminal.
 
 ## See what a tap caused
 
 Every tap on a person's app, yours or an agent's, is a **step**, named after
-its person: `leo.2`. The world follows each one through the system:
+its person: `leo.2`. So is the app starting, `leo.0`, which takes what the
+app sends before anyone touches it — its config, the user it resumes, its
+sync streams. The world follows each step through the system:
 
 ```shell
 fw run worlds trace --person=Leo
@@ -176,30 +224,41 @@ something down a connection, such as a WebSocket frame.
 **Work handed off keeps its step when you carry it.** A zone ends where its
 request does, so a job queued for later, or an upload whose storage calls
 the server back, starts on no step. Keep `FlutterwareServer.step` with the
-work, a column on the job's row or the object's metadata, and run it under
-`FlutterwareServer.inStep`:
+work — a column on the job's row, the object's metadata, or a map in memory
+by the row's key when the queue and its worker share a process — and run
+the work through `FlutterwareServer.job`:
 
 ```dart
 // Where the request queues it:
 await jobs.insert(kind: 'thumbnail', file: id, step: FlutterwareServer.step);
 
 // Where a worker runs it, later:
-await FlutterwareServer.inStep(job.step, () => makeThumbnail(job.file));
+await FlutterwareServer.job('thumbnail', () => makeThumbnail(job.file),
+    step: job.step, id: job.id, queue: 'jobs');
 ```
 
-What the job writes and sends then joins the tap that queued it, however
-long after.
+The job runs under the step that queued it and as a request of its own, and
+says when it started and ended, so the trace heads what it did with one
+line, however long after: `job thumbnail on jobs, done in 1.2 s`. For work
+that is not a job — a storage notification — `FlutterwareServer.inStep(step,
+body)` re-enters the step alone.
 
-**Statements fold into their request.** A request's line says how many SQL
-statements it ran and how long they took together,
-`POST /orders  201 in 9 ms, 12 statements, 6.1 ms`, and its writes are lines
-of their own. `fw run worlds trace --statements=true` lists each statement
-under its request, and the canvas opens them from the request's line.
+**A step reads as a tree.** Each request and each job is a line, and what it
+did sits beneath it: the records it wrote, with what changed
+(`wrote orders/o7 (update · status ready)`), the messages it sent and whom
+it reached. A record updated several times in a row is one line,
+`updated uploads/u1 ×16 · status queued → … → ready`. What a line only
+counts folds into it: the SQL statements it ran and how long they took
+together, `POST /orders  201 in 9 ms, 12 statements, 6.1 ms`, and its
+writes to a table in a layer. `fw run worlds trace --statements=true` lists
+them beneath the line, and the canvas opens them from it. Statements run
+under no request fold into one line for each burst of them.
 
 **A table can sit in a layer of its own.** A `write` event with a `layer`,
 `FlutterwareServer.event('write', {'table': 'jobs', 'key': id, 'layer': 'jobs'})`,
 files the table under that name on the canvas, beneath the records people
-act on. Job queues and outboxes belong there.
+act on, and counts its writes on the line of the request or job that made
+them rather than listing each. Job queues and outboxes belong there.
 
 **A server the script hosts is named after the script**, because it reports
 from the script's own process. Call `FlutterwareServer.configure(name: 'api')`
@@ -219,10 +278,10 @@ arrives, and each person's sync state shows beside their phone and in
 ## Hand a message to a person
 
 What a server sends outside — an SMS, a push, a mail — reaches its person
-through the world. Each person's drawer opens on the messages sent to them:
-**Type it** puts a code into the field that has focus in their app, as an
-autofill would, and **Open** or **Tap it** opens a message's link in their
-app. Tap the field the code goes in first.
+through the world. Each message is a row of the timeline, beside the steps,
+and of its person's sheet: **Type it** puts a code into the field that has
+focus in their app, as an autofill would, and **Open** or **Tap it** opens a
+message's link in their app. Tap the field the code goes in first.
 
 ```shell
 fw run worlds outbox --person=Leo
@@ -255,6 +314,15 @@ recipient's app declares: its URL schemes and associated domains on iOS and
 macOS, its `VIEW` intent filters on Android. Failing those, the first link
 on a scheme of an app's own, then the first link. A mail that lists two
 store badges before its invitation hands over the invitation.
+
+**A service in your stack that sends its own mail**, and is not Dart, gets
+an inbox from the world script: `var mail = await w.smtp('identity')`, then
+point the service's SMTP settings at `mail.port`. Each mail is decoded and
+reported as that service's, and `relay:` hands it on unchanged to the
+stack's own catcher. A service on this machine sends to `localhost`; one in
+a container reaches the machine as `host.docker.internal` with Docker
+Desktop, and on Linux at the bridge's address, where the inbox must listen
+beyond loopback: `w.smtp('identity', address: InternetAddress.anyIPv4)`.
 
 **A message another service sent** is drawn as that service's, not the
 reporting server's, when its event says so: `'from': 'identity'`. A service

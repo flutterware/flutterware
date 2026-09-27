@@ -55,9 +55,10 @@ Future<LabServer> startServer({
     orders: orders ?? MemoryOrders(),
     sync: sync,
   );
-  var handler = const Pipeline()
-      .addMiddleware(_inspect())
-      .addHandler(shop.handle);
+  // Built again after every hot reload — its middleware and its routes — so
+  // an edit to either reaches a world that hosts this server, on Reload. The
+  // shop, with its users and orders, is what it is built over, and stays.
+  var handler = FlutterwareServer.reloadable(() => _handler(shop));
   var http = await shelf_io.serve(handler, InternetAddress.loopbackIPv4, port);
   var server = LabServer._(http);
   _log.info('listening on ${server.url}');
@@ -381,13 +382,21 @@ Response _error(int status, String message) => Response(
   headers: {'content-type': 'application/json'},
 );
 
+/// Everything the server answers with, over [shop]'s state: made in a named
+/// function, so a reload builds it from the new code.
+Handler _handler(_Shop shop) =>
+    const Pipeline().addMiddleware(_inspect()).addHandler(shop.handle);
+
+/// Numbers requests across rebuilds of the handler: a reload that started it
+/// again at 1 would give two requests one id.
+var _nextRequest = 1;
+
 /// Reports each request to the Server panel. A trimmed copy of the adapter in
 /// `fixtures/probe_app/bin/example_server.dart`, which says what the full one
 /// adds.
 Middleware _inspect() {
-  var next = 1;
   return (inner) => (request) {
-    var id = 'req-${next++}';
+    var id = 'req-${_nextRequest++}';
     return runZoned(
       () async {
         var watch = Stopwatch()..start();

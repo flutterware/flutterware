@@ -2855,7 +2855,7 @@ note: String?
 | `person` | string | no | — | Only this person's steps; `world` for the world's own actions |
 | `step` | string | no | — | Only this step, by its name: `ben.3` |
 | `limit` | integer | no | — | How many of the newest steps, 10 by default |
-| `statements` | boolean | no | false | Each SQL statement under the request that ran it. Without it a request says how many it ran and how long they took. |
+| `statements` | boolean | no | false | What each line counts, beneath it: the SQL statements a request or a job ran, its writes to a table in a layer, each of a record's updates in a row. Without it a line says how many. |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `outbox` — Outbox
@@ -2950,6 +2950,25 @@ note: String?
 |---|---|---|---|---|
 | `part` | string | no | — | As the canvas shows it: a route (`POST /orders`), a table (`orders`), `sms` or `push`, or `sync` |
 | `limit` | integer | no | — | How many of the newest, 20 by default |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
+#### `reload` — Reload
+
+Brings the open world to the code on disk without new people: the script's process hot-reloaded — the server it hosts, what its actions call — and every app reloaded, in well under a second. The people, their sessions and the server's data stay. The script's body does not run again: a person, action or knob it now declares, or an edit inside a closure it handed to `w.action`, waits for a restart.
+
+```sh
+fw run worlds reload [--world=…]
+```
+
+Returns `WorldReloadResult`:
+
+```
+ms: int
+apps: List<String>
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `restart` — Restart

@@ -3,8 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 
 // ignore: implementation_imports
+import 'package:flutterware/src/server/inspector.dart' show reassembleExtension;
+// ignore: implementation_imports
 import 'package:flutterware/src/world/protocol.dart';
 import 'package:path/path.dart' as p;
+import 'package:vm_service/vm_service.dart';
+import 'package:vm_service/vm_service_io.dart';
 
 import '../utils/run_dir.dart';
 
@@ -17,10 +21,20 @@ import '../utils/run_dir.dart';
 /// it opened would otherwise restart as the old code, and nothing a script
 /// kept in a global survives into the next opening by accident.
 class WorldScriptProcess {
-  WorldScriptProcess._(this.process, this._socket, this.messages);
+  WorldScriptProcess._(
+    this.process,
+    this._socket,
+    this.messages,
+    this._serviceInfo,
+  );
 
   final Process process;
   final Socket _socket;
+
+  /// Where the script's VM says how to reach its service — what [reload]
+  /// speaks to.
+  final String _serviceInfo;
+  Future<VmService>? _service;
 
   /// Everything the script declares, in order, from `hello` to `closed`.
   final Stream<Map<String, Object?>> messages;
@@ -40,9 +54,10 @@ class WorldScriptProcess {
     void Function(String line)? onOutput,
     Duration connectTimeout = const Duration(minutes: 2),
   }) async {
-    var socketPath = checkSocketPath(
-      p.join(flutterwareRunDir(), 'world-$pid-${_count++}.sock'),
-    );
+    var name = 'world-$pid-${_count++}';
+    var socketPath = checkSocketPath(p.join(flutterwareRunDir(), '$name.sock'));
+    var serviceInfo = p.join(flutterwareRunDir(), '$name.service.json');
+    if (File(serviceInfo).existsSync()) File(serviceInfo).deleteSync();
     if (File(socketPath).existsSync()) File(socketPath).deleteSync();
     var server = await ServerSocket.bind(
       InternetAddress(socketPath, type: InternetAddressType.unix),
@@ -52,7 +67,15 @@ class WorldScriptProcess {
     try {
       process = await Process.start(
         dart,
-        ['run', ...?compiler?.runArguments, file],
+        [
+          'run',
+          ...?compiler?.runArguments,
+          // A service on loopback, for [reload] alone.
+          '--enable-vm-service=0',
+          '--no-dds',
+          '--write-service-info=$serviceInfo',
+          file,
+        ],
         workingDirectory: packageRoot,
         environment: {worldSocketVariable: socketPath},
       );
@@ -89,7 +112,7 @@ class WorldScriptProcess {
         .transform(const LineSplitter())
         .map(decodeWorldMessage)
         .asBroadcastStream();
-    var script = WorldScriptProcess._(process, socket, messages);
+    var script = WorldScriptProcess._(process, socket, messages, serviceInfo);
     script.send(WorldMessage.open, {'knobs': knobs});
     return script;
   }
@@ -102,9 +125,82 @@ class WorldScriptProcess {
     }
   }
 
+  /// Hot-reloads the script from the source on disk, as the VM does: every
+  /// function and method runs its new code from its next call — the server
+  /// the script hosts, what its actions call — while the state it holds
+  /// stays. Its body does not run again, and a closure made before the
+  /// reload keeps its old body; so every `FlutterwareServer.onReassemble`
+  /// callback then runs ([reassembleExtension]), and a server builds its
+  /// router and middleware again from the new code.
+  ///
+  /// Throws a [WorldScriptReloadFailed] with the compiler's words when the
+  /// source does not compile, and the script runs on as it was; or with what
+  /// a reassemble callback threw, once the code is in.
+  Future<void> reload() async {
+    var service = await (_service ??= _connect());
+    var isolates = (await service.getVM()).isolates ?? const <IsolateRef>[];
+    // One reload per isolate group: the isolates of a group share code.
+    var groups = <String>{};
+    for (var isolate in isolates) {
+      if (!groups.add(isolate.isolateGroupId ?? isolate.id!)) continue;
+      ReloadReport report;
+      try {
+        report = await service.reloadSources(isolate.id!);
+      } on RPCError catch (error) {
+        throw WorldScriptReloadFailed(error.details ?? error.message);
+      }
+      if (report.success != true) {
+        var notices = [
+          for (var notice in report.json?['notices'] as List? ?? const [])
+            if (notice case {'message': String message}) message,
+        ];
+        throw WorldScriptReloadFailed(
+          notices.isEmpty ? 'The VM refused the reload.' : notices.join('\n'),
+        );
+      }
+    }
+    for (var ref in isolates) {
+      var isolate = await service.getIsolate(ref.id!);
+      if (!(isolate.extensionRPCs ?? const []).contains(reassembleExtension)) {
+        continue;
+      }
+      try {
+        await service.callServiceExtension(
+          reassembleExtension,
+          isolateId: ref.id,
+        );
+      } on RPCError catch (error) {
+        throw WorldScriptReloadFailed(
+          error.details ?? error.message,
+          reloaded: true,
+        );
+      }
+    }
+  }
+
+  Future<VmService> _connect() async {
+    var info = File(_serviceInfo);
+    for (var waited = 0; !info.existsSync(); waited++) {
+      if (waited == 100) {
+        throw WorldScriptReloadFailed(
+          'The world script has no VM service to reload it through.',
+        );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    var uri = Uri.parse(
+      (jsonDecode(info.readAsStringSync()) as Map)['uri'] as String,
+    );
+    return vmServiceConnectUri(
+      '${uri.replace(scheme: 'ws', path: '${uri.path}ws')}',
+    );
+  }
+
   /// Asks the script to close — its `onClose` callbacks run — and waits for
   /// it to go, killing it if it has not after [timeout].
   Future<void> close({Duration timeout = const Duration(seconds: 15)}) async {
+    _service?.then((service) => service.dispose()).ignore();
+    if (File(_serviceInfo).existsSync()) File(_serviceInfo).deleteSync();
     send(WorldMessage.close);
     await _socket.flush().catchError((Object _) {});
     await process.exitCode.timeout(
@@ -116,6 +212,21 @@ class WorldScriptProcess {
     );
     _socket.destroy();
   }
+}
+
+/// A reload the world script's source did not survive — a compile error —
+/// with what the compiler said.
+class WorldScriptReloadFailed implements Exception {
+  WorldScriptReloadFailed(this.message, {this.reloaded = false});
+
+  final String message;
+
+  /// Whether the code reloaded and a handler then failed to build again,
+  /// rather than the code not compiling.
+  final bool reloaded;
+
+  @override
+  String toString() => message;
 }
 
 /// A world script that ended before it said anything.
@@ -130,8 +241,13 @@ class WorldScriptExited implements Exception {
 
 /// [line] without what `dart run` says about itself, or null when that was
 /// all of it. `Running build hooks...` ends in no newline, so it arrives glued
-/// to the start of the script's own first line, sometimes twice.
+/// to the start of the script's own first line, sometimes twice. The VM's
+/// banner about its service is the world's business, not the script's.
 String? withoutToolNoise(String line) {
+  if (line.startsWith('The Dart VM service is listening on') ||
+      line.startsWith('The Dart DevTools debugger')) {
+    return null;
+  }
   var own = line.replaceFirst(_toolNoise, '');
   return own.isEmpty && own.length != line.length ? null : own;
 }

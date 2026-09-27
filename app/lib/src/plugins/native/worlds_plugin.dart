@@ -237,6 +237,14 @@ class _OpenWorldView extends StatelessWidget {
   final WorldsCore core;
   final OpenWorld world;
 
+  Future<void> _reload() async {
+    try {
+      await world.reload();
+    } on WorldRefusal {
+      // Said in the world's log, where it shows.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var moving = world.phase.isMoving;
@@ -252,6 +260,14 @@ class _OpenWorldView extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              FwActionButton(
+                label: 'Reload',
+                tooltip:
+                    'Bring the script, its server and every app to the code '
+                    'on disk: same people',
+                onPressed: world.phase == WorldPhase.open ? _reload : null,
+              ),
+              const SizedBox(width: FwSpacing.sm),
               FwActionButton(
                 label: 'Restart',
                 tooltip: 'Run the script again: new people, same apps',
@@ -281,7 +297,6 @@ class _OpenWorldView extends StatelessWidget {
               style: context.type.body.copyWith(color: context.colors.red),
             ),
           ),
-        _Log(lines: world.log),
         Expanded(
           child: world.people.isEmpty
               ? const EmptyState(
@@ -305,74 +320,77 @@ class _Controls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (world.knobs.isEmpty && world.actions.isEmpty) {
+    var knobs = [
+      for (var knob in world.knobs.values)
+        if (knob.options.isNotEmpty) knob,
+    ];
+    if (knobs.isEmpty && world.actions.isEmpty) {
       return const SizedBox.shrink();
     }
+    // Two kinds of control, said apart: a knob restarts the world with new
+    // people, an action runs in the world as it is.
+    Widget group(String label, List<Widget> children) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: context.type.fieldLabel),
+        const SizedBox(width: FwSpacing.sm),
+        for (var (i, child) in children.indexed) ...[
+          if (i > 0) const SizedBox(width: FwSpacing.sm),
+          child,
+        ],
+      ],
+    );
     return Wrap(
-      spacing: FwSpacing.lg,
+      spacing: FwSpacing.xl,
       runSpacing: FwSpacing.sm,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        for (var knob in world.knobs.values)
-          if (knob.options.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(knob.name, style: context.type.bodyMuted),
-                const SizedBox(width: FwSpacing.sm),
-                SizedBox(
-                  width: 160,
-                  child: FwPicker<String>(
-                    choices: [
-                      for (var option in knob.options)
-                        FwChoice(value: option, label: option),
-                    ],
-                    selected: knob.value,
-                    onChanged: (value) {
-                      if (!enabled || value == knob.value) return;
-                      unawaited(
-                        world.restart({...world.knobValues, knob.name: value}),
-                      );
-                    },
+        if (knobs.isNotEmpty)
+          group('OPENED WITH', [
+            for (var knob in knobs)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(knob.name, style: context.type.bodyMuted),
+                  const SizedBox(width: FwSpacing.xs),
+                  SizedBox(
+                    width: 150,
+                    child: Tooltip(
+                      message: 'Changing it restarts the world',
+                      child: FwPicker<String>(
+                        choices: [
+                          for (var option in knob.options)
+                            FwChoice(value: option, label: option),
+                        ],
+                        selected: knob.value,
+                        onChanged: (value) {
+                          if (!enabled || value == knob.value) return;
+                          unawaited(
+                            world.restart({
+                              ...world.knobValues,
+                              knob.name: value,
+                            }),
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-        for (var MapEntry(key: action, value: description)
-            in world.actions.entries)
-          // A button fills the width it is given, and a Wrap gives it the
-          // whole row; a Row asks it for its own.
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+                ],
+              ),
+          ]),
+        if (world.actions.isNotEmpty)
+          group('ACTIONS', [
+            for (var MapEntry(key: action, value: description)
+                in world.actions.entries)
               FwActionButton(
                 label: action,
+                icon: Icons.play_arrow_rounded,
+                primary: true,
                 tooltip: description,
                 onPressed: enabled ? () async => world.invoke(action) : null,
               ),
-            ],
-          ),
+          ]),
       ],
-    );
-  }
-}
-
-/// The script's last lines — its progress, and what its server printed.
-class _Log extends StatelessWidget {
-  const _Log({required this.lines});
-
-  final List<String> lines;
-
-  @override
-  Widget build(BuildContext context) {
-    var last = lines.length > 4 ? lines.sublist(lines.length - 4) : lines;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: panelGutter),
-      child: SelectableText(
-        last.join('\n'),
-        maxLines: 4,
-        style: context.type.mono.copyWith(color: context.colors.mut2),
-      ),
     );
   }
 }

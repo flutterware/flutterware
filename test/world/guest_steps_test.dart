@@ -158,14 +158,21 @@ void main() {
       await server.close(force: true);
     });
 
-    test('carry their step in the header, and are reported with it', () async {
+    test('carry their step in the header, and are reported with it; before '
+        'any gesture, the step is the app starting', () async {
       var reported = <Map<String, Object?>>[];
+      var steps = <Map<String, Object?>>[];
       WorldSteps(
         person: 'Ben',
-        report: (channel, payload) {
-          if (channel == worldRequestsChannel) reported.add(payload);
+        report: (channel, payload) => switch (channel) {
+          worldRequestsChannel => reported.add(payload),
+          worldStepsChannel => steps.add(payload),
+          _ => null,
         },
       ).install();
+      expect(steps, [
+        {'step': 'ben.0', 'verb': 'start', 'target': 'the app'},
+      ]);
       var url = Uri.parse('http://127.0.0.1:${server.port}/orders');
 
       Future<void> get() async {
@@ -179,8 +186,14 @@ void main() {
 
       await get();
       await runZoned(get, zoneValues: {worldStepKey: 'ben.4'});
-      expect(headers, [null, 'ben.4']);
+      expect(headers, ['ben.0', 'ben.4']);
       expect(reported, [
+        {
+          'step': 'ben.0',
+          'method': 'GET',
+          'url': '127.0.0.1:${server.port}/orders',
+          'how': 'window',
+        },
         {
           'step': 'ben.4',
           'method': 'GET',

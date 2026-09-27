@@ -216,6 +216,11 @@ class DatabasePanelSource implements DevbarPanelSource {
   var _lastCrud = 0;
   final _seenOps = <String, int>{};
   var _recordsRead = false;
+
+  /// Every bucket a record has arrived in: one that is not is new to this
+  /// phone — a stream it has just subscribed to — which is why a record
+  /// written long ago can arrive now.
+  final _buckets = <String>{};
   Future<void>? _reading;
   var _readAgain = false;
 
@@ -515,9 +520,12 @@ class DatabasePanelSource implements DevbarPanelSource {
     var first = !_recordsRead;
     _recordsRead = true;
     var arrived = 0;
+    var known = {..._buckets};
     for (var row in applied) {
       var key = '${row['t']}/${row['k']}';
       var op = row['op']! as int;
+      var bucket = row['bucket'] as String?;
+      if (bucket != null) _buckets.add(bucket);
       if ((_seenOps[key] ?? -1) >= op) continue;
       _seenOps[key] = op;
       arrived++;
@@ -528,7 +536,8 @@ class DatabasePanelSource implements DevbarPanelSource {
         'table': row['t'],
         'change': 'synced',
         'op': op,
-        'bucket': ?row['bucket'],
+        'bucket': ?bucket,
+        if (bucket != null && !known.contains(bucket)) 'newBucket': true,
       });
     }
     if (first && arrived > 0) {

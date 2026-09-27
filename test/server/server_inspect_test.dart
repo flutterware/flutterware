@@ -430,6 +430,83 @@ void main() {
       expect(events.map((e) => e.payload['step']), ['ana.3', null]);
     });
 
+    test('a job runs under the step that queued it, as a request of its '
+        'own, and says when it started and ended', () async {
+      var result = await FlutterwareServer.job(
+        'thumbnail',
+        () async {
+          FlutterwareServer.event('write', {'table': 'files', 'key': 'f1'});
+          return 'done';
+        },
+        step: 'ana.3',
+        id: 54,
+        queue: 'jobs',
+      );
+      expect(result, 'done');
+      await expectLater(
+        FlutterwareServer.job('resize', () => throw StateError('no file')),
+        throwsStateError,
+      );
+
+      var events = await replayed();
+      var [started, write, ended, failedStart, failed] = events;
+      expect(started.payload, {
+        'name': 'thumbnail',
+        'id': '54',
+        'queue': 'jobs',
+        'step': 'ana.3',
+      });
+      expect((write.rid, write.payload['step']), (started.rid, 'ana.3'));
+      expect(ended.rid, started.rid);
+      expect(ended.payload['ms'], isA<double>());
+      // A second job is a request of its own, and says what it threw.
+      expect(failed.rid, allOf(failedStart.rid, isNot(started.rid)));
+      expect(failed.payload['error'], contains('no file'));
+    });
+
+    test(
+      'a reloadable handler is built again on reassemble, from the code '
+      'it has then; a build that throws leaves the last one serving',
+      () async {
+        // A reload changes the code; the test changes what the build reads.
+        var version = 1;
+        var builds = 0;
+        String Function(String) routes() {
+          builds++;
+          var built = version;
+          if (built == 3) throw StateError('routes do not build');
+          return (path) => '$path v$built';
+        }
+
+        var handler = FlutterwareServer.reloadable(routes);
+        expect(handler('/health'), '/health v1');
+        version = 2;
+        expect(await FlutterwareServer.reassemble(), isEmpty);
+        expect(handler('/health'), '/health v2');
+        version = 3;
+        expect(
+          (await FlutterwareServer.reassemble()).single,
+          isA<StateError>(),
+        );
+        expect(handler('/health'), '/health v2');
+        expect(builds, 3);
+      },
+    );
+
+    test('onReassemble runs each callback in turn, awaited, after one that '
+        'throws too', () async {
+      var ran = <String>[];
+      FlutterwareServer.onReassemble(() async {
+        await Future<void>.delayed(Duration.zero);
+        ran.add('dispose the old app, build the new one');
+      });
+      FlutterwareServer.onReassemble(() => throw StateError('bad routes'));
+      FlutterwareServer.onReassemble(() => ran.add('after'));
+      var errors = await FlutterwareServer.reassemble();
+      expect(ran, ['dispose the old app, build the new one', 'after']);
+      expect(errors.whereType<StateError>(), hasLength(1));
+    });
+
     test('a failing span reports the error and rethrows', () async {
       await expectLater(
         () => FlutterwareServer.spanSync('sql', {'query': 'boom'}, () {

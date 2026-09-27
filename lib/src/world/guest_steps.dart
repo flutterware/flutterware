@@ -27,6 +27,7 @@ class WorldSteps {
   WorldSteps({
     required String person,
     this.window = const Duration(milliseconds: 1500),
+    this.startWindow = const Duration(seconds: 10),
     void Function(String channel, Map<String, Object?> payload)? report,
   }) : _prefix = worldStepPrefix(person),
        _report = report ?? _toChannels;
@@ -35,16 +36,31 @@ class WorldSteps {
   /// belongs to it.
   final Duration window;
 
+  /// How long after [install] a request with no step belongs to the app's
+  /// start, `ana.0`, while nobody has touched the app yet.
+  final Duration startWindow;
+
   final String _prefix;
   final void Function(String channel, Map<String, Object?> payload) _report;
   var _count = 0;
   _Gesture? _gesture;
   String? _last;
   DateTime? _lastAt;
+  DateTime? _started;
 
-  /// Stamps every request the app opens from now on.
-  void install() =>
-      HttpOverrides.global = StepStamping(stepFor, onStamped: _stamped);
+  /// Stamps every request the app opens from now on, and opens the app's
+  /// start as its first step, `ana.0`: what it sends before anyone touches
+  /// it — its config, the user it resumes, its sync streams — belongs to
+  /// that step, for [startWindow] or until the first gesture.
+  void install() {
+    HttpOverrides.global = StepStamping(stepFor, onStamped: _stamped);
+    _started = DateTime.now();
+    _report(worldStepsChannel, {
+      'step': '$_prefix.0',
+      'verb': 'start',
+      'target': 'the app',
+    });
+  }
 
   /// Dispatches [event] through [next] — the binding's own
   /// `handlePointerEvent` — inside its gesture's step.
@@ -113,6 +129,11 @@ class WorldSteps {
     var at = _lastAt;
     if (_last case var step? when at != null) {
       if (DateTime.now().difference(at) < window) return (step, 'window');
+      return null;
+    }
+    if (_started case var started?
+        when DateTime.now().difference(started) < startWindow) {
+      return ('$_prefix.0', 'window');
     }
     return null;
   }
