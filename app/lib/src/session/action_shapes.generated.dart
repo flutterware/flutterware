@@ -7085,6 +7085,18 @@ final resultShapes = <String, ResultShape>{
         'type': 'String',
         'doc': 'The code typed, or the link opened.',
       },
+      <String, Object?>{
+        'name': 'step',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The step it was on the person\'s app: `leo.13`.',
+      },
+      <String, Object?>{
+        'name': 'caused',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'What that step caused in the moments after, as `worlds trace` says it; empty when the app did nothing with it — a link it ignored.',
+      },
     ],
   }),
   'WorldListResult': ResultShape.fromJson(<String, Object?>{
@@ -7105,7 +7117,7 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{
         'name': 'messages',
         'type': 'List<Map<String, Object?>>',
-        'doc': '`{id, at, kind, to, person?, text, code?, link?, links?, html?, step?}` — `id` is what `worlds deliver` and `worlds show` take; `html: true` says `worlds show` draws it as its recipient would see it.',
+        'doc': '`{id, at, kind, from?, to, person?, text, subtitle?, code?, link?, links?, html?, step?, joined?}` — `joined: time` when the step was joined by time, for a service that carries none; `id` is what `worlds deliver` and `worlds show` take; `html: true` says `worlds show` draws it as its recipient would see it.',
       },
       <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
     ],

@@ -184,6 +184,16 @@ class WorldsCore extends PluginCore {
           required: false,
           description: 'How many of the newest steps, 10 by default',
         ),
+        ActionParameter(
+          'statements',
+          'Statements',
+          kind: ActionParameterKind.boolean,
+          required: false,
+          defaultValue: 'false',
+          description:
+              'Each SQL statement under the request that ran it. Without '
+              'it a request says how many it ran and how long they took.',
+        ),
         _worldParameter,
       ],
     ),
@@ -221,7 +231,9 @@ class WorldsCore extends PluginCore {
           "Hands a message to its recipient's app as a person would take it: "
           'its code typed into the field that has focus, the way an autofill '
           'offers one, or its link opened where the OS would deliver it. '
-          'Focus the field first — tap it — for a code.',
+          'Focus the field first — tap it — for a code. Each delivery is a '
+          "step on the person's app, and the answer is what it caused in the "
+          'moments after: nothing, for a link the app ignored.',
       parameters: [
         ActionParameter(
           'message',
@@ -301,8 +313,10 @@ class WorldsCore extends PluginCore {
       returns: WorldStateResult,
       description:
           'Runs the script again — its `onClose` first — so the people are '
-          'new, and restarts each app in place with the knobs the script now '
-          "gives it. Nothing rebuilds. The script's own edits apply too.",
+          'new, and starts each app afresh with the knobs the script now '
+          'gives it: a new process over the program already compiled, in an '
+          'emptied home, so nothing of the last people opens as them. The '
+          "script's own edits apply too.",
       parameters: [_knobsParameter, _worldParameter],
     ),
     const PluginAction(
@@ -440,13 +454,7 @@ class WorldsCore extends PluginCore {
     'trace' => _traceAction(arguments),
     'contents' => _contentsAction(arguments),
     'outbox' => _outboxAction(arguments),
-    'deliver' => WorldDeliveryResult.of(
-      await _required.deliver(
-        '${arguments['message']}',
-        how: arguments['how'] as String?,
-        link: arguments['link'] as String?,
-      ),
-    ),
+    'deliver' => await _deliverAction(arguments),
     'show' => await _showAction(arguments),
     'restart' => await _restartAction(
       arguments['knobs'] == null
@@ -687,11 +695,31 @@ class WorldsCore extends PluginCore {
         const [];
     return WorldTraceResult.of(
       traced,
+      statements: arguments['statements'] == true,
       note: traced.isEmpty
           ? 'No step yet: a step is a tap on one of the apps, by a person or '
                 'through `flutterware_act`.'
           : null,
     );
+  }
+
+  /// A delivery, answered with what its step caused: the app's answer to a
+  /// link comes through its own stream, so it is given the step's window
+  /// to act before the trace is read.
+  Future<WorldDeliveryResult> _deliverAction(
+    Map<String, Object?> arguments,
+  ) async {
+    var open = _required;
+    var delivery = await open.deliver(
+      '${arguments['message']}',
+      how: arguments['how'] as String?,
+      link: arguments['link'] as String?,
+    );
+    var step = delivery.step;
+    if (step == null) return WorldDeliveryResult.of(delivery);
+    await Future<void>.delayed(deliveryWindow);
+    var traced = open.tracer?.trace.steps(step: step, limit: 1);
+    return WorldDeliveryResult.of(delivery, caused: traced?.firstOrNull);
   }
 
   WorldOutboxResult _outboxAction(Map<String, Object?> arguments) {

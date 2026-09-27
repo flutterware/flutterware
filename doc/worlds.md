@@ -173,6 +173,38 @@ the request is, so the world can tell whose a user is even when they signed
 up themselves, and `FlutterwareServer.reach(userId, what)` when it pushes
 something down a connection, such as a WebSocket frame.
 
+**Work handed off keeps its step when you carry it.** A zone ends where its
+request does, so a job queued for later, or an upload whose storage calls
+the server back, starts on no step. Keep `FlutterwareServer.step` with the
+work, a column on the job's row or the object's metadata, and run it under
+`FlutterwareServer.inStep`:
+
+```dart
+// Where the request queues it:
+await jobs.insert(kind: 'thumbnail', file: id, step: FlutterwareServer.step);
+
+// Where a worker runs it, later:
+await FlutterwareServer.inStep(job.step, () => makeThumbnail(job.file));
+```
+
+What the job writes and sends then joins the tap that queued it, however
+long after.
+
+**Statements fold into their request.** A request's line says how many SQL
+statements it ran and how long they took together,
+`POST /orders  201 in 9 ms, 12 statements, 6.1 ms`, and its writes are lines
+of their own. `fw run worlds trace --statements=true` lists each statement
+under its request, and the canvas opens them from the request's line.
+
+**A table can sit in a layer of its own.** A `write` event with a `layer`,
+`FlutterwareServer.event('write', {'table': 'jobs', 'key': id, 'layer': 'jobs'})`,
+files the table under that name on the canvas, beneath the records people
+act on. Job queues and outboxes belong there.
+
+**A server the script hosts is named after the script**, because it reports
+from the script's own process. Call `FlutterwareServer.configure(name: 'api')`
+before its first event to give it its own name.
+
 The world's own actions are steps too, named `world.1`, `world.2`: every
 request an action sends carries its step, so what *Mia orders a flat white*
 caused is traced the same way, and `fw run worlds invoke` answers with the
@@ -202,12 +234,32 @@ adapter for that edge:
 
 ```dart
 FlutterwareServer.event('sms', {'to': phone, 'body': body});
-FlutterwareServer.event('push', {'to': userId, 'title': title, 'link': ?link});
-FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text, 'html': html});
+FlutterwareServer.event('push', {'to': userId, 'title': title, 'body': body, 'link': ?link});
+FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text, 'html': html, 'link': ?link});
 ```
 
 The world finds the person by the phone number, user id or address it was
 declared with, or learnt through `FlutterwareServer.identify`.
+
+**Each delivery is a step** on the person's app, named like a tap:
+`leo.3 typed the code from the SMS`, `leo.4 opened the link from the mail`.
+A typed code runs the field's own callbacks inside it, so what they send
+joins it directly; a link reaches the app through its link listener, so what
+it starts joins by time, within a second and a half. `deliver` waits that
+long and answers with what the step caused: nothing at all, for a link the
+app ignored.
+
+**The link handed over is the one the app takes.** When the adapter names a
+`link`, that one. Otherwise the first link on a scheme or host the
+recipient's app declares: its URL schemes and associated domains on iOS and
+macOS, its `VIEW` intent filters on Android. Failing those, the first link
+on a scheme of an app's own, then the first link. A mail that lists two
+store badges before its invitation hands over the invitation.
+
+**A message another service sent** is drawn as that service's, not the
+reporting server's, when its event says so: `'from': 'identity'`. A service
+that is not Dart carries no step, so what it sent joins the newest step
+heard in the three seconds before it, and says it joined by time.
 
 A mail with `html` is read as its recipient would see it: **Read it** opens
 it as a picture WebKit draws, with each link clickable where it sits, and
@@ -279,6 +331,14 @@ Cameras, maps and web views aren't available.
 In a guest, `dart:io`'s `Platform` says macOS whatever the person's device,
 while `Theme.of(context).platform` follows the device. An app that picks a
 code path with `Platform.isIOS` takes its macOS path in a world.
+
+**Push notifications need a stand-in.** A push plugin has no platform to
+register with in a guest, so the app gets no token and the server pushes to
+nobody. Give the app, in a world, a stand-in behind a knob: it asks for
+permission through `permission_handler` and registers a token of its own
+making. Have your push adapter report a push to such a token, with the link
+tapping it opens, instead of sending it. The push then reaches its person
+through your server's real push path, and **Tap it** opens it in their app.
 
 ## Reference
 

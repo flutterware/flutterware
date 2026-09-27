@@ -121,6 +121,12 @@ Middleware inspect() {
 // var handler = const Pipeline().addMiddleware(inspect()).addHandler(router);
 ```
 
+The step lasts as long as the zone does. Work the request hands off — a job
+a worker runs later, a storage callback — keeps it only if you carry it:
+store `FlutterwareServer.step` with the work and run the work under
+`FlutterwareServer.inStep(step, body)`. The [worlds guide](worlds.md#see-what-a-tap-caused)
+has the pattern.
+
 A hijacked request is reported by nothing here, which is the honest answer:
 the response never existed and the socket's life is no longer the handler's.
 To see that the upgrade happened, report an `event` of your own before the

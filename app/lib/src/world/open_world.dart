@@ -20,6 +20,7 @@ import '../run/handle.dart';
 import '../run/journal.dart';
 import '../session/job.dart';
 import 'app_guest.dart';
+import 'declared_links.dart';
 import 'guest_launcher.dart';
 import 'guest_log.dart';
 import 'guest_process.dart';
@@ -230,7 +231,13 @@ class OpenWorld {
       link = carried.first;
     }
     how ??= link != null || message.code == null ? 'open' : 'type';
+    // What the step is called: `Leo typed the code from the SMS`.
+    var from = switch (message.kind) {
+      'sms' => 'the SMS',
+      var kind => 'the $kind',
+    };
     String what;
+    String? step;
     switch (how) {
       case 'type':
         var code = message.code;
@@ -241,6 +248,7 @@ class OpenWorld {
         try {
           answer = await tracer.ask(name, worldInputChannel, 'type', {
             'text': code,
+            'target': 'the code from $from',
           });
         } on Object catch (error) {
           throw WorldRefusal("$name's app did not take it: $error");
@@ -252,13 +260,30 @@ class OpenWorld {
           );
         }
         what = code;
+        step = answer['step'] as String?;
         _journal(person, 'enterText', actor, '"$code" into the focused field');
       case 'open':
         link ??= message.link;
         if (link == null) {
           throw WorldRefusal('It carries no link: "${message.text}".');
         }
-        if (!(person.platform?.links.open(link) ?? false)) {
+        var links = person.platform?.links;
+        if (links == null || !links.listening) {
+          throw WorldRefusal(
+            "$name's app is not listening for links: it registers no "
+            'handler with app_links, or has not started it yet.',
+          );
+        }
+        // The step first, so what the link starts has one to join.
+        try {
+          var answer = await tracer.ask(name, worldInputChannel, 'open', {
+            'target': 'the link from $from',
+          });
+          step = answer['step'] as String?;
+        } on Object {
+          // A guest built before deliveries were steps: the link still goes.
+        }
+        if (!links.open(link)) {
           throw WorldRefusal(
             "$name's app is not listening for links: it registers no "
             'handler with app_links, or has not started it yet.',
@@ -274,6 +299,7 @@ class OpenWorld {
       person: name,
       how: how,
       what: what,
+      step: step,
     );
   }
 
@@ -325,7 +351,10 @@ class OpenWorld {
     id = null;
     actions.clear();
     this.knobs.clear();
+    // The trace starts afresh, and the people's steps start again at `.1`:
+    // so do the world's own.
     runs.clear();
+    _nextRun = 1;
     var declared = <String>{};
     var settled = _settled = Completer<void>();
     var setUp = false;
@@ -633,6 +662,7 @@ class OpenWorld {
         userId: person.spec.userId,
         phone: person.spec.phone,
         email: person.spec.email,
+        links: build.links,
       ),
     );
   }
@@ -795,6 +825,10 @@ class _Build {
 
   /// The entry point, as the world named it.
   final String label;
+
+  /// The links the app says it opens: what a delivery prefers among a
+  /// message's.
+  late final links = DeclaredLinks.read(app.package);
   late final Future<void> ready;
   final people = <WorldPerson>[];
   var _edits = Future<void>.value();
@@ -961,12 +995,17 @@ class WorldKnob {
 
 /// What [OpenWorld.deliver] did: [what] — the code typed, the link opened —
 /// in [person]'s app.
+/// How long after a delivery what the app does still joins its step: the
+/// guest's window, and a little for the report to arrive.
+const deliveryWindow = Duration(milliseconds: 1700);
+
 class WorldDelivery {
   const WorldDelivery({
     required this.message,
     required this.person,
     required this.how,
     required this.what,
+    this.step,
   });
 
   final String message;
@@ -975,6 +1014,10 @@ class WorldDelivery {
   /// `type` or `open`.
   final String how;
   final String what;
+
+  /// The step it was, on the person's app — `leo.13` — whose trace is what
+  /// it caused; null from a guest built before deliveries were steps.
+  final String? step;
 }
 
 class WorldActionRun {

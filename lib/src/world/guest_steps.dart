@@ -87,6 +87,26 @@ class WorldSteps {
     }
   }
 
+  /// A step the world takes on this person's behalf — a code typed from an
+  /// SMS, a link opened from a mail — named as a tap's is, `ana.4`. [body]
+  /// runs inside it, and what the app starts after it, within [window],
+  /// joins it: a link reaches the app through the plugin's own stream, on
+  /// no step of ours.
+  ///
+  /// [verb] is what it did, `type` or `open`; [target] what to, as the
+  /// trace says it: `the code from SMS`. [body] is given the step's id.
+  T deliver<T>(String verb, String target, T Function(String step) body) {
+    var id = '$_prefix.${++_count}';
+    _report(worldStepsChannel, {'step': id, 'verb': verb, 'target': target});
+    _last = id;
+    _lastAt = DateTime.now();
+    try {
+      return runZoned(() => body(id), zoneValues: {worldStepKey: id});
+    } finally {
+      _lastAt = DateTime.now();
+    }
+  }
+
   /// The step a request opened now belongs to, and how it was found.
   (String step, String how)? stepFor() {
     if (Zone.current[worldStepKey] case String step) return (step, 'zone');

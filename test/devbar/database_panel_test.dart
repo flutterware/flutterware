@@ -160,14 +160,21 @@ void main() {
       await pumpEventQueue();
       oplog = [
         {'t': 'orders', 'k': 'o1', 'op': 3},
-        {'t': 'orders', 'k': 'o2', 'op': 9},
+        {'t': 'orders', 'k': 'o2', 'op': 9, 'bucket': 'shop_orders["main"]'},
       ];
       db.updates.add({'orders'});
       await pumpEventQueue();
 
       expect(ringed('db:main/records').skip(1), [
         {'key': 'o2', 'table': 'orders', 'change': 'local put'},
-        {'key': 'o2', 'table': 'orders', 'change': 'synced', 'op': 9},
+        // The bucket it came in: why a record can arrive after a newer one.
+        {
+          'key': 'o2',
+          'table': 'orders',
+          'change': 'synced',
+          'op': 9,
+          'bucket': 'shop_orders["main"]',
+        },
       ]);
     });
   });

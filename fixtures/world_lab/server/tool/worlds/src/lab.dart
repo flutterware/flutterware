@@ -141,3 +141,55 @@ class _WorldMail implements MailService {
     w.progress('Mail to $to: $subject');
   }
 }
+
+/// What a service that is not Dart does when it mails someone — an identity
+/// provider's sign-up code, a newsletter tool's digest — stood in for by a
+/// few lines of SMTP to the world's inbox ([World.smtp]).
+Future<void> sendNewsletter({required int port, required String to}) async {
+  var socket = await Socket.connect(InternetAddress.loopbackIPv4, port);
+  var replies = StreamIterator(
+    socket
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter()),
+  );
+  Future<void> reply() async {
+    while (await replies.moveNext()) {
+      var line = replies.current;
+      if (line.length < 4 || line[3] == ' ') return;
+    }
+  }
+
+  await reply();
+  for (var command in [
+    'EHLO newsletter.example.com',
+    'MAIL FROM:<news@example.com>',
+    'RCPT TO:<$to>',
+    'DATA',
+  ]) {
+    socket.write('$command\r\n');
+    await reply();
+  }
+  socket.write(
+    [
+      'From: The Lab <news@example.com>',
+      'To: $to',
+      'Subject: This week at the lab',
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      '<html><body style="font-family:-apple-system,sans-serif;margin:24px">',
+      '<h2>This week at the lab</h2>',
+      '<p>A new single origin on the board, and the counter opens at 7.</p>',
+      '<p><a href="https://flutterware.dev">Read it on the web</a> &middot;',
+      '<a href="worldlab://orders">See the board</a></p>',
+      '</body></html>',
+      '.',
+      'QUIT',
+    ].join('\r\n'),
+  );
+  socket.write('\r\n');
+  await reply();
+  await reply();
+  await socket.close();
+}

@@ -51,6 +51,15 @@ void main(List<String> args) => World.run(args, (w) async {
     ),
   );
 
+  // A service in the stack that is not Dart and sends its own mail stands
+  // here as a few lines of SMTP to the world's inbox.
+  var mail = await w.smtp('newsletter');
+  w.action(
+    'The newsletter goes out',
+    (run) => sendNewsletter(port: mail.port, to: 'ana.${w.id}@example.com'),
+    description: 'A service that is not Dart mails Ana, over SMTP',
+  );
+
   w.action('Mia orders a flat white', (run) async {
     var mia = await createUser(server, 'Mia', phone: newPhone());
     run.progress('Mia is ${mia.id}');

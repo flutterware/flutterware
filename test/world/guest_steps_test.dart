@@ -117,6 +117,27 @@ void main() {
         ..dispatch(PointerUpEvent(position: at), (_) {});
       expect(brief.stepFor(), isNull);
     });
+
+    testWidgets('a delivery is the next step: what it runs is in it, and '
+        'what follows joins it', (tester) async {
+      var at = await pumpButton(tester);
+      send(PointerDownEvent(position: at));
+      send(PointerUpEvent(position: at));
+      var typedIn = steps.deliver(
+        'type',
+        'the code from the SMS',
+        (step) => (step, Zone.current[worldStepKey]),
+      );
+      expect(typedIn, ('ben.2', 'ben.2'));
+      expect(reported.last.$2, {
+        'step': 'ben.2',
+        'verb': 'type',
+        'target': 'the code from the SMS',
+      });
+      // A link arrives on the plugin's own stream, outside the step: what it
+      // starts joins the delivery, not the tap before it.
+      expect(steps.stepFor(), ('ben.2', 'window'));
+    });
   });
 
   group('requests', () {

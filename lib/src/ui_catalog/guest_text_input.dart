@@ -103,6 +103,9 @@ class GuestTextInput with TextInputControl {
     TextInput.setInputControl(this);
   }
 
+  /// Whether a field has focus: somewhere [fill] can put what it is given.
+  bool get focused => _client != null;
+
   /// Fills the focused field with [text], as a platform's autofill does — a
   /// one-time code offered from an SMS — replacing what it held. False when
   /// no field has focus: there is nowhere for it to go.

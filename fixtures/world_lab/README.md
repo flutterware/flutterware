@@ -39,7 +39,13 @@ holds, each order with its life from the tap to both phones.
 Leo's sign-up code is in his drawer: tap his code field, then *Type it* — or
 `fw run worlds deliver` with the message's id from `fw run worlds outbox`.
 Each new order mails the staff: Ana's drawer has it, *Read it* shows the mail,
-and its *Open the order* button opens the order in her app.
+and its *Open the order* button opens the order in her app. Each delivery is
+a step of its own, `leo.3 type the code from the SMS`.
+
+*The newsletter goes out* stands in for a service in the stack that is not
+Dart and sends its own mail: a few lines of SMTP to the world's inbox
+(`w.smtp('newsletter')`). Its mail reaches Ana drawn as the newsletter's,
+joined to the action's step by time.
 
 A world script also runs on its own, which is how to debug its setup without
 launching any app: it prints what it declares, and `name=value` arguments are

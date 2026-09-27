@@ -408,6 +408,28 @@ void main() {
       expect(events.single.payload['ms'], greaterThan(1));
     });
 
+    test('work handed off keeps the step it was queued under', () async {
+      // A request queues a job, keeping the step with it; the job runs later,
+      // outside the request's zone, and re-enters the step.
+      String? queued;
+      runZoned(
+        () => queued = FlutterwareServer.step,
+        zoneValues: {FlutterwareServer.stepKey: 'ana.3'},
+      );
+      expect(queued, 'ana.3');
+      expect(FlutterwareServer.step, isNull);
+
+      FlutterwareServer.inStep(queued, () {
+        FlutterwareServer.event('write', {'table': 'jobs', 'key': 'j1'});
+      });
+      FlutterwareServer.inStep(null, () {
+        FlutterwareServer.event('write', {'table': 'jobs', 'key': 'j2'});
+      });
+
+      var events = await replayed();
+      expect(events.map((e) => e.payload['step']), ['ana.3', null]);
+    });
+
     test('a failing span reports the error and rethrows', () async {
       await expectLater(
         () => FlutterwareServer.spanSync('sql', {'query': 'boom'}, () {

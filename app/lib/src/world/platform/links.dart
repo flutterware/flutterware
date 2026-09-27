@@ -34,6 +34,9 @@ class GuestLinks {
 
   var _listening = false;
 
+  /// Whether the app listens for links: whether [open] would reach it.
+  bool get listening => _listening;
+
   /// Opens [link] in the running app. Answers false when the app is not
   /// listening for links, so the caller can say so rather than drop it.
   bool open(String link) {
