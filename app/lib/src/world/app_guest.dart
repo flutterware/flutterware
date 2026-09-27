@@ -239,8 +239,9 @@ void main() => GuestLogs.instance.install<Object?>(() {
     ${platform == null ? '' : 'debugDefaultTargetPlatformOverride = TargetPlatform.$platform;'}
     GuestKeyboard.instance.install();
     GuestTextInput.instance.install();
-    // A code the world delivers is typed into the focused field.
-    installWorldInput();
+    // A code the world delivers is typed into the focused field, and each
+    // delivery is a step.
+    installWorldInput(_steps);
     ${[for (var (i, plugin) in plugins.indexed) 'plugin$i.${plugin.type}.registerWith();'].join('\n    ')}
     // Read on every start, so a restart takes the knobs written since.
     var knobs = (jsonDecode(

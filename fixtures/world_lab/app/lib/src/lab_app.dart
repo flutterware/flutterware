@@ -111,9 +111,19 @@ class _HomeState extends State<_Home> {
 
   void _openLink(Uri link) {
     // worldlab://orders/o12 — what the server's push carries.
-    if (link.host == 'orders' && link.pathSegments.isNotEmpty) {
+    if (link.host != 'orders') return;
+    if (link.pathSegments.isNotEmpty) {
       setState(() => _highlight = link.pathSegments.first);
     }
+    // Opened from outside, the board may be behind: fetch it afresh, as a
+    // phone that was asleep would. A synced board is never behind.
+    if (widget.sync || _user == null) return;
+    unawaited(
+      _run(() async {
+        var orders = await _api.orders();
+        if (mounted) setState(() => _orders = orders);
+      }),
+    );
   }
 
   Future<void> _run(Future<void> Function() action) async {

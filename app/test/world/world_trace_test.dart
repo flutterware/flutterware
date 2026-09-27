@@ -4,6 +4,7 @@ import 'package:flutterware/src/server/attach_session.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware_app/src/plugins/native/worlds_results.dart';
+import 'package:flutterware_app/src/world/declared_links.dart';
 import 'package:flutterware_app/src/world/world_canvas.dart'
     show numberNodes, stepTitle;
 import 'package:flutterware_app/src/world/world_trace.dart';
@@ -544,7 +545,12 @@ void main() {
         ('to Ben', 'Your code is 482913', 'Ben', null),
       ]);
       expect(trace.contentsOf('lab/sent/push')!.items.map(row), [
-        ('to Cleo', 'Your flat white is ready', 'Cleo', 'ben.1'),
+        (
+          'to Cleo',
+          'Your flat white is ready — Collect it at the counter.',
+          'Cleo',
+          'ben.1',
+        ),
       ]);
     });
 
@@ -652,6 +658,213 @@ void main() {
         trace.contentsOf('lab/sent/sms')!.items.single.message?.code,
         '955046',
       );
+    });
+
+    test("a push says its body under its title: a sender's name alone says "
+        'nothing', () {
+      step('Cleo', 'cleo.1', 1000, '"Send"');
+      lab(1010, 'push', {
+        'to': 'u1',
+        'title': 'Mia',
+        'body': 'Your order is ready',
+        'step': 'cleo.1',
+      });
+      var push = trace.outbox().single;
+      expect((push.text, push.subtitle), ('Mia', 'Your order is ready'));
+      expect(traced()['cleo.1 tap "Send"'], [
+        '+10 ms  lab → Cleo by push  Mia — Your order is ready',
+      ]);
+      expect(
+        trace.contentsOf('lab/sent/push')!.items.single.detail,
+        'Mia — Your order is ready',
+      );
+    });
+
+    test('hands over the link the app takes, not the first', () {
+      trace
+        ..addPerson(
+          'Leo',
+          email: 'leo@example.com',
+          links: const DeclaredLinks(hosts: {'links.shop.test'}),
+        )
+        ..addPerson('Ana', email: 'ana@example.com');
+      var invite =
+          'Get the app: https://apps.store.test/app/1 '
+          'https://market.store.test/app/1 — then join at '
+          'https://links.shop.test/invite/7';
+      lab(10, 'mail', {
+        'to': 'leo@example.com',
+        'subject': 'Join',
+        'text': invite,
+      });
+      // Nothing declared: a scheme of an app's own is still the app's.
+      lab(20, 'mail', {
+        'to': 'ana@example.com',
+        'subject': 'Join',
+        'text': 'https://apps.store.test/app/1 or shop://invite/7',
+      });
+      // The adapter's own word over both.
+      lab(30, 'mail', {
+        'to': 'leo@example.com',
+        'subject': 'Join',
+        'text': invite,
+        'link': 'https://market.store.test/app/1',
+      });
+      expect(
+        [for (var m in trace.outbox().reversed) m.link],
+        [
+          'https://links.shop.test/invite/7',
+          'shop://invite/7',
+          'https://market.store.test/app/1',
+        ],
+      );
+      expect(trace.outbox().last.links, [
+        'https://links.shop.test/invite/7',
+        'https://apps.store.test/app/1',
+        'https://market.store.test/app/1',
+      ]);
+    });
+
+    test('a message another service sent is drawn as its own, and joins the '
+        'step before it by time', () {
+      trace.addPerson('Leo', email: 'leo@example.com');
+      step('Leo', 'leo.1', 1000, '"Sign up"');
+      app('Leo', 1010, worldRequestsChannel, {
+        'step': 'leo.1',
+        'method': 'POST',
+        'url': 'localhost:8080/signup',
+        'how': 'zone',
+      });
+      // Caught by whatever the stack's mail goes through, and reported by
+      // the world's own process.
+      lab(1600, 'mail', {
+        'to': 'leo@example.com',
+        'subject': 'Your sign-up code',
+        'text': 'Your verification code is 48213.',
+        'from': 'identity',
+      });
+      // Long after any step: nobody's.
+      lab(9000, 'mail', {
+        'to': 'leo@example.com',
+        'subject': 'Welcome',
+        'from': 'identity',
+      });
+      var [welcome, code] = trace.outbox();
+      expect(
+        (code.sender, code.step, code.byTime, code.code),
+        ('identity', 'leo.1', true, '48213'),
+      );
+      expect((welcome.step, welcome.byTime), (null, false));
+      expect(code.id, startsWith('lab/'));
+      expect(trace.messageById(code.id)?.text, 'Your sign-up code');
+      expect(traced()['leo.1 tap "Sign up"'], [
+        '+10 ms  Leo → localhost:8080  POST /signup',
+        '+600 ms  identity → Leo by mail  Your sign-up code, joined by time',
+      ]);
+      expect(
+        {for (var server in trace.servers) server.name: server.sent},
+        {
+          'identity': {'mail': 2},
+        },
+      );
+    });
+  });
+
+  group('statements', () {
+    void request(
+      String person,
+      String step,
+      int ms,
+      String method,
+      String path,
+    ) => app(person, ms, worldRequestsChannel, {
+      'step': step,
+      'method': method,
+      'url': 'localhost:5040$path',
+      'how': 'zone',
+    });
+
+    test('fold into the request that ran them, and a job runs under the '
+        'step it was queued in', () {
+      step('Ben', 'ben.1', 1000, '"Order"');
+      request('Ben', 'ben.1', 1004, 'POST', '/orders');
+      for (var (ms, query, spent) in [
+        (1005, 'SELECT *\n  FROM menu', 0.5),
+        (1006, 'INSERT INTO orders VALUES (?)', 1.0),
+        (1007, 'INSERT INTO jobs VALUES (?)', 1.0),
+      ]) {
+        lab(ms, 'sql', {
+          'query': query,
+          'ms': spent,
+          'rows': 1,
+          'step': 'ben.1',
+        }, 'r1');
+      }
+      lab(1006, 'write', {
+        'table': 'orders',
+        'key': 'o1',
+        'op': 'insert',
+        'step': 'ben.1',
+      });
+      lab(1008, 'http', {
+        'method': 'POST',
+        'path': '/orders',
+        'status': 201,
+        'ms': 4,
+        'step': 'ben.1',
+      }, 'r1');
+      // The job, later and outside any request, re-entered the step.
+      lab(1500, 'sql', {'query': 'UPDATE orders', 'ms': 12, 'step': 'ben.1'});
+      lab(1501, 'cache', {'hit': true, 'key': 'menu', 'step': 'ben.1'});
+
+      expect(traced()['ben.1 tap "Order"'], [
+        '+4 ms  Ben → lab  POST /orders  201 in 4.0 ms, 3 statements, 2.5 ms',
+        '+6 ms  lab  wrote orders/o1 (insert)',
+        '+500 ms  lab  1 statement, 12 ms',
+        // A channel the trace has no words for still says something.
+        '+501 ms  lab  cache  hit true · key menu',
+      ]);
+      var beats = trace.steps(step: 'ben.1').single.beats;
+      expect(beats.first.folded, [
+        '0.5 ms  SELECT * FROM menu  1 row',
+        '1.0 ms  INSERT INTO orders VALUES (?)  1 row',
+        '1.0 ms  INSERT INTO jobs VALUES (?)  1 row',
+      ]);
+      var result = WorldTraceResult.of(
+        trace.steps(step: 'ben.1'),
+        statements: true,
+      );
+      expect(
+        result.steps.single.then[1],
+        '    0.5 ms  SELECT * FROM menu  1 row',
+      );
+    });
+
+    test('a table in a layer of its own is filed under it', () {
+      lab(10, 'write', {'table': 'orders', 'key': 'o1'});
+      lab(20, 'write', {'table': 'jobs', 'key': 'j1', 'layer': 'jobs'});
+      var server = trace.servers.single;
+      expect(server.tables.keys, ['orders', 'jobs']);
+      expect(server.layers, {'jobs': 'jobs'});
+    });
+  });
+
+  group('deliveries', () {
+    test('a delivery is a step of its own, named for what it handed over', () {
+      app('Ben', 1000, worldStepsChannel, {
+        'step': 'ben.2',
+        'verb': 'type',
+        'target': 'the code from the SMS',
+      });
+      app('Ben', 1003, worldRequestsChannel, {
+        'step': 'ben.2',
+        'method': 'POST',
+        'url': 'localhost:5040/verify',
+        'how': 'zone',
+      });
+      var traced = trace.steps(step: 'ben.2').single;
+      expect(stepTitle(traced.step), 'Ben typed the code from the SMS');
+      expect(traced.beats.single.what, 'Ben → localhost:5040  POST /verify');
     });
   });
 

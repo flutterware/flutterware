@@ -6,6 +6,8 @@ import 'dart:math';
 import 'package:meta/meta.dart';
 
 import '../devices.dart';
+import '../server/inspector.dart' show FlutterwareServer;
+import 'mail_inbox.dart';
 import 'protocol.dart';
 import 'step_http.dart';
 import 'step_names.dart';
@@ -261,6 +263,54 @@ final class World {
 
   /// Completes once every person's app is up.
   Future<void> get ready => _ready.future;
+
+  /// A local SMTP server for a service in the stack that sends its own mail
+  /// and is not Dart — an identity provider mailing sign-up codes — so what
+  /// it sends reaches its person like any mail a Dart server reports. Point
+  /// the service's SMTP host at `localhost` and its port at
+  /// [MailInbox.port]; any username and password are accepted, and TLS is
+  /// not offered.
+  ///
+  /// Each mail is reported as sent by [service], which the world draws as a
+  /// node of its own. Such a service carries no step, so a mail joins the
+  /// step heard just before it, and says it joined by time. With [relay],
+  /// every mail also goes on unchanged to the stack's own catcher, which
+  /// keeps showing all it did. Closed with the world.
+  ///
+  /// ```dart
+  /// var mail = await w.smtp('identity', relay: (host: 'localhost', port: 1025));
+  /// await stack.up(env: {'SMTP_PORT': '${mail.port}'});
+  /// ```
+  Future<MailInbox> smtp(
+    String service, {
+    int port = 0,
+    ({String host, int port})? relay,
+  }) async {
+    var inbox = await MailInbox.start(
+      port: port,
+      relay: relay,
+      onMail: (mail) => _reportMail(service, mail),
+      onRelayError: (error) => progress('A mail $service sent: $error'),
+    );
+    onClose(inbox.close);
+    return inbox;
+  }
+
+  /// [mail] as a Dart server's mail adapter would report it, once for each
+  /// person it went to — on no step, whatever zone the inbox was started in:
+  /// the service that sent it had none to give.
+  static void _reportMail(String service, InboxMail mail) => runZoned(() {
+    var to = mail.recipients.isNotEmpty ? mail.recipients : mail.to;
+    for (var recipient in to) {
+      FlutterwareServer.event('mail', {
+        'to': recipient,
+        'subject': ?mail.subject,
+        'text': ?mail.text,
+        'html': ?mail.html,
+        'from': service,
+      });
+    }
+  }, zoneValues: {FlutterwareServer.stepKey: null});
 
   /// A port nothing on this machine is listening on — for a server the world
   /// hosts.

@@ -357,6 +357,7 @@ class DatabasePanelSource implements DevbarPanelSource {
             FieldDescriptor('table', 'Table'),
             FieldDescriptor('change', 'Change'),
             FieldDescriptor('op', 'Operation', kind: FieldKind.number),
+            FieldDescriptor('bucket', 'Bucket'),
           ],
         );
         _recordsSubscription = _coalescedTicks.stream.listen(
@@ -500,9 +501,13 @@ class DatabasePanelSource implements DevbarPanelSource {
       });
     }
     // An operation counts once its checkpoint is applied: before that it is
-    // downloaded, not visible to the app.
+    // downloaded, not visible to the app. The bucket is the one the newest
+    // operation came in — SQLite takes a bare column from the row `max`
+    // chose — and says why a record can arrive after a newer one: its
+    // bucket reached this phone later.
     var applied = await adapter.query(
-      'SELECT o.row_type AS t, o.row_id AS k, max(o.op_id) AS op '
+      'SELECT o.row_type AS t, o.row_id AS k, max(o.op_id) AS op, '
+      'b.name AS bucket '
       'FROM ps_oplog o JOIN ps_buckets b ON b.id = o.bucket '
       'WHERE o.op_id <= b.last_applied_op GROUP BY o.row_type, o.row_id',
       const [],
@@ -523,6 +528,7 @@ class DatabasePanelSource implements DevbarPanelSource {
         'table': row['t'],
         'change': 'synced',
         'op': op,
+        'bucket': ?row['bucket'],
       });
     }
     if (first && arrived > 0) {

@@ -383,8 +383,10 @@ class WorldActionResult implements PluginResult, ReportsFailure {
 class WorldTraceResult implements PluginResult {
   const WorldTraceResult({required this.steps, this.note});
 
+  /// [statements] lists what each request's line only counts.
   factory WorldTraceResult.of(
     List<TracedStep> traced, {
+    bool statements = false,
     String? note,
   }) => WorldTraceResult(
     steps: [
@@ -395,8 +397,11 @@ class WorldTraceResult implements PluginResult {
           at: step.at!,
           did: step.did,
           then: [
-            for (var beat in beats)
+            for (var beat in beats) ...[
               '+${beat.at.difference(step.at!).inMilliseconds} ms  ${beat.what}',
+              if (statements)
+                for (var statement in beat.folded) '    $statement',
+            ],
           ],
         ),
     ],
@@ -499,9 +504,7 @@ class WorldContentsResult implements PluginResult {
     more: contents.earlier + contents.unwritten,
     note: switch (contents.unwritten) {
       0 => null,
-      var n =>
-        '$n more records arrived that no server here reported writing: '
-            'older than the world, or written where no adapter reports.',
+      var n => unwrittenNote(n),
     },
   );
 
@@ -602,14 +605,17 @@ class WorldOutboxResult implements PluginResult {
               'id': message.id,
               'at': message.at.toIso8601String(),
               'kind': message.kind,
+              'from': ?message.sender,
               'to': message.to,
               'person': ?message.person,
               'text': message.text,
+              'subtitle': ?message.subtitle,
               'code': ?message.code,
               'link': ?message.link,
               if (message.links.length > 1) 'links': message.links,
               if (message.html != null) 'html': true,
               'step': ?message.step,
+              if (message.byTime) 'joined': 'time',
             },
         ],
         note: note,
@@ -624,7 +630,9 @@ class WorldOutboxResult implements PluginResult {
         note: json['note'] as String?,
       );
 
-  /// `{id, at, kind, to, person?, text, code?, link?, links?, html?, step?}` —
+  /// `{id, at, kind, from?, to, person?, text, subtitle?, code?, link?,
+  /// links?, html?, step?, joined?}` — `joined: time` when the step was
+  /// joined by time, for a service that carries none;
   /// `id` is what `worlds deliver` and `worlds show` take; `html: true` says
   /// `worlds show` draws it as its recipient would see it.
   final List<Map<String, Object?>> messages;
@@ -641,13 +649,28 @@ class WorldDeliveryResult implements PluginResult {
     required this.person,
     required this.how,
     required this.what,
+    this.step,
+    this.caused,
   });
 
-  factory WorldDeliveryResult.of(WorldDelivery delivery) => WorldDeliveryResult(
+  /// [caused] is the trace of its step, read once the app had the time to
+  /// act on it; a step with no trace caused nothing.
+  factory WorldDeliveryResult.of(
+    WorldDelivery delivery, {
+    TracedStep? caused,
+  }) => WorldDeliveryResult(
     message: delivery.message,
     person: delivery.person,
     how: delivery.how,
     what: delivery.what,
+    step: delivery.step,
+    caused: switch (caused) {
+      (:var step, :var beats) => [
+        for (var beat in beats)
+          '+${beat.at.difference(step.at!).inMilliseconds} ms  ${beat.what}',
+      ],
+      null => delivery.step == null ? null : const [],
+    },
   );
 
   factory WorldDeliveryResult.fromJson(Map<String, Object?> json) =>
@@ -656,6 +679,8 @@ class WorldDeliveryResult implements PluginResult {
         person: json['person']! as String,
         how: json['how']! as String,
         what: json['what']! as String,
+        step: json['step'] as String?,
+        caused: (json['caused'] as List?)?.cast<String>(),
       );
 
   final String message;
@@ -667,12 +692,21 @@ class WorldDeliveryResult implements PluginResult {
   /// The code typed, or the link opened.
   final String what;
 
+  /// The step it was on the person's app: `leo.13`.
+  final String? step;
+
+  /// What that step caused in the moments after, as `worlds trace` says
+  /// it; empty when the app did nothing with it — a link it ignored.
+  final List<String>? caused;
+
   @override
   Map<String, Object?> toJson() => {
     'message': message,
     'person': person,
     'how': how,
     'what': what,
+    'step': ?step,
+    'caused': ?caused,
   };
 }
 

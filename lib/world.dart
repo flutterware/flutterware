@@ -41,5 +41,6 @@
 library;
 
 export 'src/devices.dart' show Device, DeviceKind, DevicePlatform, Devices;
+export 'src/world/mail_inbox.dart' show InboxMail, MailInbox;
 export 'src/world/world.dart'
     show ActionRun, Launch, Person, Studio, World, WorldDevice;

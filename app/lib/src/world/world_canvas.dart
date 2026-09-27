@@ -820,19 +820,27 @@ class _ServerCard extends StatelessWidget {
       for (var MapEntry(key: part, value: n) in server.parts.entries)
         chip(server.partNode(part), _PartLabel(part), '×$n'),
     ];
+    Widget table(String table) {
+      var keys = server.tables[table]!.length;
+      return chip(
+        server.tableNode(table),
+        Text(table, style: context.type.mono),
+        keys == 1 ? '1 record' : '$keys records',
+      );
+    }
+
+    var data = [
+      for (var name in server.tables.keys)
+        if (!server.layers.containsKey(name)) table(name),
+    ];
+    // A table in a layer of its own — a job queue's — sits beneath the
+    // records people act on, under the layer's name.
+    var layered = <String, List<Widget>>{};
+    for (var MapEntry(key: name, value: layer) in server.layers.entries) {
+      layered.putIfAbsent(layer, () => []).add(table(name));
+    }
     var sides = [
-      if (server.tables.isNotEmpty)
-        (
-          'Data',
-          [
-            for (var MapEntry(key: table, value: keys) in server.tables.entries)
-              chip(
-                server.tableNode(table),
-                Text(table, style: context.type.mono),
-                keys.length == 1 ? '1 record' : '${keys.length} records',
-              ),
-          ],
-        ),
+      if (data.isNotEmpty) ('Data', data),
       if (server.sent.isNotEmpty)
         (
           'Outside',
@@ -845,6 +853,8 @@ class _ServerCard extends StatelessWidget {
               ),
           ],
         ),
+      for (var MapEntry(key: layer, value: chips) in layered.entries)
+        ('${layer[0].toUpperCase()}${layer.substring(1)}', chips),
     ];
     return Container(
       padding: const EdgeInsets.all(FwSpacing.sm),
@@ -889,11 +899,15 @@ class _ServerCard extends StatelessWidget {
                   ),
                   const SizedBox(width: FwSpacing.xs),
                   Text(server.name, style: context.type.bodyStrong),
-                  const SizedBox(width: FwSpacing.sm),
-                  Text(
-                    requests == 1 ? '1 request' : '$requests requests',
-                    style: context.type.bodyMuted,
-                  ),
+                  // A service heard only through what it sent — mail an
+                  // identity provider sends — answered nothing here.
+                  if (requests > 0) ...[
+                    const SizedBox(width: FwSpacing.sm),
+                    Text(
+                      requests == 1 ? '1 request' : '$requests requests',
+                      style: context.type.bodyMuted,
+                    ),
+                  ],
                 ],
               ),
               if (beside)
@@ -1421,60 +1435,123 @@ class TraceDetail extends StatelessWidget {
               : ListView(
                   children: [
                     for (var beat in beats)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FwSpacing.lg,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: context.colors.line2),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 60,
-                              child: Text(
-                                '+${beat.at.difference(step.at!).inMilliseconds} ms',
-                                style: context.type.mono.copyWith(
-                                  color: context.colors.mut,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 26,
-                              child: switch (numbers[beat.node]) {
-                                var n? => Align(
-                                  alignment: Alignment.topLeft,
-                                  child: NodeNumber(n, color: color),
-                                ),
-                                null => Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 5,
-                                    left: 5,
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.topLeft,
-                                    child: _Dot(colorOf(beat.person)),
-                                  ),
-                                ),
-                              },
-                            ),
-                            Expanded(
-                              child: SelectableText(
-                                beat.what,
-                                style: context.type.body,
-                              ),
-                            ),
-                          ],
-                        ),
+                      _BeatRow(
+                        beat: beat,
+                        since: step.at!,
+                        number: numbers[beat.node],
+                        color: color,
+                        dot: colorOf(beat.person),
                       ),
                   ],
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// One beat of a step: when, where, what — and, for a request that ran
+/// statements, those statements once it is opened.
+class _BeatRow extends StatefulWidget {
+  const _BeatRow({
+    required this.beat,
+    required this.since,
+    required this.number,
+    required this.color,
+    required this.dot,
+  });
+
+  final TraceBeat beat;
+  final DateTime since;
+
+  /// The node's number on the canvas, when it touched one.
+  final int? number;
+  final Color color;
+
+  /// The person's colour, for a beat on no node.
+  final Color dot;
+
+  @override
+  State<_BeatRow> createState() => _BeatRowState();
+}
+
+class _BeatRowState extends State<_BeatRow> {
+  var _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    var beat = widget.beat;
+    var folded = beat.folded;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: FwSpacing.lg,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: context.colors.line2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(
+              '+${beat.at.difference(widget.since).inMilliseconds} ms',
+              style: context.type.mono.copyWith(color: context.colors.mut),
+            ),
+          ),
+          SizedBox(
+            width: 26,
+            child: switch (widget.number) {
+              var n? => Align(
+                alignment: Alignment.topLeft,
+                child: NodeNumber(n, color: widget.color),
+              ),
+              null => Padding(
+                padding: const EdgeInsets.only(top: 5, left: 5),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: _Dot(widget.dot),
+                ),
+              ),
+            },
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(beat.what, style: context.type.body),
+                if (folded.isNotEmpty)
+                  Tappable(
+                    onTap: () => setState(() => _open = !_open),
+                    feedback: TapFeedback.link,
+                    child: Text(
+                      _open
+                          ? 'Hide the statements'
+                          : folded.length == 1
+                          ? 'Show the statement'
+                          : 'Show the ${folded.length} statements',
+                      style: context.type.caption.copyWith(
+                        color: context.colors.accent,
+                      ),
+                    ),
+                  ),
+                if (_open)
+                  for (var statement in folded)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: SelectableText(
+                        statement,
+                        style: context.type.mono.copyWith(
+                          color: context.colors.ink2,
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1614,10 +1691,7 @@ class NodeContentsView extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.all(FwSpacing.lg),
                         child: Text(
-                          '${n == 1 ? '1 more record' : '$n more records'} '
-                          'arrived that no server here reported writing: '
-                          'older than the world, or written where no '
-                          'adapter reports.',
+                          unwrittenNote(n),
                           style: context.type.bodyMuted,
                         ),
                       ),
@@ -1914,11 +1988,15 @@ class _Message extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SelectableText(message.text, style: context.type.body),
+            if (message.subtitle case var subtitle?)
+              SelectableText(subtitle, style: context.type.body),
             Text(
               [
                 messageKind(message.kind),
+                if (message.sender case var sender?) 'from $sender',
                 clockOf(message.at),
-                ?message.step,
+                if (message.step case var step?)
+                  message.byTime ? '$step, by time' : step,
               ].join(' · '),
               style: context.type.caption,
             ),
@@ -2082,6 +2160,8 @@ String stepTitle(TraceStep step) {
     'tap' => 'tapped',
     'longPress' => 'long-pressed',
     'drag' => 'dragged',
+    'type' => 'typed',
+    'open' => 'opened',
     _ => 'did',
   };
   return '${step.person} $did ${step.target ?? ''}'.trim();

@@ -2840,7 +2840,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 The newest steps taken on the people's apps — each tap, a person's or an agent's — with what each one caused: the requests it sent, what the servers did under them and whom they reached, and where the records it wrote arrived. A server takes part by reading the `x-fw-step` header into `FlutterwareServer.stepKey`; a synced database, by its database panel reading the engine.
 
 ```sh
-fw run worlds trace [--person=…] [--step=…] [--limit=…] [--world=…]
+fw run worlds trace [--person=…] [--step=…] [--limit=…] [--statements=…] [--world=…]
 ```
 
 Returns `WorldTraceResult`:
@@ -2855,6 +2855,7 @@ note: String?
 | `person` | string | no | — | Only this person's steps; `world` for the world's own actions |
 | `step` | string | no | — | Only this step, by its name: `ben.3` |
 | `limit` | integer | no | — | How many of the newest steps, 10 by default |
+| `statements` | boolean | no | false | Each SQL statement under the request that ran it. Without it a request says how many it ran and how long they took. |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `outbox` — Outbox
@@ -2868,7 +2869,7 @@ fw run worlds outbox [--person=…] [--limit=…] [--world=…]
 Returns `WorldOutboxResult`:
 
 ```
-messages: List<Map<String, Object?>>   # `{id, at, kind, to, person?, text, code?, link?, links?, html?, step?}` — `id` is what `worlds deliver` and `worlds show` take; `html: true` says `worlds show` draws it as its recipient would see it.
+messages: List<Map<String, Object?>>   # `{id, at, kind, from?, to, person?, text, subtitle?, code?, link?, links?, html?, step?, joined?}` — `joined: time` when the step was joined by time, for a service that carries none; `id` is what `worlds deliver` and `worlds show` take; `html: true` says `worlds show` draws it as its recipient would see it.
 note: String?
 ```
 
@@ -2880,7 +2881,7 @@ note: String?
 
 #### `deliver` — Deliver
 
-Hands a message to its recipient's app as a person would take it: its code typed into the field that has focus, the way an autofill offers one, or its link opened where the OS would deliver it. Focus the field first — tap it — for a code.
+Hands a message to its recipient's app as a person would take it: its code typed into the field that has focus, the way an autofill offers one, or its link opened where the OS would deliver it. Focus the field first — tap it — for a code. Each delivery is a step on the person's app, and the answer is what it caused in the moments after: nothing, for a link the app ignored.
 
 ```sh
 fw run worlds deliver --message=<string> [--how=…] [--link=…] [--world=…]
@@ -2893,6 +2894,8 @@ message: String
 person: String
 how: String   # `type` — the code went into the field that had focus — or `open`.
 what: String   # The code typed, or the link opened.
+step: String?   # The step it was on the person's app: `leo.13`.
+caused: List<String>?   # What that step caused in the moments after, as `worlds trace` says it; empty when the app did nothing with it — a link it ignored.
 ```
 
 | parameter | kind | required | default | |
@@ -2951,7 +2954,7 @@ note: String?
 
 #### `restart` — Restart
 
-Runs the script again — its `onClose` first — so the people are new, and restarts each app in place with the knobs the script now gives it. Nothing rebuilds. The script's own edits apply too.
+Runs the script again — its `onClose` first — so the people are new, and starts each app afresh with the knobs the script now gives it: a new process over the program already compiled, in an emptied home, so nothing of the last people opens as them. The script's own edits apply too.
 
 ```sh
 fw run worlds restart [--knobs=…] [--world=…]

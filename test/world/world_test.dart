@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware/server.dart';
 import 'package:flutterware/src/world/protocol.dart';
 import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware/world.dart';
@@ -206,6 +209,64 @@ void main() {
     await served;
   });
 
+  test('an SMTP inbox reports each mail a service sends as its own, on no '
+      'step', () async {
+    var runDir = await Directory('/tmp').createTemp('fw_world_');
+    var inspector = ServerInspector.start(
+      runDir: runDir.path,
+      projectRoot: runDir.path,
+      name: 'world',
+    );
+    FlutterwareServer.debugAttachInspector(inspector);
+    await inspector.published;
+    addTearDown(() async {
+      await FlutterwareServer.reset();
+      await runDir.delete(recursive: true);
+    });
+
+    var owner = _Owner();
+    late MailInbox inbox;
+    var served = owner.serve((w) async {
+      inbox = await w.smtp('identity');
+    });
+    owner.send(WorldMessage.open);
+    await owner.next(WorldMessage.setUp);
+
+    // The service, which is not Dart, sends while an action is running: its
+    // mail is still nobody's step.
+    await runZoned(
+      () => _sendMail(inbox.port, 'leo@example.test', [
+        'From: Identity <no-reply@example.test>',
+        'To: leo@example.test',
+        'Subject: Your sign-up code',
+        '',
+        'Your verification code is 48213.',
+      ]),
+      zoneValues: {worldStepKey: 'world.1'},
+    );
+    var client = await ServerAttachClient.connect(
+      scanServerHandles(runDir.path).single,
+    );
+    addTearDown(client.close);
+    await _until(() => client.received.isNotEmpty);
+    var mail = client.received.single;
+    expect(mail.channel, 'mail');
+    expect(mail.payload, {
+      'to': 'leo@example.test',
+      'subject': 'Your sign-up code',
+      'text': 'Your verification code is 48213.\n',
+      'from': 'identity',
+    });
+
+    owner.send(WorldMessage.close);
+    await served;
+    // Closed with the world.
+    await expectLater(
+      Socket.connect('127.0.0.1', inbox.port),
+      throwsA(anything),
+    );
+  });
+
   test('ready completes when the owner says every app is up', () async {
     var owner = _Owner();
     var ready = false;
@@ -277,4 +338,45 @@ void main() {
     expect(back.insetTop, 24);
     expect(back.platform, DevicePlatform.android);
   });
+}
+
+/// Sends one mail to an SMTP server on [port], a line at a time.
+Future<void> _sendMail(int port, String to, List<String> lines) async {
+  var socket = await Socket.connect('127.0.0.1', port);
+  var replies = StreamIterator(
+    socket
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter()),
+  );
+  Future<void> reply() async {
+    // A multi-line reply ends on the line whose code has a space after it.
+    while (await replies.moveNext()) {
+      if (replies.current.length < 4 || replies.current[3] == ' ') return;
+    }
+  }
+
+  await reply();
+  for (var command in [
+    'EHLO test',
+    'MAIL FROM:<no-reply@example.test>',
+    'RCPT TO:<$to>',
+    'DATA',
+  ]) {
+    socket.write('$command\r\n');
+    await reply();
+  }
+  socket.write('${lines.join('\r\n')}\r\n.\r\n');
+  await reply();
+  socket.write('QUIT\r\n');
+  await reply();
+  await socket.close();
+}
+
+Future<void> _until(bool Function() condition) async {
+  var deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) fail('not reached within 5s');
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
 }

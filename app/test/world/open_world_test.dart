@@ -199,7 +199,7 @@ void main() {
 
     var wave = await world.invoke('Wave');
     expect(wave.running, isFalse);
-    expect(wave.step, matches(r'^world\.\d+$'));
+    expect(wave.step, 'world.1');
     expect(wave.progress, 'Ana waves, as ${wave.step}');
     expect(() => world.invoke('Dance'), throwsA(isA<WorldRefusal>()));
     // Nothing was sent, and the refusal says so rather than failing blind.
@@ -220,6 +220,8 @@ void main() {
     expect(world.id, isNot(first));
     expect(world.people.keys, ['Ana', 'Leo']);
     expect(world.log, contains(endsWith('  closing $first')));
+    // The trace started afresh; so do the world's own steps.
+    expect((await world.invoke('Wave')).step, 'world.1');
 
     await world.close();
     expect(world.phase, WorldPhase.closed);

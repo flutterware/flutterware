@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutterware/channels.dart' show PanelDescriptor, panelsChannel;
 // ignore: implementation_imports
+import 'package:flutterware/src/app_events/events.dart' show foldSql;
+// ignore: implementation_imports
 import 'package:flutterware/src/server/attach_client.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/server/protocol.dart'
@@ -16,6 +18,7 @@ import '../run/handle.dart';
 import '../run/panel_client.dart';
 import '../run/run_sources.dart';
 import '../utils/run_dir.dart';
+import 'declared_links.dart';
 
 final _logger = Logger('world_trace');
 
@@ -33,7 +36,8 @@ class TraceStep {
   /// When the gesture ended — where the offsets of what it caused start.
   DateTime? at;
 
-  /// `tap`, `longPress` or `drag`; `action` for a world's own.
+  /// `tap`, `longPress` or `drag`; `type` or `open` for a delivery;
+  /// `action` for a world's own.
   String? verb;
 
   /// What it landed on, spelled as the drive targets are: `"Order"`.
@@ -52,6 +56,7 @@ class TraceBeat {
     this.node,
     this.line,
     this.inbound = false,
+    this.folded = const [],
   });
 
   final DateTime at;
@@ -74,6 +79,11 @@ class TraceBeat {
   /// Whether it ran from [node] to [person] — a reach, an arrival — rather
   /// than from the person's app to the system.
   final bool inbound;
+
+  /// What [what] counts rather than says: the statements a request ran, one
+  /// line each, for whoever opens them. A request that ran 23 of them is
+  /// still one line, and the writes among them are beats of their own.
+  final List<String> folded;
 }
 
 /// The node every synced record arrives from: the sync engine's service,
@@ -94,6 +104,11 @@ class SystemServer {
 
   /// Each table it wrote, and the records.
   final tables = <String, Set<String>>{};
+
+  /// The layer a table's writes said it belongs to — `jobs` for a job
+  /// queue's tables — when not the records people act on. Drawn in a group
+  /// of its own, beneath them.
+  final layers = <String, String>{};
 
   /// What it sent outside — `sms`, `push` — and how many.
   final sent = <String, int>{};
@@ -144,9 +159,18 @@ class NodeContents {
 
   /// For the sync engine, how many more records the phones received that no
   /// server here reported writing: a first sync brings everything written
-  /// before the world opened, and a write no adapter reports looks the same.
+  /// before the world opened, and a write no adapter reports looks the same
+  /// — as does one reported without its key ([unwrittenNote]).
   final int unwritten;
 }
+
+/// What [NodeContents.unwritten] means, said where it is counted: the three
+/// ways a record arrives with no write to join it.
+String unwrittenNote(int count) =>
+    '${count == 1 ? '1 more record' : '$count more records'} arrived that no '
+    'server here reported writing under that key: written before the world '
+    'opened, where no adapter reports, or reported without the key — one the '
+    'database generated and the adapter never read back.';
 
 /// One thing a node holds — a call, a record, a message — or, in a record's
 /// [life], one moment of it.
@@ -204,11 +228,20 @@ class OutboxMessage {
     this.links = const [],
     this.body,
     this.html,
+    this.sender,
+    this.byTime = false,
   });
 
-  /// `lab/42`: its server and the event it arrived as — what
-  /// `worlds deliver` takes.
+  /// `lab/42`: the server that reported it and the event it arrived as —
+  /// what `worlds deliver` takes.
   final String id;
+
+  /// Who sent it: the server, or the service it says it came `from`.
+  final String? sender;
+
+  /// Whether [step] was joined by time: a service that is not Dart sent it,
+  /// and carried none.
+  final bool byTime;
   final DateTime at;
 
   /// `sms`, `push` or `mail`.
@@ -230,7 +263,9 @@ class OutboxMessage {
   /// message that speaks of a code.
   final String? code;
 
-  /// The link it carries: the one the adapter named, or the first in it.
+  /// The link to hand over: the one the adapter named, else the first the
+  /// recipient's app declares it opens, else the first on a scheme of an
+  /// app's own, else the first.
   final String? link;
 
   /// Every link in it, [link] first: what a delivery may open.
@@ -242,6 +277,17 @@ class OutboxMessage {
 
   /// A mail's HTML, as its adapter reported it.
   final String? html;
+
+  /// What a phone shows under [text]: a push's body. A push titled with its
+  /// sender's name says nothing without it.
+  String? get subtitle =>
+      kind == 'push' && body != null && body != text ? body : null;
+
+  /// [text] and [subtitle] on one line.
+  String get said => switch (subtitle) {
+    var subtitle? => '$text — $subtitle',
+    null => text,
+  };
 }
 
 /// Everything the world has heard since it opened, joined into steps.
@@ -273,6 +319,7 @@ class WorldTrace {
   final _declared = <String>{};
   final _phones = <String, String>{};
   final _emails = <String, String>{};
+  final _links = <String, DeclaredLinks>{};
   final _hosts = <String, String>{};
   final _servers = <String, SystemServer>{};
   final _parts = <String, String>{};
@@ -292,14 +339,17 @@ class WorldTrace {
   static const cap = 5000;
 
   /// [person] is in the world: their steps are named after them, and a
-  /// server naming [userId] or [phone] means them.
+  /// server naming [userId], [phone] or [email] means them. [links] are what
+  /// their app says it opens.
   void addPerson(
     String person, {
     String? userId,
     String? phone,
     String? email,
+    DeclaredLinks? links,
   }) {
     _owners[worldStepPrefix(person)] = person;
+    if (links != null) _links[person] = links;
     if (userId != null) {
       _users[userId] = person;
       _declared.add(userId);
@@ -361,6 +411,7 @@ class WorldTrace {
             '${payload['table'] ?? ''}',
             change,
             op: payload['op'] as int?,
+            bucket: payload['bucket'] as String?,
           ),
         );
       default:
@@ -372,8 +423,14 @@ class WorldTrace {
   /// Takes every event since the world opened: one under a person's step
   /// joins it, and the rest — the script's seeding, an app's own polling —
   /// are still what the system holds.
-  void addServerEvent(String server, InspectorEvent event) {
+  void addServerEvent(String reporter, InspectorEvent event) {
     if (event.time.isBefore(since)) return;
+    // A message another service sent — the mail an identity provider sends
+    // itself, reported by whatever caught it — is drawn as that service's.
+    var from = _sentChannels.contains(event.channel)
+        ? event.payload['from']
+        : null;
+    var server = from is String && from.isNotEmpty ? from : reporter;
     _summarize(server, event);
     String? step;
     if (event.payload['step'] case String id) {
@@ -387,7 +444,20 @@ class WorldTrace {
         }
       }
     }
-    var served = _ServerEvent(server, step, event);
+    // A service that is not Dart carries no step: what it sent joins the
+    // newest step heard just before, and says it joined by time.
+    var byTime = false;
+    if (step == null && server != reporter) {
+      step = _stepBefore(event.time);
+      byTime = step != null;
+    }
+    var served = _ServerEvent(
+      server,
+      step,
+      event,
+      reporter: reporter,
+      byTime: byTime,
+    );
     _add(_server, served);
     if (step != null && event.channel == 'http') {
       for (var request in _recent(_requests)) {
@@ -395,6 +465,32 @@ class WorldTrace {
       }
     }
     _changed.add(null);
+  }
+
+  /// How long before a message from a service that carries no step the step
+  /// that caused it may have been heard.
+  static const byTimeWindow = Duration(seconds: 3);
+
+  /// The newest step, or request or server event of one, in the
+  /// [byTimeWindow] before [time].
+  String? _stepBefore(DateTime time) {
+    (DateTime, String)? newest;
+    void consider(DateTime at, String? step) {
+      if (step == null || at.isAfter(time)) return;
+      if (time.difference(at) > byTimeWindow) return;
+      if (newest == null || at.isAfter(newest!.$1)) newest = (at, step);
+    }
+
+    for (var step in _steps.values) {
+      if (step.at case var at?) consider(at, step.id);
+    }
+    for (var request in _recent(_requests)) {
+      consider(request.at, request.step);
+    }
+    for (var event in _recent(_server)) {
+      consider(event.time, event.step);
+    }
+    return newest?.$2;
   }
 
   /// Counts [event] into its server's summary — every event since the world
@@ -413,9 +509,11 @@ class WorldTrace {
           _callers['$name/$rid'] = user;
         }
       case 'write':
-        server.tables
-            .putIfAbsent('${payload['table']}', () => {})
-            .add('${payload['key']}');
+        var table = '${payload['table']}';
+        server.tables.putIfAbsent(table, () => {}).add('${payload['key']}');
+        if (payload['layer'] case String layer when layer.isNotEmpty) {
+          server.layers[table] = layer;
+        }
       case 'sms' || 'push' || 'mail':
         server.sent[event.channel] = (server.sent[event.channel] ?? 0) + 1;
       case 'reach':
@@ -660,7 +758,13 @@ class WorldTrace {
     return TraceItem(
       record.at,
       own ? 'back on $phone' : 'arrived on $phone',
-      detail: record.op == null ? null : 'op ${record.op}',
+      detail: switch ((record.op, record.bucket)) {
+        (null, null) => null,
+        (var op, var bucket) => [
+          if (op != null) 'op $op',
+          if (bucket != null) 'in $bucket',
+        ].join(' · '),
+      },
       person: record.person,
       step: step,
     );
@@ -671,7 +775,7 @@ class WorldTrace {
     return TraceItem(
       message.at,
       'to ${message.person ?? message.to}',
-      detail: message.text,
+      detail: message.said,
       person: message.person,
       step: message.step,
       message: message,
@@ -692,8 +796,7 @@ class WorldTrace {
   /// The message [id] names, if the world still holds it.
   OutboxMessage? messageById(String id) {
     for (var event in _server.reversed) {
-      if (_sentChannels.contains(event.channel) &&
-          '${event.server}/${event.event.id}' == id) {
+      if (_sentChannels.contains(event.channel) && event.id == id) {
         return _outboxMessage(event);
       }
     }
@@ -718,28 +821,42 @@ class WorldTrace {
         if (payload[key] case String text) text,
       if (html != null) html.replaceAll(_hidden, ' ').replaceAll(_tag, ' '),
     ].join('\n');
-    var links = {
-      if (payload['link'] case String link) link,
+    var person = switch (event.channel) {
+      'sms' => _phones[to],
+      'mail' => _emails[to.toLowerCase()],
+      _ => _users[to],
+    };
+    var found = {
       for (var match in _link.allMatches(words)) match[0]!,
       if (html != null)
         for (var match in _href.allMatches(html)) _unescape(match[1]!),
-    }.toList();
+    };
+    // The one to hand over is the one the app takes: the adapter's, or one
+    // the app declares — a mail can list two store badges before it — or,
+    // when it declares nothing readable, one on a scheme of its own.
+    var declared = _links[person];
+    var link = switch (payload['link']) {
+      String named => named,
+      _ =>
+        found.where((link) => declared?.claims(link) ?? false).firstOrNull ??
+            found.where(_ownScheme).firstOrNull ??
+            found.firstOrNull,
+    };
+    var links = [?link, ...found.where((other) => other != link)];
     return OutboxMessage(
-      id: '${event.server}/${event.event.id}',
+      id: event.id,
+      sender: event.server,
+      byTime: event.byTime,
       at: event.time,
       kind: event.channel,
       to: to,
       text: said,
-      person: switch (event.channel) {
-        'sms' => _phones[to],
-        'mail' => _emails[to.toLowerCase()],
-        _ => _users[to],
-      },
+      person: person,
       step: event.step,
       code: _saysCode.hasMatch(words)
           ? _code.firstMatch(words)?.group(0)
           : null,
-      link: links.firstOrNull,
+      link: link,
       links: links,
       body: switch (event.channel) {
         'mail' => payload['text'] as String?,
@@ -748,6 +865,13 @@ class WorldTrace {
       html: html,
     );
   }
+
+  /// A link no browser opens — `shop://orders/7` — which only an app can;
+  /// not a `mailto:` or a `tel:`, which the phone's own apps take.
+  static bool _ownScheme(String link) =>
+      link.contains('://') &&
+      !link.startsWith('http://') &&
+      !link.startsWith('https://');
 
   static final _tag = RegExp('<[^>]*>');
 
@@ -803,6 +927,16 @@ class WorldTrace {
   List<TraceBeat> _beatsOf(TraceStep step) {
     var beats = <TraceBeat>[];
     var answered = <_ServerEvent>{};
+    // Statements fold into the request they ran under — or, run outside
+    // one (a job, an action's own), into one line per server.
+    var statements = <String, List<_ServerEvent>>{};
+    for (var event in _server) {
+      if (event.step == step.id && event.channel == 'sql') {
+        statements
+            .putIfAbsent('${event.server}/${event.event.rid}', () => [])
+            .add(event);
+      }
+    }
     for (var request in _requests) {
       if (request.step != step.id) continue;
       var served = _served(request, answered);
@@ -822,19 +956,39 @@ class WorldTrace {
         continue;
       }
       answered.add(served);
+      var ran = served.event.rid == null
+          ? null
+          : statements.remove('${served.server}/${served.event.rid}');
       beats.add(
         TraceBeat(
           request.at,
           '${request.person} → ${served.server}  ${request.method} '
-          '${request.path}  ${_answer(served.payload)}$how',
+          '${request.path}  ${_answer(served.payload)}'
+          '${ran == null ? '' : ', ${_ran(ran)}'}$how',
           person: request.person,
           node: _partNode(served),
           line: '${request.method} ${request.path}',
+          folded: ran == null ? const [] : _statements(ran),
+        ),
+      );
+    }
+    for (var ran in statements.values) {
+      var first = ran.first;
+      beats.add(
+        TraceBeat(
+          first.time,
+          '${first.server}  ${_ran(ran)}',
+          node: _partNode(first),
+          folded: _statements(ran),
         ),
       );
     }
     for (var event in _server) {
-      if (event.step != step.id || answered.contains(event)) continue;
+      if (event.step != step.id ||
+          event.channel == 'sql' ||
+          answered.contains(event)) {
+        continue;
+      }
       if (_serverBeat(event) case var beat?) beats.add(beat);
     }
     for (var record in _records) {
@@ -910,6 +1064,7 @@ class WorldTrace {
     var node = _partNode(event);
     var system = _servers[server];
     String? personOf(Object? user) => user is String ? _users[user] : null;
+    var how = event.byTime ? ', joined by time' : '';
     switch (event.channel) {
       case 'http':
         return TraceBeat(
@@ -951,7 +1106,7 @@ class WorldTrace {
         var person = _phones[to];
         return TraceBeat(
           at,
-          '$server → ${person ?? to} by SMS  ${payload['body']}',
+          '$server → ${person ?? to} by SMS  ${payload['body']}$how',
           person: person,
           node: system?.sentNode('sms'),
           line: 'SMS',
@@ -962,7 +1117,7 @@ class WorldTrace {
         var person = _emails[to.toLowerCase()];
         return TraceBeat(
           at,
-          '$server → ${person ?? to} by mail  ${payload['subject']}',
+          '$server → ${person ?? to} by mail  ${payload['subject']}$how',
           person: person,
           node: system?.sentNode('mail'),
           line: 'Mail',
@@ -971,12 +1126,13 @@ class WorldTrace {
       case 'push':
         var to = payload['to'] ?? payload['user'];
         var person = personOf(to);
+        var said = [?payload['title'], ?payload['body']].join(' — ');
         return TraceBeat(
           at,
-          '$server → ${person ?? to} by push  ${payload['title']}',
+          '$server → ${person ?? to} by push  $said$how',
           person: person,
           node: system?.sentNode('push'),
-          line: '${payload['title']}',
+          line: '${payload['title'] ?? payload['body']}',
           inbound: true,
         );
       case 'log':
@@ -990,9 +1146,21 @@ class WorldTrace {
       case 'info':
         return null;
       case var channel:
-        return TraceBeat(at, '$server  $channel', node: node);
+        return TraceBeat(
+          at,
+          '$server  $channel  ${_gist(payload)}',
+          node: node,
+        );
     }
   }
+
+  /// What an event of a channel the trace has no words for said: a few of
+  /// its fields, never a bare channel name.
+  static String _gist(Map<String, Object?> payload) => [
+    for (var MapEntry(:key, :value) in payload.entries)
+      if (key != 'step' && (value is String || value is num || value is bool))
+        '$key ${value is String ? foldSql(value) : value}',
+  ].take(3).join(' · ');
 
   /// Whether a step before [event]'s already identified its user.
   bool _identifiedBefore(_ServerEvent event) => _server.any(
@@ -1024,6 +1192,33 @@ class WorldTrace {
   /// adapter named — `POST /orders/:id/advance` — or its path.
   static String _partOf(Map<String, Object?> payload) =>
       '${payload['method']} ${payload['part'] ?? payload['path']}';
+
+  /// `12 statements, 9 ms`: what [ran] cost together.
+  static String _ran(List<_ServerEvent> ran) {
+    var ms = 0.0;
+    for (var event in ran) {
+      if (event.payload['ms'] case num spent) ms += spent;
+    }
+    var failed = ran.where((event) => event.payload['error'] != null).length;
+    return [
+      ran.length == 1 ? '1 statement' : '${ran.length} statements',
+      if (ms > 0) '${ms < 10 ? ms.toStringAsFixed(1) : ms.round()} ms',
+      if (failed > 0) '$failed failed',
+    ].join(', ');
+  }
+
+  /// Each of [ran] on a line: its time, the statement, what it answered.
+  static List<String> _statements(List<_ServerEvent> ran) => [
+    for (var event in ran)
+      [
+        if (event.payload['ms'] case num ms)
+          '${ms < 10 ? ms.toStringAsFixed(1) : ms.round()} ms',
+        foldSql('${event.payload['query'] ?? event.payload['sql'] ?? ''}'),
+        if (event.payload['rows'] case int rows)
+          rows == 1 ? '1 row' : '$rows rows',
+        if (event.payload['error'] case var error?) 'error: $error',
+      ].join('  '),
+  ];
 
   static String _answer(Map<String, Object?> payload) {
     var ms = payload['ms'];
@@ -1057,13 +1252,30 @@ class _Request {
 }
 
 class _ServerEvent {
-  _ServerEvent(this.server, this.step, this.event);
+  _ServerEvent(
+    this.server,
+    this.step,
+    this.event, {
+    String? reporter,
+    this.byTime = false,
+  }) : reporter = reporter ?? server;
 
+  /// Whose it is on the canvas: the server that reported it, or the
+  /// service a message says it came `from`.
   final String server;
+
+  /// The process that reported it, whose ids [event]'s are.
+  final String reporter;
 
   /// The step of a person in this world it happened under, if one.
   final String? step;
+
+  /// Whether [step] was joined by time rather than carried.
+  final bool byTime;
   final InspectorEvent event;
+
+  /// `lab/42`: unique across the servers, whoever it is drawn as.
+  String get id => '$reporter/${event.id}';
 
   String get channel => event.channel;
   Map<String, Object?> get payload => event.payload;
@@ -1071,7 +1283,15 @@ class _ServerEvent {
 }
 
 class _Record {
-  _Record(this.person, this.at, this.key, this.table, this.change, {this.op});
+  _Record(
+    this.person,
+    this.at,
+    this.key,
+    this.table,
+    this.change, {
+    this.op,
+    this.bucket,
+  });
 
   final String person;
   final DateTime at;
@@ -1079,6 +1299,9 @@ class _Record {
   final String table;
   final String change;
   final int? op;
+
+  /// The sync engine's bucket it arrived in, when it says.
+  final String? bucket;
 }
 
 /// Feeds a [WorldTrace] from the live world: an attachment to each person's
@@ -1126,8 +1349,15 @@ class WorldTracer {
     String? userId,
     String? phone,
     String? email,
+    DeclaredLinks? links,
   }) async {
-    trace.addPerson(person, userId: userId, phone: phone, email: email);
+    trace.addPerson(
+      person,
+      userId: userId,
+      phone: phone,
+      email: email,
+      links: links,
+    );
     // The guest's process answers before its app does: the channels are
     // registered once the app's `main` has run, which a fast attach beats.
     RunAttachment? client;

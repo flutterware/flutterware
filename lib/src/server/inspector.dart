@@ -49,6 +49,20 @@ class FlutterwareServer {
   /// consequences — queries, messages, broadcasts — gather as one trace.
   static const Symbol stepKey = #fwStep;
 
+  /// The step the current work runs under, or null outside one.
+  ///
+  /// A zone ends where the request does, so work handed off — a job queued
+  /// for later, an upload whose storage calls back — starts with no step.
+  /// Keep this with it (a column on the job's row, the object's metadata)
+  /// and run the work under [inStep], and what it does still joins the tap
+  /// that caused it.
+  static String? get step => Zone.current[stepKey]?.toString();
+
+  /// Runs [body] under [step], as the request that caused it did: every
+  /// event below it carries the step. A null [step] runs [body] as it is.
+  static R inStep<R>(String? step, R Function() body) =>
+      step == null ? body() : runZoned(body, zoneValues: {stepKey: step});
+
   /// Says which user the current request is — once auth knows. The world
   /// maps the id to a person.
   static void identify(String user) => event('identify', {'user': user});

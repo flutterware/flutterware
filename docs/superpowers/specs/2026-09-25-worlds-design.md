@@ -814,6 +814,34 @@ every request it sends the way a guest does. *Mia orders a flat white* is
 then traced like a tap: her sign-up, her order, the write, the record
 arriving on Cleo's phone 44 ms later. `worlds invoke` answers with the step.
 
+**A consumer's third round** (2026-09-27, three worlds on a real app) moved
+five things:
+
+- **A hand-off keeps its step when the project carries it.** A job queued by
+  a request, or a storage notification after an upload, ran on no step: the
+  consumer's richest flow — an upload, its callback, jobs writing for 16 s —
+  had no cause after the upload. `FlutterwareServer.step` reads the current
+  step and `FlutterwareServer.inStep(step, body)` re-enters it; the project
+  keeps the step with the job's row or the object's metadata. No timing
+  fallback: the consumer's round-2 prototype joined a write to the next sync
+  by time and drew an arrival that never happened.
+- **A delivery is a step.** A typed code joined the tap on the field before
+  it, by time, and an opened link joined nothing. Each is now the person's
+  next step (`leo.3 typed the code from the SMS`): the code's field callbacks
+  run in it, and a link, which arrives on the plugin's own stream, is joined
+  by the guest's window from the delivery rather than from the tap.
+- **Statements fold into their request.** 8 to 23 bare `server  sql` lines a
+  request buried the write, the push and the arrival. A request's line counts
+  them (`12 statements, 9 ms`), its writes stay lines, and the statements open
+  on demand. An event of a channel the trace has no words for still shows a
+  gist of its fields.
+- **A table can sit in a layer** (`'layer': 'jobs'` on `write`), beneath the
+  records people act on: job-queue tables were 3 of 12 parts.
+- **A record's bucket travels with its arrival.** Two seeded records arrived
+  33 s after later ones; the feed reads arrivals at the first database change
+  after the app applied them, so a record listed late was applied late, most
+  likely in a bucket that reached the phone later. The feed now says which.
+
 What it does not do yet, each a known next step: the world's opening takes
 no step, because what its body starts — the server it hosts, a timer —
 would step under it for ever after, so the sign-ups a script seeds are
@@ -827,8 +855,12 @@ Built from what the servers already report, as the traces are: every `sms`,
 `push` and `mail` event an adapter sends with its recipient is a message, the
 person it reached found by phone number, user id or address, and the step
 that sent it kept. A message carries a code — four to eight digits, in a
-message that speaks of a code — and a link — the one the adapter names, or
-the first in the text.
+message that speaks of a code — and a link: the one the adapter names, else
+the first the recipient's app declares it opens (URL schemes and associated
+domains, Android `VIEW` filters, read from the project), else the first on a
+scheme of an app's own, else the first. The consumer's invitation mail listed
+two store badges before its invitation, and the first URL was a badge. A push
+shows its body under its title: theirs are titled with the sender's name.
 
 Each person's drawer opens on their messages, and the SMS and push cards'
 contents carry the same deliveries: *Type it* puts the code into the field
@@ -847,11 +879,17 @@ person's app, a web link to a browser, here the page view; every link is
 also listed with *Open in Leo's app*, for a web link the app claims.
 `worlds show` hands an agent the picture and each link's box.
 
-**How mail gets in is the project's, in several ways.** flutterware reads no
-third-party catcher — every catcher's API is a moving target, and its bugs
-would land in the wrong place. A project reports each mail from its own mail
-adapter, as it does SMS and push; flutterware's own SMTP server may follow
-for a server whose mailer cannot be adapted, when a real case asks.
+**How mail gets in is the project's, in several ways.** flutterware maintains
+no client for a third-party catcher's API — every catcher's API is a moving
+target, and its bugs would land in the wrong place. A project reports each
+mail from its own mail adapter, as it does SMS and push, and a watcher the
+project keeps over its own catcher is as good a reporter. A message says
+which service sent it (`'from': 'identity'`) and is drawn as that service's
+node; a service that is not Dart carries no step, so its message joins the
+newest step heard in the 3 s before it, and says so. The real case came in
+round 3: an identity provider sends the sign-up code itself, over SMTP, and
+the world's own SMTP inbox is the answer flutterware owns (*The outbox*,
+below).
 
 No questions or newcomers yet.
 
