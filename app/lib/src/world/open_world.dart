@@ -143,6 +143,63 @@ class OpenWorld {
     await _run(knobs ?? knobValues);
   }
 
+  /// Brings the open world to the code on disk without new people: the
+  /// script's process hot-reloaded — the server it hosts, what its actions
+  /// call — and every app reloaded as Run reloads one. What they all hold
+  /// stays: the people, their sessions, the server's data.
+  ///
+  /// The script's body does not run again, so a person, an action or a knob
+  /// it now declares waits for a [restart], as does an edit inside a closure
+  /// it handed to `w.action`. Source that does not compile is refused with
+  /// the compiler's words, and what was running runs on.
+  Future<WorldReload> reload() async {
+    var script = _script;
+    if (script == null || phase != WorldPhase.open) {
+      throw WorldRefusal(
+        '${file.name} is ${phase.name}; it reloads once it is open.',
+      );
+    }
+    var watch = Stopwatch()..start();
+    // Said in the log as well: the studio's button has nowhere else to say
+    // it.
+    Never refuse(String why) {
+      _say(why);
+      throw WorldRefusal(why);
+    }
+
+    try {
+      await script.reload();
+    } on WorldScriptReloadFailed catch (failure) {
+      refuse(
+        failure.reloaded
+            ? 'The script reloaded, but a reassemble callback failed; what '
+                  'it was rebuilding serves as it was.\n${failure.message}'
+            : 'The world script did not compile; nothing was reloaded.\n'
+                  '${failure.message}',
+      );
+    }
+    var apps = [
+      for (var build in _builds.values)
+        if (build.people.any((person) => person.running)) build,
+    ];
+    try {
+      await Future.wait([for (var build in apps) build.reload()]);
+    } on StateError catch (error) {
+      refuse(
+        'The script reloaded, but an app did not compile.\n${error.message}',
+      );
+    }
+    var reloaded = WorldReload(
+      elapsed: watch.elapsed,
+      apps: [for (var build in apps) build.label],
+    );
+    _say(
+      'Reloaded in ${(reloaded.elapsed.inMilliseconds / 1000).toStringAsFixed(1)} s: '
+      '${['the script', ...reloaded.apps].join(', ')}',
+    );
+    return reloaded;
+  }
+
   /// Runs [action] and answers when it ends, or after [wait] with it still
   /// running.
   Future<WorldActionRun> invoke(
@@ -995,6 +1052,16 @@ class WorldKnob {
 
 /// What [OpenWorld.deliver] did: [what] — the code typed, the link opened —
 /// in [person]'s app.
+/// What [OpenWorld.reload] did.
+class WorldReload {
+  const WorldReload({required this.elapsed, required this.apps});
+
+  final Duration elapsed;
+
+  /// The apps reloaded with the script, by their entry points' names.
+  final List<String> apps;
+}
+
 /// How long after a delivery what the app does still joins its step: the
 /// guest's window, and a little for the report to arrive.
 const deliveryWindow = Duration(milliseconds: 1700);

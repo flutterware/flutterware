@@ -83,10 +83,7 @@ void main(List<String> args) => World.run(args, (w) async {
 
   w.action(
     'Mia orders a flat white',
-    (run) async {
-      var mia = await createUser(server, 'Mia', phone: newPhone());
-      await call(server, 'POST', '/orders', {'item': 'Flat white'}, mia.token);
-    },
+    (run) => miaOrders(server, run),
     description:
         'A customer with no app, through the API: synced to the counter',
   );

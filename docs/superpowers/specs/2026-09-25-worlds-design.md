@@ -842,6 +842,41 @@ five things:
   after the app applied them, so a record listed late was applied late, most
   likely in a bucket that reached the phone later. The feed now says which.
 
+**A fourth round** (2026-09-27, four worlds) carried a step across every
+hand-off the consumer's richest flow has — a storage notification, four
+background jobs, a worker job — and the step grew from 3 requests to 74
+lines over 39.7 s, with 37 writes and 17 arrivals on both phones. That made
+the trace's shape the problem, and moved it:
+
+- **A step is a tree.** Each request and each job heads what it did, by its
+  request id — an app's request, an action's, a storage callback's, a
+  worker's job alike. Its statements, and its writes to a table in a layer,
+  are counted on its line; its other writes, messages and reaches sit
+  beneath it. A write says what changed, and a record updated in a row is
+  one line (`updated … ×16 · status queued → … → ready`). Work under no
+  request folds by bursts, not into one line per server over the step.
+- **`FlutterwareServer.job(name, body, step:, id:)`** does what the consumer
+  wired by hand in three places: re-enter the step, run as a request of its
+  own, say when the job started and ended.
+- **A record is its table and its key.** Joining by key alone put a side
+  table's parent in its life; a phone table no server has still joins by
+  key, as a renamed table must.
+- **A record arriving in a bucket new to the phone says so.** Their two
+  seeded records arrived 80 s late on both phones at once: the app had just
+  subscribed to a stream keyed by one person's id. An arrival is when the
+  phone applied the op; the subscription is the cause.
+- **Mail pictures are read as UTF-8**, as their mails and ours carry the
+  charset in the MIME header only; `w.smtp(address:)` for a service in a
+  container; a message another service sent is named by it,
+  `identity/server-27`.
+
+Link path prefixes a project could declare were left: an adapter naming its
+`link` already hands over the right one.
+
+**An app's start is its first step**, `ana.0`: what it sends before anyone
+touches it — nine calls a phone in the consumer's app, config to sync
+streams — joins it by window, for 10 s or until the first gesture.
+
 What it does not do yet, each a known next step: the world's opening takes
 no step, because what its body starts — the server it hosts, a timer —
 would step under it for ever after, so the sign-ups a script seeds are
@@ -1063,6 +1098,19 @@ triggered.
 3. **Server panels** over `FlutterwareServer.handle`, and **reload of the
    world's process**: an edit to the server it hosts, or to an action,
    reaches the running world without new people.
+   - **Reload built** (`2026-09-27-worlds-reload-spike-findings.md`): the
+     script runs with its VM service on loopback, and `worlds reload` — a
+     *Reload* beside *Restart* — hot-reloads it (34–46 ms on the lab) and
+     reloads every app as Run does. The body does not run again, and a
+     closure made before the reload keeps its body: the guide says to hand
+     `w.action` a line that calls a function. A server's router is the same
+     case, so `FlutterwareServer.onReassemble` runs after each reload
+     (`ext.flutterware.reassemble`, as Flutter's reassemble) and the server
+     rebuilds its app there; `reloadable` is the short form for a handler.
+     A compile error is refused with the compiler's words and changes
+     nothing. Re-running the body on reload, with kept resources, was
+     weighed and left for when a consumer asks for new people mid-flow.
+   - Not yet: server panels.
 4. **Other devices, and the device as an input.** A simulator allocated per
    person, a macOS window when the script asks for one, and the controls
    where the mechanism already exists — `simctl location`, adb — refusing the

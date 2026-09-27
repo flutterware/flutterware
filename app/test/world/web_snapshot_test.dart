@@ -40,4 +40,23 @@ void main() {
     skip: !Platform.isMacOS,
     timeout: const Timeout(Duration(minutes: 2)),
   );
+
+  test(
+    'reads a page as UTF-8 though it names no charset, as a mail does',
+    () async {
+      var directory = await Directory.systemTemp.createTemp('fw_pages');
+      addTearDown(() => directory.delete(recursive: true));
+      var snapshots = WebSnapshots(
+        appRoot: Directory.current.path,
+        directory: directory.path,
+      );
+      var page = await snapshots.of(
+        '<html><body><a href="https://example.test">It’s © 2026</a>'
+        '</body></html>',
+      );
+      expect(page.links.single.text, 'It’s © 2026');
+    },
+    skip: !Platform.isMacOS,
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 }

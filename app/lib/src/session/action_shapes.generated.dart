@@ -7122,6 +7122,13 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
     ],
   }),
+  'WorldReloadResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldReloadResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'ms', 'type': 'int'},
+      <String, Object?>{'name': 'apps', 'type': 'List<String>'},
+    ],
+  }),
   'WorldShowResult': ResultShape.fromJson(<String, Object?>{
     'type': 'WorldShowResult',
     'fields': <Object?>[

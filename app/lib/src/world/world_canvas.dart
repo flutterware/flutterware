@@ -406,7 +406,7 @@ final TracedStep _none = (step: TraceStep('', ''), beats: const []);
 /// numbers the band shows on the parts and the column beside the beats.
 Map<String, int> numberNodes(TracedStep traced) {
   var numbers = <String, int>{};
-  for (var beat in traced.beats) {
+  for (var beat in everyBeat(traced.beats)) {
     if (beat.node case var node?) {
       numbers.putIfAbsent(node, () => numbers.length + 1);
     }
@@ -1344,9 +1344,10 @@ class TraceList extends StatelessWidget {
                                           ? step.verb == 'action'
                                                 ? 'nothing heard yet'
                                                 : 'nothing left the phone'
-                                          : beats.length == 1
-                                          ? '1 thing'
-                                          : '${beats.length} things',
+                                          : switch (everyBeat(beats).length) {
+                                              1 => '1 thing',
+                                              var n => '$n things',
+                                            },
                                     ].join(' · '),
                                     style: context.type.bodyMuted,
                                   ),
@@ -1434,9 +1435,10 @@ class TraceDetail extends StatelessWidget {
                 )
               : ListView(
                   children: [
-                    for (var beat in beats)
+                    for (var (beat, depth) in beatsByDepth(beats))
                       _BeatRow(
                         beat: beat,
+                        depth: depth,
                         since: step.at!,
                         number: numbers[beat.node],
                         color: color,
@@ -1455,6 +1457,7 @@ class TraceDetail extends StatelessWidget {
 class _BeatRow extends StatefulWidget {
   const _BeatRow({
     required this.beat,
+    this.depth = 0,
     required this.since,
     required this.number,
     required this.color,
@@ -1462,6 +1465,10 @@ class _BeatRow extends StatefulWidget {
   });
 
   final TraceBeat beat;
+
+  /// How far beneath a step's own beats it sits: what a request or a job
+  /// did is indented under it.
+  final int depth;
   final DateTime since;
 
   /// The node's number on the canvas, when it touched one.
@@ -1500,6 +1507,8 @@ class _BeatRowState extends State<_BeatRow> {
               style: context.type.mono.copyWith(color: context.colors.mut),
             ),
           ),
+          // What a request or a job did sits beneath it.
+          SizedBox(width: widget.depth * FwSpacing.lg),
           SizedBox(
             width: 26,
             child: switch (widget.number) {
@@ -1527,21 +1536,21 @@ class _BeatRowState extends State<_BeatRow> {
                     feedback: TapFeedback.link,
                     child: Text(
                       _open
-                          ? 'Hide the statements'
+                          ? 'Hide'
                           : folded.length == 1
-                          ? 'Show the statement'
-                          : 'Show the ${folded.length} statements',
+                          ? 'Show it'
+                          : 'Show all ${folded.length}',
                       style: context.type.caption.copyWith(
                         color: context.colors.accent,
                       ),
                     ),
                   ),
                 if (_open)
-                  for (var statement in folded)
+                  for (var line in folded)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: SelectableText(
-                        statement,
+                        line,
                         style: context.type.mono.copyWith(
                           color: context.colors.ink2,
                         ),
@@ -2162,6 +2171,7 @@ String stepTitle(TraceStep step) {
     'drag' => 'dragged',
     'type' => 'typed',
     'open' => 'opened',
+    'start' => 'started',
     _ => 'did',
   };
   return '${step.person} $did ${step.target ?? ''}'.trim();
@@ -2214,7 +2224,7 @@ class TraceLinesPainter extends CustomPainter {
     // each end, not two lines side by side that read as one. Each way is
     // labelled by its first beat.
     var lines = <String, _Line>{};
-    for (var beat in beats) {
+    for (var beat in everyBeat(beats)) {
       var (person, node, words) = (beat.person, beat.node, beat.line);
       if (person == null || node == null || words == null) continue;
       var line = lines.putIfAbsent('$person|$node', () => _Line(person, node));

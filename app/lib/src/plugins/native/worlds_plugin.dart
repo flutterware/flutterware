@@ -237,6 +237,14 @@ class _OpenWorldView extends StatelessWidget {
   final WorldsCore core;
   final OpenWorld world;
 
+  Future<void> _reload() async {
+    try {
+      await world.reload();
+    } on WorldRefusal {
+      // Said in the world's log, where it shows.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var moving = world.phase.isMoving;
@@ -252,6 +260,14 @@ class _OpenWorldView extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              FwActionButton(
+                label: 'Reload',
+                tooltip:
+                    'Bring the script, its server and every app to the code '
+                    'on disk: same people',
+                onPressed: world.phase == WorldPhase.open ? _reload : null,
+              ),
+              const SizedBox(width: FwSpacing.sm),
               FwActionButton(
                 label: 'Restart',
                 tooltip: 'Run the script again: new people, same apps',

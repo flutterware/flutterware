@@ -233,6 +233,64 @@ void main() {
     );
   }, timeout: const Timeout(Duration(minutes: 2)));
 
+  test('reloads its script with the same people: what an action calls runs '
+      'the new code, and a compile error changes nothing', () async {
+    var script = File('test/world/fixtures/reloading_world.dart');
+    var original = script.readAsStringSync();
+    addTearDown(() => script.writeAsStringSync(original));
+    var world = OpenWorld(
+      file: const WorldFile(
+        package: 'app',
+        path: 'test/world/fixtures/reloading_world.dart',
+        name: 'Reloading',
+      ),
+      worktree: p.dirname(Directory.current.path),
+      flutterSdkRoot: Platform.environment['FLUTTER_ROOT']!,
+      appRoot: Directory.current.path,
+      entrypoints: const [],
+      guests: (_) => throw StateError('nobody here has an app'),
+      runDir: () => emptyRunDir,
+    );
+    addTearDown(world.close);
+    await world.open();
+    expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+    var id = world.id;
+    // The VM's banner about its service is not the script's to say.
+    expect(world.log, isNot(contains(contains('VM service'))));
+
+    Future<String?> said(String action) async =>
+        (await world.invoke(action)).progress;
+    expect(await said('Greet'), 'hello, v1');
+    expect(await said('Route'), '/health, reloadable, v1');
+
+    script.writeAsStringSync(original.replaceAll('v1', 'v2'));
+    var reload = await world.reload();
+    expect(reload.apps, isEmpty);
+    expect(world.id, id);
+    expect(await said('Greet'), 'hello, v2');
+    // A router's handlers are closures made when it was built: served
+    // through `reloadable` they are built again, and without it they keep
+    // their old bodies.
+    expect(await said('Route'), '/health, reloadable, v2');
+    expect(await said('Route once'), '/health, built once, v1');
+    expect(world.log.last, contains('Reloaded in'));
+
+    script.writeAsStringSync(
+      original.replaceAll('v1', 'v2').replaceFirst("'hello, v2';", "'v3'"),
+    );
+    await expectLater(
+      world.reload(),
+      throwsA(
+        isA<WorldRefusal>().having(
+          (refusal) => refusal.message,
+          'message',
+          allOf(contains('did not compile'), contains('reloading_world.dart')),
+        ),
+      ),
+    );
+    expect(await said('Greet'), 'hello, v2');
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
   test('a script that dies on the resident compiler is started once more, '
       'with a fresh compiler', () async {
     var marker = File('build/flaky_world.marker');

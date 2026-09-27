@@ -267,9 +267,15 @@ final class World {
   /// A local SMTP server for a service in the stack that sends its own mail
   /// and is not Dart — an identity provider mailing sign-up codes — so what
   /// it sends reaches its person like any mail a Dart server reports. Point
-  /// the service's SMTP host at `localhost` and its port at
-  /// [MailInbox.port]; any username and password are accepted, and TLS is
-  /// not offered.
+  /// the service's SMTP port at [MailInbox.port]; any username and password
+  /// are accepted, and TLS is not offered.
+  ///
+  /// The inbox listens on [address], loopback by default: a service running
+  /// on this machine sends to `localhost`. One in a container reaches the
+  /// machine by another name — `host.docker.internal` with Docker Desktop,
+  /// which forwards it to loopback; on Linux, the bridge's address, where only
+  /// an inbox listening beyond loopback answers
+  /// (`address: InternetAddress.anyIPv4`).
   ///
   /// Each mail is reported as sent by [service], which the world draws as a
   /// node of its own. Such a service carries no step, so a mail joins the
@@ -284,10 +290,12 @@ final class World {
   Future<MailInbox> smtp(
     String service, {
     int port = 0,
+    InternetAddress? address,
     ({String host, int port})? relay,
   }) async {
     var inbox = await MailInbox.start(
       port: port,
+      address: address,
       relay: relay,
       onMail: (mail) => _reportMail(service, mail),
       onRelayError: (error) => progress('A mail $service sent: $error'),

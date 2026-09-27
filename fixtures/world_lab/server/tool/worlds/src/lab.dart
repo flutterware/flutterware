@@ -193,3 +193,11 @@ Future<void> sendNewsletter({required int port, required String to}) async {
   await reply();
   await socket.close();
 }
+
+/// A customer with no app orders a flat white, through the API: what the
+/// worlds' *Mia orders a flat white* does.
+Future<void> miaOrders(LabServer server, ActionRun run) async {
+  var mia = await createUser(server, 'Mia', phone: newPhone());
+  run.progress('Mia is ${mia.id}');
+  await call(server, 'POST', '/orders', {'item': 'Flat white'}, mia.token);
+}

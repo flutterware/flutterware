@@ -94,6 +94,15 @@ final class Snapper: NSObject, WKNavigationDelegate {
 let app = NSApplication.shared
 app.setActivationPolicy(.prohibited)
 let snapper = Snapper(width: width)
-snapper.view.loadFileURL(input, allowingReadAccessTo: input.deletingLastPathComponent())
+// As UTF-8, which is how the page was written: a mail's charset is in its
+// MIME header, rarely in its HTML, and a file with no `<meta charset>` would
+// be read as Latin-1 — `’` drawn as `â€™`.
+guard let html = try? Data(contentsOf: input) else { fail("could not read \(input.path)") }
+snapper.view.load(
+  html,
+  mimeType: "text/html",
+  characterEncodingName: "utf-8",
+  baseURL: input.deletingLastPathComponent()
+)
 DispatchQueue.main.asyncAfter(deadline: .now() + 20) { fail("the page took over 20 s") }
 app.run()

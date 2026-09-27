@@ -191,8 +191,10 @@ class WorldsCore extends PluginCore {
           required: false,
           defaultValue: 'false',
           description:
-              'Each SQL statement under the request that ran it. Without '
-              'it a request says how many it ran and how long they took.',
+              'What each line counts, beneath it: the SQL statements a '
+              'request or a job ran, its writes to a table in a layer, each '
+              "of a record's updates in a row. Without it a line says how "
+              'many.',
         ),
         _worldParameter,
       ],
@@ -306,6 +308,20 @@ class WorldsCore extends PluginCore {
         ),
         _worldParameter,
       ],
+    ),
+    const PluginAction(
+      'reload',
+      'Reload',
+      returns: WorldReloadResult,
+      description:
+          'Brings the open world to the code on disk without new people: '
+          "the script's process hot-reloaded — the server it hosts, what its "
+          'actions call — and every app reloaded, in well under a second. '
+          "The people, their sessions and the server's data stay. The "
+          "script's body does not run again: a person, action or knob it now "
+          'declares, or an edit inside a closure it handed to `w.action`, '
+          'waits for a restart.',
+      parameters: [_worldParameter],
     ),
     PluginAction(
       'restart',
@@ -443,6 +459,7 @@ class WorldsCore extends PluginCore {
     'outbox' ||
     'deliver' ||
     'show' ||
+    'reload' ||
     'restart' ||
     'invoke' ||
     'close' when _open == null && openElsewhere() != null => await _forward(
@@ -456,6 +473,7 @@ class WorldsCore extends PluginCore {
     'outbox' => _outboxAction(arguments),
     'deliver' => await _deliverAction(arguments),
     'show' => await _showAction(arguments),
+    'reload' => WorldReloadResult.of(await _required.reload()),
     'restart' => await _restartAction(
       arguments['knobs'] == null
           ? null
@@ -491,6 +509,7 @@ class WorldsCore extends PluginCore {
       'outbox' => WorldOutboxResult.fromJson(json),
       'deliver' => WorldDeliveryResult.fromJson(json),
       'show' => WorldShowResult.fromJson(json),
+      'reload' => WorldReloadResult.fromJson(json),
       _ => WorldStateResult.fromJson(
         json,
         note: action == 'close'
@@ -513,6 +532,7 @@ class WorldsCore extends PluginCore {
       'outbox',
       'deliver',
       'show',
+      'reload',
       'restart',
       'invoke',
       'close',

@@ -94,7 +94,7 @@ void main() {
     setUp(() {
       crud = [];
       oplog = [
-        {'t': 'orders', 'k': 'o1', 'op': 3},
+        {'t': 'orders', 'k': 'o1', 'op': 3, 'bucket': 'shop_orders["main"]'},
       ];
       db.onQuery = (sql, args) async => switch (sql) {
         _ when sql.contains("key = 'client_id'") => [
@@ -159,8 +159,10 @@ void main() {
       db.updates.add({'orders'});
       await pumpEventQueue();
       oplog = [
-        {'t': 'orders', 'k': 'o1', 'op': 3},
+        {'t': 'orders', 'k': 'o1', 'op': 3, 'bucket': 'shop_orders["main"]'},
         {'t': 'orders', 'k': 'o2', 'op': 9, 'bucket': 'shop_orders["main"]'},
+        // Written long ago, arriving now: the app has just subscribed.
+        {'t': 'profiles', 'k': 'u1', 'op': 2, 'bucket': 'profile["u1"]'},
       ];
       db.updates.add({'orders'});
       await pumpEventQueue();
@@ -174,6 +176,14 @@ void main() {
           'change': 'synced',
           'op': 9,
           'bucket': 'shop_orders["main"]',
+        },
+        {
+          'key': 'u1',
+          'table': 'profiles',
+          'change': 'synced',
+          'op': 2,
+          'bucket': 'profile["u1"]',
+          'newBucket': true,
         },
       ]);
     });

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:io' as io show pid;
 
@@ -62,6 +63,104 @@ class FlutterwareServer {
   /// event below it carries the step. A null [step] runs [body] as it is.
   static R inStep<R>(String? step, R Function() body) =>
       step == null ? body() : runZoned(body, zoneValues: {stepKey: step});
+
+  /// Runs [body] as a job: work a request handed off, run later by a queue's
+  /// worker. It runs under [step] — the step of the request that queued it,
+  /// which the queue keeps with the job ([FlutterwareServer.step]) — or, with
+  /// none, under the current zone's; and as a request of its own, so what it
+  /// writes, sends and runs gathers beneath one line of the world's trace:
+  /// `job thumbnail on jobs, done in 1.2 s, 31 statements`.
+  ///
+  /// ```dart
+  /// // Where the request queues it:
+  /// await queue.add(Job('thumbnail', file: id, step: FlutterwareServer.step));
+  /// // Where a worker runs it:
+  /// await FlutterwareServer.job('thumbnail', () => thumbnail(job.file),
+  ///     step: job.step, id: job.id, queue: 'jobs');
+  /// ```
+  ///
+  /// Reports a `job` event as it starts and another as it ends, with how
+  /// long it took and what it threw; the error is rethrown.
+  static Future<T> job<T>(
+    String name,
+    FutureOr<T> Function() body, {
+    String? step,
+    Object? id,
+    String? queue,
+  }) => runZoned(() async {
+    var said = {'name': name, 'id': ?id?.toString(), 'queue': ?queue};
+    event('job', said);
+    var watch = Stopwatch()..start();
+    Object? error;
+    try {
+      return await body();
+    } catch (e) {
+      error = e;
+      rethrow;
+    } finally {
+      event('job', {
+        ...said,
+        'ms': watch.elapsedMicroseconds / 1000,
+        if (error != null) 'error': '$error',
+      });
+    }
+  }, zoneValues: {requestIdKey: 'job-${++_jobs}', stepKey: ?step});
+
+  static var _jobs = 0;
+
+  /// Runs [callback] after every hot reload of this process, once the new
+  /// code is in: where a server builds again what it built once from the
+  /// old code — its router, its middleware, an app object holding both.
+  ///
+  /// A hot reload gives every function and method its new code, but a
+  /// closure made before it keeps its old body, and a router's handlers are
+  /// closures made when it was built. So a route added never exists and a
+  /// handler edited runs as it was, until something builds the router
+  /// again: this. It is what `ext.flutter.reassemble` is to a Flutter app.
+  ///
+  /// ```dart
+  /// late App app;
+  /// await serve((request) => app.handler(request), 'localhost', 8080);
+  /// app = App(database);
+  /// FlutterwareServer.onReassemble(() {
+  ///   unawaited(app.dispose());
+  ///   app = App(database);
+  /// });
+  /// ```
+  ///
+  /// A world calls it after it reloads the server it hosts. Callbacks run in
+  /// the order they were registered, each awaited; one that throws does not
+  /// stop the next, and the reload reports it. Where nothing reloads the
+  /// process — production — it never runs.
+  static void onReassemble(FutureOr<void> Function() callback) =>
+      _Reassembly.add(callback);
+
+  /// [build]'s result, built again [onReassemble]: the handler itself, for a
+  /// server whose state lives elsewhere and whose handler is all it needs
+  /// to make again. What [build] is handed is kept; make the handler in a
+  /// named function, since the closure [build] is keeps its old body.
+  ///
+  /// ```dart
+  /// var handler = FlutterwareServer.reloadable(() => routes(store));
+  /// await shelf_io.serve(handler, 'localhost', 8080);
+  ///
+  /// Handler routes(Store store) => const Pipeline()
+  ///     .addMiddleware(inspect())
+  ///     .addHandler((Router()..get('/orders', store.list)).call);
+  /// ```
+  ///
+  /// A build that throws leaves the last one serving. Where nothing reloads
+  /// the process, it is built once and costs a call.
+  static R Function(A) reloadable<A, R>(R Function(A) Function() build) {
+    var current = build();
+    onReassemble(() => current = build());
+    return (argument) => current(argument);
+  }
+
+  /// Runs every [onReassemble] callback, as the world does after it reloads
+  /// this process, through [reassembleExtension]; answers what they threw.
+  @visibleForTesting
+  static Future<List<Object>> reassemble() => _Reassembly.run();
 
   /// Says which user the current request is — once auth knows. The world
   /// maps the id to a person.
@@ -236,16 +335,57 @@ class FlutterwareServer {
     _inspector = inspector;
   }
 
-  /// Tears down the active inspector and re-arms the gates, so a test can run
-  /// several activations in one process. Not part of the server-facing API.
+  /// Tears down the active inspector, forgets every [onReassemble] callback
+  /// and re-arms the gates, so a test can run several activations in one
+  /// process. Not part of the server-facing API.
   @visibleForTesting
   static Future<void> reset() async {
     _started = false;
     _configuredName = null;
     _configuredRoot = null;
+    _Reassembly._callbacks.clear();
     var inspector = _inspector;
     _inspector = null;
     await inspector?.stop();
+  }
+}
+
+/// The service extension a world calls in the process it has just hot
+/// reloaded, to run every [FlutterwareServer.onReassemble] callback — what
+/// `ext.flutter.reassemble` is to a Flutter app.
+const reassembleExtension = 'ext.flutterware.reassemble';
+
+/// Every [FlutterwareServer.onReassemble] callback of this isolate, and the
+/// extension that runs them.
+abstract final class _Reassembly {
+  static final _callbacks = <FutureOr<void> Function()>[];
+  static var _registered = false;
+
+  static void add(FutureOr<void> Function() callback) {
+    _callbacks.add(callback);
+    if (_registered) return;
+    _registered = true;
+    developer.registerExtension(reassembleExtension, (_, _) async {
+      var errors = await run();
+      return errors.isEmpty
+          ? developer.ServiceExtensionResponse.result('{}')
+          : developer.ServiceExtensionResponse.error(
+              developer.ServiceExtensionResponse.extensionError,
+              errors.join('\n'),
+            );
+    });
+  }
+
+  static Future<List<Object>> run() async {
+    var errors = <Object>[];
+    for (var callback in _callbacks) {
+      try {
+        await callback();
+      } on Object catch (error) {
+        errors.add(error);
+      }
+    }
+    return errors;
   }
 }
 

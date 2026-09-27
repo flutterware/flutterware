@@ -60,9 +60,11 @@ void main(List<String> args) => World.run(args, (w) async {
     description: 'A service that is not Dart mails Ana, over SMTP',
   );
 
-  w.action('Mia orders a flat white', (run) async {
-    var mia = await createUser(server, 'Mia', phone: newPhone());
-    run.progress('Mia is ${mia.id}');
-    await call(server, 'POST', '/orders', {'item': 'Flat white'}, mia.token);
-  }, description: 'A customer with no app puts an order on the board');
+  // A line that calls a function: an edit to it reaches the open world on
+  // Reload, where an edit inside a closure would wait for a restart.
+  w.action(
+    'Mia orders a flat white',
+    (run) => miaOrders(server, run),
+    description: 'A customer with no app puts an order on the board',
+  );
 });
