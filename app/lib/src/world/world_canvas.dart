@@ -5,19 +5,24 @@ import 'dart:math';
 import 'package:flutterware/src/world/step_names.dart' show worldActionsOwner;
 import 'package:flutterware/world.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:material_ui/material_ui.dart';
 
 import '../previews/stage_zoom.dart';
 import '../session/job.dart' show ActionRefusal;
 import '../ui/action_button.dart';
+import '../ui/filter_bar.dart' show FwPill;
 import '../ui/panel_header.dart' show panelGutter;
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
 import '../ui/zoom_buttons.dart';
 import 'live_guest.dart';
 import 'open_world.dart';
-import 'world_trace.dart';
 import 'mail_view.dart';
+import 'world_outline.dart';
+import 'world_sequence.dart';
+import 'world_timeline.dart';
+import 'world_trace.dart';
 import 'world_views.dart';
 
 /// The open world as the design draws it: its people's phones on a stage,
@@ -63,21 +68,19 @@ class _WorldCanvasState extends State<WorldCanvas> {
   StreamSubscription<void>? _heard;
   Timer? _redraw;
 
-  /// The step chosen in the column; null follows the newest.
+  /// The step held open on the timeline; null follows the newest.
   String? _chosen;
 
-  /// The person whose drawer the column shows.
-  String? _drawer;
+  /// What the sheet over the timeline shows: a person, a part of the
+  /// system, a message — or nothing. One thing at a time, and whatever was
+  /// chosen last, wherever: a choice never lands under another one.
+  _Detail? _detail;
 
-  /// The node of the system whose contents the column shows.
-  String? _opened;
+  /// Whether the stage draws the world as a canvas or as a sequence.
+  var _sequence = false;
 
-  /// Whether the step chosen was chosen from [_opened]'s contents, and shows
-  /// over them until its back goes to them again.
-  var _overContents = false;
-
-  /// The mail the column reads, over whatever it was opened from.
-  String? _mail;
+  /// Where Esc is heard, to close the sheet.
+  final _focus = FocusNode(debugLabel: 'world canvas');
 
   @override
   void initState() {
@@ -111,9 +114,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
     if (identical(tracer, _tracer)) return;
     _tracer = tracer;
     _chosen = null;
-    _opened = null;
-    _overContents = false;
-    _mail = null;
+    _detail = null;
     unawaited(_heard?.cancel());
     // A burst of events — a tap's dozen — is one redraw.
     _heard = tracer?.trace.changed.listen((_) {
@@ -132,7 +133,14 @@ class _WorldCanvasState extends State<WorldCanvas> {
     _scroll.dispose();
     _zoom.dispose();
     _panning.dispose();
+    _focus.dispose();
     super.dispose();
+  }
+
+  /// Shows [detail] in the sheet, and listens for the Esc that closes it.
+  void _show(_Detail? detail) {
+    setState(() => _detail = detail);
+    if (detail != null) _focus.requestFocus();
   }
 
   @override
@@ -159,146 +167,323 @@ class _WorldCanvasState extends State<WorldCanvas> {
             orElse: () => steps.lastOrNull ?? _none,
           )
         : steps.where((traced) => traced.step.id == _chosen).firstOrNull ??
-              // Chosen from a part's contents, older than the column lists.
+              // Chosen from a part's contents, older than the timeline holds.
               trace?.steps(step: _chosen, limit: 1).firstOrNull;
     if (identical(shown, _none)) shown = null;
     var numbers = shown == null ? const <String, int>{} : numberNodes(shown);
-
-    var drawer = _drawer == null ? null : world.people[_drawer];
-    var contents = switch (_opened) {
-      var node? => trace?.contentsOf(node),
-      null => null,
-    };
+    var litColor = colorOf(shown?.step.person);
     var engine = world.people.keys
         .map((person) => world.tracer?.syncOf(person)?['engine'])
         .nonNulls
         .firstOrNull;
-    var label = contents == null
-        ? null
-        : contentsLabel(contents, engine: engine?.toString());
+    Future<void> Function(String how)? deliverTo(OutboxMessage message) =>
+        switch (world.people[message.person]) {
+          var person? when person.running => (how) => world.deliver(
+            message.id,
+            how: how,
+            actor: 'human',
+          ),
+          _ => null,
+        };
     void choose(String step) => setState(() {
       _chosen = step;
-      _overContents = true;
+      _detail = null;
     });
-    var mail = switch (_mail) {
-      var id? => trace?.messageById(id),
-      null => null,
-    };
-    void read(OutboxMessage message) => setState(() => _mail = message.id);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, viewport) => Stack(
+    void openMessage(OutboxMessage message) =>
+        _show((kind: _DetailKind.message, id: message.id));
+    void openPart(String node) =>
+        _show(_detail?.id == node ? null : (kind: _DetailKind.part, id: node));
+    void openPerson(String person) =>
+        _show((kind: _DetailKind.person, id: person));
+
+    var sheet = _sheet(
+      context,
+      trace: trace,
+      colorOf: colorOf,
+      shown: shown,
+      litColor: litColor,
+      engine: engine?.toString(),
+      choose: choose,
+      openMessage: openMessage,
+      deliverTo: deliverTo,
+    );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () => _show(null),
+      },
+      child: Focus(
+        focusNode: _focus,
+        child: Stack(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ZoomableStage(
-                  controller: _zoom,
-                  onInteracting: (panning) => _panning.value = panning,
-                  child: _stage(
-                    context,
-                    trace: trace,
-                    people: people,
+                Container(
+                  width: 216,
+                  decoration: BoxDecoration(
+                    color: context.colors.panel2,
+                    border: Border(
+                      right: BorderSide(color: context.colors.line),
+                    ),
+                  ),
+                  child: WorldOutline(
+                    people: [
+                      for (var person in world.people.values)
+                        (
+                          name: person.name,
+                          said: person.running ? '' : person.phase.name,
+                        ),
+                    ],
+                    servers: trace?.servers.toList() ?? const [],
+                    sync: switch (engine) {
+                      null => null,
+                      'powersync' => 'PowerSync',
+                      var other => '$other',
+                    },
+                    messages: trace?.outbox(limit: 12) ?? const [],
                     colorOf: colorOf,
-                    shown: shown,
                     numbers: numbers,
+                    litColor: litColor,
+                    selected: _detail?.id,
+                    onPerson: openPerson,
+                    onPart: openPart,
+                    onMessage: openMessage,
                   ),
                 ),
-                Positioned(
-                  right: FwSpacing.md,
-                  top: FwSpacing.sm,
-                  child: ListenableBuilder(
-                    listenable: _zoom,
-                    builder: (context, _) => ZoomButtons(
-                      value: _zoom.value.getMaxScaleOnAxis(),
-                      onScale: (factor) => _zoomAbout(
-                        factor,
-                        viewport.biggest.center(Offset.zero),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // How the stage draws the world: where everyone is, or
+                      // who caused what.
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          FwSpacing.md,
+                          FwSpacing.sm,
+                          FwSpacing.md,
+                          FwSpacing.xs,
+                        ),
+                        child: Row(
+                          children: [
+                            FwPill(
+                              label: 'Canvas',
+                              selected: !_sequence,
+                              onTap: () => setState(() => _sequence = false),
+                            ),
+                            const SizedBox(width: FwSpacing.xs),
+                            FwPill(
+                              label: 'Sequence',
+                              selected: _sequence,
+                              onTap: () => setState(() => _sequence = true),
+                            ),
+                          ],
+                        ),
                       ),
-                      onFit: () => _zoom.value = Matrix4.identity(),
-                    ),
+                      Expanded(
+                        child: _sequence
+                            ? WorldSequence(
+                                steps: steps,
+                                people: people,
+                                servers: trace?.servers.toList() ?? const [],
+                                colorOf: colorOf,
+                                chosen: shown?.step.id,
+                                onChoose: choose,
+                              )
+                            : _canvas(
+                                context,
+                                trace: trace,
+                                people: people,
+                                colorOf: colorOf,
+                                shown: shown,
+                                numbers: numbers,
+                                onPerson: openPerson,
+                                onPart: openPart,
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, color: context.colors.line),
+                SizedBox(
+                  width: 380,
+                  child: WorldTimeline(
+                    steps: steps.reversed.toList(),
+                    messages: trace?.outbox(limit: 60) ?? const [],
+                    people: people,
+                    colorOf: colorOf,
+                    chosen: _chosen,
+                    following: shown?.step.id,
+                    onChoose: (step) => setState(() => _chosen = step),
+                    onOpenMessage: openMessage,
+                    deliverTo: deliverTo,
+                    log: world.log,
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-        Container(width: 1, color: context.colors.line),
-        SizedBox(
-          // A mail is read at its own width, near enough.
-          width: mail == null ? 340 : 640,
-          // What was opened last is on top: a mail over where it was opened,
-          // a step over the contents it was chosen from, the contents over a
-          // step held before them.
-          child: switch ((drawer, _chosen, contents)) {
-            _ when mail != null => MailView(
-              message: mail,
-              snapshots: world.snapshots,
-              back: drawer != null
-                  ? drawer.name
-                  : contents != null
-                  ? label!
-                  : 'Steps',
-              onBack: () => setState(() => _mail = null),
-              onChoose: (step) => setState(() {
-                _mail = null;
-                choose(step);
-              }),
-              onDeliver: switch (world.people[mail.person]) {
-                var person? when person.running => (
-                  link,
-                ) => widget.world.deliver(mail.id, link: link, actor: 'human'),
-                _ => null,
-              },
-            ),
-            (var person?, _, _) => _Drawer(
-              person: person,
-              color: colorOf(person.name),
-              sync: world.tracer?.syncOf(person.name),
-              messages:
-                  trace?.outbox(person: person.name, limit: 10) ?? const [],
-              onDeliver: _deliver,
-              onRead: read,
-              onClose: () => setState(() => _drawer = null),
-            ),
-            (null, var chosen?, var contents)
-                when shown?.step.id == chosen &&
-                    (contents == null || _overContents) =>
-              TraceDetail(
-                traced: shown!,
-                numbers: numbers,
-                colorOf: colorOf,
-                back: label ?? 'Steps',
-                onBack: () => setState(() {
-                  if (contents != null) {
-                    _overContents = false;
-                  } else {
-                    _chosen = null;
-                  }
-                }),
+            // The sheet slides over the timeline — wider for a mail, which is
+            // read at its own width, over the canvas rather than squeezing it.
+            if (sheet case (var width, var child))
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                width: width,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: context.colors.bg,
+                    border: Border(
+                      left: BorderSide(color: context.colors.line),
+                    ),
+                    boxShadow: context.elevation.md,
+                  ),
+                  child: child,
+                ),
               ),
-            (null, _, var contents?) => NodeContentsView(
-              contents: contents,
-              label: label!,
-              colorOf: colorOf,
-              shown: shown?.step.id,
-              markColor: colorOf(shown?.step.person),
-              onBack: () => setState(() => _opened = null),
-              onChoose: choose,
-              onDeliver: _deliver,
-              onRead: read,
-            ),
-            _ => TraceList(
-              steps: steps.reversed.toList(),
-              colorOf: colorOf,
-              following: shown?.step.id,
-              onChoose: (id) => setState(() => _chosen = id),
-            ),
-          },
+          ],
         ),
-      ],
+      ),
     );
   }
+
+  /// What the sheet shows for [_detail], and how wide; null for no sheet.
+  (double, Widget)? _sheet(
+    BuildContext context, {
+    required WorldTrace? trace,
+    required Color Function(String? person) colorOf,
+    required TracedStep? shown,
+    required Color litColor,
+    required String? engine,
+    required void Function(String step) choose,
+    required void Function(OutboxMessage message) openMessage,
+    required Future<void> Function(String how)? Function(OutboxMessage message)
+    deliverTo,
+  }) {
+    var world = widget.world;
+    var detail = _detail;
+    if (detail == null || trace == null) return null;
+    void close() => _show(null);
+    switch (detail.kind) {
+      case _DetailKind.person:
+        var person = world.people[detail.id];
+        if (person == null) return null;
+        return (
+          380,
+          _Drawer(
+            person: person,
+            color: colorOf(person.name),
+            sync: world.tracer?.syncOf(person.name),
+            messages: trace.outbox(person: person.name, limit: 10),
+            onDeliver: (message, how) =>
+                deliverTo(message)?.call(how) ?? Future.value(),
+            onRead: openMessage,
+            onClose: close,
+          ),
+        );
+      case _DetailKind.part:
+        var contents = trace.contentsOf(detail.id);
+        if (contents == null) return null;
+        return (
+          380,
+          NodeContentsView(
+            contents: contents,
+            label: contentsLabel(contents, engine: engine),
+            colorOf: colorOf,
+            shown: shown?.step.id,
+            markColor: litColor,
+            onBack: close,
+            onChoose: choose,
+            onDeliver: (message, how) =>
+                deliverTo(message)?.call(how) ?? Future.value(),
+            onRead: openMessage,
+          ),
+        );
+      case _DetailKind.message:
+        var message = trace.messageById(detail.id);
+        if (message == null) return null;
+        if (message.kind == 'mail') {
+          return (
+            640,
+            MailView(
+              message: message,
+              snapshots: world.snapshots,
+              back: 'Timeline',
+              onBack: close,
+              onChoose: choose,
+              onDeliver: switch (deliverTo(message)) {
+                null => null,
+                _ => (link) => world.deliver(
+                  message.id,
+                  link: link,
+                  actor: 'human',
+                ),
+              },
+            ),
+          );
+        }
+        return (
+          380,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ColumnBack('Timeline', onBack: close),
+              Padding(
+                padding: const EdgeInsets.all(FwSpacing.lg),
+                child: MessageRow(
+                  message: message,
+                  onDeliver: deliverTo(message),
+                  onRead: () {},
+                ),
+              ),
+            ],
+          ),
+        );
+    }
+  }
+
+  /// The stage as a canvas: [_stage], zoomable, with its zoom buttons.
+  Widget _canvas(
+    BuildContext context, {
+    required WorldTrace? trace,
+    required List<String> people,
+    required Color Function(String? person) colorOf,
+    required TracedStep? shown,
+    required Map<String, int> numbers,
+    required void Function(String person) onPerson,
+    required void Function(String node) onPart,
+  }) => LayoutBuilder(
+    builder: (context, viewport) => Stack(
+      children: [
+        ZoomableStage(
+          controller: _zoom,
+          onInteracting: (panning) => _panning.value = panning,
+          child: _stage(
+            context,
+            trace: trace,
+            people: people,
+            colorOf: colorOf,
+            shown: shown,
+            numbers: numbers,
+            onPerson: onPerson,
+            onPart: onPart,
+          ),
+        ),
+        Positioned(
+          right: FwSpacing.md,
+          top: FwSpacing.sm,
+          child: ListenableBuilder(
+            listenable: _zoom,
+            builder: (context, _) => ZoomButtons(
+              value: _zoom.value.getMaxScaleOnAxis(),
+              onScale: (factor) =>
+                  _zoomAbout(factor, viewport.biggest.center(Offset.zero)),
+              onFit: () => _zoom.value = Matrix4.identity(),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   /// The phones, the system beneath them and the lines between — one
   /// picture, which the stage above zooms as one.
@@ -309,6 +494,8 @@ class _WorldCanvasState extends State<WorldCanvas> {
     required Color Function(String? person) colorOf,
     required TracedStep? shown,
     required Map<String, int> numbers,
+    required void Function(String person) onPerson,
+    required void Function(String node) onPart,
   }) {
     var world = widget.world;
     return _ends.stage(
@@ -327,7 +514,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                   // the same rule the stage applies, so the two agree.
                   ignores: (event) => _panning.value || stageOwnsPointer(event),
                   onFit: (fit) => _fit = fit,
-                  onOpen: (person) => setState(() => _drawer = person),
+                  onOpen: onPerson,
                 ),
               ),
               if (trace != null)
@@ -341,11 +528,11 @@ class _WorldCanvasState extends State<WorldCanvas> {
                   litColor: colorOf(shown?.step.person),
                   colorOf: colorOf,
                   anchors: _ends,
-                  opened: _opened,
-                  onOpen: (node) => setState(() {
-                    _opened = _opened == node ? null : node;
-                    _overContents = false;
-                  }),
+                  opened: _detail?.kind == _DetailKind.part
+                      ? _detail!.id
+                      : null,
+                  onOpen: onPart,
+                  compact: true,
                 ),
             ],
           ),
@@ -372,12 +559,6 @@ class _WorldCanvasState extends State<WorldCanvas> {
     );
   }
 
-  /// Hands [message] to its recipient's app — from the studio, so the
-  /// person's journal says a human did.
-  Future<void> _deliver(OutboxMessage message, String how) async {
-    await widget.world.deliver(message.id, how: how, actor: 'human');
-  }
-
   /// Zooms by [factor] about [focal], a point of the viewport — the buttons'
   /// way in, where a gesture's is [ZoomableStage]'s own. Back at life-size
   /// the stage is at rest again: everything fitted.
@@ -398,6 +579,13 @@ class _WorldCanvasState extends State<WorldCanvas> {
     _zoom.value = matrix;
   }
 }
+
+/// What the sheet over the timeline can show.
+enum _DetailKind { person, part, message }
+
+/// One thing in the sheet: its kind, and its person's name, node or
+/// message id.
+typedef _Detail = ({_DetailKind kind, String id});
 
 /// No step: what [List.lastWhere] falls back to on an empty list.
 final TracedStep _none = (step: TraceStep('', ''), beats: const []);
@@ -539,7 +727,7 @@ class _PersonView extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _Dot(color),
+                    PersonDot(color),
                     const SizedBox(width: FwSpacing.xs),
                     Flexible(
                       child: Text(
@@ -673,9 +861,15 @@ class SystemBand extends StatelessWidget {
     required this.anchors,
     this.opened,
     this.onOpen,
+    this.compact = false,
   });
 
   final List<SystemServer> servers;
+
+  /// Each server as its counts and only the parts the step on the stage
+  /// touched: what is happening, where the outline beside it lists what
+  /// there is. A world with forty routes still has a band one row deep.
+  final bool compact;
 
   /// Each person's sync state, for those whose app reads one.
   final Map<String, Map<String, Object?>> sync;
@@ -718,11 +912,13 @@ class SystemBand extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Clear of the first channel, which runs down the band's left.
-            Padding(
-              padding: const EdgeInsets.only(left: channelWidth),
-              child: Text('The system', style: context.type.sectionLabel),
-            ),
-            const SizedBox(height: FwSpacing.sm),
+            if (!compact) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: channelWidth),
+                child: Text('The system', style: context.type.sectionLabel),
+              ),
+              const SizedBox(height: FwSpacing.sm),
+            ],
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -751,6 +947,7 @@ class SystemBand extends StatelessWidget {
                                   anchors: anchors,
                                   opened: opened,
                                   onOpen: onOpen,
+                                  compact: compact,
                                 ),
                               ),
                           ],
@@ -793,7 +990,11 @@ class _ServerCard extends StatelessWidget {
     required this.anchors,
     required this.opened,
     required this.onOpen,
+    this.compact = false,
   });
+
+  /// Only the parts lit or open, under the server's counts.
+  final bool compact;
 
   final SystemServer server;
   final Map<String, int> numbers;
@@ -804,7 +1005,8 @@ class _ServerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var requests = server.parts.values.fold(0, (sum, n) => sum + n);
+    bool shown(String node) =>
+        !compact || numbers.containsKey(node) || opened == node;
     Widget chip(String node, Widget label, String count) => anchors.wrap(
       node,
       _Part(
@@ -818,7 +1020,8 @@ class _ServerCard extends StatelessWidget {
     );
     var api = [
       for (var MapEntry(key: part, value: n) in server.parts.entries)
-        chip(server.partNode(part), _PartLabel(part), '×$n'),
+        if (shown(server.partNode(part)))
+          chip(server.partNode(part), _PartLabel(part), '×$n'),
     ];
     Widget table(String table) {
       var keys = server.tables[table]!.length;
@@ -831,31 +1034,85 @@ class _ServerCard extends StatelessWidget {
 
     var data = [
       for (var name in server.tables.keys)
-        if (!server.layers.containsKey(name)) table(name),
+        if (!server.layers.containsKey(name) && shown(server.tableNode(name)))
+          table(name),
     ];
     // A table in a layer of its own — a job queue's — sits beneath the
     // records people act on, under the layer's name.
     var layered = <String, List<Widget>>{};
     for (var MapEntry(key: name, value: layer) in server.layers.entries) {
+      if (!shown(server.tableNode(name))) continue;
       layered.putIfAbsent(layer, () => []).add(table(name));
     }
+    var outside = [
+      for (var MapEntry(key: channel, value: n) in server.sent.entries)
+        if (shown(server.sentNode(channel)))
+          chip(
+            server.sentNode(channel),
+            Text(messageKind(channel), style: context.type.body),
+            '$n sent',
+          ),
+    ];
     var sides = [
       if (data.isNotEmpty) ('Data', data),
-      if (server.sent.isNotEmpty)
-        (
-          'Outside',
-          [
-            for (var MapEntry(key: channel, value: n) in server.sent.entries)
-              chip(
-                server.sentNode(channel),
-                Text(messageKind(channel), style: context.type.body),
-                '$n sent',
-              ),
-          ],
-        ),
+      if (outside.isNotEmpty) ('Outside', outside),
       for (var MapEntry(key: layer, value: chips) in layered.entries)
         ('${layer[0].toUpperCase()}${layer.substring(1)}', chips),
     ];
+    if (compact) {
+      // Its name and counts, and the parts in play on one wrapping row —
+      // the kinds are in the outline, where the whole list is.
+      var lit = [
+        ...api,
+        ...data,
+        ...outside,
+        for (var chips in layered.values) ...chips,
+      ];
+      return Container(
+        padding: const EdgeInsets.all(FwSpacing.sm),
+        decoration: BoxDecoration(
+          color: context.colors.bg,
+          border: Border.all(color: context.colors.line),
+          borderRadius: BorderRadius.circular(context.radii.radius),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.dns_outlined,
+                  size: FwIconSize.sm,
+                  color: context.colors.ink2,
+                ),
+                const SizedBox(width: FwSpacing.xs),
+                Text(server.name, style: context.type.bodyStrong),
+                const SizedBox(width: FwSpacing.sm),
+                Expanded(
+                  child: Text(
+                    _counts(server),
+                    style: context.type.bodyMuted,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            if (lit.isNotEmpty) ...[
+              const SizedBox(height: FwSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.only(left: channelWidth),
+                child: Wrap(
+                  spacing: channelWidth,
+                  runSpacing: 6,
+                  children: lit,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.all(FwSpacing.sm),
       decoration: BoxDecoration(
@@ -899,13 +1156,17 @@ class _ServerCard extends StatelessWidget {
                   ),
                   const SizedBox(width: FwSpacing.xs),
                   Text(server.name, style: context.type.bodyStrong),
-                  // A service heard only through what it sent — mail an
-                  // identity provider sends — answered nothing here.
-                  if (requests > 0) ...[
+                  // Counts, never zeros: a service heard only through what
+                  // it sent — an identity provider's mail — answered nothing.
+                  if (_counts(server) case var counts
+                      when counts.isNotEmpty) ...[
                     const SizedBox(width: FwSpacing.sm),
-                    Text(
-                      requests == 1 ? '1 request' : '$requests requests',
-                      style: context.type.bodyMuted,
+                    Flexible(
+                      child: Text(
+                        counts,
+                        style: context.type.bodyMuted,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ],
@@ -932,6 +1193,18 @@ class _ServerCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// `9 requests · 3 tables · 2 sent`: what a server has done, in counts.
+String _counts(SystemServer server) {
+  var requests = server.parts.values.fold(0, (sum, n) => sum + n);
+  var sent = server.sent.values.fold(0, (sum, n) => sum + n);
+  String of(int n, String one, String many) => n == 1 ? '1 $one' : '$n $many';
+  return [
+    if (requests > 0) of(requests, 'request', 'requests'),
+    if (server.tables.isNotEmpty) of(server.tables.length, 'table', 'tables'),
+    if (sent > 0) '$sent sent',
+  ].join(' · ');
 }
 
 /// A route as the adapter names it: the method, then the path with its ids
@@ -1110,7 +1383,7 @@ class _SyncCard extends StatelessWidget {
             for (var MapEntry(key: person, value: state) in sync.entries)
               Row(
                 children: [
-                  _Dot(colorOf(person)),
+                  PersonDot(colorOf(person)),
                   const SizedBox(width: FwSpacing.xs),
                   Text(person, style: context.type.body),
                   const SizedBox(width: FwSpacing.xs),
@@ -1235,8 +1508,9 @@ class NodeNumber extends StatelessWidget {
   );
 }
 
-class _Dot extends StatelessWidget {
-  const _Dot(this.color);
+/// A person's colour, as a dot: beside their name, their steps, their lane.
+class PersonDot extends StatelessWidget {
+  const PersonDot(this.color, {super.key});
 
   final Color color;
 
@@ -1248,214 +1522,11 @@ class _Dot extends StatelessWidget {
   );
 }
 
-/// Every step taken on the phones, newest first. The stage follows the
-/// newest until one is chosen.
-class TraceList extends StatelessWidget {
-  const TraceList({
-    super.key,
-    required this.steps,
-    required this.colorOf,
-    required this.following,
-    required this.onChoose,
-  });
-
-  /// Newest first.
-  final List<TracedStep> steps;
-  final Color Function(String? person) colorOf;
-
-  /// The step the stage shows while none is chosen.
-  final String? following;
-  final void Function(String step) onChoose;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(
-          FwSpacing.lg,
-          FwSpacing.md,
-          FwSpacing.lg,
-          FwSpacing.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Steps', style: context.type.sectionLabel),
-            Text(
-              "Each tap on a phone and each of the world's actions, and what "
-              'it caused. The stage shows the newest that caused something; '
-              'choose one to hold it.',
-              style: context.type.bodyMuted,
-            ),
-          ],
-        ),
-      ),
-      Expanded(
-        child: steps.isEmpty
-            ? Padding(
-                padding: const EdgeInsets.all(FwSpacing.lg),
-                child: Text(
-                  'Nothing yet. Tap something on a phone, or drive one with '
-                  '`flutterware_act`.',
-                  style: context.type.bodyMuted,
-                ),
-              )
-            : ListView(
-                children: [
-                  for (var (:step, :beats) in steps)
-                    Tappable(
-                      onTap: () => onChoose(step.id),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FwSpacing.lg,
-                          vertical: FwSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: step.id == following
-                              ? context.colors.accentSoft2
-                              : null,
-                          border: Border(
-                            bottom: BorderSide(color: context.colors.line2),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 5),
-                              child: _Dot(colorOf(step.person)),
-                            ),
-                            const SizedBox(width: FwSpacing.sm),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    stepTitle(step),
-                                    style: context.type.body,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    [
-                                      clockOf(step.at!),
-                                      step.id,
-                                      beats.isEmpty
-                                          ? step.verb == 'action'
-                                                ? 'nothing heard yet'
-                                                : 'nothing left the phone'
-                                          : switch (everyBeat(beats).length) {
-                                              1 => '1 thing',
-                                              var n => '$n things',
-                                            },
-                                    ].join(' · '),
-                                    style: context.type.bodyMuted,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-      ),
-    ],
-  );
-}
-
-/// One step, as a waterfall: what it caused, in order, each beat with its
-/// offset from the tap and the number of the node it touched.
-class TraceDetail extends StatelessWidget {
-  const TraceDetail({
-    super.key,
-    required this.traced,
-    required this.numbers,
-    required this.colorOf,
-    required this.onBack,
-    this.back = 'Steps',
-  });
-
-  final TracedStep traced;
-  final Map<String, int> numbers;
-  final Color Function(String? person) colorOf;
-  final VoidCallback onBack;
-
-  /// Where [onBack] goes: the steps, or the contents it was chosen from.
-  final String back;
-
-  @override
-  Widget build(BuildContext context) {
-    var (:step, :beats) = traced;
-    var color = colorOf(step.person);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ColumnBack(back, onBack: onBack),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            FwSpacing.lg,
-            0,
-            FwSpacing.lg,
-            FwSpacing.md,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _Dot(color),
-                  const SizedBox(width: FwSpacing.sm),
-                  Expanded(
-                    child: Text(stepTitle(step), style: context.type.heading),
-                  ),
-                ],
-              ),
-              Text(
-                '${clockOf(step.at!)} · ${step.id}',
-                style: context.type.bodyMuted,
-              ),
-            ],
-          ),
-        ),
-        Container(height: 1, color: context.colors.line),
-        Expanded(
-          child: beats.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(FwSpacing.lg),
-                  child: Text(
-                    step.verb == 'action'
-                        ? 'Nothing heard: no server reported a request '
-                              'carrying this step.'
-                        : 'Nothing left the phone: no request, and no record '
-                              'written.',
-                    style: context.type.bodyMuted,
-                  ),
-                )
-              : ListView(
-                  children: [
-                    for (var (beat, depth) in beatsByDepth(beats))
-                      _BeatRow(
-                        beat: beat,
-                        depth: depth,
-                        since: step.at!,
-                        number: numbers[beat.node],
-                        color: color,
-                        dot: colorOf(beat.person),
-                      ),
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
-}
-
 /// One beat of a step: when, where, what — and, for a request that ran
 /// statements, those statements once it is opened.
-class _BeatRow extends StatefulWidget {
-  const _BeatRow({
+class BeatRow extends StatefulWidget {
+  const BeatRow({
+    super.key,
     required this.beat,
     this.depth = 0,
     required this.since,
@@ -1479,10 +1550,10 @@ class _BeatRow extends StatefulWidget {
   final Color dot;
 
   @override
-  State<_BeatRow> createState() => _BeatRowState();
+  State<BeatRow> createState() => _BeatRowState();
 }
 
-class _BeatRowState extends State<_BeatRow> {
+class _BeatRowState extends State<BeatRow> {
   var _open = false;
 
   @override
@@ -1520,7 +1591,7 @@ class _BeatRowState extends State<_BeatRow> {
                 padding: const EdgeInsets.only(top: 5, left: 5),
                 child: Align(
                   alignment: Alignment.topLeft,
-                  child: _Dot(widget.dot),
+                  child: PersonDot(widget.dot),
                 ),
               ),
             },
@@ -1637,7 +1708,7 @@ class NodeContentsView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ColumnBack('Steps', onBack: onBack),
+        ColumnBack('Timeline', onBack: onBack),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             FwSpacing.lg,
@@ -1736,7 +1807,7 @@ class NodeContentsView extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 5),
-            child: _Dot(colorOf(item.person)),
+            child: PersonDot(colorOf(item.person)),
           ),
           const SizedBox(width: FwSpacing.sm),
           Expanded(
@@ -1829,7 +1900,7 @@ class NodeContentsView extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.only(top: 5, right: FwSpacing.xs),
-            child: _Dot(colorOf(moment.person)),
+            child: PersonDot(colorOf(moment.person)),
           ),
           Expanded(
             child: Text.rich(
@@ -1895,7 +1966,7 @@ class _Drawer extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ColumnBack('Steps', onBack: onClose),
+        ColumnBack('Timeline', onBack: onClose),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             FwSpacing.lg,
@@ -1908,7 +1979,7 @@ class _Drawer extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _Dot(color),
+                  PersonDot(color),
                   const SizedBox(width: FwSpacing.sm),
                   Text(person.name, style: context.type.heading),
                 ],
@@ -1937,7 +2008,7 @@ class _Drawer extends StatelessWidget {
                 for (var message in messages)
                   Padding(
                     padding: const EdgeInsets.only(bottom: FwSpacing.sm),
-                    child: _Message(
+                    child: MessageRow(
                       message: message,
                       onDeliver: person.running
                           ? (how) => onDeliver(message, how)
@@ -1968,8 +2039,9 @@ class _Drawer extends StatelessWidget {
 
 /// One message in a person's drawer: what it says, where it came from, and
 /// how to hand it to their app.
-class _Message extends StatelessWidget {
-  const _Message({
+class MessageRow extends StatelessWidget {
+  const MessageRow({
+    super.key,
     required this.message,
     required this.onDeliver,
     required this.onRead,
@@ -2106,7 +2178,16 @@ class _DeliveryButtonsState extends State<DeliveryButtons> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(spacing: FwSpacing.sm, children: buttons),
+          // A button fills the width it is given, and a Wrap gives it the
+          // whole row; a Row asks it for its own.
+          Wrap(
+            spacing: FwSpacing.sm,
+            runSpacing: FwSpacing.xs,
+            children: [
+              for (var button in buttons)
+                Row(mainAxisSize: MainAxisSize.min, children: [button]),
+            ],
+          ),
           if (_refused case var refused?)
             Padding(
               padding: const EdgeInsets.only(top: FwSpacing.xs),

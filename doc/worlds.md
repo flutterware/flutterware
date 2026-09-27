@@ -154,6 +154,17 @@ fw run worlds open --world=pickup_order --hold=true   # Ctrl-C closes it
 fw run worlds reload
 ```
 
+An open world is three columns. On the left, everything it holds: its
+people, each server with every route, table and message channel it has
+used, and the messages sent. In the middle, the stage: the people's apps,
+live, above a band that shows each server by its counts and the parts the
+chosen step touched — or, switched to **Sequence**, a lane for each person
+and each server with what crossed between them, step by step. On the
+right, the timeline: every step and every message, newest first, a step
+opening where it is on what it caused. Whatever you choose — a person, a
+part, a message — opens in one sheet over the timeline; Esc closes it. The
+world's log folds into the timeline's foot.
+
 Each person's app is a Run app on the device `studio-<name>`: an agent opens a
 world with `flutterware_invoke` and drives Leo's app with `flutterware_act`
 and `device: "studio-leo"`, with the same verbs as any other app.
@@ -267,10 +278,10 @@ arrives, and each person's sync state shows beside their phone and in
 ## Hand a message to a person
 
 What a server sends outside — an SMS, a push, a mail — reaches its person
-through the world. Each person's drawer opens on the messages sent to them:
-**Type it** puts a code into the field that has focus in their app, as an
-autofill would, and **Open** or **Tap it** opens a message's link in their
-app. Tap the field the code goes in first.
+through the world. Each message is a row of the timeline, beside the steps,
+and of its person's sheet: **Type it** puts a code into the field that has
+focus in their app, as an autofill would, and **Open** or **Tap it** opens a
+message's link in their app. Tap the field the code goes in first.
 
 ```shell
 fw run worlds outbox --person=Leo

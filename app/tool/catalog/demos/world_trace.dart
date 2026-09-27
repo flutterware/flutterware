@@ -5,8 +5,8 @@
 /// Ben orders a flat white, his local write uploads, the server writes it,
 /// and PowerSync brings it to Cleo's phone and back to his. The phones are
 /// stand-ins; everything else — the band, the numbers, the lines and where
-/// their words go, the waterfall, a table opened on its records — is what
-/// the Worlds panel draws.
+/// their words go, the timeline with the step open, a table opened on its
+/// records, the sequence — is what the Worlds panel draws.
 library;
 
 import 'package:flutter/widget_previews.dart';
@@ -14,6 +14,8 @@ import 'package:flutterware/src/server/attach_session.dart';
 import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware_app/src/ui/theme.dart';
 import 'package:flutterware_app/src/world/world_canvas.dart';
+import 'package:flutterware_app/src/world/world_sequence.dart';
+import 'package:flutterware_app/src/world/world_timeline.dart';
 import 'package:flutterware_app/src/world/world_trace.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -24,6 +26,14 @@ Widget worldTrace() => const _Trace();
 
 @Preview(name: 'Trace · dark', group: 'Worlds', wrapper: wrapInDarkTheme)
 Widget worldTraceDark() => const _Trace();
+
+/// The same step as a sequence: a lane each for Cleo, Ben, the server and
+/// the sync engine, and what crossed between them.
+@Preview(name: 'Sequence', group: 'Worlds', wrapper: wrapInAppTheme)
+Widget worldSequence() => const _Sequence();
+
+@Preview(name: 'Sequence · dark', group: 'Worlds', wrapper: wrapInDarkTheme)
+Widget worldSequenceDark() => const _Sequence();
 
 /// The orders table opened: the record Ben's tap made, and its life.
 @Preview(name: 'Contents', group: 'Worlds', wrapper: wrapInAppTheme)
@@ -230,6 +240,7 @@ class _TraceState extends State<_Trace> {
                         colorOf: colorOf,
                         anchors: _anchors,
                         opened: widget.opened,
+                        compact: true,
                       ),
                     ],
                   ),
@@ -255,13 +266,19 @@ class _TraceState extends State<_Trace> {
           ),
           Container(width: 1, color: context.colors.line),
           SizedBox(
-            width: 340,
+            width: 380,
             child: contents == null
-                ? TraceDetail(
-                    traced: traced,
-                    numbers: numbers,
+                ? WorldTimeline(
+                    steps: _trace.steps().reversed.toList(),
+                    messages: _trace.outbox(),
+                    people: people,
                     colorOf: colorOf,
-                    onBack: () {},
+                    chosen: traced.step.id,
+                    following: traced.step.id,
+                    onChoose: (_) {},
+                    onOpenMessage: (_) {},
+                    deliverTo: (_) => null,
+                    log: const [],
                   )
                 : NodeContentsView(
                     contents: contents,
@@ -274,6 +291,32 @@ class _TraceState extends State<_Trace> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _Sequence extends StatelessWidget {
+  const _Sequence();
+
+  @override
+  Widget build(BuildContext context) {
+    var trace = _recorded();
+    var people = ['Cleo', 'Ben'];
+    Color colorOf(String? person) => person == null || !people.contains(person)
+        ? context.colors.mut2
+        : context.colors.person(people.indexOf(person));
+    var steps = trace.steps();
+    return SizedBox(
+      width: 760,
+      height: 420,
+      child: WorldSequence(
+        steps: steps,
+        people: people,
+        servers: trace.servers.toList(),
+        colorOf: colorOf,
+        chosen: steps.last.step.id,
+        onChoose: (_) {},
       ),
     );
   }

@@ -1093,6 +1093,21 @@ triggered.
      - each part of the system opening on what it holds — calls, records
        with their lives, messages, synced records — each item linked to
        the step that caused it, and what the shown step touched marked.
+   - **Laid out again after a design round** (canvas: *Worlds design
+     round*, 2026-09-27; direction A2). The column had grown five modes
+     behind one back link — steps, a step, a person, a part, a mail — and
+     a choice could land under another and look like a dead click. Now:
+     an outline on the left (people, every part of every server, messages),
+     the stage in the middle — the band compact, each server's counts and
+     only the parts the shown step touched, so the phones get the height —
+     with a *Sequence* view beside the canvas (a lane per person and per
+     server, arrows for what crossed), and the timeline on the right:
+     steps and messages together, a step opening in place as its tree,
+     messages carrying their delivery, the log folded into its foot. One
+     sheet over the timeline shows whatever was chosen last, a mail at its
+     own width. Open questions, to judge in use: how the band reads on a
+     busy world, and whether the outline and the band read as the same
+     thing twice.
    - Not yet: focus, credentials, pending questions; contents pulled from a
      server rather than heard.
 3. **Server panels** over `FlutterwareServer.handle`, and **reload of the
