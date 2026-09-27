@@ -28,11 +28,16 @@ Details worth keeping:
 
 - **The plugin costs the studio next to nothing.** A blank macOS app built
   in release in 26.1 s without `webview_flutter` and 23.7 s with it, from
-  clean: noise. The studio already builds four native plugins (`file_picker`,
-  `file_selector`, `package_info_plus`, `url_launcher`) with a Podfile, so a
-  webview adds a fifth through machinery every user already pays for — not
+  clean: noise. The studio already builds ~~four native plugins (`file_picker`,
+  `file_selector`, `package_info_plus`, `url_launcher`)~~ two native plugins
+  (`file_selector`, `url_launcher`) with a Podfile, so a webview adds a
+  ~~fifth~~ third through machinery every user already pays for — not
   the new cost the design assumed. On this machine the plugin came through
   Swift Package Manager (`enable-swift-package-manager: true`).
+  *Corrected 2026-09-27: `file_picker` and `package_info_plus` were declared
+  by the studio and imported by nothing, and were removed. A world's guest
+  asking for package info is answered in Dart
+  (`app/lib/src/world/platform/package_info.dart`), not by the plugin.*
 - **A magnified page is a scaled bitmap.** At 200 % the webview's text is
   soft, as the guests' was before they re-rendered at size; WebKit's page
   zoom is the equivalent fix once a zoom settles.
