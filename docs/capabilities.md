@@ -2852,7 +2852,7 @@ note: String?
 
 | parameter | kind | required | default | |
 |---|---|---|---|---|
-| `person` | string | no | — | Only this person's steps |
+| `person` | string | no | — | Only this person's steps; `world` for the world's own actions |
 | `step` | string | no | — | Only this step, by its name: `ben.3` |
 | `limit` | integer | no | — | How many of the newest steps, 10 by default |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
@@ -2925,6 +2925,7 @@ Returns `WorldActionResult`:
 action: String
 run: int
 running: bool   # Still going when the wait ran out; `worlds status` shows how far.
+step: String?   # The step it ran as — `world.2` — what `worlds trace` takes as `step` for what it caused.
 progress: String?   # The last thing it said about how far it is.
 error: String?
 ```

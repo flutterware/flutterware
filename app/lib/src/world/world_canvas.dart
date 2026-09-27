@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+// ignore: implementation_imports
+import 'package:flutterware/src/world/step_names.dart' show worldActionsOwner;
 import 'package:flutterware/world.dart';
 import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
@@ -131,9 +133,15 @@ class _WorldCanvasState extends State<WorldCanvas> {
     var world = widget.world;
     var trace = world.tracer?.trace;
     var people = world.people.keys.toList();
-    Color colorOf(String? person) => person == null || !people.contains(person)
-        ? context.colors.mut2
-        : context.colors.person(people.indexOf(person));
+    // The world's own actions light the system in ink: nobody's colour, and
+    // still plainly lit.
+    Color colorOf(String? person) => switch (person) {
+      worldActionsOwner => context.colors.ink2,
+      var name? when people.contains(name) => context.colors.person(
+        people.indexOf(name),
+      ),
+      _ => context.colors.mut2,
+    };
 
     var steps = trace?.steps(limit: 60) ?? const <TracedStep>[];
     // Followed, the newest step that did something: a tap that changed
@@ -1219,8 +1227,9 @@ class TraceList extends StatelessWidget {
           children: [
             Text('Steps', style: context.type.sectionLabel),
             Text(
-              'Each tap on a phone, and what it caused. The stage shows the '
-              'newest that caused something; choose one to hold it.',
+              "Each tap on a phone and each of the world's actions, and what "
+              'it caused. The stage shows the newest that caused something; '
+              'choose one to hold it.',
               style: context.type.bodyMuted,
             ),
           ],
@@ -1276,7 +1285,9 @@ class TraceList extends StatelessWidget {
                                       clockOf(step.at!),
                                       step.id,
                                       beats.isEmpty
-                                          ? 'nothing left the phone'
+                                          ? step.verb == 'action'
+                                                ? 'nothing heard yet'
+                                                : 'nothing left the phone'
                                           : beats.length == 1
                                           ? '1 thing'
                                           : '${beats.length} things',
@@ -1357,8 +1368,11 @@ class TraceDetail extends StatelessWidget {
               ? Padding(
                   padding: const EdgeInsets.all(FwSpacing.lg),
                   child: Text(
-                    'Nothing left the phone: no request, and no record '
-                    'written.',
+                    step.verb == 'action'
+                        ? 'Nothing heard: no server reported a request '
+                              'carrying this step.'
+                        : 'Nothing left the phone: no request, and no record '
+                              'written.',
                     style: context.type.bodyMuted,
                   ),
                 )
@@ -1815,8 +1829,10 @@ class _Back extends StatelessWidget {
   );
 }
 
-/// `Cleo tapped "Advance"`.
+/// `Cleo tapped "Advance"`; a world's action, `Ran "Mia orders a flat
+/// white"`.
 String stepTitle(TraceStep step) {
+  if (step.verb == 'action') return 'Ran ${step.target ?? 'an action'}';
   var did = switch (step.verb) {
     'tap' => 'tapped',
     'longPress' => 'long-pressed',

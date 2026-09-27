@@ -9,6 +9,8 @@ import 'package:flutterware/src/ui_catalog/knob.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/world/protocol.dart';
 // ignore: implementation_imports
+import 'package:flutterware/src/world/step_names.dart';
+// ignore: implementation_imports
 import 'package:flutterware/src/world/world.dart';
 import 'package:path/path.dart' as p;
 
@@ -43,6 +45,7 @@ class OpenWorld {
     required this.guests,
     this.onChanged,
     this.buildRoot,
+    this.runDir,
   });
 
   final WorldFile file;
@@ -66,6 +69,11 @@ class OpenWorld {
 
   /// Where each app's guest build goes; its package's own `build/` when null.
   final String? buildRoot;
+
+  /// Where the servers the world traces announce themselves; the machine's
+  /// run dir when null. A test names an empty one, or its world attaches to
+  /// every real server under the worktree.
+  final String Function()? runDir;
 
   WorldPhase phase = WorldPhase.opening;
 
@@ -147,9 +155,16 @@ class OpenWorld {
         '${actions.isEmpty ? 'It declares none.' : 'It has: ${actions.keys.join(', ')}.'}',
       );
     }
-    var run = WorldActionRun(_nextRun++, action);
+    var id = _nextRun++;
+    // A step, as a tap is: what the action sends is traced under it.
+    var run = WorldActionRun(id, action, step: '$worldActionsOwner.$id');
     runs[run.id] = run;
-    script.send(WorldMessage.invoke, {'action': action, 'run': run.id});
+    tracer?.trace.addActionStep(run.step, action, DateTime.now());
+    script.send(WorldMessage.invoke, {
+      'action': action,
+      'run': run.id,
+      'step': run.step,
+    });
     _changed();
     await run._ended.future.timeout(wait, onTimeout: () {});
     return run;
@@ -199,7 +214,7 @@ class OpenWorld {
     // The stamps start again at 0.0; a long log says which opening it is.
     if (_restarts > 0) _say('Restart $_restarts');
     unawaited(tracer?.close());
-    tracer = WorldTracer(worktree: worktree)..onSync = _changed;
+    tracer = WorldTracer(worktree: worktree, runDir: runDir)..onSync = _changed;
 
     void settle() {
       if (!setUp || settled.isCompleted) return;
@@ -823,10 +838,13 @@ class WorldKnob {
 }
 
 class WorldActionRun {
-  WorldActionRun(this.id, this.action);
+  WorldActionRun(this.id, this.action, {required this.step});
 
   final int id;
   final String action;
+
+  /// The step it runs as: `world.3`.
+  final String step;
   bool running = true;
   String? progress;
   double? fraction;

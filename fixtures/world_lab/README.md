@@ -32,7 +32,8 @@ where Leo's sign-up code is until the outbox exists.
 
 Every tap is a step the world follows through the lab server — whose adapter
 reads the `x-fw-step` header — and, in the synced world, through each phone's
-database. `fw run worlds trace` answers with the newest steps and what each
+database. So is each run of the world's actions: *Mia orders a flat white*
+is `world.1`. `fw run worlds trace` answers with the newest steps and what each
 one caused; Leo's code is under his *Send code* tap there too. `fw run worlds
 contents --part=orders` answers what the orders table holds, each order with
 its life from the tap to both phones.

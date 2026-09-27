@@ -1,6 +1,17 @@
-/// What a world guest and the world that reads it agree on — no Flutter, so
-/// the owner, which may be `fw` or the MCP server, can import it.
+/// What a world guest, a world's script and the world that reads them agree
+/// on — no Flutter, so the owner, which may be `fw` or the MCP server, and the
+/// script can import it.
 library;
+
+/// The zone key a step travels under — in an app, around a gesture's
+/// callbacks; in a world's script, around an action. The same symbol a
+/// server's adapter puts [worldStepHeader] under (`FlutterwareServer.stepKey`),
+/// so a server hosted in the script reads one key either way.
+const worldStepKey = #fwStep;
+
+/// Whose a world's own actions are: `world.3` is its third action run. Not a
+/// person — nobody's phone — but it steps like one.
+const worldActionsOwner = 'world';
 
 /// The channel a world guest names its steps on: one event per gesture,
 /// `{step, verb, target}`.

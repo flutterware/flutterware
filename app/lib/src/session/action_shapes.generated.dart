@@ -7024,6 +7024,12 @@ final resultShapes = <String, ResultShape>{
             'Still going when the wait ran out; `worlds status` shows how far.',
       },
       <String, Object?>{
+        'name': 'step',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The step it ran as — `world.2` — what `worlds trace` takes as `step` for what it caused.',
+      },
+      <String, Object?>{
         'name': 'progress',
         'type': 'String',
         'optional': true,

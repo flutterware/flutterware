@@ -19,18 +19,21 @@ import '../utils/run_dir.dart';
 
 final _logger = Logger('world_trace');
 
-/// One gesture on a person's app, and everything the world saw it cause.
+/// One gesture on a person's app — or one run of the world's own action —
+/// and everything the world saw it cause.
 class TraceStep {
   TraceStep(this.id, this.person);
 
-  /// The guest's name for it: `ben.3`.
+  /// The guest's name for it: `ben.3`; the owner's, for an action: `world.2`.
   final String id;
+
+  /// Whose phone it was taken on, or [worldActionsOwner].
   final String person;
 
   /// When the gesture ended — where the offsets of what it caused start.
   DateTime? at;
 
-  /// `tap`, `longPress` or `drag`.
+  /// `tap`, `longPress` or `drag`; `action` for a world's own.
   String? verb;
 
   /// What it landed on, spelled as the drive targets are: `"Order"`.
@@ -239,6 +242,17 @@ class WorldTrace {
   /// Whose [userId] is, as the world knows by now.
   String? personOfUser(String userId) => _users[userId];
 
+  /// A run of the world's own [action], as the step [id] — `world.3` — which
+  /// the script sends its requests under, from [at].
+  void addActionStep(String id, String action, DateTime at) {
+    _owners[worldStepOwner(id) ?? worldActionsOwner] = worldActionsOwner;
+    _stepOf(id, worldActionsOwner)
+      ..at = at
+      ..verb = 'action'
+      ..target = '"$action"';
+    _changed.add(null);
+  }
+
   void addGuestEvent(String person, InspectorEvent event) {
     var payload = event.payload;
     switch (event.channel) {
@@ -297,8 +311,9 @@ class WorldTrace {
       if (_owners[worldStepOwner(id)] case var owner?) {
         step = id;
         _stepOf(id, owner);
+        // Whom an action signs in as is somebody, not the world.
         if (event.payload['user'] case String user
-            when event.channel == 'identify') {
+            when event.channel == 'identify' && owner != worldActionsOwner) {
           _users.putIfAbsent(user, () => owner);
         }
       }

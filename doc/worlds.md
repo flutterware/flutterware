@@ -173,6 +173,11 @@ the request is, so the world can tell whose a user is even when they signed
 up themselves, and `FlutterwareServer.reach(userId, what)` when it pushes
 something down a connection, such as a WebSocket frame.
 
+The world's own actions are steps too, named `world.1`, `world.2`: every
+request an action sends carries its step, so what *Mia orders a flat white*
+caused is traced the same way, and `fw run worlds invoke` answers with the
+step it ran as. `--person=world` lists only those.
+
 An app that keeps its data in a synced database follows its records instead:
 with `sync: DatabaseSync.powersync` on its [Database watch](database_watch.md)
 adapter, a record written on one phone is traced to the others as it

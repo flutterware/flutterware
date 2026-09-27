@@ -804,11 +804,18 @@ Measured on the lab (`2026-09-26-worlds-trace-spike-findings.md`): 8 of 8
 requests after a tap joined through the zone; a synced order reached the
 other phone 23–40 ms after the tap and was confirmed back after ~255 ms.
 
-What it does not do yet, each a known next step: the script's own actions
-take no steps, so what they cause is nobody's; a gesture's name is its
-nearest label, so one of several identical buttons is named by position; a
-request that is not `dart:io` HTTP — gRPC, a platform HTTP client — carries
-no step.
+**The world's own actions step too.** Each run of an action is a step the
+owner names — `world.3` — and the script runs the action under it, stamping
+every request it sends the way a guest does. *Mia orders a flat white* is
+then traced like a tap: her sign-up, her order, the write, the record
+arriving on Cleo's phone 44 ms later. `worlds invoke` answers with the step.
+
+What it does not do yet, each a known next step: the world's opening takes
+no step, because what its body starts — the server it hosts, a timer —
+would step under it for ever after, so the sign-ups a script seeds are
+still nobody's; a gesture's name is its nearest label, so one of several
+identical buttons is named by position; a request that is not `dart:io`
+HTTP — gRPC, a platform HTTP client — carries no step.
 
 **Not planned: a web page in the panel.** The consumer asked for
 `w.view(name, url)`, to draw its prototype's page beside the people until the
@@ -823,8 +830,9 @@ meanwhile.
   world another one owns: `status`, `trace`, `contents`, `invoke`, `restart`
   and `close` are forwarded to the owner (round 1).
 - `worlds trace {person?, step?, limit?}`: the newest steps on the people's
-  apps, each with what it caused (*Traces, as built*). The agent reads an SMS
-  code there as readily as the log.
+  apps and the world's own actions (`person: world`), each with what it
+  caused (*Traces, as built*). The agent reads an SMS code there as readily
+  as the log, and `worlds invoke` answers with the step its action ran as.
 - `worlds contents {part?, limit?}`: what one part of the system holds —
   a route's calls, a table's records and their lives, what was sent — or,
   with no part, the parts there are.

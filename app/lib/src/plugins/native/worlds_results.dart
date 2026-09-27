@@ -324,6 +324,7 @@ class WorldActionResult implements PluginResult, ReportsFailure {
     required this.action,
     required this.run,
     required this.running,
+    this.step,
     this.progress,
     this.error,
   });
@@ -332,6 +333,7 @@ class WorldActionResult implements PluginResult, ReportsFailure {
     action: run.action,
     run: run.id,
     running: run.running,
+    step: run.step,
     progress: run.progress,
     error: run.error,
   );
@@ -341,6 +343,7 @@ class WorldActionResult implements PluginResult, ReportsFailure {
         action: json['action']! as String,
         run: json['run']! as int,
         running: json['running']! as bool,
+        step: json['step'] as String?,
         progress: json['progress'] as String?,
         error: json['error'] as String?,
       );
@@ -350,6 +353,10 @@ class WorldActionResult implements PluginResult, ReportsFailure {
 
   /// Still going when the wait ran out; `worlds status` shows how far.
   final bool running;
+
+  /// The step it ran as — `world.2` — what `worlds trace` takes as `step`
+  /// for what it caused.
+  final String? step;
 
   /// The last thing it said about how far it is.
   final String? progress;
@@ -363,6 +370,7 @@ class WorldActionResult implements PluginResult, ReportsFailure {
     'action': action,
     'run': run,
     'running': running,
+    'step': ?step,
     'progress': ?progress,
     'error': ?error,
   };

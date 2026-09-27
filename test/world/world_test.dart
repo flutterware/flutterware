@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/world/protocol.dart';
+import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware/world.dart';
 
 /// An owner on the other end of [World.serve]: sends what it is told to and
@@ -168,6 +169,38 @@ void main() {
       (m) => m['type'] == WorldMessage.actionEnded && m['run'] == 3,
     );
     expect(unknown['error'], contains('no action "Fly"'));
+
+    owner.send(WorldMessage.close);
+    await served;
+  });
+
+  test('an action runs under the step the owner named its run', () async {
+    var owner = _Owner();
+    var stepped = <Object?>[];
+    var served = owner.serve((w) {
+      w.action('Order a flat white', (run) async {
+        await Future<void>.delayed(Duration.zero);
+        stepped.add(Zone.current[worldStepKey]);
+      });
+    });
+    owner.send(WorldMessage.open);
+    await owner.next(WorldMessage.setUp);
+    Future<void> ran(int run) => owner._arrived.stream.firstWhere(
+      (m) => m['type'] == WorldMessage.actionEnded && m['run'] == run,
+    );
+
+    var first = ran(1);
+    owner.send(WorldMessage.invoke, {
+      'action': 'Order a flat white',
+      'run': 1,
+      'step': 'world.1',
+    });
+    await first;
+    // An owner that names no step: the action runs under none.
+    var second = ran(2);
+    owner.send(WorldMessage.invoke, {'action': 'Order a flat white', 'run': 2});
+    await second;
+    expect(stepped, ['world.1', null]);
 
     owner.send(WorldMessage.close);
     await served;

@@ -4,7 +4,8 @@ import 'package:flutterware/src/server/attach_session.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware_app/src/plugins/native/worlds_results.dart';
-import 'package:flutterware_app/src/world/world_canvas.dart' show numberNodes;
+import 'package:flutterware_app/src/world/world_canvas.dart'
+    show numberNodes, stepTitle;
 import 'package:flutterware_app/src/world/world_trace.dart';
 
 void main() {
@@ -231,6 +232,47 @@ void main() {
       [for (var (:step, beats: _) in trace.steps(step: 'ben.2')) step.id],
       ['ben.2'],
     );
+  });
+
+  test("a world's own action is a step, and what it caused is traced like "
+      "a tap's", () {
+    trace.addActionStep(
+      'world.1',
+      'Mia orders a flat white',
+      since.add(const Duration(seconds: 1)),
+    );
+    lab(1005, 'identify', {'user': 'u9', 'step': 'world.1'}, 'req-1');
+    lab(1006, 'write', {
+      'table': 'orders',
+      'key': 'o7',
+      'op': 'insert',
+      'step': 'world.1',
+    }, 'req-1');
+    lab(1008, 'http', {
+      'method': 'POST',
+      'path': '/orders',
+      'status': 201,
+      'step': 'world.1',
+    }, 'req-1');
+    app('Cleo', 1030, 'db:main/records', {
+      'key': 'o7',
+      'table': 'orders',
+      'change': 'synced',
+      'op': 5,
+    });
+    expect(traced(), {
+      'world.1 action "Mia orders a flat white"': [
+        '+5 ms  lab  knows someone as u9',
+        '+6 ms  lab  wrote orders/o7 (insert)',
+        '+8 ms  lab  POST /orders  201',
+        '+30 ms  Cleo  orders/o7 arrived (op 5)',
+      ],
+    });
+    var step = trace.steps().single.step;
+    expect(step.person, worldActionsOwner);
+    expect(stepTitle(step), 'Ran "Mia orders a flat white"');
+    // Whom it signed in as is not the world.
+    expect(trace.personOfUser('u9'), isNull);
   });
 
   group('for the canvas', () {

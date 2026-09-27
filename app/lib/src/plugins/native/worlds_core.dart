@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutterware/plugins.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/world/step_names.dart' show worldActionsOwner;
 
 import '../../run/entrypoints.dart';
 import '../../world/open_world.dart';
@@ -164,7 +166,9 @@ class WorldsCore extends PluginCore {
           'person',
           'Person',
           required: false,
-          description: "Only this person's steps",
+          description:
+              "Only this person's steps; `world` for the world's own "
+              'actions',
         ),
         ActionParameter(
           'step',
@@ -557,7 +561,9 @@ class WorldsCore extends PluginCore {
   WorldTraceResult _traceAction(Map<String, Object?> arguments) {
     var open = _required;
     var person = arguments['person'] as String?;
-    if (person != null && !open.people.containsKey(person)) {
+    if (person != null &&
+        person != worldActionsOwner &&
+        !open.people.containsKey(person)) {
       throw WorldRefusal(
         'Nobody in ${open.file.name} is called $person: '
         '${open.people.keys.join(', ')}.',

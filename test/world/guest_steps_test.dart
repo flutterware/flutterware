@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/world/guest_steps.dart';
+import 'package:flutterware/src/world/step_http.dart';
 import 'package:flutterware/src/world/step_names.dart';
 
 void main() {
@@ -166,6 +167,25 @@ void main() {
           'how': 'zone',
         },
       ]);
+    });
+
+    test("a world script's requests carry the step of the action they run "
+        'under, and only that', () async {
+      HttpOverrides.global = StepStamping(StepStamping.zoneStep);
+      var url = Uri.parse('http://127.0.0.1:${server.port}/orders');
+      Future<void> post() async {
+        var client = HttpClient();
+        try {
+          await (await client.postUrl(url)).close();
+        } finally {
+          client.close();
+        }
+      }
+
+      await post();
+      await runZoned(post, zoneValues: {worldStepKey: 'world.2'});
+      await post();
+      expect(headers, [null, 'world.2', null]);
     });
   });
 }
