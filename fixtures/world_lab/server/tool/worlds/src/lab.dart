@@ -30,6 +30,7 @@ Future<LabServer> startLabServer(
     port: await w.freePort(),
     sms: _WorldSms(w),
     push: _WorldPush(w),
+    mail: _WorldMail(w),
   );
   w.onClose(server.close);
   return server;
@@ -121,5 +122,22 @@ class _WorldPush implements PushService {
   }) async {
     await ReportedPush().send(userId, title: title, body: body, link: link);
     w.progress('Push to $userId: $title');
+  }
+}
+
+class _WorldMail implements MailService {
+  _WorldMail(this.w);
+
+  final World w;
+
+  @override
+  Future<void> send(
+    String to, {
+    required String subject,
+    required String text,
+    required String html,
+  }) async {
+    await ReportedMail().send(to, subject: subject, text: text, html: html);
+    w.progress('Mail to $to: $subject');
   }
 }

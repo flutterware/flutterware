@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math' as math;
 
-import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
-import '../../constants.dart';
-import '../../utils/run_dir.dart';
+import '../../utils/swift_helper.dart';
 import 'native_driver.dart';
 
 /// The native layer on Apple platforms, through macOS accessibility.
@@ -626,80 +623,25 @@ class AxNativeDriver extends NativeDriver {
     return names;
   }
 
-  /// Compiles the helper, or returns the cached binary.
-  ///
-  /// Keyed by a hash of the source, so an edit to the Swift lands on the next
-  /// call and a machine that already compiled it pays nothing. Cached beside
-  /// the other run-time state rather than in the checkout: a hosted install's
-  /// package directory is not reliably writable.
+  /// Compiles the helper, or returns the cached binary — see [SwiftHelper].
   static Future<String?> ensureHelper({String? sourceOverride}) async {
-    if (!Platform.isMacOS) return null;
-    var source = sourceOverride ?? await _helperSource();
-    if (source == null) return null;
-    var digest = sha1.convert(utf8.encode(source)).toString().substring(0, 12);
-    var binary = File(p.join(flutterwareDir(), 'native', 'ax_helper-$digest'));
-    if (binary.existsSync()) return binary.path;
-
-    var scratch = Directory(p.join(binary.parent.path, 'build-$digest'))
-      ..createSync(recursive: true);
     try {
-      var swift = File(p.join(scratch.path, 'ax_helper.swift'))
-        ..writeAsStringSync(source);
-      var result = await Process.run('xcrun', [
-        'swiftc',
-        '-O',
-        swift.path,
-        '-o',
-        binary.path,
-      ]);
-      if (result.exitCode != 0 || !binary.existsSync()) {
-        throw NativeRefusal(
-          'Could not build the accessibility helper: '
-          '${'${result.stderr}'.trim()}',
-          failure: 'unavailable',
-        );
-      }
-      return binary.path;
-    } on ProcessException catch (e) {
+      return await _helper.ensure(sourceOverride: sourceOverride);
+    } on SwiftHelperError catch (error) {
       throw NativeRefusal(
-        'Could not build the accessibility helper — this needs the Xcode '
-        'command line tools ($e).',
+        error.missingTools
+            ? 'Could not build the accessibility helper — this needs the '
+                  'Xcode command line tools (${error.message}).'
+            : 'Could not build the accessibility helper: ${error.message}',
         failure: 'unavailable',
       );
-    } finally {
-      if (scratch.existsSync()) scratch.deleteSync(recursive: true);
     }
   }
 
-  /// The helper's source, which ships beside this file.
-  ///
-  /// Found two ways because the two ways cover different lives of this code.
-  /// `Isolate.resolvePackageUri` is exact, and it is what runs under the MCP
-  /// server and the tests, which execute from source. It also **throws in an
-  /// AOT binary** — which is what `fw` is — so the compiled CLI falls back to
-  /// the app directory the launcher already tells it about. Found by the
-  /// build, rather than by a comment claiming one of them always works.
-  static Future<String?> _helperSource() async {
-    const relative = 'lib/src/run/native/ax_helper.swift';
-    try {
-      var uri = await Isolate.resolvePackageUri(
-        Uri.parse('package:flutterware_app/src/run/native/ax_helper.swift'),
-      );
-      if (uri != null) {
-        var file = File.fromUri(uri);
-        if (file.existsSync()) return file.readAsStringSync();
-      }
-    } on UnsupportedError {
-      // AOT. The environment knows where the app package is.
-    }
-    for (var key in const [appToolPathKey, appPathEnvironmentKey]) {
-      var root = Platform.environment[key];
-      if (root == null || root.isEmpty) continue;
-      var file = File(p.join(root, relative));
-      if (file.existsSync()) return file.readAsStringSync();
-    }
-    return null;
-  }
+  static const _helper = SwiftHelper(
+    'ax_helper',
+    'lib/src/run/native/ax_helper.swift',
+  );
 
   /// Whether this machine will let the helper see anything, asked of the
   /// helper itself — the only way to know, since the permission database is

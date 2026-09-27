@@ -7105,9 +7105,32 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{
         'name': 'messages',
         'type': 'List<Map<String, Object?>>',
-        'doc': '`{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what `worlds deliver` takes.',
+        'doc': '`{id, at, kind, to, person?, text, code?, link?, links?, html?, step?}` — `id` is what `worlds deliver` and `worlds show` take; `html: true` says `worlds show` draws it as its recipient would see it.',
       },
       <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
+    ],
+  }),
+  'WorldShowResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldShowResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'message', 'type': 'String'},
+      <String, Object?>{
+        'name': 'picture',
+        'type': 'String',
+        'doc': 'The PNG, at twice the page\'s size.',
+      },
+      <String, Object?>{
+        'name': 'width',
+        'type': 'double',
+        'doc': 'The page\'s size in points, the space [links] are in.',
+      },
+      <String, Object?>{'name': 'height', 'type': 'double'},
+      <String, Object?>{
+        'name': 'links',
+        'type': 'List<Map<String, Object?>>',
+        'optional': true,
+        'doc': '`{href, text, box: [x, y, width, height]}`.',
+      },
     ],
   }),
   'WorldStateResult': ResultShape.fromJson(<String, Object?>{

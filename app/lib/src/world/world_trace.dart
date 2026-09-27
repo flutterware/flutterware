@@ -201,6 +201,9 @@ class OutboxMessage {
     this.step,
     this.code,
     this.link,
+    this.links = const [],
+    this.body,
+    this.html,
   });
 
   /// `lab/42`: its server and the event it arrived as — what
@@ -229,6 +232,16 @@ class OutboxMessage {
 
   /// The link it carries: the one the adapter named, or the first in it.
   final String? link;
+
+  /// Every link in it, [link] first: what a delivery may open.
+  final List<String> links;
+
+  /// All it says, where [text] is only its headline: a push's body, a
+  /// mail's text.
+  final String? body;
+
+  /// A mail's HTML, as its adapter reported it.
+  final String? html;
 }
 
 /// Everything the world has heard since it opened, joined into steps.
@@ -697,11 +710,20 @@ class WorldTrace {
       'mail' => '${payload['subject'] ?? payload['text'] ?? ''}',
       _ => '${payload['title'] ?? payload['body'] ?? ''}',
     };
-    // Where a code or a link may be: everything the message says.
+    var html = payload['html'] is String ? payload['html']! as String : null;
+    // Where a code or a link may be: everything the message says, a mail's
+    // HTML read as the text it shows.
     var words = [
       for (var key in const ['body', 'title', 'subject', 'text'])
         if (payload[key] case String text) text,
+      if (html != null) html.replaceAll(_hidden, ' ').replaceAll(_tag, ' '),
     ].join('\n');
+    var links = {
+      if (payload['link'] case String link) link,
+      for (var match in _link.allMatches(words)) match[0]!,
+      if (html != null)
+        for (var match in _href.allMatches(html)) _unescape(match[1]!),
+    }.toList();
     return OutboxMessage(
       id: '${event.server}/${event.event.id}',
       at: event.time,
@@ -717,12 +739,34 @@ class WorldTrace {
       code: _saysCode.hasMatch(words)
           ? _code.firstMatch(words)?.group(0)
           : null,
-      link: switch (payload['link']) {
-        String link => link,
-        _ => _link.firstMatch(words)?[0],
+      link: links.firstOrNull,
+      links: links,
+      body: switch (event.channel) {
+        'mail' => payload['text'] as String?,
+        _ => payload['body'] as String?,
       },
+      html: html,
     );
   }
+
+  static final _tag = RegExp('<[^>]*>');
+
+  /// What a mail's HTML holds that it never shows: its styles and scripts.
+  static final _hidden = RegExp(
+    r'<(style|script|head)\b[^>]*>.*?</\1>',
+    caseSensitive: false,
+    dotAll: true,
+  );
+  static final _href = RegExp(
+    r"""href\s*=\s*["']([^"']+)["']""",
+    caseSensitive: false,
+  );
+
+  /// An attribute's value as the page means it: `&amp;` back to `&`.
+  static String _unescape(String value) => value
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'");
 
   static final _code = RegExp(r'(?<!\d)\d{4,8}(?!\d)');
 
@@ -911,6 +955,17 @@ class WorldTrace {
           person: person,
           node: system?.sentNode('sms'),
           line: 'SMS',
+          inbound: true,
+        );
+      case 'mail':
+        var to = '${payload['to'] ?? ''}';
+        var person = _emails[to.toLowerCase()];
+        return TraceBeat(
+          at,
+          '$server → ${person ?? to} by mail  ${payload['subject']}',
+          person: person,
+          node: system?.sentNode('mail'),
+          line: 'Mail',
           inbound: true,
         );
       case 'push':

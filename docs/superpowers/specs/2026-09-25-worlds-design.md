@@ -463,7 +463,7 @@ honest about that.
 **Viewers.** Email in a webview — the studio is a real app, so a native view
 works there, unlike inside a guest — with every click intercepted and routed,
 never followed. A rendered picture of each message as well, for history and
-for comparing branches. PDF pages through pdfium, including a PDF attached to
+for comparing branches: built, both (*The outbox, begun*). PDF pages through pdfium, including a PDF attached to
 an email. SMS as a bubble; push as the banner scenario beats already draw. A
 question as a card with its choices.
 
@@ -838,14 +838,29 @@ whoever asked. `worlds outbox` and `worlds deliver` are the same for an agent.
 Measured on the lab: Leo's sign-up code typed into his code field, and the
 push his order sent opened on that order.
 
-No SMTP catcher yet — a server that sends mail reports it as an event — and
-no questions or newcomers.
+**Mail is read two ways** (`2026-09-27-worlds-web-display-spike-findings.md`).
+A mail event carries its HTML, and the column opens it as a **picture**
+WebKit draws — a Swift helper compiled on first use, half a second a mail,
+each link drawn clickable where it sits — or as the **page**, live in a
+WKWebView. A link goes where a phone would send it: an app's link into the
+person's app, a web link to a browser, here the page view; every link is
+also listed with *Open in Leo's app*, for a web link the app claims.
+`worlds show` hands an agent the picture and each link's box.
 
-**Not planned: a web page in the panel.** The consumer asked for
+**How mail gets in is the project's, in several ways.** flutterware reads no
+third-party catcher — every catcher's API is a moving target, and its bugs
+would land in the wrong place. A project reports each mail from its own mail
+adapter, as it does SMS and push; flutterware's own SMTP server may follow
+for a server whose mailer cannot be adapted, when a real case asks.
+
+No questions or newcomers yet.
+
+**A web page in the panel, now possible.** The consumer asked for
 `w.view(name, url)`, to draw its prototype's page beside the people until the
-canvas exists. The studio has no web view, and one would put a native plugin
-in every user's build for a stopgap; the page opens from a world action
-meanwhile.
+canvas exists. This was turned down because a web view meant a native plugin
+in every user's build; the studio already built four, and now carries the
+web view mail needed, so the objection is gone. The view itself is not
+built: the page opens from a world action meanwhile.
 
 ## The agent's surface
 
@@ -977,8 +992,9 @@ triggered.
    caused, through Dart servers and synced records (*Traces, as built*),
    which replace flows guessed from traffic to the origins a service
    declares. Begun: `worlds trace` and each person's sync line; and the
-   outbox, from what servers report (*The outbox, begun*). Not yet: the SMTP
-   catcher, questions, newcomers.
+   outbox, from what servers report, mail read as a picture or the live page
+   (*The outbox, begun*). Not yet: questions, newcomers, flutterware's own
+   SMTP server.
 2. **Canvas v1.** Nodes — people and services — with their credentials and
    contents, the timeline, pending questions, focus, the drawer. Guests are
    live from the first version, as the lab already draws them, and sent to

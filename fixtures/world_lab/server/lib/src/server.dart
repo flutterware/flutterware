@@ -44,12 +44,14 @@ Future<LabServer> startServer({
   int port = 8090,
   required SmsService sms,
   required PushService push,
+  required MailService mail,
   OrderStore? orders,
   SyncAuth? sync,
 }) async {
   var shop = _Shop(
     sms: sms,
     push: push,
+    mail: mail,
     orders: orders ?? MemoryOrders(),
     sync: sync,
   );
@@ -111,12 +113,14 @@ class _Shop {
   _Shop({
     required this.sms,
     required this.push,
+    required this.mail,
     required this.orders,
     this.sync,
   });
 
   final SmsService sms;
   final PushService push;
+  final MailService mail;
   final OrderStore orders;
   final SyncAuth? sync;
 
@@ -316,7 +320,10 @@ class _Shop {
       'status': order.status,
       'customer': order.customerId,
     });
-    if (op == 'insert') _log.info('${by.name} ordered a ${order.item}');
+    if (op == 'insert') {
+      _log.info('${by.name} ordered a ${order.item}');
+      await _mailStaff(order, by);
+    }
     _broadcast(order);
     if (op == 'update' && order.status == 'ready') {
       await push.send(
@@ -324,6 +331,22 @@ class _Shop {
         title: 'Your ${order.item.toLowerCase()} is ready',
         body: 'Collect it at the counter.',
         link: 'worldlab://orders/${order.id}',
+      );
+    }
+  }
+
+  /// Every member of staff with an address hears of a new order by mail,
+  /// with a button that opens it in their app.
+  Future<void> _mailStaff(Order order, _User by) async {
+    for (var staff in _users.values) {
+      if (!staff.isStaff || staff.email == null) continue;
+      await mail.send(
+        staff.email!,
+        subject: 'New order: ${order.item} for ${by.name}',
+        text:
+            '${by.name} ordered a ${order.item}. Open it: '
+            'worldlab://orders/${order.id}',
+        html: _orderMail(order, by.name),
       );
     }
   }
@@ -400,3 +423,24 @@ Middleware _inspect() {
 final _anId = RegExp(
   r'^([a-z]?\d+|[a-z][a-z0-9]*-\d+|[0-9a-f]{8}-[0-9a-f-]{27})$',
 );
+
+/// A new order as a mail client shows it: the kind of HTML a transactional
+/// mail is — a table layout, inline styles, a button carrying an app link.
+String _orderMail(Order order, String customer) =>
+    '''
+<!doctype html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#f3f1ee;font-family:-apple-system,Helvetica,Arial,sans-serif;color:#221a15">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px">
+<tr><td style="padding:28px">
+<p style="margin:0 0 4px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#8a817a">Pickup · new order</p>
+<h1 style="margin:0 0 12px;font-size:22px">${order.item} for $customer</h1>
+<p style="margin:0 0 20px;font-size:15px;line-height:1.5">Order ${order.id} is waiting at the counter. Mark it as preparing when you start it.</p>
+<p style="margin:0 0 20px"><a href="worldlab://orders/${order.id}" style="display:inline-block;background:#8a4b1f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:24px;font-weight:600">Open the order</a></p>
+<p style="margin:0;font-size:14px"><a href="https://flutterware.dev">The shop's page</a></p>
+</td></tr></table>
+<p style="font-size:12px;color:#8a817a">Pickup · the world lab's shop</p>
+</td></tr></table>
+</body></html>
+''';

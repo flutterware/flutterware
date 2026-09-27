@@ -113,6 +113,10 @@ dependencies:
   watcher:
   web:
   web_socket_channel:
+  # A world's mail read live, and later a page someone has to use: WKWebView
+  # on macOS, the only platform worlds run on. See
+  # docs/superpowers/specs/2026-09-27-worlds-web-display-spike-findings.md.
+  webview_flutter: ^4.14.1
   win32:
   # Reads back the Android resources flutter_native_splash writes — styles.xml
   # and launch_background.xml — so the preview can be checked against what

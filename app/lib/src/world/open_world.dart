@@ -26,6 +26,7 @@ import 'guest_process.dart';
 import 'platform/studio_platform.dart';
 import 'world_files.dart';
 import 'world_script.dart';
+import 'web_snapshot.dart';
 import 'world_trace.dart';
 
 /// A world while it is open, from its owner's side: the script, one build per
@@ -101,6 +102,9 @@ class OpenWorld {
   /// followed. New with every opening, as the people are.
   WorldTracer? tracer;
 
+  /// Mail as pictures, drawn once each.
+  late final snapshots = WebSnapshots(appRoot: appRoot);
+
   /// Each line of [log] as it is said.
   Stream<String> get lines => _lines.stream;
   final _lines = StreamController<String>.broadcast(sync: true);
@@ -175,11 +179,13 @@ class OpenWorld {
   /// recipient's app, as a person would take it: its code typed into the
   /// field that has focus, the way an autofill offers one, or its link
   /// opened where the OS would deliver it. [how] is `type` or `open`; by
-  /// default the code, when the message carries one. What it did lands in
-  /// the person's Run journal as [actor]'s step.
+  /// default the code, when the message carries one. [link] opens one of
+  /// its links other than the first — a mail's second button. What it did
+  /// lands in the person's Run journal as [actor]'s step.
   Future<WorldDelivery> deliver(
     String messageId, {
     String? how,
+    String? link,
     String actor = 'agent',
   }) async {
     var tracer = this.tracer;
@@ -209,7 +215,21 @@ class OpenWorld {
       );
     }
     if (!person.running) throw WorldRefusal("$name's app is not running.");
-    how ??= message.code != null ? 'type' : 'open';
+    if (link != null) {
+      // As the message spells it: a page's own reading of a link can add
+      // the slash an origin implies.
+      String bare(String link) =>
+          link.endsWith('/') ? link.substring(0, link.length - 1) : link;
+      var carried = message.links.where((l) => bare(l) == bare(link!));
+      if (carried.isEmpty) {
+        throw WorldRefusal(
+          'The ${message.kind} carries no link $link. '
+          '${message.links.isEmpty ? 'It carries none.' : 'It carries: ${message.links.join(', ')}.'}',
+        );
+      }
+      link = carried.first;
+    }
+    how ??= link != null || message.code == null ? 'open' : 'type';
     String what;
     switch (how) {
       case 'type':
@@ -234,7 +254,7 @@ class OpenWorld {
         what = code;
         _journal(person, 'enterText', actor, '"$code" into the focused field');
       case 'open':
-        var link = message.link;
+        link ??= message.link;
         if (link == null) {
           throw WorldRefusal('It carries no link: "${message.text}".');
         }

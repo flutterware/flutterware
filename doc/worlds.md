@@ -203,11 +203,21 @@ adapter for that edge:
 ```dart
 FlutterwareServer.event('sms', {'to': phone, 'body': body});
 FlutterwareServer.event('push', {'to': userId, 'title': title, 'link': ?link});
-FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text});
+FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text, 'html': html});
 ```
 
 The world finds the person by the phone number, user id or address it was
 declared with, or learnt through `FlutterwareServer.identify`.
+
+A mail with `html` is read as its recipient would see it: **Read it** opens
+it as a picture WebKit draws, with each link clickable where it sits, and
+**Page** shows the page itself, live. A link to the app opens in the
+person's app; a web link opens in the page; every link is listed beneath
+with **Open in Leo's app** too. `fw run worlds show --message=<id>` draws the
+picture for an agent to read, with each link's box, and
+`fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
+Drawing needs the Xcode command line tools, as the native layer does: the
+helper is compiled on first use.
 
 ## See what the system holds
 

@@ -17,6 +17,7 @@ import '../ui/zoom_buttons.dart';
 import 'live_guest.dart';
 import 'open_world.dart';
 import 'world_trace.dart';
+import 'mail_view.dart';
 import 'world_views.dart';
 
 /// The open world as the design draws it: its people's phones on a stage,
@@ -75,6 +76,9 @@ class _WorldCanvasState extends State<WorldCanvas> {
   /// over them until its back goes to them again.
   var _overContents = false;
 
+  /// The mail the column reads, over whatever it was opened from.
+  String? _mail;
+
   @override
   void initState() {
     super.initState();
@@ -109,6 +113,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
     _chosen = null;
     _opened = null;
     _overContents = false;
+    _mail = null;
     unawaited(_heard?.cancel());
     // A burst of events — a tap's dozen — is one redraw.
     _heard = tracer?.trace.changed.listen((_) {
@@ -175,6 +180,11 @@ class _WorldCanvasState extends State<WorldCanvas> {
       _chosen = step;
       _overContents = true;
     });
+    var mail = switch (_mail) {
+      var id? => trace?.messageById(id),
+      null => null,
+    };
+    void read(OutboxMessage message) => setState(() => _mail = message.id);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -215,10 +225,32 @@ class _WorldCanvasState extends State<WorldCanvas> {
         ),
         Container(width: 1, color: context.colors.line),
         SizedBox(
-          width: 340,
-          // What was opened last is on top: a step over the contents it was
-          // chosen from, the contents over a step held before them.
+          // A mail is read at its own width, near enough.
+          width: mail == null ? 340 : 640,
+          // What was opened last is on top: a mail over where it was opened,
+          // a step over the contents it was chosen from, the contents over a
+          // step held before them.
           child: switch ((drawer, _chosen, contents)) {
+            _ when mail != null => MailView(
+              message: mail,
+              snapshots: world.snapshots,
+              back: drawer != null
+                  ? drawer.name
+                  : contents != null
+                  ? label!
+                  : 'Steps',
+              onBack: () => setState(() => _mail = null),
+              onChoose: (step) => setState(() {
+                _mail = null;
+                choose(step);
+              }),
+              onDeliver: switch (world.people[mail.person]) {
+                var person? when person.running => (
+                  link,
+                ) => widget.world.deliver(mail.id, link: link, actor: 'human'),
+                _ => null,
+              },
+            ),
             (var person?, _, _) => _Drawer(
               person: person,
               color: colorOf(person.name),
@@ -226,6 +258,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
               messages:
                   trace?.outbox(person: person.name, limit: 10) ?? const [],
               onDeliver: _deliver,
+              onRead: read,
               onClose: () => setState(() => _drawer = null),
             ),
             (null, var chosen?, var contents)
@@ -253,6 +286,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
               onBack: () => setState(() => _opened = null),
               onChoose: choose,
               onDeliver: _deliver,
+              onRead: read,
             ),
             _ => TraceList(
               steps: steps.reversed.toList(),
@@ -806,11 +840,7 @@ class _ServerCard extends StatelessWidget {
             for (var MapEntry(key: channel, value: n) in server.sent.entries)
               chip(
                 server.sentNode(channel),
-                Text(switch (channel) {
-                  'sms' => 'SMS',
-                  'push' => 'Push',
-                  var other => other,
-                }, style: context.type.body),
+                Text(messageKind(channel), style: context.type.body),
                 '$n sent',
               ),
           ],
@@ -1347,7 +1377,7 @@ class TraceDetail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Back(back, onBack: onBack),
+        ColumnBack(back, onBack: onBack),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             FwSpacing.lg,
@@ -1453,11 +1483,7 @@ class TraceDetail extends StatelessWidget {
 /// calls a node whose contents it shows.
 String contentsLabel(NodeContents contents, {String? engine}) =>
     switch (contents.kind) {
-      NodeKind.sent => switch (contents.title) {
-        'sms' => 'SMS',
-        'push' => 'Push',
-        var other => other,
-      },
+      NodeKind.sent => messageKind(contents.title),
       NodeKind.sync => engine == 'powersync' ? 'PowerSync' : engine ?? 'Sync',
       _ => contents.title,
     };
@@ -1479,9 +1505,13 @@ class NodeContentsView extends StatelessWidget {
     required this.onBack,
     required this.onChoose,
     this.onDeliver,
+    this.onRead,
   });
 
   final NodeContents contents;
+
+  /// Opens a mail to read; null offers none.
+  final void Function(OutboxMessage message)? onRead;
 
   /// Hands a message to its recipient's app; null offers no deliveries.
   final Future<void> Function(OutboxMessage message, String how)? onDeliver;
@@ -1521,7 +1551,7 @@ class NodeContentsView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Back('Steps', onBack: onBack),
+        ColumnBack('Steps', onBack: onBack),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             FwSpacing.lg,
@@ -1538,9 +1568,7 @@ class NodeContentsView extends StatelessWidget {
                     switch (kind) {
                       NodeKind.route => Icons.alt_route,
                       NodeKind.table => Icons.table_rows_outlined,
-                      NodeKind.sent when contents.title == 'push' =>
-                        Icons.notifications_none,
-                      NodeKind.sent => Icons.sms_outlined,
+                      NodeKind.sent => messageIcon(contents.title),
                       NodeKind.sync => Icons.sync,
                     },
                     size: FwIconSize.md,
@@ -1648,11 +1676,21 @@ class NodeContentsView extends StatelessWidget {
                     Text(detail, style: context.type.bodyMuted, maxLines: 3),
                 ],
                 _meta(context, item.at, item.step),
-                if ((item.message, onDeliver) case (var message?, var deliver?)
-                    when message.person != null)
+                if (item.message case var message?)
                   DeliveryButtons(
                     message: message,
-                    deliver: (how) => deliver(message, how),
+                    deliver: switch (onDeliver) {
+                      var deliver? when message.person != null => (
+                        how,
+                      ) => deliver(message, how),
+                      _ => null,
+                    },
+                    onRead: switch (onRead) {
+                      var read? when message.kind == 'mail' => () => read(
+                        message,
+                      ),
+                      _ => null,
+                    },
                   ),
                 if (item.life.isNotEmpty) ...[
                   const SizedBox(height: FwSpacing.xs),
@@ -1751,6 +1789,7 @@ class _Drawer extends StatelessWidget {
     required this.sync,
     required this.messages,
     required this.onDeliver,
+    required this.onRead,
     required this.onClose,
   });
 
@@ -1761,6 +1800,9 @@ class _Drawer extends StatelessWidget {
   /// What the servers sent them, newest first.
   final List<OutboxMessage> messages;
   final Future<void> Function(OutboxMessage message, String how) onDeliver;
+
+  /// Opens a mail to read.
+  final void Function(OutboxMessage message) onRead;
   final VoidCallback onClose;
 
   @override
@@ -1770,7 +1812,7 @@ class _Drawer extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Back('Steps', onBack: onClose),
+        ColumnBack('Steps', onBack: onClose),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             FwSpacing.lg,
@@ -1817,6 +1859,7 @@ class _Drawer extends StatelessWidget {
                       onDeliver: person.running
                           ? (how) => onDeliver(message, how)
                           : null,
+                      onRead: () => onRead(message),
                     ),
                   ),
                 const SizedBox(height: FwSpacing.md),
@@ -1843,10 +1886,15 @@ class _Drawer extends StatelessWidget {
 /// One message in a person's drawer: what it says, where it came from, and
 /// how to hand it to their app.
 class _Message extends StatelessWidget {
-  const _Message({required this.message, required this.onDeliver});
+  const _Message({
+    required this.message,
+    required this.onDeliver,
+    required this.onRead,
+  });
 
   final OutboxMessage message;
   final Future<void> Function(String how)? onDeliver;
+  final VoidCallback onRead;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1875,7 +1923,13 @@ class _Message extends StatelessWidget {
               style: context.type.caption,
             ),
             if (onDeliver case var deliver?)
-              DeliveryButtons(message: message, deliver: deliver),
+              DeliveryButtons(
+                message: message,
+                deliver: deliver,
+                onRead: message.kind == 'mail' ? onRead : null,
+              )
+            else if (message.kind == 'mail')
+              DeliveryButtons(message: message, onRead: onRead),
           ],
         ),
       ),
@@ -1904,13 +1958,18 @@ class DeliveryButtons extends StatefulWidget {
   const DeliveryButtons({
     super.key,
     required this.message,
-    required this.deliver,
+    this.deliver,
+    this.onRead,
   });
 
   final OutboxMessage message;
 
-  /// With `type` or `open`; throws the world's refusal.
-  final Future<void> Function(String how) deliver;
+  /// With `type` or `open`; throws the world's refusal. Null while the
+  /// recipient's app is not running.
+  final Future<void> Function(String how)? deliver;
+
+  /// Opens a mail to read, as its recipient would see it.
+  final VoidCallback? onRead;
 
   @override
   State<DeliveryButtons> createState() => _DeliveryButtonsState();
@@ -1922,7 +1981,7 @@ class _DeliveryButtonsState extends State<DeliveryButtons> {
   Future<void> _deliver(String how) async {
     setState(() => _refused = null);
     try {
-      await widget.deliver(how);
+      await widget.deliver!(how);
     } on ActionRefusal catch (refusal) {
       if (mounted) setState(() => _refused = refusal.message);
       rethrow;
@@ -1933,14 +1992,21 @@ class _DeliveryButtonsState extends State<DeliveryButtons> {
   Widget build(BuildContext context) {
     var message = widget.message;
     var whose = message.person == null ? 'their' : "${message.person}'s";
+    var deliver = widget.deliver;
     var buttons = [
-      if (message.code case var code?)
+      if (widget.onRead case var read?)
+        FwActionButton(
+          label: 'Read it',
+          acknowledges: false,
+          onPressed: () async => read(),
+        ),
+      if (message.code case var code? when deliver != null)
         FwActionButton(
           label: 'Type it',
           tooltip: 'Types $code into the focused field in $whose app',
           onPressed: () => _deliver('type'),
         ),
-      if (message.link case var link?)
+      if (message.link case var link? when deliver != null)
         FwActionButton(
           label: message.kind == 'push' ? 'Tap it' : 'Open',
           tooltip: 'Opens $link in $whose app',
@@ -1965,8 +2031,9 @@ class _DeliveryButtonsState extends State<DeliveryButtons> {
   }
 }
 
-class _Back extends StatelessWidget {
-  const _Back(this.label, {required this.onBack});
+/// The column's way back — to the steps, or to what a view was opened from.
+class ColumnBack extends StatelessWidget {
+  const ColumnBack(this.label, {super.key, required this.onBack});
 
   final String label;
   final VoidCallback onBack;
