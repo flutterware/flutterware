@@ -237,7 +237,14 @@ class FlutterwareServer {
 
 /// One attached unix-socket connection.
 class _SocketPeer implements InspectorPeer {
-  _SocketPeer(this.socket);
+  _SocketPeer(this.socket) {
+    // A write to a peer that has hung up — one that asked to attach and left
+    // before the answer, a studio closing mid-replay — fails on the socket's
+    // `done`, never in [send]. Unwatched, that failure is an unhandled error,
+    // and it ended the server being inspected. The read side's end already
+    // detaches the peer.
+    socket.done.ignore();
+  }
 
   final Socket socket;
 

@@ -241,6 +241,39 @@ void main() {
       expect(client.hello.pid, pid);
     });
 
+    test('a peer that asks to attach and hangs up before the answer costs '
+        'the server nothing', () async {
+      FlutterwareServer.debugAttachInspector(inspector);
+      // Enough history that the replay is still being written when the
+      // write finds the peer gone.
+      for (var n = 0; n < 5; n++) {
+        FlutterwareServer.event('http', {'path': '/${'x' * 20000}$n'});
+      }
+      var handle = scanServerHandles(runDir.path).single;
+      for (var n = 0; n < 20; n++) {
+        var peer = await Socket.connect(
+          InternetAddress(handle.socketPath, type: InternetAddressType.unix),
+          0,
+        );
+        peer.write(
+          encodeFrame({
+            frameChannel: metaChannel,
+            frameType: typeRequest,
+            frameMethod: metaAttach,
+            frameRequestId: 1,
+          }),
+        );
+        await peer.flush();
+        peer.destroy();
+      }
+      // Let every broken write land where it lands.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      var client = await attach();
+      addTearDown(client.close);
+      expect(client.hello.pid, pid);
+    });
+
     test('stop deletes the handle and the socket', () async {
       var handle = scanServerHandles(runDir.path).single;
       await inspector.stop();
