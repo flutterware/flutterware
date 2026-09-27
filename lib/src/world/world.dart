@@ -7,6 +7,8 @@ import 'package:meta/meta.dart';
 
 import '../devices.dart';
 import 'protocol.dart';
+import 'step_http.dart';
+import 'step_names.dart';
 
 /// A world while its script runs: what the script declares, and the helpers
 /// that keep one opening from colliding with the next.
@@ -40,6 +42,8 @@ final class World {
   ) async {
     var socketPath = Platform.environment[worldSocketVariable];
     if (socketPath == null) return _runAlone(args, body);
+    // Each action is a step, as a tap is: every request it sends says so.
+    HttpOverrides.global = StepStamping(StepStamping.zoneStep);
     var socket = await Socket.connect(
       InternetAddress(socketPath, type: InternetAddressType.unix),
       0,
@@ -100,6 +104,7 @@ final class World {
             world?._invoke(
               message['action']! as String,
               message['run']! as int,
+              step: message['step'] as String?,
             );
           case WorldMessage.cancel:
             world?._runs[message['run']]?._cancel();
@@ -210,6 +215,12 @@ final class World {
   /// the studio, the agent through `worlds invoke`. What it does is [body]'s;
   /// one that takes time says how far it is through [ActionRun.progress], and
   /// stops when it is cancelled.
+  ///
+  /// Each run is a step, as a tap on an app is — `world.3` — and every HTTP
+  /// request [body] sends carries it, so the world traces what the action
+  /// caused through the servers and onto the phones. What [body] starts that
+  /// outlives it — a timer, a server — steps under it too: start those in
+  /// the world's body instead.
   void action(
     String name,
     FutureOr<void> Function(ActionRun run) body, {
@@ -269,7 +280,7 @@ final class World {
     }
   }
 
-  void _invoke(String name, int run) {
+  void _invoke(String name, int run, {String? step}) {
     var body = _actions[name];
     if (body == null) {
       _send(WorldMessage.actionEnded, {
@@ -279,8 +290,11 @@ final class World {
       return;
     }
     var action = _runs[run] = ActionRun._(run, _send);
+    Future<void> start() => Future(() => body(action));
     unawaited(
-      Future(() => body(action))
+      (step == null
+              ? start()
+              : runZoned(start, zoneValues: {worldStepKey: step}))
           .then(
             (_) => _send(WorldMessage.actionEnded, {'run': run}),
             onError: (Object error) => _send(WorldMessage.actionEnded, {

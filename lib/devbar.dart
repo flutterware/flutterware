@@ -14,6 +14,7 @@ export 'src/devbar/plugins/database.dart'
         DatabaseAdapter,
         DatabasePanelSource,
         DatabaseQuery,
+        DatabaseSync,
         DatabaseUnavailable,
         DatabaseWatch;
 export 'src/devbar/plugins/database_plugin.dart' show DatabasePlugin;

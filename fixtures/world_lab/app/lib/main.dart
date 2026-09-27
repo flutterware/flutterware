@@ -14,14 +14,25 @@ import 'src/lab_app.dart';
 /// It prints when its first frame reached the screen, as an absolute time, so
 /// a launch can be timed against the moment the launcher started it — the run
 /// handle's `startedAt` — with no clock of its own.
+///
+/// [sync] keeps the orders through PowerSync instead of asking the server:
+/// the server must be started with a sync engine (`tool/worlds/synced_pickup`).
 void main({
   String server = 'http://localhost:8090',
   String session = '',
   String person = '',
+  bool sync = false,
 }) {
   var mainAt = DateTime.now();
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(LabApp(server: Uri.parse(server), session: session, person: person));
+  runApp(
+    LabApp(
+      server: Uri.parse(server),
+      session: session,
+      person: person,
+      sync: sync,
+    ),
+  );
   unawaited(
     WidgetsBinding.instance.waitUntilFirstFrameRasterized.then((_) {
       var now = DateTime.now();

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutterware/plugins.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/world/step_names.dart' show worldActionsOwner;
 
 import '../../run/entrypoints.dart';
 import '../../world/open_world.dart';
@@ -22,8 +24,8 @@ const worldsPluginId = 'flutterware.worlds';
 /// the studio, `fw` or the MCP server — and go when it closes the world or
 /// ends. So one world at a time per worktree: two would give two people the
 /// same device, `studio-<name>`, in Run. Every other process forwards
-/// `status`, `invoke`, `restart` and `close` to the owner, which leaves a
-/// `WorldHandle` saying where to ask.
+/// `status`, `trace`, `contents`, `outbox`, `deliver`, `invoke`, `restart` and
+/// `close` to the owner, which leaves a `WorldHandle` saying where to ask.
 class WorldsCore extends PluginCore {
   WorldsCore(super.host);
 
@@ -148,6 +150,124 @@ class WorldsCore extends PluginCore {
           "knobs, and its script's last lines.",
       parameters: [_worldParameter],
     ),
+    const PluginAction(
+      'trace',
+      'Trace',
+      returns: WorldTraceResult,
+      description:
+          "The newest steps taken on the people's apps — each tap, a "
+          "person's or an agent's — with what each one caused: the requests "
+          'it sent, what the servers did under them and whom they reached, '
+          'and where the records it wrote arrived. A server takes part by '
+          'reading the `x-fw-step` header into `FlutterwareServer.stepKey`; '
+          'a synced database, by its database panel reading the engine.',
+      parameters: [
+        ActionParameter(
+          'person',
+          'Person',
+          required: false,
+          description:
+              "Only this person's steps; `world` for the world's own "
+              'actions',
+        ),
+        ActionParameter(
+          'step',
+          'Step',
+          required: false,
+          description: 'Only this step, by its name: `ben.3`',
+        ),
+        ActionParameter(
+          'limit',
+          'Limit',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description: 'How many of the newest steps, 10 by default',
+        ),
+        _worldParameter,
+      ],
+    ),
+    const PluginAction(
+      'outbox',
+      'Outbox',
+      returns: WorldOutboxResult,
+      description:
+          'The messages the servers sent outside — SMS, push, mail — newest '
+          'first, each with whom it reached, the code or link it carries, '
+          'and the step that sent it. A server takes part by reporting '
+          '`sms`, `push` or `mail` events with their recipient.',
+      parameters: [
+        ActionParameter(
+          'person',
+          'Person',
+          required: false,
+          description: 'Only what reached this person',
+        ),
+        ActionParameter(
+          'limit',
+          'Limit',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description: 'How many of the newest, 20 by default',
+        ),
+        _worldParameter,
+      ],
+    ),
+    const PluginAction(
+      'deliver',
+      'Deliver',
+      returns: WorldDeliveryResult,
+      description:
+          "Hands a message to its recipient's app as a person would take it: "
+          'its code typed into the field that has focus, the way an autofill '
+          'offers one, or its link opened where the OS would deliver it. '
+          'Focus the field first — tap it — for a code.',
+      parameters: [
+        ActionParameter(
+          'message',
+          'Message',
+          description: 'Its id, from `worlds outbox`: `lab/42`',
+        ),
+        ActionParameter(
+          'how',
+          'How',
+          required: false,
+          description:
+              '`type` its code or `open` its link; the code when it '
+              'carries one',
+        ),
+        _worldParameter,
+      ],
+    ),
+    const PluginAction(
+      'contents',
+      'Contents',
+      returns: WorldContentsResult,
+      description:
+          'What one part of the system holds, as the world heard it since '
+          'it opened: every call a route answered and who asked, every '
+          'record a table was written with its whole life — each write and '
+          'each phone it reached — every message sent outside and whom it '
+          'reached, every record the sync engine carried. Each names the '
+          'step that caused it. With no part, lists the parts there are.',
+      parameters: [
+        ActionParameter(
+          'part',
+          'Part',
+          required: false,
+          description:
+              'As the canvas shows it: a route (`POST /orders`), a table '
+              '(`orders`), `sms` or `push`, or `sync`',
+        ),
+        ActionParameter(
+          'limit',
+          'Limit',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description: 'How many of the newest, 20 by default',
+        ),
+        _worldParameter,
+      ],
+    ),
     PluginAction(
       'restart',
       'Restart',
@@ -230,6 +350,8 @@ class WorldsCore extends PluginCore {
                     person.phase.name,
                     ?person.handle?.device,
                     ?person.problem,
+                    if (open.tracer?.syncOf(person.name) case var sync?)
+                      syncLine(sync),
                   ].join(' · '),
                   tone: switch (person.phase) {
                     PersonPhase.running => Tone.good,
@@ -274,10 +396,28 @@ class WorldsCore extends PluginCore {
       hold: arguments['hold'] == true,
     ),
     // A world another process owns is asked there, in its own words.
-    'status' || 'restart' || 'invoke' || 'close'
-        when _open == null && openElsewhere() != null =>
-      await _forward(openElsewhere()!, actionId, arguments),
+    'status' ||
+    'trace' ||
+    'contents' ||
+    'outbox' ||
+    'deliver' ||
+    'restart' ||
+    'invoke' ||
+    'close' when _open == null && openElsewhere() != null => await _forward(
+      openElsewhere()!,
+      actionId,
+      arguments,
+    ),
     'status' => WorldStateResult.of(_required),
+    'trace' => _traceAction(arguments),
+    'contents' => _contentsAction(arguments),
+    'outbox' => _outboxAction(arguments),
+    'deliver' => WorldDeliveryResult.of(
+      await _required.deliver(
+        '${arguments['message']}',
+        how: arguments['how'] as String?,
+      ),
+    ),
     'restart' => await _restartAction(
       arguments['knobs'] == null
           ? null
@@ -306,15 +446,20 @@ class WorldsCore extends PluginCore {
       // Whatever it did there changes what this process shows.
       notifyChanged();
     }
-    return action == 'invoke'
-        ? WorldActionResult.fromJson(json)
-        : WorldStateResult.fromJson(
-            json,
-            note: action == 'close'
-                ? 'Closed by the process that owned it (pid ${owner.pid}).'
-                : '${owner.name} is open in another process (pid '
-                      '${owner.pid}), which answered this.',
-          );
+    return switch (action) {
+      'invoke' => WorldActionResult.fromJson(json),
+      'trace' => WorldTraceResult.fromJson(json),
+      'contents' => WorldContentsResult.fromJson(json),
+      'outbox' => WorldOutboxResult.fromJson(json),
+      'deliver' => WorldDeliveryResult.fromJson(json),
+      _ => WorldStateResult.fromJson(
+        json,
+        note: action == 'close'
+            ? 'Closed by the process that owned it (pid ${owner.pid}).'
+            : '${owner.name} is open in another process (pid '
+                  '${owner.pid}), which answered this.',
+      ),
+    };
   }
 
   /// What another process asks of the world open here.
@@ -322,7 +467,16 @@ class WorldsCore extends PluginCore {
     String action,
     Map<String, Object?> arguments,
   ) async {
-    if (!const {'status', 'restart', 'invoke', 'close'}.contains(action)) {
+    if (!const {
+      'status',
+      'trace',
+      'contents',
+      'outbox',
+      'deliver',
+      'restart',
+      'invoke',
+      'close',
+    }.contains(action)) {
       throw WorldRefusal('"$action" is not asked of a world across processes.');
     }
     var result = await invoke(action, arguments: arguments);
@@ -474,6 +628,97 @@ class WorldsCore extends PluginCore {
       return WorldStateResult.of(opened);
     }
     return result;
+  }
+
+  WorldTraceResult _traceAction(Map<String, Object?> arguments) {
+    var open = _required;
+    var person = arguments['person'] as String?;
+    if (person != null &&
+        person != worldActionsOwner &&
+        !open.people.containsKey(person)) {
+      throw WorldRefusal(
+        'Nobody in ${open.file.name} is called $person: '
+        '${open.people.keys.join(', ')}.',
+      );
+    }
+    var limit = switch (arguments['limit']) {
+      int value => value,
+      String value => int.tryParse(value) ?? 10,
+      _ => 10,
+    };
+    var traced =
+        open.tracer?.trace.steps(
+          person: person,
+          step: arguments['step'] as String?,
+          limit: limit,
+        ) ??
+        const [];
+    return WorldTraceResult.of(
+      traced,
+      note: traced.isEmpty
+          ? 'No step yet: a step is a tap on one of the apps, by a person or '
+                'through `flutterware_act`.'
+          : null,
+    );
+  }
+
+  WorldOutboxResult _outboxAction(Map<String, Object?> arguments) {
+    var open = _required;
+    var person = arguments['person'] as String?;
+    if (person != null && !open.people.containsKey(person)) {
+      throw WorldRefusal(
+        'Nobody in ${open.file.name} is called $person: '
+        '${open.people.keys.join(', ')}.',
+      );
+    }
+    var limit = switch (arguments['limit']) {
+      int value => value,
+      String value => int.tryParse(value) ?? 20,
+      _ => 20,
+    };
+    var messages =
+        open.tracer?.trace.outbox(person: person, limit: limit) ?? const [];
+    return WorldOutboxResult.of(
+      messages,
+      note: messages.isEmpty
+          ? 'Nothing sent yet. A server takes part by reporting `sms`, '
+                '`push` or `mail` events that name their recipient.'
+          : null,
+    );
+  }
+
+  WorldContentsResult _contentsAction(Map<String, Object?> arguments) {
+    var open = _required;
+    var names = open.tracer?.trace.nodeNames ?? const <String, String>{};
+    var part = arguments['part'] as String?;
+    if (part == null) {
+      return WorldContentsResult(
+        parts: names.keys.toList(),
+        note: names.isEmpty
+            ? 'Nothing has reported yet. A Dart server takes part through '
+                  'its inspection adapter; a synced database, through its '
+                  'database panel.'
+            : 'Name one as `part` for what it holds.',
+      );
+    }
+    var node = names[part];
+    if (node == null) {
+      throw WorldRefusal(
+        names.isEmpty
+            ? 'Nothing in ${open.file.name} has reported yet.'
+            : 'No part of the system is called "$part": '
+                  '${names.keys.join(', ')}.',
+      );
+    }
+    var limit = switch (arguments['limit']) {
+      int value => value,
+      String value => int.tryParse(value) ?? 20,
+      _ => 20,
+    };
+    return WorldContentsResult.of(
+      open.tracer!.trace.contentsOf(node, limit: limit)!,
+      part: part,
+    );
   }
 
   Future<WorldStateResult> _restartAction(Map<String, Object?>? knobs) async {

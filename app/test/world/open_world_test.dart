@@ -12,6 +12,13 @@ import 'package:flutterware_app/src/world/world_script.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  late String emptyRunDir;
+  setUp(() async {
+    var dir = await Directory.systemTemp.createTemp('fw_world_run');
+    addTearDown(() => dir.delete(recursive: true));
+    emptyRunDir = dir.path;
+  });
+
   group('declaredWorlds', () {
     late Directory package;
 
@@ -176,6 +183,9 @@ void main() {
       appRoot: Directory.current.path,
       entrypoints: const [],
       guests: (_) => throw StateError('nobody here has an app'),
+      // Not the machine's: the servers running under this worktree are
+      // somebody's, and a test attaching to them is no business of theirs.
+      runDir: () => emptyRunDir,
     );
     await world.open();
     expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
@@ -189,8 +199,20 @@ void main() {
 
     var wave = await world.invoke('Wave');
     expect(wave.running, isFalse);
-    expect(wave.progress, 'Ana waves');
+    expect(wave.step, matches(r'^world\.\d+$'));
+    expect(wave.progress, 'Ana waves, as ${wave.step}');
     expect(() => world.invoke('Dance'), throwsA(isA<WorldRefusal>()));
+    // Nothing was sent, and the refusal says so rather than failing blind.
+    await expectLater(
+      world.deliver('lab/1'),
+      throwsA(
+        isA<WorldRefusal>().having(
+          (refusal) => refusal.message,
+          'message',
+          contains('No server has sent one yet'),
+        ),
+      ),
+    );
 
     await world.restart({'mood': 'busy'});
     expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
@@ -227,6 +249,9 @@ void main() {
       appRoot: Directory.current.path,
       entrypoints: const [],
       guests: (_) => throw StateError('nobody here has an app'),
+      // Not the machine's: the servers running under this worktree are
+      // somebody's, and a test attaching to them is no business of theirs.
+      runDir: () => emptyRunDir,
     );
     await world.open();
     expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));

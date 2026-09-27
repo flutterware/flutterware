@@ -49,6 +49,33 @@ Devbar(
 - Two databases are two `DatabasePlugin.init` calls with two
   `DatabaseAdapter(name: ...)`s: panels `db:main` and `db:cache`.
 
+### PowerSync: say so, and see the sync too
+
+One more line tells the panel the database is PowerSync's:
+
+```dart
+DatabaseAdapter(
+  query: (sql, args) => db.getAll(sql, args),
+  updates: db.updates.map((u) => u.tables),
+  sync: DatabaseSync.powersync,
+)
+```
+
+The panel then reads PowerSync's own tables, through the same read-only
+`query`, and adds:
+
+- **`sync`** (state): this client's id, the local changes waiting to upload,
+  when it last synced, and how far each bucket has applied. The client id is
+  the one the PowerSync service logs, so a device and the service's log line
+  up.
+- **`records`** (feed): every record the app wrote locally, as it joins the
+  upload queue (`local put`, `local patch`), and every record a checkpoint
+  brought in, with its operation (`synced`, `op 16`). A change on one
+  device and its arrival on another share the record's key.
+
+It is said rather than guessed: an app on plain sqlite gets nothing it has no
+use for, and flutterware still imports no sync library.
+
 ## Writes are opt-in, by existence
 
 There is no flag. Provide `execute` and an `Execute SQL` action exists,

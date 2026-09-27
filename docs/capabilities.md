@@ -2835,6 +2835,96 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 |---|---|---|---|---|
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
+#### `trace` — Trace
+
+The newest steps taken on the people's apps — each tap, a person's or an agent's — with what each one caused: the requests it sent, what the servers did under them and whom they reached, and where the records it wrote arrived. A server takes part by reading the `x-fw-step` header into `FlutterwareServer.stepKey`; a synced database, by its database panel reading the engine.
+
+```sh
+fw run worlds trace [--person=…] [--step=…] [--limit=…] [--world=…]
+```
+
+Returns `WorldTraceResult`:
+
+```
+steps: List<Map<String, Object?>>   # Oldest first.
+note: String?
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `person` | string | no | — | Only this person's steps; `world` for the world's own actions |
+| `step` | string | no | — | Only this step, by its name: `ben.3` |
+| `limit` | integer | no | — | How many of the newest steps, 10 by default |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
+#### `outbox` — Outbox
+
+The messages the servers sent outside — SMS, push, mail — newest first, each with whom it reached, the code or link it carries, and the step that sent it. A server takes part by reporting `sms`, `push` or `mail` events with their recipient.
+
+```sh
+fw run worlds outbox [--person=…] [--limit=…] [--world=…]
+```
+
+Returns `WorldOutboxResult`:
+
+```
+messages: List<Map<String, Object?>>   # `{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what `worlds deliver` takes.
+note: String?
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `person` | string | no | — | Only what reached this person |
+| `limit` | integer | no | — | How many of the newest, 20 by default |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
+#### `deliver` — Deliver
+
+Hands a message to its recipient's app as a person would take it: its code typed into the field that has focus, the way an autofill offers one, or its link opened where the OS would deliver it. Focus the field first — tap it — for a code.
+
+```sh
+fw run worlds deliver --message=<string> [--how=…] [--world=…]
+```
+
+Returns `WorldDeliveryResult`:
+
+```
+message: String
+person: String
+how: String   # `type` — the code went into the field that had focus — or `open`.
+what: String   # The code typed, or the link opened.
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `message` | string | yes | — | Its id, from `worlds outbox`: `lab/42` |
+| `how` | string | no | — | `type` its code or `open` its link; the code when it carries one |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
+#### `contents` — Contents
+
+What one part of the system holds, as the world heard it since it opened: every call a route answered and who asked, every record a table was written with its whole life — each write and each phone it reached — every message sent outside and whom it reached, every record the sync engine carried. Each names the step that caused it. With no part, lists the parts there are.
+
+```sh
+fw run worlds contents [--part=…] [--limit=…] [--world=…]
+```
+
+Returns `WorldContentsResult`:
+
+```
+part: String?   # The part asked about, as `part` named it.
+items: List<Map<String, Object?>>?   # Newest first.
+more: int?   # How many more it holds than [items] lists.
+parts: List<String>?   # Asked for no part: every part there is, as `part` takes it.
+note: String?
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `part` | string | no | — | As the canvas shows it: a route (`POST /orders`), a table (`orders`), `sms` or `push`, or `sync` |
+| `limit` | integer | no | — | How many of the newest, 20 by default |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
 #### `restart` — Restart
 
 Runs the script again — its `onClose` first — so the people are new, and restarts each app in place with the knobs the script now gives it. Nothing rebuilds. The script's own edits apply too.
@@ -2879,6 +2969,7 @@ Returns `WorldActionResult`:
 action: String
 run: int
 running: bool   # Still going when the wait ran out; `worlds status` shows how far.
+step: String?   # The step it ran as — `world.2` — what `worlds trace` takes as `step` for what it caused.
 progress: String?   # The last thing it said about how far it is.
 error: String?
 ```

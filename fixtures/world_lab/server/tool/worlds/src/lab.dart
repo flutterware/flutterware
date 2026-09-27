@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutterware/server.dart';
 import 'package:flutterware/world.dart';
 import 'package:logging/logging.dart';
 import 'package:world_lab_server/world_lab_server.dart';
@@ -9,13 +10,23 @@ import 'package:world_lab_server/world_lab_server.dart';
 /// The lab server, hosted in the world's own process: its edges print into
 /// the world's log — until the outbox exists, that is where a text message
 /// goes — and still report to the Server panel as they do when it runs alone.
-Future<LabServer> startLabServer(World w) async {
+///
+/// [orders] and [sync] are the server's own: hand them for a synced world.
+Future<LabServer> startLabServer(
+  World w, {
+  OrderStore? orders,
+  SyncAuth? sync,
+}) async {
   Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen(
     (record) => print('${record.loggerName}: ${record.message}'),
   );
   w.progress('Starting the lab server');
+  // Hosted here, it would go by the script's file name.
+  FlutterwareServer.configure(name: 'lab');
   var server = await startServer(
+    orders: orders,
+    sync: sync,
     port: await w.freePort(),
     sms: _WorldSms(w),
     push: _WorldPush(w),

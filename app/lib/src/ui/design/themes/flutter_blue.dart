@@ -61,6 +61,7 @@ const flutterBlueDarkPalette = FwPalette(
   dividerDark: Color(0xFF2a2e3c),
   tabDivider: Color(0xFF383d4f),
   info: Color(0xFF13b9fd),
+  people: peopleOnDark,
 );
 
 final flutterBlueTheme = FwTheme.from(

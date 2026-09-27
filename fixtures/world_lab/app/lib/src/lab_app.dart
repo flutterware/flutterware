@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutterware/devbar.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -9,6 +10,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'api.dart';
 import 'menu.dart';
 import 'plugin_check.dart';
+import 'synced_orders.dart';
 
 class LabApp extends StatelessWidget {
   const LabApp({
@@ -16,18 +18,29 @@ class LabApp extends StatelessWidget {
     required this.server,
     required this.session,
     required this.person,
+    this.sync = false,
   });
 
   final Uri server;
   final String session;
   final String person;
+  final bool sync;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Pickup',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF6F4E37)),
-      home: _Home(server: server, session: session, person: person),
+    // Headless in a guest: panels for Run and the studio, no overlay.
+    return Devbar(
+      plugins: const [],
+      child: MaterialApp(
+        title: 'Pickup',
+        theme: ThemeData(colorSchemeSeed: const Color(0xFF6F4E37)),
+        home: _Home(
+          server: server,
+          session: session,
+          person: person,
+          sync: sync,
+        ),
+      ),
     );
   }
 }
@@ -37,11 +50,13 @@ class _Home extends StatefulWidget {
     required this.server,
     required this.session,
     required this.person,
+    required this.sync,
   });
 
   final Uri server;
   final String session;
   final String person;
+  final bool sync;
 
   @override
   State<_Home> createState() => _HomeState();
@@ -60,6 +75,12 @@ class _HomeState extends State<_Home> {
   String? _error;
   String? _highlight;
   WebSocketChannel? _live;
+  SyncedOrders? _synced;
+
+  /// The synced database as a devbar panel, `db:main`: its tables, and —
+  /// being PowerSync — what waits to upload and every record that arrives.
+  DatabasePanelSource? _databasePanel;
+  StreamSubscription<List<Order>>? _watching;
   StreamSubscription<Uri>? _links;
   StreamSubscription<Uri>? _tapped;
 
@@ -106,6 +127,30 @@ class _HomeState extends State<_Home> {
 
   Future<void> _signedIn() => _run(() async {
     var user = await _api.me();
+    if (widget.sync) {
+      // Synced: the local copy is the truth the screen shows, and a change
+      // anybody made arrives in it — no socket of the app's own.
+      var synced = _synced ??= await SyncedOrders.open(_api);
+      _databasePanel ??= DatabasePanelSource(
+        DatabaseAdapter(
+          query: (sql, args) => synced.db.getAll(sql, args),
+          updates: synced.db.updates.map((u) => u.tables),
+          watch: (sql) =>
+              synced.db.watch(sql, throttle: const Duration(milliseconds: 250)),
+          sync: DatabaseSync.powersync,
+        ),
+      );
+      await _watching?.cancel();
+      _watching = synced.watch().listen((orders) {
+        var before = {for (var o in _orders) o.id: o.status};
+        for (var order in orders) {
+          if (before[order.id] != order.status) _notifyIfReady(order);
+        }
+        setState(() => _orders = orders);
+      });
+      setState(() => _user = user);
+      return;
+    }
     var orders = await _api.orders();
     await _live?.sink.close();
     var live = _api.live();
@@ -121,6 +166,10 @@ class _HomeState extends State<_Home> {
     setState(() {
       _orders = [order, ..._orders.where((o) => o.id != order.id)];
     });
+    _notifyIfReady(order);
+  }
+
+  void _notifyIfReady(Order order) {
     if (order.status == 'ready' && _user?.id == order.customerId) {
       unawaited(
         notifications
@@ -152,6 +201,9 @@ class _HomeState extends State<_Home> {
     unawaited(_links?.cancel());
     unawaited(_tapped?.cancel());
     unawaited(_live?.sink.close());
+    unawaited(_watching?.cancel());
+    _databasePanel?.dispose();
+    unawaited(_synced?.close());
     _phone.dispose();
     _code.dispose();
     super.dispose();
@@ -181,7 +233,13 @@ class _HomeState extends State<_Home> {
               ),
           ],
         ),
-        body: TabBarView(children: [_ordersTab(), _pluginsTab()]),
+        body: switch (_databasePanel) {
+          var panel? => AddDevbarPanel(
+            source: panel,
+            child: TabBarView(children: [_ordersTab(), _pluginsTab()]),
+          ),
+          null => TabBarView(children: [_ordersTab(), _pluginsTab()]),
+        },
       ),
     );
   }
@@ -210,8 +268,10 @@ class _HomeState extends State<_Home> {
                 for (var item in menu)
                   FilledButton(
                     onPressed: () => _run(() async {
-                      var order = await _api.order(item);
-                      _onOrder(order);
+                      if (_synced case var synced?) {
+                        return synced.place(user.id, item);
+                      }
+                      _onOrder(await _api.order(item));
                     }),
                     child: Text('Order a ${item.toLowerCase()}'),
                   ),
@@ -230,6 +290,9 @@ class _HomeState extends State<_Home> {
                 trailing: user.isStaff && order.status != 'collected'
                     ? TextButton(
                         onPressed: () => _run(() async {
+                          if (_synced case var synced?) {
+                            return synced.advance(order);
+                          }
                           _onOrder(await _api.advance(order.id));
                         }),
                         child: const Text('Advance'),

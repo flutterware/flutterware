@@ -9,12 +9,15 @@ import 'package:flutterware/src/ui_catalog/knob.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/world/protocol.dart';
 // ignore: implementation_imports
+import 'package:flutterware/src/world/step_names.dart';
+// ignore: implementation_imports
 import 'package:flutterware/src/world/world.dart';
 import 'package:path/path.dart' as p;
 
 import '../embedder/flutter_cache.dart';
 import '../run/entrypoint_knobs.dart';
 import '../run/handle.dart';
+import '../run/journal.dart';
 import '../session/job.dart';
 import 'app_guest.dart';
 import 'guest_launcher.dart';
@@ -23,6 +26,7 @@ import 'guest_process.dart';
 import 'platform/studio_platform.dart';
 import 'world_files.dart';
 import 'world_script.dart';
+import 'world_trace.dart';
 
 /// A world while it is open, from its owner's side: the script, one build per
 /// app its people use, and a guest per person — announced to Run as that
@@ -42,6 +46,7 @@ class OpenWorld {
     required this.guests,
     this.onChanged,
     this.buildRoot,
+    this.runDir,
   });
 
   final WorldFile file;
@@ -66,6 +71,11 @@ class OpenWorld {
   /// Where each app's guest build goes; its package's own `build/` when null.
   final String? buildRoot;
 
+  /// Where the servers the world traces announce themselves; the machine's
+  /// run dir when null. A test names an empty one, or its world attaches to
+  /// every real server under the worktree.
+  final String Function()? runDir;
+
   WorldPhase phase = WorldPhase.opening;
 
   /// Why the world is [WorldPhase.failed].
@@ -85,6 +95,11 @@ class OpenWorld {
   /// The script's progress and what it printed, newest last, each line
   /// stamped with the seconds since this opening started: `12.4s  Built Shop`.
   final log = <String>[];
+
+  /// What this opening's people did and what it caused — each step on an
+  /// app, joined to the requests, server events and synced records that
+  /// followed. New with every opening, as the people are.
+  WorldTracer? tracer;
 
   /// Each line of [log] as it is said.
   Stream<String> get lines => _lines.stream;
@@ -141,12 +156,119 @@ class OpenWorld {
         '${actions.isEmpty ? 'It declares none.' : 'It has: ${actions.keys.join(', ')}.'}',
       );
     }
-    var run = WorldActionRun(_nextRun++, action);
+    var id = _nextRun++;
+    // A step, as a tap is: what the action sends is traced under it.
+    var run = WorldActionRun(id, action, step: '$worldActionsOwner.$id');
     runs[run.id] = run;
-    script.send(WorldMessage.invoke, {'action': action, 'run': run.id});
+    tracer?.trace.addActionStep(run.step, action, DateTime.now());
+    script.send(WorldMessage.invoke, {
+      'action': action,
+      'run': run.id,
+      'step': run.step,
+    });
     _changed();
     await run._ended.future.timeout(wait, onTimeout: () {});
     return run;
+  }
+
+  /// Hands [messageId] — an SMS, a push, a mail a server sent — to its
+  /// recipient's app, as a person would take it: its code typed into the
+  /// field that has focus, the way an autofill offers one, or its link
+  /// opened where the OS would deliver it. [how] is `type` or `open`; by
+  /// default the code, when the message carries one. What it did lands in
+  /// the person's Run journal as [actor]'s step.
+  Future<WorldDelivery> deliver(
+    String messageId, {
+    String? how,
+    String actor = 'agent',
+  }) async {
+    var tracer = this.tracer;
+    var message = tracer?.trace.messageById(messageId);
+    if (tracer == null || message == null) {
+      var recent = [
+        for (var message
+            in tracer?.trace.outbox(limit: 5) ?? const <OutboxMessage>[])
+          message.id,
+      ];
+      throw WorldRefusal(
+        'No message $messageId in ${file.name}. '
+        '${recent.isEmpty ? 'No server has sent one yet.' : 'The newest: ${recent.join(', ')}.'}',
+      );
+    }
+    var name = message.person;
+    var person = name == null ? null : people[name];
+    if (name == null || person == null) {
+      throw WorldRefusal(
+        'The ${message.kind} to ${message.to} reached nobody in '
+        '${file.name}: no person was declared with that '
+        '${message.kind == 'sms'
+            ? 'phone number'
+            : message.kind == 'mail'
+            ? 'address'
+            : 'user id'}.',
+      );
+    }
+    if (!person.running) throw WorldRefusal("$name's app is not running.");
+    how ??= message.code != null ? 'type' : 'open';
+    String what;
+    switch (how) {
+      case 'type':
+        var code = message.code;
+        if (code == null) {
+          throw WorldRefusal('It carries no code: "${message.text}".');
+        }
+        Map<String, Object?> answer;
+        try {
+          answer = await tracer.ask(name, worldInputChannel, 'type', {
+            'text': code,
+          });
+        } on Object catch (error) {
+          throw WorldRefusal("$name's app did not take it: $error");
+        }
+        if (answer['typed'] != true) {
+          throw WorldRefusal(
+            "Nothing in $name's app has focus: tap the field the code goes "
+            'in, then deliver it again.',
+          );
+        }
+        what = code;
+        _journal(person, 'enterText', actor, '"$code" into the focused field');
+      case 'open':
+        var link = message.link;
+        if (link == null) {
+          throw WorldRefusal('It carries no link: "${message.text}".');
+        }
+        if (!(person.platform?.links.open(link) ?? false)) {
+          throw WorldRefusal(
+            "$name's app is not listening for links: it registers no "
+            'handler with app_links, or has not started it yet.',
+          );
+        }
+        what = link;
+        _journal(person, 'openLink', actor, link);
+      default:
+        throw WorldRefusal('A message is delivered by `type` or `open`.');
+    }
+    return WorldDelivery(
+      message: message.id,
+      person: name,
+      how: how,
+      what: what,
+    );
+  }
+
+  void _journal(WorldPerson person, String verb, String actor, String target) {
+    var handle = person.handle;
+    if (handle == null) return;
+    appendJournal(
+      handle,
+      JournalEntry(
+        at: DateTime.now().toUtc().toIso8601String(),
+        verb: verb,
+        actor: actor,
+        target: target,
+      ),
+    );
   }
 
   /// Stops an action that is still running.
@@ -161,7 +283,9 @@ class OpenWorld {
     await Future.wait([
       for (var person in people.values) person._stop(),
       _compiler.shutdown(),
+      ?tracer?.close(),
     ]);
+    tracer = null;
     people.clear();
     await Future.wait([for (var build in _builds.values) build.app.dispose()]);
     _builds.clear();
@@ -190,6 +314,8 @@ class OpenWorld {
       ..start();
     // The stamps start again at 0.0; a long log says which opening it is.
     if (_restarts > 0) _say('Restart $_restarts');
+    unawaited(tracer?.close());
+    tracer = WorldTracer(worktree: worktree, runDir: runDir)..onSync = _changed;
 
     void settle() {
       if (!setUp || settled.isCompleted) return;
@@ -203,6 +329,7 @@ class OpenWorld {
       settled.complete();
       _changed();
       _rememberApps();
+      unawaited(tracer?.scanServers());
       // Once, with the world up: the shared half of each app's program, left
       // for the next checkout's first open. Not before — it queues on the
       // compiler every reload goes through.
@@ -451,6 +578,7 @@ class OpenWorld {
         // keeps each person's apart. Nothing a guest needs is found from it.
         workingDirectory: home.path,
         environment: guestEnvironment(
+          person: name,
           home: home.path,
           knobsFile: build.app.writeKnobs(name, person.knobs),
         ),
@@ -478,6 +606,15 @@ class OpenWorld {
     );
     build.people.add(person);
     person.phase = PersonPhase.running;
+    unawaited(
+      tracer?.follow(
+        name,
+        person.handle!,
+        userId: person.spec.userId,
+        phone: person.spec.phone,
+        email: person.spec.email,
+      ),
+    );
   }
 
   /// The entry point [app] names, and its knobs as its `main` takes them.
@@ -802,11 +939,32 @@ class WorldKnob {
   final String? description;
 }
 
+/// What [OpenWorld.deliver] did: [what] — the code typed, the link opened —
+/// in [person]'s app.
+class WorldDelivery {
+  const WorldDelivery({
+    required this.message,
+    required this.person,
+    required this.how,
+    required this.what,
+  });
+
+  final String message;
+  final String person;
+
+  /// `type` or `open`.
+  final String how;
+  final String what;
+}
+
 class WorldActionRun {
-  WorldActionRun(this.id, this.action);
+  WorldActionRun(this.id, this.action, {required this.step});
 
   final int id;
   final String action;
+
+  /// The step it runs as: `world.3`.
+  final String step;
   bool running = true;
   String? progress;
   double? fraction;
@@ -865,6 +1023,9 @@ abstract class WorldGuest {
 /// shows. Run's screenshots and the drive layer still see it.
 class HeadlessWorldGuest implements WorldGuest {
   GuestProcess? _process;
+
+  /// Spike: the process, so a harness can send input as a person would.
+  GuestProcess? get process => _process;
 
   @override
   Future<void> start(WorldGuestStart start) async {

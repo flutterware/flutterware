@@ -102,6 +102,7 @@ class DatabaseAdapter {
     this.updates,
     this.watch,
     this.execute,
+    this.sync,
   });
 
   /// Names the panel — `db:main` — and nothing else. Two databases are two
@@ -121,6 +122,19 @@ class DatabaseAdapter {
   /// Presence is the write opt-in. No function, no `execute` action, on
   /// any surface — an agent cannot even see it (§ Decision 3 of the design).
   final DatabaseQuery? execute;
+
+  /// The sync engine that keeps this database, when one does. Said, not
+  /// guessed: an app on plain sqlite gets nothing it has no use for.
+  final DatabaseSync? sync;
+}
+
+/// A sync engine the panel reads beyond the tables — what the app wrote that
+/// has not left yet, what arrived, and when — from the engine's own tables,
+/// through the same read-only [DatabaseAdapter.query] as everything else.
+enum DatabaseSync {
+  /// `PowerSyncDatabase`: its `ps_crud` upload queue, its `ps_oplog`
+  /// operations and its `ps_buckets` checkpoints.
+  powersync,
 }
 
 /// What a database function throws when there is no database to reach — no one
@@ -194,6 +208,16 @@ class DatabasePanelSource implements DevbarPanelSource {
   /// Ring event id → the SQL its snapshot ran. `explain` is invoked with the
   /// event id and nothing else, so this is what ties the row back to a query.
   final _sqlByEvent = <int, String>{};
+
+  StreamSubscription<void>? _recordsSubscription;
+
+  /// The last upload-queue entry reported, and the last operation reported
+  /// per record: what `records` has already said.
+  var _lastCrud = 0;
+  final _seenOps = <String, int>{};
+  var _recordsRead = false;
+  Future<void>? _reading;
+  var _readAgain = false;
 
   @override
   void describePanel(Panel panel) {
@@ -310,6 +334,38 @@ class DatabasePanelSource implements DevbarPanelSource {
       );
     }
 
+    if (adapter.sync == DatabaseSync.powersync) {
+      panel.state(
+        'sync',
+        'Sync',
+        description:
+            'PowerSync, from its own tables: this client, what waits to '
+            'upload, when it last synced, and how far each bucket is.',
+        read: _powerSyncState,
+      );
+      if (adapter.updates != null) {
+        panel.feed(
+          'records',
+          'Records',
+          description:
+              'Every record this app wrote locally, as it joins the upload '
+              'queue, and every record a checkpoint brought in, with its '
+              'operation — what joins a change on one device to its arrival '
+              'on another.',
+          fields: const [
+            FieldDescriptor('key', 'Record', primary: true),
+            FieldDescriptor('table', 'Table'),
+            FieldDescriptor('change', 'Change'),
+            FieldDescriptor('op', 'Operation', kind: FieldKind.number),
+          ],
+        );
+        _recordsSubscription = _coalescedTicks.stream.listen(
+          (_) => _readRecords(),
+        );
+        unawaited(_readRecords());
+      }
+    }
+
     if (adapter.execute != null) {
       panel.action(
         const PluginAction(
@@ -367,6 +423,111 @@ class DatabasePanelSource implements DevbarPanelSource {
       });
     }
     return {'tables': result};
+  }
+
+  Future<Map<String, Object?>> _powerSyncState() async {
+    Future<Object?> one(String sql) async {
+      var rows = await adapter.query(sql, const []);
+      return rows.isEmpty ? null : rows.first.values.first;
+    }
+
+    var client = await one("SELECT value FROM ps_kv WHERE key = 'client_id'");
+    var pending = await one('SELECT count(*) FROM ps_crud');
+    var synced = await one('SELECT max(last_synced_at) FROM ps_sync_state');
+    var buckets = await adapter.query(
+      'SELECT name, last_applied_op, last_op FROM ps_buckets ORDER BY name',
+      const [],
+    );
+    return {
+      'engine': 'powersync',
+      'clientId': ?client,
+      'pendingUploads': pending ?? 0,
+      // Microseconds in the core that ships with powersync 2.4 — measured;
+      // seconds are read too, should an older core be what wrote it.
+      'lastSyncedAt': ?switch (synced) {
+        num time => DateTime.fromMicrosecondsSinceEpoch(
+          time > 1e14 ? time.toInt() : time.toInt() * 1000000,
+          isUtc: true,
+        ).toIso8601String(),
+        String text => text,
+        _ => null,
+      },
+      'buckets': [
+        for (var bucket in buckets)
+          {
+            'name': bucket['name'],
+            'appliedOp': bucket['last_applied_op'],
+            'lastOp': bucket['last_op'],
+          },
+      ],
+    };
+  }
+
+  /// Reads what changed since the last read, one at a time — ticks arriving
+  /// mid-read ask for one more, not for one each.
+  Future<void> _readRecords() async {
+    if (_reading != null) {
+      _readAgain = true;
+      return;
+    }
+    do {
+      _readAgain = false;
+      _reading = _readRecordsOnce();
+      try {
+        await _reading;
+      } on Object {
+        // Not open yet, or closing: the next tick tries again, and the `sync`
+        // state says what is wrong to whoever asks.
+      } finally {
+        _reading = null;
+      }
+    } while (_readAgain && _panel != null);
+  }
+
+  Future<void> _readRecordsOnce() async {
+    var panel = _panel;
+    if (panel == null) return;
+    for (var row in await adapter.query(
+      'SELECT id, data FROM ps_crud WHERE id > ? ORDER BY id',
+      [_lastCrud],
+    )) {
+      _lastCrud = row['id']! as int;
+      var entry = (jsonDecode('${row['data']}') as Map).cast<String, Object?>();
+      panel.emit('records', {
+        'key': entry['id'],
+        'table': entry['type'],
+        'change': 'local ${'${entry['op']}'.toLowerCase()}',
+      });
+    }
+    // An operation counts once its checkpoint is applied: before that it is
+    // downloaded, not visible to the app.
+    var applied = await adapter.query(
+      'SELECT o.row_type AS t, o.row_id AS k, max(o.op_id) AS op '
+      'FROM ps_oplog o JOIN ps_buckets b ON b.id = o.bucket '
+      'WHERE o.op_id <= b.last_applied_op GROUP BY o.row_type, o.row_id',
+      const [],
+    );
+    var first = !_recordsRead;
+    _recordsRead = true;
+    var arrived = 0;
+    for (var row in applied) {
+      var key = '${row['t']}/${row['k']}';
+      var op = row['op']! as int;
+      if ((_seenOps[key] ?? -1) >= op) continue;
+      _seenOps[key] = op;
+      arrived++;
+      // What was there when the panel started is one line, not one per row.
+      if (first) continue;
+      panel.emit('records', {
+        'key': row['k'],
+        'table': row['t'],
+        'change': 'synced',
+        'op': op,
+      });
+    }
+    if (first && arrived > 0) {
+      panel.emit('records', {'key': '$arrived records', 'change': 'present'});
+    }
   }
 
   Future<Map<String, Object?>> _query(Map<String, Object?> args) async =>
@@ -536,6 +697,7 @@ class DatabasePanelSource implements DevbarPanelSource {
 
   void dispose() {
     unawaited(_updatesSubscription?.cancel());
+    unawaited(_recordsSubscription?.cancel());
     for (var subscription in _watches.values) {
       unawaited(subscription.cancel());
     }

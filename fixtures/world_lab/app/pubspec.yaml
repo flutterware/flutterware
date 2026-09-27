@@ -19,11 +19,14 @@ dependencies:
     sdk: flutter
   flutter_local_notifications: ^22.0.0
   flutter_secure_storage:
+  flutterware:
+    path: ../../..
   http:
   material_ui: ^1.4.0
   package_info_plus:
   path:
   path_provider:
+  powersync: ^2.4.0
   shared_preferences:
   # A native library through build hooks, as a real local database brings.
   sqlite3:

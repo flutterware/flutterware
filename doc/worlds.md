@@ -125,9 +125,123 @@ and `device: "studio-leo"`, with the same verbs as any other app.
 
 A world belongs to the process that opened it (the studio, `fw` or the MCP
 server), and a checkout has one world open at a time. Every other process can
-still reach it: `fw run worlds status`, `invoke`, `restart` and `close` are
-answered by the process that owns it, so an agent can run an action on the
-world you opened in the studio, or close one it left held in a terminal.
+still reach it: `fw run worlds status`, `trace`, `invoke`, `restart` and
+`close` are answered by the process that owns it, so an agent can run an
+action on the world you opened in the studio, or close one it left held in a
+terminal.
+
+## See what a tap caused
+
+Every tap on a person's app, yours or an agent's, is a **step**, named after
+its person: `leo.2`. The world follows each one through the system:
+
+```shell
+fw run worlds trace --person=Leo
+```
+
+```json
+{
+  "step": "leo.2",
+  "person": "Leo",
+  "at": "2026-09-26T22:46:13.594",
+  "did": "tap \"Sign in\"",
+  "then": [
+    "+1 ms  Leo → lab  POST /auth/verify  200 in 0.4 ms",
+    "+4 ms  Leo → lab  GET /me  200 in 0.3 ms",
+    "+4 ms  lab  knows Leo as u2",
+    "+6 ms  Leo → lab  GET /orders  200 in 0.5 ms"
+  ]
+}
+```
+
+Every request an app sends carries its step in an `x-fw-step` header. A Dart
+server takes part with one line in its [inspection
+adapter](server_inspection.md), putting the header in the zone beside the
+request id:
+
+```dart
+zoneValues: {
+  FlutterwareServer.requestIdKey: id,
+  FlutterwareServer.stepKey: ?request.headers['x-fw-step'],
+},
+```
+
+Everything the server reports under that request then carries the step: its
+writes, the messages it sent and who they reached. Two calls say what only
+the server knows: `FlutterwareServer.identify(user.id)` once auth knows who
+the request is, so the world can tell whose a user is even when they signed
+up themselves, and `FlutterwareServer.reach(userId, what)` when it pushes
+something down a connection, such as a WebSocket frame.
+
+The world's own actions are steps too, named `world.1`, `world.2`: every
+request an action sends carries its step, so what *Mia orders a flat white*
+caused is traced the same way, and `fw run worlds invoke` answers with the
+step it ran as. `--person=world` lists only those.
+
+An app that keeps its data in a synced database follows its records instead:
+with `sync: DatabaseSync.powersync` on its [Database watch](database_watch.md)
+adapter, a record written on one phone is traced to the others as it
+arrives, and each person's sync state shows beside their phone and in
+`worlds status`.
+
+## Hand a message to a person
+
+What a server sends outside — an SMS, a push, a mail — reaches its person
+through the world. Each person's drawer opens on the messages sent to them:
+**Type it** puts a code into the field that has focus in their app, as an
+autofill would, and **Open** or **Tap it** opens a message's link in their
+app. Tap the field the code goes in first.
+
+```shell
+fw run worlds outbox --person=Leo
+fw run worlds deliver --message=lab/10
+```
+
+A server takes part by reporting each message with its recipient, in its
+adapter for that edge:
+
+```dart
+FlutterwareServer.event('sms', {'to': phone, 'body': body});
+FlutterwareServer.event('push', {'to': userId, 'title': title, 'link': ?link});
+FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text});
+```
+
+The world finds the person by the phone number, user id or address it was
+declared with, or learnt through `FlutterwareServer.identify`.
+
+## See what the system holds
+
+Each part of the system the canvas draws — a route, a table, the SMS a server
+sent, the sync engine — opens on what the world heard it do since it opened,
+the script's own calls included, each with the step that caused it. A record
+comes with its whole life, joined by its key:
+
+```shell
+fw run worlds contents --part=orders
+```
+
+```json
+{
+  "title": "80ef752c",
+  "detail": "update · item Flat white · status preparing · customer Ben",
+  "person": "Cleo",
+  "step": "cleo.1",
+  "life": [
+    "+0 ms  written on Ben's phone  put  (ben.1)",
+    "+9 ms  lab wrote it  insert · item Flat white · status placed · customer Ben  (ben.1)",
+    "+21 ms  arrived on Cleo's phone  op 38  (ben.1)",
+    "+251 ms  back on Ben's phone  op 37  (ben.1)",
+    "+7602 ms  written on Cleo's phone  patch  (cleo.1)",
+    "+7613 ms  lab wrote it  update · item Flat white · status preparing · customer Ben  (cleo.1)",
+    "+7640 ms  arrived on Ben's phone  op 39  (cleo.1)"
+  ]
+}
+```
+
+With no `--part`, it lists the parts there are. What a record says is what
+the server's `write` event carried beyond its table and key; a value that is
+a person's user id reads as their name. A table shows the records this world
+wrote, not the ones already there when it opened.
 
 ## What an app can use in a world
 

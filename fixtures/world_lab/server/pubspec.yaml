@@ -8,9 +8,11 @@ environment:
 resolution: workspace
 
 dependencies:
+  crypto:
   flutterware:
     path: ../../..
   logging:
+  postgres: ^3.4.0
   shelf:
   shelf_web_socket:
   web_socket_channel:

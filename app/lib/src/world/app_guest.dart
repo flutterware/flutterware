@@ -189,9 +189,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutterware/previews_guest.dart'
-    show GuestKeyboard, GuestLogs, GuestTextInput;
+    show GuestKeyboard, GuestLogs, GuestTextInput, WorldSteps, installWorldInput;
 import 'package:flutterware/run_guest.dart';
 import '$main' as app;
 ${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/${plugin.file}' as plugin$i;"].join('\n')}
@@ -201,6 +202,12 @@ ${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/$
 /// view *insets* — `FlutterWindowMetricsEvent` has no padding field — so they
 /// are turned back into padding under the root `View`.
 class _GuestBinding extends WidgetsFlutterBinding {
+  /// Every gesture — a person's or an agent's — is dispatched inside its
+  /// step, so the requests it causes say which tap they came from.
+  @override
+  void handlePointerEvent(PointerEvent event) =>
+      _steps.dispatch(event, super.handlePointerEvent);
+
   @override
   Widget wrapWithDefaultView(Widget rootWidget) =>
       super.wrapWithDefaultView(Builder(builder: (context) {
@@ -216,16 +223,24 @@ class _GuestBinding extends WidgetsFlutterBinding {
       }));
 }
 
+/// The person this guest is, from the world, as its steps are named.
+final _steps = WorldSteps(
+  person: Platform.environment['FW_WORLD_PERSON'] ?? 'guest',
+);
+
 // The binding is created before `runGuest` makes its own, and inside the log
 // zone `runGuest` would open: `install` does not nest, so `runGuest` runs in
 // this same zone, finds the binding, and the zone the binding captured is the
 // one `runApp` is called in. Any flutterware with the guest plumbing has this.
 void main() => GuestLogs.instance.install<Object?>(() {
+  _steps.install();
   _GuestBinding();
   return runGuest(() {
     ${platform == null ? '' : 'debugDefaultTargetPlatformOverride = TargetPlatform.$platform;'}
     GuestKeyboard.instance.install();
     GuestTextInput.instance.install();
+    // A code the world delivers is typed into the focused field.
+    installWorldInput();
     ${[for (var (i, plugin) in plugins.indexed) 'plugin$i.${plugin.type}.registerWith();'].join('\n    ')}
     // Read on every start, so a restart takes the knobs written since.
     var knobs = (jsonDecode(
@@ -260,10 +275,12 @@ Directory emptyGuestHome(String path) {
 /// calls Foundation directly, `path_provider`, finds the person's own folders
 /// without the app knowing.
 Map<String, String> guestEnvironment({
+  required String person,
   required String home,
   required String knobsFile,
   String locales = 'en-US',
 }) => {
+  'FW_WORLD_PERSON': person,
   'FW_KNOBS_FILE': knobsFile,
   'FW_GUEST_LOCALES': locales,
   'FW_FORWARD_PLATFORM': '1',

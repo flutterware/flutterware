@@ -1745,6 +1745,7 @@ IconData _verbIcon(String verb) => switch (verb) {
   'wait' => Icons.hourglass_empty,
   'observe' => Icons.visibility_outlined,
   'navigate' => Icons.route_outlined,
+  'openLink' => Icons.link,
   'reload' => Icons.local_fire_department_outlined,
   'restart' => Icons.restart_alt,
   'stop' => Icons.stop_outlined,

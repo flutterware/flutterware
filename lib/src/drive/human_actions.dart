@@ -315,12 +315,40 @@ String? _nameFrom(Element leaf) {
       case Widget(key: ValueKey<String>(:var value)):
         name = "key '$value'";
         return false;
+      // A control merged with its label — the switch of a `SwitchListTile`,
+      // a checkbox's tile — is one thing to a screen reader, and its label
+      // is beside it rather than above it, where this walk looks. It is
+      // named by that label, as a drive target on the label would reach it.
+      case MergeSemantics() when _firstText(element) != null:
+        name = '"${_cap(_firstText(element)!)}"';
+        return false;
     }
     return true;
   }
 
   if (visit(leaf)) leaf.visitAncestorElements(visit);
   return name;
+}
+
+/// The first text under [root], in paint order, within a few hundred
+/// elements — a tile's title comes before its subtitle and its control.
+String? _firstText(Element root) {
+  String? found;
+  var seen = 0;
+  void visit(Element element) {
+    if (found != null || ++seen > 400) return;
+    if (element.widget case Text(:var data, :var textSpan)) {
+      var text = data ?? textSpan?.toPlainText() ?? '';
+      if (text.trim().isNotEmpty) {
+        found = text;
+        return;
+      }
+    }
+    element.visitChildElements(visit);
+  }
+
+  root.visitChildElements(visit);
+  return found;
 }
 
 String _cap(String text) => text.length <= visibleTextCap

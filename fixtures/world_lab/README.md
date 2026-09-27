@@ -27,8 +27,17 @@ fvm dart run flutterware run worlds open --world=pickup_order --hold=true
 
 Either way each person's app is a Run app on the device `studio-<name>`, so
 `flutterware_act` with `device: "studio-leo"` drives Leo's. The world prints
-its server's log, and the SMS edge prints every text message there — which is
-where Leo's sign-up code is until the outbox exists.
+its server's log, and the SMS edge prints every text message there too.
+
+Every tap is a step the world follows through the lab server — whose adapter
+reads the `x-fw-step` header — and, in the synced world, through each phone's
+database. So is each run of the world's actions: *Mia orders a flat white*
+is `world.1`. `fw run worlds trace` answers with the newest steps and what each
+one caused, and `fw run worlds contents --part=orders` what the orders table
+holds, each order with its life from the tap to both phones.
+
+Leo's sign-up code is in his drawer: tap his code field, then *Type it* — or
+`fw run worlds deliver` with the message's id from `fw run worlds outbox`.
 
 A world script also runs on its own, which is how to debug its setup without
 launching any app: it prints what it declares, and `name=value` arguments are
@@ -56,3 +65,23 @@ curl -s -XPOST localhost:8090/admin/users -d '{"name":"Ben","role":"staff"}'
 
 A user who signs in with a code reads it from the server's log, where the SMS
 edge writes it.
+
+## The synced world
+
+*Synced pickup* is the same shop, offline first: each person's app keeps its
+orders in a local database that PowerSync keeps in step with Postgres, the way
+a modern app works. It needs Docker, and starts the lab's stack itself:
+
+- **`stack/`** — Postgres (with logical replication) and the PowerSync service,
+  on ports 55432 and 58080. `init.sql` makes the orders table and its
+  publication; `powersync.yaml` holds the sync rules — a customer sees their
+  own orders, staff see the shop's. The stack is left up between openings;
+  `docker compose -f fixtures/world_lab/stack/compose.yaml down` forgets it.
+- **The server** keeps its orders in that Postgres (`PostgresOrders`), hands
+  each app a token for the sync service (`GET /sync/token`) and applies what
+  it uploads (`POST /sync/upload`) under its own rules. Every change it makes
+  is reported as a `write` event naming the record.
+- **The app** runs with the knob `sync: true`: orders come from its local
+  database, a tap writes there at once, and PowerSync uploads it through the
+  server. Its devbar serves that database as `db:main`, PowerSync's sync state
+  and every record's arrival included.

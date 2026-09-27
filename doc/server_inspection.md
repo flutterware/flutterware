@@ -110,7 +110,11 @@ Middleware inspect() {
         });
         rethrow;
       }
-    }, zoneValues: {FlutterwareServer.requestIdKey: id});
+    }, zoneValues: {
+      FlutterwareServer.requestIdKey: id,
+      // The tap, in a world, that this request came from.
+      FlutterwareServer.stepKey: ?request.headers['x-fw-step'],
+    });
   };
 }
 

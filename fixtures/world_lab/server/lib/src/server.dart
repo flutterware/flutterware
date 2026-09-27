@@ -11,15 +11,13 @@ import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'edges.dart';
+import 'orders.dart';
+import 'sync_auth.dart';
 
 final _log = Logger('world_lab.server');
 
 /// What the shop sells. Fixed, because nothing in the lab is about the menu.
 const menu = ['Flat white', 'Cortado', 'Filter'];
-
-/// An order's life, in the order it is lived. Staff move it along one step at
-/// a time; the customer is told at each step.
-const orderStatuses = ['placed', 'preparing', 'ready', 'collected'];
 
 /// A running lab server.
 class LabServer {
@@ -38,12 +36,23 @@ class LabServer {
 /// The edges are parameters because they are what a world replaces: the
 /// server's own code never learns whether a text message reached a carrier or
 /// the studio.
+///
+/// [orders] is where orders live — in memory unless a world hands it
+/// Postgres. With [sync], apps sync them through a sync engine rather than
+/// asking this server: it hands each app its token and takes its uploads.
 Future<LabServer> startServer({
   int port = 8090,
   required SmsService sms,
   required PushService push,
+  OrderStore? orders,
+  SyncAuth? sync,
 }) async {
-  var shop = _Shop(sms: sms, push: push);
+  var shop = _Shop(
+    sms: sms,
+    push: push,
+    orders: orders ?? MemoryOrders(),
+    sync: sync,
+  );
   var handler = const Pipeline()
       .addMiddleware(_inspect())
       .addHandler(shop.handle);
@@ -86,50 +95,43 @@ class _User {
   };
 }
 
-class _Order {
-  _Order({required this.id, required this.customerId, required this.item});
-
-  final String id;
-  final String customerId;
-  final String item;
-  var status = orderStatuses.first;
-  final placedAt = DateTime.now().toUtc();
-
-  Map<String, Object?> toJson() => {
-    'id': id,
-    'customerId': customerId,
-    'item': item,
-    'status': status,
-    'placedAt': placedAt.toIso8601String(),
-  };
-}
-
 class _Listener {
   _Listener(this.user, this.channel);
 
   final _User user;
   final WebSocketChannel channel;
 
-  bool wants(_Order order) => user.isStaff || order.customerId == user.id;
+  bool wants(Order order) => user.isStaff || order.customerId == user.id;
 }
 
-/// The whole shop, in memory. A restart forgets everything, which is the
-/// point: a world creates the users it needs every time it opens.
+/// The whole shop. Its users live in memory — a restart forgets them, which
+/// is the point: a world creates the users it needs every time it opens —
+/// and its orders wherever [orders] keeps them.
 class _Shop {
-  _Shop({required this.sms, required this.push});
+  _Shop({
+    required this.sms,
+    required this.push,
+    required this.orders,
+    this.sync,
+  });
 
   final SmsService sms;
   final PushService push;
+  final OrderStore orders;
+  final SyncAuth? sync;
 
   final _random = Random.secure();
   final _users = <String, _User>{};
   final _sessions = <String, String>{};
   final _codes = <String, String>{};
-  final _orders = <String, _Order>{};
   final _listeners = <_Listener>{};
   var _nextId = 1;
 
-  String _id(String prefix) => '$prefix${_nextId++}';
+  /// Ids unique to this server's run, not only within it: orders can
+  /// outlive the server — in Postgres — and a `u2` reused by the next run
+  /// would inherit the last run's orders.
+  late final _run = _random.nextInt(1 << 20).toRadixString(36);
+  String _id(String prefix) => '$prefix$_run-${_nextId++}';
 
   String _token() =>
       base64Url.encode(List.generate(18, (_) => _random.nextInt(256)));
@@ -139,7 +141,9 @@ class _Shop {
     var token = header.startsWith('Bearer ')
         ? header.substring(7)
         : request.url.queryParameters['token'];
-    return _users[_sessions[token]];
+    var user = _users[_sessions[token]];
+    if (user != null) FlutterwareServer.identify(user.id);
+    return user;
   }
 
   FutureOr<Response> handle(Request request) async {
@@ -205,35 +209,33 @@ class _Shop {
       case ('GET', ['orders']):
         return _json({
           'orders': [
-            for (var order in _orders.values.toList().reversed)
+            for (var order in await orders.all())
               if (user.isStaff || order.customerId == user.id) order.toJson(),
           ],
         });
       case ('POST', ['orders']):
         var item = '${(await _body(request))['item'] ?? ''}';
         if (!menu.contains(item)) return _error(400, 'not on the menu: $item');
-        var order = _Order(id: _id('o'), customerId: user.id, item: item);
-        _orders[order.id] = order;
-        _log.info('${user.name} ordered a $item');
-        _broadcast(order);
+        var order = Order(id: orders.newId(), customerId: user.id, item: item);
+        await _write(order, user, 'insert');
         return _json(order.toJson());
       case ('POST', ['orders', var id, 'advance']):
         if (!user.isStaff) return _error(403, 'staff only');
-        var order = _orders[id];
+        var order = await orders.find(id);
         if (order == null) return _error(404, 'no order $id');
         var next = orderStatuses.indexOf(order.status) + 1;
         if (next == orderStatuses.length) return _error(409, 'collected');
-        order.status = orderStatuses[next];
-        _broadcast(order);
-        if (order.status == 'ready') {
-          await push.send(
-            order.customerId,
-            title: 'Your ${order.item.toLowerCase()} is ready',
-            body: 'Collect it at the counter.',
-            link: 'worldlab://orders/${order.id}',
-          );
-        }
+        order = order.withStatus(orderStatuses[next]);
+        await _write(order, user, 'update');
         return _json(order.toJson());
+      // What a synced app asks this server, rather than for its orders.
+      case ('GET', ['sync', 'token']) when sync != null:
+        return _json({
+          'token': sync!.token(user.id, user.role),
+          'endpoint': '${sync!.endpoint}',
+        });
+      case ('POST', ['sync', 'upload']) when sync != null:
+        return _upload(user, await _body(request));
     }
     return _error(404, 'no route for ${request.method} /${request.url.path}');
   }
@@ -260,10 +262,81 @@ class _Shop {
     })(request);
   }
 
-  void _broadcast(_Order order) {
+  /// Applies a synced app's changes, as its connector uploads them — the
+  /// server's own rules still decide: a customer only places, staff only
+  /// move an order along.
+  Future<Response> _upload(_User user, Map<String, Object?> body) async {
+    for (var raw in body['ops'] as List? ?? const []) {
+      var op = (raw as Map).cast<String, Object?>();
+      if (op['table'] != 'orders') continue;
+      var id = op['id']! as String;
+      var data = (op['data'] as Map? ?? const {}).cast<String, Object?>();
+      switch (op['op']) {
+        case 'PUT':
+          var item = '${data['item'] ?? ''}';
+          if (!menu.contains(item)) {
+            return _error(400, 'not on the menu: $item');
+          }
+          await _write(
+            Order(id: id, customerId: user.id, item: item),
+            user,
+            'insert',
+          );
+        case 'PATCH':
+          var order = await orders.find(id);
+          var status = data['status'];
+          if (order == null || status is! String) continue;
+          if (!user.isStaff) return _error(403, 'staff only');
+          if (!orderStatuses.contains(status)) {
+            return _error(400, 'no status $status');
+          }
+          await _write(order.withStatus(status), user, 'update');
+        case 'DELETE':
+          await orders.delete(id);
+          FlutterwareServer.event('write', {
+            'table': 'orders',
+            'key': id,
+            'op': 'delete',
+          });
+      }
+    }
+    return _json({'ok': true});
+  }
+
+  /// Every change to an order, wherever it came from: stored, reported as
+  /// the record it touched, told to the apps listening, and pushed when it
+  /// is ready.
+  Future<void> _write(Order order, _User by, String op) async {
+    await orders.put(order);
+    FlutterwareServer.event('write', {
+      'table': 'orders',
+      'key': order.id,
+      'op': op,
+      'item': order.item,
+      'status': order.status,
+      'customer': order.customerId,
+    });
+    if (op == 'insert') _log.info('${by.name} ordered a ${order.item}');
+    _broadcast(order);
+    if (op == 'update' && order.status == 'ready') {
+      await push.send(
+        order.customerId,
+        title: 'Your ${order.item.toLowerCase()} is ready',
+        body: 'Collect it at the counter.',
+        link: 'worldlab://orders/${order.id}',
+      );
+    }
+  }
+
+  void _broadcast(Order order) {
     var message = jsonEncode({'type': 'order', 'order': order.toJson()});
     for (var listener in _listeners) {
-      if (listener.wants(order)) listener.channel.sink.add(message);
+      if (!listener.wants(order)) continue;
+      listener.channel.sink.add(message);
+      FlutterwareServer.reach(
+        listener.user.id,
+        'order ${order.id} · ${order.status}',
+      );
     }
   }
 }
@@ -292,22 +365,38 @@ Middleware _inspect() {
   var next = 1;
   return (inner) => (request) {
     var id = 'req-${next++}';
-    return runZoned(() async {
-      var watch = Stopwatch()..start();
-      try {
-        var response = await inner(request);
-        FlutterwareServer.event('http', {
-          'method': request.method,
-          'path': '/${request.url.path}',
-          'status': response.statusCode,
-          'ms': watch.elapsedMicroseconds / 1000,
-        });
-        return response;
-      } on HijackException {
-        // A websocket upgrade, which shelf reports by throwing. It is the
-        // success path.
-        rethrow;
-      }
-    }, zoneValues: {FlutterwareServer.requestIdKey: id});
+    return runZoned(
+      () async {
+        var watch = Stopwatch()..start();
+        try {
+          var response = await inner(request);
+          FlutterwareServer.event('http', {
+            'method': request.method,
+            'path': '/${request.url.path}',
+            // The part of the API it touched: the route, not the URL.
+            'part':
+                '/${request.url.pathSegments.map((s) => _anId.hasMatch(s) ? ':id' : s).join('/')}',
+            'status': response.statusCode,
+            'ms': watch.elapsedMicroseconds / 1000,
+          });
+          return response;
+        } on HijackException {
+          // A websocket upgrade, which shelf reports by throwing. It is the
+          // success path.
+          rethrow;
+        }
+      },
+      zoneValues: {
+        FlutterwareServer.requestIdKey: id,
+        // The device's step, when it sent one: the tap this request came from.
+        FlutterwareServer.stepKey: ?request.headers['x-fw-step'],
+      },
+    );
   };
 }
+
+/// A path segment that is an id — `o3`, `u3kx9-12` or a UUID — rather than a
+/// word.
+final _anId = RegExp(
+  r'^([a-z]?\d+|[a-z][a-z0-9]*-\d+|[0-9a-f]{8}-[0-9a-f-]{27})$',
+);

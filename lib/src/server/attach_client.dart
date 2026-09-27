@@ -45,6 +45,9 @@ class ServerHello {
 /// writes nothing to a connection that has not attached.
 class ServerAttachClient {
   ServerAttachClient._(this.handle, this._socket) {
+    // A request written to a server that just went fails on `done`, not in
+    // the write: the read side's end is what says it went.
+    _socket.done.ignore();
     _session = AttachSession(
       sendFrame: (frame) => _socket.write(encodeFrame(frame)),
     );

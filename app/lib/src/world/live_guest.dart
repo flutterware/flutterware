@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutterware/devices.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../embedder/embedded_engine.dart';
+import '../previews/stage_zoom.dart' show guestRatioFor;
 import 'open_world.dart';
 
 /// A person's guest drawn live in the studio: the process, bridged into a
@@ -48,7 +50,7 @@ class LiveWorldGuest implements WorldGuest {
       onOutput: start.onOutput,
       name: 'world-${start.person}',
     );
-    var device = start.device;
+    var device = _device = start.device;
     var ratio = pixelRatio();
     var width = (device.width * ratio).round();
     var height = (device.height * ratio).round();
@@ -61,20 +63,45 @@ class LiveWorldGuest implements WorldGuest {
     if (engine.phase == EmbeddedEnginePhase.error) {
       throw StateError('${engine.errorMessage}');
     }
-    engine.resize(
-      width,
-      height,
-      ratio,
-      insets:
-          EdgeInsets.fromLTRB(
-            device.insetLeft,
-            device.insetTop,
-            device.insetRight,
-            device.insetBottom,
-          ) *
-          ratio,
-    );
+    _resize(engine, device, ratio);
   }
+
+  Device? _device;
+
+  /// Renders the phone for being drawn [onScreen] times its logical size —
+  /// the stage's fit times its zoom — as previews' guest does: the layout
+  /// untouched, only the pixel ratio following, so a zoomed phone is sharp
+  /// rather than a magnified picture. Never below the studio's own ratio,
+  /// and capped by the pixel budget ([guestRatioFor]).
+  void magnify(double onScreen) {
+    var (engine, device) = (this.engine, _device);
+    if (engine == null || device == null) return;
+    if (engine.phase != EmbeddedEnginePhase.running) return;
+    var ratio = guestRatioFor(
+      Size(device.width, device.height),
+      pixelRatio(),
+      onScreen,
+    );
+    // A pinch settles near where it started as often as not: a resize is a
+    // new surface, not worth a few percent.
+    if ((ratio - engine.pixelRatio).abs() < engine.pixelRatio * 0.05) return;
+    _resize(engine, device, ratio);
+  }
+
+  static void _resize(EmbeddedEngine engine, Device device, double ratio) =>
+      engine.resize(
+        (device.width * ratio).round(),
+        (device.height * ratio).round(),
+        ratio,
+        insets:
+            EdgeInsets.fromLTRB(
+              device.insetLeft,
+              device.insetTop,
+              device.insetRight,
+              device.insetBottom,
+            ) *
+            ratio,
+      );
 
   @override
   int? get pid => engine?.guestPid;

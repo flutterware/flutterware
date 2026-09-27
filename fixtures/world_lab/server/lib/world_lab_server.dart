@@ -5,4 +5,7 @@
 library;
 
 export 'src/edges.dart' show PushService, ReportedPush, ReportedSms, SmsService;
-export 'src/server.dart' show LabServer, menu, orderStatuses, startServer;
+export 'src/orders.dart'
+    show MemoryOrders, Order, OrderStore, PostgresOrders, orderStatuses;
+export 'src/server.dart' show LabServer, menu, startServer;
+export 'src/sync_auth.dart' show SyncAuth;

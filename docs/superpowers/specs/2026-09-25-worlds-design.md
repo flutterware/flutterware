@@ -434,9 +434,13 @@ device the world's `w.newcomers` names, or *Open in a browser*. Without that
 default, adding someone asks three questions at the worst moment.
 
 **Three kinds of delivery.** A link is *opened*, a push is *tapped*, a code
-is *typed* — into the person's focused field, through the drive layer's
-`enterText`. iOS's one-time-code autofill is an OS feature a simulator cannot
-show; typing is honest about that.
+is *typed* — into the person's focused field. In a guest it arrives through
+the guest's own text input, which the studio stands in for, the way an
+autofill offers a code: the field that has focus takes it, and with nothing
+focused the delivery refuses and says to tap the field first. Not the drive
+layer's `enterText`, which needs a target naming the field. iOS's
+one-time-code autofill is an OS feature a simulator cannot show; typing is
+honest about that.
 
 **Mechanism, per kind of device:**
 
@@ -650,7 +654,7 @@ person's colour.
 
 | source | how | the world hosts the server | the world attaches to one |
 |---|---|---|---|
-| the server | wrappers the world puts around a server it hosts: request middleware, a query observer, the mail, SMS and job services | requests, reads and writes, messages, jobs | nothing: another process reports nothing to the world |
+| the server | its adapter, reporting through `FlutterwareServer`: request middleware, a query observer, the mail, SMS and job services | requests, reads and writes, messages, jobs | the same: the world attaches to every server announcing itself under the worktree, whichever process it is in |
 | the script | `w.flow` from an action | works | works |
 | each person's app | Run already records its HTTP and its logs; a service declares the origins it answers on, and a person's traffic to one is a flow | works | works — it needs nothing from the server |
 
@@ -753,6 +757,90 @@ The readers and reporters stay in the project's `tool/`: nothing in its
 `lib/` knows about worlds, and labels carry steps, statuses, ids and
 durations only.
 
+### Traces, as built
+
+A spike, then the world itself (`app/lib/src/world/world_trace.dart`), made
+the three sources above one thing: every **step** a person or an agent takes
+on an app, with what it caused. Dart servers only, and nothing a project
+imports beyond `package:flutterware/server.dart`.
+
+- **A step is born on the device.** The guest's binding dispatches each
+  gesture inside a zone naming it — `ben.3`, the person's own counter — and
+  publishes it on the app's channels with what it landed on, spelled as the
+  drive targets are (`tap "Order"`). Typing is not a step: a character never
+  arrives as a pointer.
+- **A request carries it.** An `HttpOverrides` stamps `x-fw-step` on every
+  request the app opens: the zone's step, or — for work a tap started outside
+  its callbacks, a sync engine's upload loop — the step that ended under
+  1.5 s ago, and each request says which way it joined.
+- **A server reads it in one line.** Its adapter puts the header in the zone
+  as `FlutterwareServer.stepKey`; every event reported under it — the
+  request, its writes, what it broadcast, the SMS it sent — then carries
+  `step`. Two primitives say what only the server knows: `identify(user)` —
+  who a request is, so a person who signed up themselves is learnt — and
+  `reach(user, what)`, for what arrives on a connection nobody asked on.
+- **A synced record joins by its key.** A tap writes locally and the engine
+  uploads later, from its own isolate; the service fans the change out. The
+  database panel reads the engine's own tables (`sync: DatabaseSync.powersync`)
+  into a `records` feed: each local write, each record a checkpoint brought
+  in. An arrival joins the step whose server write of that key came last.
+
+`worlds trace` answers with the newest steps, each with its consequences as
+lines — `+32 ms  Cleo  orders/08468cae arrived (op 24)` — and each person's
+`sync` line is in `worlds status` and beside their phone. What the canvas
+draws is this, and nothing invented: the rounds' boards were redrawn from
+real traces before anything was built.
+
+**What a part holds is the same record read the other way.** Open a part of
+the system and it lists what the world heard it do since the opening,
+whoever caused it, each with its step: a route's calls and who asked, a
+table's records, the messages sent outside and whom they reached, the
+records the sync engine carried. A record carries its life, joined by its
+key — `+0 ms written on Ben's phone`, `+9 ms lab wrote it insert · status
+placed`, `+21 ms arrived on Cleo's phone` — across every step that touched
+it. `worlds contents {part}` answers the same. Contents are heard, not
+pulled, which is less than *Contents are pulled* above asks: a table shows
+the records this world wrote, never the ones seeded before it, and a record
+a first sync brings that no server here wrote is only counted. A server
+answering what it holds now is a server panel's job (slice 3).
+
+Measured on the lab (`2026-09-26-worlds-trace-spike-findings.md`): 8 of 8
+requests after a tap joined through the zone; a synced order reached the
+other phone 23–40 ms after the tap and was confirmed back after ~255 ms.
+
+**The world's own actions step too.** Each run of an action is a step the
+owner names — `world.3` — and the script runs the action under it, stamping
+every request it sends the way a guest does. *Mia orders a flat white* is
+then traced like a tap: her sign-up, her order, the write, the record
+arriving on Cleo's phone 44 ms later. `worlds invoke` answers with the step.
+
+What it does not do yet, each a known next step: the world's opening takes
+no step, because what its body starts — the server it hosts, a timer —
+would step under it for ever after, so the sign-ups a script seeds are
+still nobody's; a gesture's name is its nearest label, so one of several
+identical buttons is named by position; a request that is not `dart:io`
+HTTP — gRPC, a platform HTTP client — carries no step.
+
+### The outbox, begun
+
+Built from what the servers already report, as the traces are: every `sms`,
+`push` and `mail` event an adapter sends with its recipient is a message, the
+person it reached found by phone number, user id or address, and the step
+that sent it kept. A message carries a code — four to eight digits, in a
+message that speaks of a code — and a link — the one the adapter names, or
+the first in the text.
+
+Each person's drawer opens on their messages, and the SMS and push cards'
+contents carry the same deliveries: *Type it* puts the code into the field
+that has focus in their app, *Open* or *Tap it* opens the link where the OS
+would deliver it. Either lands in the person's Run journal as the step of
+whoever asked. `worlds outbox` and `worlds deliver` are the same for an agent.
+Measured on the lab: Leo's sign-up code typed into his code field, and the
+push his order sent opened on that order.
+
+No SMTP catcher yet — a server that sends mail reports it as an event — and
+no questions or newcomers.
+
 **Not planned: a web page in the panel.** The consumer asked for
 `w.view(name, url)`, to draw its prototype's page beside the people until the
 canvas exists. The studio has no web view, and one would put a native plugin
@@ -763,14 +851,22 @@ meanwhile.
 
 - `worlds list`; `worlds open {world, knobs}` returns the people and their
   apps' run keys; `worlds restart`; `worlds close`. Any process can ask a
-  world another one owns: `status`, `invoke`, `restart` and `close` are
-  forwarded to the owner (round 1).
+  world another one owns: `status`, `trace`, `contents`, `invoke`, `restart`
+  and `close` are forwarded to the owner (round 1).
+- `worlds trace {person?, step?, limit?}`: the newest steps on the people's
+  apps and the world's own actions (`person: world`), each with what it
+  caused (*Traces, as built*). The agent reads an SMS code there as readily
+  as the log, and `worlds invoke` answers with the step its action ran as.
+- `worlds contents {part?, limit?}`: what one part of the system holds —
+  a route's calls, a table's records and their lives, what was sent — or,
+  with no part, the parts there are.
 - `flutterware_act` gains a `person` selector beside `device`, `entrypoint`
   and `run` (`_selectApp`, `run_core.dart:5201`). Its existing `actor`
   argument keeps saying who is driving.
-- `worlds outbox` reads messages; `worlds deliver {message, person?}` opens,
-  taps or types, whichever the message calls for; `worlds answer {question,
-  choice}`; `worlds invoke {action}` runs one of the script's actions.
+- `worlds outbox {person?}` reads messages; `worlds deliver {message, how?}`
+  types a message's code or opens its link, whichever it carries (built:
+  *The outbox, begun*); `worlds answer {question, choice}`;
+  `worlds invoke {action}` runs one of the script's actions.
 - `worlds device {person, location | network | background}`, refusing — with
   the reason — what that kind of device cannot do.
 
@@ -877,13 +973,39 @@ triggered.
    `push` and `job` events carrying who they reached; questions
    (`w.outbox.ask`); the viewers; newcomers; the three kinds of delivery,
    through a devbar panel convention flutterware publishes for links and
-   notifications — and flows from each person's traffic to the origins a
-   service declares.
+   notifications — and **traces**: each step on an app joined to what it
+   caused, through Dart servers and synced records (*Traces, as built*),
+   which replace flows guessed from traffic to the origins a service
+   declares. Begun: `worlds trace` and each person's sync line; and the
+   outbox, from what servers report (*The outbox, begun*). Not yet: the SMTP
+   catcher, questions, newcomers.
 2. **Canvas v1.** Nodes — people and services — with their credentials and
    contents, the timeline, pending questions, focus, the drawer. Guests are
    live from the first version, as the lab already draws them, and sent to
    the background when drawn as a card or off screen; external devices are
    pictures.
+   - **Begun, from traces only** (`app/lib/src/world/world_canvas.dart`):
+     - the people's phones above a band of the system — each server with
+       the parts of its API, the tables it wrote and what it sent outside,
+       and the sync engine with each person's client;
+     - a column of steps, newest first, that the stage follows until one is
+       held open as a waterfall;
+     - the shown step numbered on the parts it touched, and drawn as lines
+       between each phone and its part, in the person's colour, with what
+       crossed written in the gap between them — routed down the channels
+       between the parts, so that no line crosses one;
+     - the newest step that caused something followed until one is held;
+     - the whole stage zoomable as previews' is — a pinch or ⌘-scroll, a
+       drag once zoomed, fit to rest — with the phones still taking every
+       gesture the stage does not, and each phone drawn again at the size
+       it is shown once a zoom settles;
+     - each person's platform — notifications, links, sync — moved into a
+       drawer that opens from their name;
+     - each part of the system opening on what it holds — calls, records
+       with their lives, messages, synced records — each item linked to
+       the step that caused it, and what the shown step touched marked.
+   - Not yet: focus, credentials, pending questions; contents pulled from a
+     server rather than heard.
 3. **Server panels** over `FlutterwareServer.handle`, and **reload of the
    world's process**: an edit to the server it hosts, or to an action,
    reaches the running world without new people.
@@ -891,8 +1013,7 @@ triggered.
    person, a macOS window when the script asks for one, and the controls
    where the mechanism already exists — `simctl location`, adb — refusing the
    rest by name.
-5. **Sharp at any zoom,** and a canvas that shows live the guests a CLI or
-   the MCP owns. **Answers for more plugins** run beside every slice, as
+5. **A canvas that shows live the guests a CLI or the MCP owns.** **Answers for more plugins** run beside every slice, as
    worlds need them — sqflite first, then what a real app's first screen
    needs.
 6. **Later:** peripherals, people in a browser, live mirrors of external

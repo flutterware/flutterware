@@ -10,7 +10,8 @@
 /// world's knob values; the script runs its body and declares what it makes as
 /// it makes it — people, actions, knobs, progress — then says it is `set-up`
 /// or has `failed`. Everything after is the owner's: `ready` once every
-/// person's app is up, `invoke` and `cancel` for actions, `close` at the end,
+/// person's app is up, `invoke` and `cancel` for actions — an `invoke` naming
+/// the step the run is, which the script runs it under — `close` at the end,
 /// answered by `closed` once the script's `onClose` callbacks have run.
 ///
 /// Flutter-free and `dart:io`-free, so both halves read it from here.

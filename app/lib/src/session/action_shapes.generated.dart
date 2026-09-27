@@ -7024,6 +7024,12 @@ final resultShapes = <String, ResultShape>{
             'Still going when the wait ran out; `worlds status` shows how far.',
       },
       <String, Object?>{
+        'name': 'step',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The step it ran as — `world.2` — what `worlds trace` takes as `step` for what it caused.',
+      },
+      <String, Object?>{
         'name': 'progress',
         'type': 'String',
         'optional': true,
@@ -7032,6 +7038,54 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{'name': 'error', 'type': 'String', 'optional': true},
     ],
     'gates': true,
+  }),
+  'WorldContentsResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldContentsResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'part',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The part asked about, as `part` named it.',
+      },
+      <String, Object?>{
+        'name': 'items',
+        'type': 'List<Map<String, Object?>>',
+        'optional': true,
+        'doc': 'Newest first.',
+      },
+      <String, Object?>{
+        'name': 'more',
+        'type': 'int',
+        'optional': true,
+        'doc': 'How many more it holds than [items] lists.',
+      },
+      <String, Object?>{
+        'name': 'parts',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'Asked for no part: every part there is, as `part` takes it.',
+      },
+      <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
+    ],
+  }),
+  'WorldDeliveryResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldDeliveryResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'message', 'type': 'String'},
+      <String, Object?>{'name': 'person', 'type': 'String'},
+      <String, Object?>{
+        'name': 'how',
+        'type': 'String',
+        'doc':
+            '`type` — the code went into the field that had focus — or `open`.',
+      },
+      <String, Object?>{
+        'name': 'what',
+        'type': 'String',
+        'doc': 'The code typed, or the link opened.',
+      },
+    ],
   }),
   'WorldListResult': ResultShape.fromJson(<String, Object?>{
     'type': 'WorldListResult',
@@ -7043,6 +7097,17 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
         'doc': 'The id of the world open in this process, if one is.',
       },
+    ],
+  }),
+  'WorldOutboxResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldOutboxResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'messages',
+        'type': 'List<Map<String, Object?>>',
+        'doc': '`{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what `worlds deliver` takes.',
+      },
+      <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
     ],
   }),
   'WorldStateResult': ResultShape.fromJson(<String, Object?>{
@@ -7098,5 +7163,16 @@ final resultShapes = <String, ResultShape>{
       },
     ],
     'gates': true,
+  }),
+  'WorldTraceResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldTraceResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'steps',
+        'type': 'List<Map<String, Object?>>',
+        'doc': 'Oldest first.',
+      },
+      <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
+    ],
   }),
 };

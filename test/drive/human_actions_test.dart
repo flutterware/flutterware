@@ -52,6 +52,27 @@ void main() {
     expect(actions.take().single['target'], "key 'cart'");
   });
 
+  testWidgets('a control merged with its label is named by the label', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: SwitchListTile(
+            title: const Text('Spin'),
+            value: false,
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    var actions = HumanActions()..install();
+
+    await tester.tap(find.byType(Switch));
+
+    expect(actions.take().single['target'], '"Spin"');
+  });
+
   testWidgets('a drag is not a tap, and records nothing', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

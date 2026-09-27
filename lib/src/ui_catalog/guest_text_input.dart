@@ -103,6 +103,19 @@ class GuestTextInput with TextInputControl {
     TextInput.setInputControl(this);
   }
 
+  /// Fills the focused field with [text], as a platform's autofill does — a
+  /// one-time code offered from an SMS — replacing what it held. False when
+  /// no field has focus: there is nowhere for it to go.
+  bool fill(String text) {
+    if (_client == null) return false;
+    _value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    TextInput.updateEditingValue(_value);
+    return true;
+  }
+
   @override
   void attach(TextInputClient client, TextInputConfiguration configuration) {
     _client = client;

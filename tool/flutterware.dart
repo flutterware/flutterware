@@ -438,6 +438,14 @@ void main() => Flutterware.configure((fw) {
                   'Leo has never used the app and signs up with a code by '
                   "SMS, which is in the world's log",
             ),
+            WorldScript(
+              'tool/worlds/synced_pickup.dart',
+              name: 'Synced pickup',
+              description:
+                  'The same shop, offline first: each app keeps its orders '
+                  'in a local database PowerSync keeps in step with '
+                  "Postgres. Needs Docker; starts the lab's stack",
+            ),
           ],
         ),
       ],
