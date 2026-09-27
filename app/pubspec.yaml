@@ -49,7 +49,6 @@ dependencies:
   ffi:
   # `hooks_runner` takes a `FileSystem`.
   file:
-  file_picker:
   file_selector:
   flutter:
     sdk: flutter
@@ -85,7 +84,6 @@ dependencies:
   more:
   os_detect:
   package_config:
-  package_info_plus:
   path:
   path_drawing:
   path_provider:
