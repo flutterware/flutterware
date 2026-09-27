@@ -21,6 +21,10 @@ const worldStepsChannel = 'world/steps';
 /// `{step, method, url, how}`, `how` being `zone` or `window`.
 const worldRequestsChannel = 'world/requests';
 
+/// The channel a world types into a person's app on: `type {text}` fills the
+/// app's focused field, answering `{typed}` — false when nothing has focus.
+const worldInputChannel = 'world/input';
+
 /// The header a request carries its step in — what a server's adapter puts
 /// in the zone as `FlutterwareServer.stepKey`.
 const worldStepHeader = 'x-fw-step';

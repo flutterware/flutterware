@@ -27,16 +27,17 @@ fvm dart run flutterware run worlds open --world=pickup_order --hold=true
 
 Either way each person's app is a Run app on the device `studio-<name>`, so
 `flutterware_act` with `device: "studio-leo"` drives Leo's. The world prints
-its server's log, and the SMS edge prints every text message there — which is
-where Leo's sign-up code is until the outbox exists.
+its server's log, and the SMS edge prints every text message there too.
 
 Every tap is a step the world follows through the lab server — whose adapter
 reads the `x-fw-step` header — and, in the synced world, through each phone's
 database. So is each run of the world's actions: *Mia orders a flat white*
 is `world.1`. `fw run worlds trace` answers with the newest steps and what each
-one caused; Leo's code is under his *Send code* tap there too. `fw run worlds
-contents --part=orders` answers what the orders table holds, each order with
-its life from the tap to both phones.
+one caused, and `fw run worlds contents --part=orders` what the orders table
+holds, each order with its life from the tap to both phones.
+
+Leo's sign-up code is in his drawer: tap his code field, then *Type it* — or
+`fw run worlds deliver` with the message's id from `fw run worlds outbox`.
 
 A world script also runs on its own, which is how to debug its setup without
 launching any app: it prints what it declares, and `name=value` arguments are

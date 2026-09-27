@@ -8,6 +8,8 @@ import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../previews/stage_zoom.dart';
+import '../session/job.dart' show ActionRefusal;
+import '../ui/action_button.dart';
 import '../ui/panel_header.dart' show panelGutter;
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
@@ -221,6 +223,9 @@ class _WorldCanvasState extends State<WorldCanvas> {
               person: person,
               color: colorOf(person.name),
               sync: world.tracer?.syncOf(person.name),
+              messages:
+                  trace?.outbox(person: person.name, limit: 10) ?? const [],
+              onDeliver: _deliver,
               onClose: () => setState(() => _drawer = null),
             ),
             (null, var chosen?, var contents)
@@ -247,6 +252,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
               markColor: colorOf(shown?.step.person),
               onBack: () => setState(() => _opened = null),
               onChoose: choose,
+              onDeliver: _deliver,
             ),
             _ => TraceList(
               steps: steps.reversed.toList(),
@@ -330,6 +336,12 @@ class _WorldCanvasState extends State<WorldCanvas> {
         ],
       ),
     );
+  }
+
+  /// Hands [message] to its recipient's app — from the studio, so the
+  /// person's journal says a human did.
+  Future<void> _deliver(OutboxMessage message, String how) async {
+    await widget.world.deliver(message.id, how: how, actor: 'human');
   }
 
   /// Zooms by [factor] about [focal], a point of the viewport — the buttons'
@@ -1466,9 +1478,13 @@ class NodeContentsView extends StatelessWidget {
     required this.markColor,
     required this.onBack,
     required this.onChoose,
+    this.onDeliver,
   });
 
   final NodeContents contents;
+
+  /// Hands a message to its recipient's app; null offers no deliveries.
+  final Future<void> Function(OutboxMessage message, String how)? onDeliver;
 
   /// [contentsLabel]'s.
   final String label;
@@ -1632,6 +1648,12 @@ class NodeContentsView extends StatelessWidget {
                     Text(detail, style: context.type.bodyMuted, maxLines: 3),
                 ],
                 _meta(context, item.at, item.step),
+                if ((item.message, onDeliver) case (var message?, var deliver?)
+                    when message.person != null)
+                  DeliveryButtons(
+                    message: message,
+                    deliver: (how) => deliver(message, how),
+                  ),
                 if (item.life.isNotEmpty) ...[
                   const SizedBox(height: FwSpacing.xs),
                   for (var moment in item.life)
@@ -1727,12 +1749,18 @@ class _Drawer extends StatelessWidget {
     required this.person,
     required this.color,
     required this.sync,
+    required this.messages,
+    required this.onDeliver,
     required this.onClose,
   });
 
   final WorldPerson person;
   final Color color;
   final Map<String, Object?>? sync;
+
+  /// What the servers sent them, newest first.
+  final List<OutboxMessage> messages;
+  final Future<void> Function(OutboxMessage message, String how) onDeliver;
   final VoidCallback onClose;
 
   @override
@@ -1769,20 +1797,170 @@ class _Drawer extends StatelessWidget {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(FwSpacing.lg),
-            child: switch (person.platform) {
-              var platform? when person.running => WorldPlatformPanel(
-                person: person.name,
-                platform: platform,
-                sync: sync,
-              ),
-              _ => Text(
-                'Their app is not running.',
-                style: context.type.bodyMuted,
-              ),
-            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // What reached them first: a code they are waiting for is
+                // the reason to open the drawer at all.
+                Text('Messages', style: context.type.sectionLabel),
+                const SizedBox(height: FwSpacing.xs),
+                if (messages.isEmpty)
+                  Text(
+                    'No server has sent them anything.',
+                    style: context.type.bodyMuted,
+                  ),
+                for (var message in messages)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: FwSpacing.sm),
+                    child: _Message(
+                      message: message,
+                      onDeliver: person.running
+                          ? (how) => onDeliver(message, how)
+                          : null,
+                    ),
+                  ),
+                const SizedBox(height: FwSpacing.md),
+                switch (person.platform) {
+                  var platform? when person.running => WorldPlatformPanel(
+                    person: person.name,
+                    platform: platform,
+                    sync: sync,
+                  ),
+                  _ => Text(
+                    'Their app is not running.',
+                    style: context.type.bodyMuted,
+                  ),
+                },
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One message in a person's drawer: what it says, where it came from, and
+/// how to hand it to their app.
+class _Message extends StatelessWidget {
+  const _Message({required this.message, required this.onDeliver});
+
+  final OutboxMessage message;
+  final Future<void> Function(String how)? onDeliver;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 1),
+        child: Icon(
+          messageIcon(message.kind),
+          size: FwIconSize.md,
+          color: context.colors.ink2,
+        ),
+      ),
+      const SizedBox(width: FwSpacing.sm),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SelectableText(message.text, style: context.type.body),
+            Text(
+              [
+                messageKind(message.kind),
+                clockOf(message.at),
+                ?message.step,
+              ].join(' · '),
+              style: context.type.caption,
+            ),
+            if (onDeliver case var deliver?)
+              DeliveryButtons(message: message, deliver: deliver),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+/// `SMS`, `Push`, `Mail`.
+String messageKind(String kind) => switch (kind) {
+  'sms' => 'SMS',
+  'push' => 'Push',
+  'mail' => 'Mail',
+  var other => other,
+};
+
+IconData messageIcon(String kind) => switch (kind) {
+  'push' => Icons.notifications_none,
+  'mail' => Icons.mail_outline,
+  _ => Icons.sms_outlined,
+};
+
+/// How a message is handed to its recipient's app — the three deliveries a
+/// person makes of one: a code *typed*, a push *tapped*, a link *opened*.
+/// A refusal is said beneath, in the world's own words: it says what to do.
+class DeliveryButtons extends StatefulWidget {
+  const DeliveryButtons({
+    super.key,
+    required this.message,
+    required this.deliver,
+  });
+
+  final OutboxMessage message;
+
+  /// With `type` or `open`; throws the world's refusal.
+  final Future<void> Function(String how) deliver;
+
+  @override
+  State<DeliveryButtons> createState() => _DeliveryButtonsState();
+}
+
+class _DeliveryButtonsState extends State<DeliveryButtons> {
+  String? _refused;
+
+  Future<void> _deliver(String how) async {
+    setState(() => _refused = null);
+    try {
+      await widget.deliver(how);
+    } on ActionRefusal catch (refusal) {
+      if (mounted) setState(() => _refused = refusal.message);
+      rethrow;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var message = widget.message;
+    var whose = message.person == null ? 'their' : "${message.person}'s";
+    var buttons = [
+      if (message.code case var code?)
+        FwActionButton(
+          label: 'Type it',
+          tooltip: 'Types $code into the focused field in $whose app',
+          onPressed: () => _deliver('type'),
+        ),
+      if (message.link case var link?)
+        FwActionButton(
+          label: message.kind == 'push' ? 'Tap it' : 'Open',
+          tooltip: 'Opens $link in $whose app',
+          onPressed: () => _deliver('open'),
+        ),
+    ];
+    if (buttons.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: FwSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(spacing: FwSpacing.sm, children: buttons),
+          if (_refused case var refused?)
+            Padding(
+              padding: const EdgeInsets.only(top: FwSpacing.xs),
+              child: Text(refused, style: context.type.bodyMuted),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -539,6 +539,72 @@ void main() {
     });
   });
 
+  group('outbox', () {
+    test('each message says whom it reached, and the code and link a '
+        'delivery hands their app', () {
+      trace.addPerson('Leo', email: 'Leo@example.com');
+      lab(10, 'sms', {
+        'to': '+447700900001',
+        'body': 'Your pickup code is 955046. Valid 10 minutes.',
+      });
+      step('Cleo', 'cleo.1', 1000, '"Advance"');
+      lab(1010, 'push', {
+        'to': 'u1',
+        'title': 'Your flat white is ready',
+        'body': 'Collect it at the counter.',
+        'link': 'worldlab://orders/o3',
+        'step': 'cleo.1',
+      });
+      lab(1020, 'mail', {
+        'to': 'leo@example.com',
+        'subject': 'Your receipt',
+        'text': 'See it at https://shop.test/receipts/r9 — order 20260927.',
+      });
+      var messages = trace.outbox();
+      expect(
+        [
+          for (var m in messages)
+            (m.kind, m.person, m.text, m.code, m.link, m.step),
+        ],
+        [
+          // An order number is not a code to type.
+          (
+            'mail',
+            'Leo',
+            'Your receipt',
+            null,
+            'https://shop.test/receipts/r9',
+            null,
+          ),
+          (
+            'push',
+            'Cleo',
+            'Your flat white is ready',
+            null,
+            'worldlab://orders/o3',
+            'cleo.1',
+          ),
+          (
+            'sms',
+            'Ben',
+            'Your pickup code is 955046. Valid 10 minutes.',
+            '955046',
+            null,
+            null,
+          ),
+        ],
+      );
+      expect(trace.outbox(person: 'Cleo').single.kind, 'push');
+      expect(trace.messageById(messages.last.id)?.code, '955046');
+      expect(trace.messageById('lab/999'), isNull);
+      // The SMS card's contents carry the same message.
+      expect(
+        trace.contentsOf('lab/sent/sms')!.items.single.message?.code,
+        '955046',
+      );
+    });
+  });
+
   group('syncLine', () {
     var now = DateTime.utc(2026, 9, 26, 21, 0, 30);
 

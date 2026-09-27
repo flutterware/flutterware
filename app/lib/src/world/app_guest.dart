@@ -192,7 +192,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutterware/previews_guest.dart'
-    show GuestKeyboard, GuestLogs, GuestTextInput, WorldSteps;
+    show GuestKeyboard, GuestLogs, GuestTextInput, WorldSteps, installWorldInput;
 import 'package:flutterware/run_guest.dart';
 import '$main' as app;
 ${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/${plugin.file}' as plugin$i;"].join('\n')}
@@ -239,6 +239,8 @@ void main() => GuestLogs.instance.install<Object?>(() {
     ${platform == null ? '' : 'debugDefaultTargetPlatformOverride = TargetPlatform.$platform;'}
     GuestKeyboard.instance.install();
     GuestTextInput.instance.install();
+    // A code the world delivers is typed into the focused field.
+    installWorldInput();
     ${[for (var (i, plugin) in plugins.indexed) 'plugin$i.${plugin.type}.registerWith();'].join('\n    ')}
     // Read on every start, so a restart takes the knobs written since.
     var knobs = (jsonDecode(

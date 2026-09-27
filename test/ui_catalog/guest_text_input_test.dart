@@ -59,6 +59,21 @@ void main() {
     expect(controller.selection, const TextSelection.collapsed(offset: 5));
   }, variant: macOS);
 
+  testWidgets('a fill replaces what the focused field held, and says when '
+      'nothing has focus', (tester) async {
+    var controller = await pumpField(tester);
+    await type(tester, '12');
+    expect(GuestTextInput.instance.fill('955046'), isTrue);
+    await tester.pump();
+    expect(controller.text, '955046');
+    expect(controller.selection, const TextSelection.collapsed(offset: 6));
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    expect(GuestTextInput.instance.fill('111111'), isFalse);
+    expect(controller.text, '955046');
+  }, variant: macOS);
+
   testWidgets('typing over a selection replaces it', (tester) async {
     var controller = await pumpField(tester);
     await type(tester, 'abc');

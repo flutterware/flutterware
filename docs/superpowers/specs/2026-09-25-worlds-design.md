@@ -434,9 +434,13 @@ device the world's `w.newcomers` names, or *Open in a browser*. Without that
 default, adding someone asks three questions at the worst moment.
 
 **Three kinds of delivery.** A link is *opened*, a push is *tapped*, a code
-is *typed* — into the person's focused field, through the drive layer's
-`enterText`. iOS's one-time-code autofill is an OS feature a simulator cannot
-show; typing is honest about that.
+is *typed* — into the person's focused field. In a guest it arrives through
+the guest's own text input, which the studio stands in for, the way an
+autofill offers a code: the field that has focus takes it, and with nothing
+focused the delivery refuses and says to tap the field first. Not the drive
+layer's `enterText`, which needs a target naming the field. iOS's
+one-time-code autofill is an OS feature a simulator cannot show; typing is
+honest about that.
 
 **Mechanism, per kind of device:**
 
@@ -817,6 +821,26 @@ still nobody's; a gesture's name is its nearest label, so one of several
 identical buttons is named by position; a request that is not `dart:io`
 HTTP — gRPC, a platform HTTP client — carries no step.
 
+### The outbox, begun
+
+Built from what the servers already report, as the traces are: every `sms`,
+`push` and `mail` event an adapter sends with its recipient is a message, the
+person it reached found by phone number, user id or address, and the step
+that sent it kept. A message carries a code — four to eight digits, in a
+message that speaks of a code — and a link — the one the adapter names, or
+the first in the text.
+
+Each person's drawer opens on their messages, and the SMS and push cards'
+contents carry the same deliveries: *Type it* puts the code into the field
+that has focus in their app, *Open* or *Tap it* opens the link where the OS
+would deliver it. Either lands in the person's Run journal as the step of
+whoever asked. `worlds outbox` and `worlds deliver` are the same for an agent.
+Measured on the lab: Leo's sign-up code typed into his code field, and the
+push his order sent opened on that order.
+
+No SMTP catcher yet — a server that sends mail reports it as an event — and
+no questions or newcomers.
+
 **Not planned: a web page in the panel.** The consumer asked for
 `w.view(name, url)`, to draw its prototype's page beside the people until the
 canvas exists. The studio has no web view, and one would put a native plugin
@@ -839,9 +863,10 @@ meanwhile.
 - `flutterware_act` gains a `person` selector beside `device`, `entrypoint`
   and `run` (`_selectApp`, `run_core.dart:5201`). Its existing `actor`
   argument keeps saying who is driving.
-- `worlds outbox` reads messages; `worlds deliver {message, person?}` opens,
-  taps or types, whichever the message calls for; `worlds answer {question,
-  choice}`; `worlds invoke {action}` runs one of the script's actions.
+- `worlds outbox {person?}` reads messages; `worlds deliver {message, how?}`
+  types a message's code or opens its link, whichever it carries (built:
+  *The outbox, begun*); `worlds answer {question, choice}`;
+  `worlds invoke {action}` runs one of the script's actions.
 - `worlds device {person, location | network | background}`, refusing — with
   the reason — what that kind of device cannot do.
 
@@ -951,7 +976,9 @@ triggered.
    notifications — and **traces**: each step on an app joined to what it
    caused, through Dart servers and synced records (*Traces, as built*),
    which replace flows guessed from traffic to the origins a service
-   declares. Begun: `worlds trace` and each person's sync line.
+   declares. Begun: `worlds trace` and each person's sync line; and the
+   outbox, from what servers report (*The outbox, begun*). Not yet: the SMTP
+   catcher, questions, newcomers.
 2. **Canvas v1.** Nodes — people and services — with their credentials and
    contents, the timeline, pending questions, focus, the drawer. Guests are
    live from the first version, as the lab already draws them, and sent to

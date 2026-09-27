@@ -7069,6 +7069,24 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
     ],
   }),
+  'WorldDeliveryResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldDeliveryResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'message', 'type': 'String'},
+      <String, Object?>{'name': 'person', 'type': 'String'},
+      <String, Object?>{
+        'name': 'how',
+        'type': 'String',
+        'doc':
+            '`type` — the code went into the field that had focus — or `open`.',
+      },
+      <String, Object?>{
+        'name': 'what',
+        'type': 'String',
+        'doc': 'The code typed, or the link opened.',
+      },
+    ],
+  }),
   'WorldListResult': ResultShape.fromJson(<String, Object?>{
     'type': 'WorldListResult',
     'fields': <Object?>[
@@ -7079,6 +7097,17 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
         'doc': 'The id of the world open in this process, if one is.',
       },
+    ],
+  }),
+  'WorldOutboxResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldOutboxResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'messages',
+        'type': 'List<Map<String, Object?>>',
+        'doc': '`{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what `worlds deliver` takes.',
+      },
+      <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
     ],
   }),
   'WorldStateResult': ResultShape.fromJson(<String, Object?>{

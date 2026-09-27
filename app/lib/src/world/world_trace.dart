@@ -158,6 +158,7 @@ class TraceItem {
     this.person,
     this.step,
     this.life = const [],
+    this.message,
   });
 
   /// When it happened; for a record, when it last changed.
@@ -180,6 +181,54 @@ class TraceItem {
   /// For a record, each write the server reported and each phone that wrote
   /// or received it, oldest first.
   final List<TraceItem> life;
+
+  /// For a message sent outside, the message — what its recipient's app can
+  /// be handed.
+  final OutboxMessage? message;
+}
+
+/// A message a server sent outside — an SMS, a push, a mail — as its adapter
+/// reported it, with what a delivery hands its recipient's app: the code it
+/// carries to type, the link to open.
+class OutboxMessage {
+  const OutboxMessage({
+    required this.id,
+    required this.at,
+    required this.kind,
+    required this.to,
+    required this.text,
+    this.person,
+    this.step,
+    this.code,
+    this.link,
+  });
+
+  /// `lab/42`: its server and the event it arrived as — what
+  /// `worlds deliver` takes.
+  final String id;
+  final DateTime at;
+
+  /// `sms`, `push` or `mail`.
+  final String kind;
+
+  /// As the server addressed it: a phone number, a user id, an address.
+  final String to;
+
+  /// What it says: an SMS's body, a push's title, a mail's subject.
+  final String text;
+
+  /// Whom it reached, when the world knows whose [to] is.
+  final String? person;
+
+  /// The step that sent it.
+  final String? step;
+
+  /// The one-time code in it — the first run of four to eight digits, in a
+  /// message that speaks of a code.
+  final String? code;
+
+  /// The link it carries: the one the adapter named, or the first in it.
+  final String? link;
 }
 
 /// Everything the world has heard since it opened, joined into steps.
@@ -210,6 +259,7 @@ class WorldTrace {
   final _users = <String, String>{};
   final _declared = <String>{};
   final _phones = <String, String>{};
+  final _emails = <String, String>{};
   final _hosts = <String, String>{};
   final _servers = <String, SystemServer>{};
   final _parts = <String, String>{};
@@ -230,13 +280,19 @@ class WorldTrace {
 
   /// [person] is in the world: their steps are named after them, and a
   /// server naming [userId] or [phone] means them.
-  void addPerson(String person, {String? userId, String? phone}) {
+  void addPerson(
+    String person, {
+    String? userId,
+    String? phone,
+    String? email,
+  }) {
     _owners[worldStepPrefix(person)] = person;
     if (userId != null) {
       _users[userId] = person;
       _declared.add(userId);
     }
     if (phone != null) _phones[phone] = person;
+    if (email != null) _emails[email.toLowerCase()] = person;
   }
 
   /// Whose [userId] is, as the world knows by now.
@@ -347,7 +403,7 @@ class WorldTrace {
         server.tables
             .putIfAbsent('${payload['table']}', () => {})
             .add('${payload['key']}');
-      case 'sms' || 'push':
+      case 'sms' || 'push' || 'mail':
         server.sent[event.channel] = (server.sent[event.channel] ?? 0) + 1;
       case 'reach':
         server.reached++;
@@ -598,23 +654,85 @@ class WorldTrace {
   }
 
   TraceItem _message(_ServerEvent event) {
-    var payload = event.payload;
-    var to = payload['to'] ?? payload['user'];
-    var person = switch (event.channel) {
-      'sms' => _phones[to],
-      _ => to is String ? _users[to] : null,
-    };
+    var message = _outboxMessage(event);
     return TraceItem(
-      event.time,
-      'to ${person ?? to}',
-      detail: switch (event.channel) {
-        'sms' => '${payload['body'] ?? ''}',
-        _ => '${payload['title'] ?? payload['body'] ?? ''}',
-      },
-      person: person,
-      step: event.step,
+      message.at,
+      'to ${message.person ?? message.to}',
+      detail: message.text,
+      person: message.person,
+      step: message.step,
+      message: message,
     );
   }
+
+  /// Every message the servers sent outside since the world opened — to
+  /// [person] only, when named — newest first.
+  List<OutboxMessage> outbox({String? person, int limit = 50}) =>
+      [
+            for (var event in _server.reversed)
+              if (_sentChannels.contains(event.channel)) _outboxMessage(event),
+          ]
+          .where((message) => person == null || message.person == person)
+          .take(limit)
+          .toList();
+
+  /// The message [id] names, if the world still holds it.
+  OutboxMessage? messageById(String id) {
+    for (var event in _server.reversed) {
+      if (_sentChannels.contains(event.channel) &&
+          '${event.server}/${event.event.id}' == id) {
+        return _outboxMessage(event);
+      }
+    }
+    return null;
+  }
+
+  static const _sentChannels = {'sms', 'push', 'mail'};
+
+  OutboxMessage _outboxMessage(_ServerEvent event) {
+    var payload = event.payload;
+    var to = '${payload['to'] ?? payload['user'] ?? ''}';
+    var said = switch (event.channel) {
+      'sms' => '${payload['body'] ?? ''}',
+      'mail' => '${payload['subject'] ?? payload['text'] ?? ''}',
+      _ => '${payload['title'] ?? payload['body'] ?? ''}',
+    };
+    // Where a code or a link may be: everything the message says.
+    var words = [
+      for (var key in const ['body', 'title', 'subject', 'text'])
+        if (payload[key] case String text) text,
+    ].join('\n');
+    return OutboxMessage(
+      id: '${event.server}/${event.event.id}',
+      at: event.time,
+      kind: event.channel,
+      to: to,
+      text: said,
+      person: switch (event.channel) {
+        'sms' => _phones[to],
+        'mail' => _emails[to.toLowerCase()],
+        _ => _users[to],
+      },
+      step: event.step,
+      code: _saysCode.hasMatch(words)
+          ? _code.firstMatch(words)?.group(0)
+          : null,
+      link: switch (payload['link']) {
+        String link => link,
+        _ => _link.firstMatch(words)?[0],
+      },
+    );
+  }
+
+  static final _code = RegExp(r'(?<!\d)\d{4,8}(?!\d)');
+
+  /// A message carries a code only when it says so: a receipt's order number
+  /// is not something to type.
+  static final _saysCode = RegExp(
+    r'\b(code|pin|otp|passcode|verif\w*|one-time)\b',
+    caseSensitive: false,
+  );
+  static final _link = RegExp(r'[a-z][a-z0-9+.-]*://[^\s<>"]+');
 
   /// Who asked for what [event] happened under: the person whose step it
   /// was, or the one the server identified the request as.
@@ -952,8 +1070,9 @@ class WorldTracer {
     RunHandle handle, {
     String? userId,
     String? phone,
+    String? email,
   }) async {
-    trace.addPerson(person, userId: userId, phone: phone);
+    trace.addPerson(person, userId: userId, phone: phone, email: email);
     // The guest's process answers before its app does: the channels are
     // registered once the app's `main` has run, which a fast attach beats.
     RunAttachment? client;
@@ -978,6 +1097,22 @@ class WorldTracer {
       _heard(app, event);
     }
     await _findSync(app);
+  }
+
+  /// Asks [person]'s app [method] on [channel], over the connection the world
+  /// already holds to it. Throws a [StateError] when there is none — their
+  /// app is not running, or not answering yet.
+  Future<Map<String, Object?>> ask(
+    String person,
+    String channel,
+    String method, [
+    Map<String, Object?> params = const {},
+  ]) {
+    var app = _apps[person];
+    if (app == null) {
+      throw StateError("The world is not connected to $person's app.");
+    }
+    return app.client.request(channel, method, params);
   }
 
   /// Looks for servers not attached yet — at most once a second.

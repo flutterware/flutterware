@@ -587,3 +587,87 @@ class WorldContentsItem {
     if (life.isNotEmpty) 'life': life,
   };
 }
+
+/// What `worlds outbox` answers: the messages the servers sent outside,
+/// newest first, each with what a delivery would hand its recipient's app.
+class WorldOutboxResult implements PluginResult {
+  const WorldOutboxResult({required this.messages, this.note});
+
+  factory WorldOutboxResult.of(List<OutboxMessage> messages, {String? note}) =>
+      WorldOutboxResult(
+        messages: [
+          for (var message in messages)
+            {
+              'id': message.id,
+              'at': message.at.toIso8601String(),
+              'kind': message.kind,
+              'to': message.to,
+              'person': ?message.person,
+              'text': message.text,
+              'code': ?message.code,
+              'link': ?message.link,
+              'step': ?message.step,
+            },
+        ],
+        note: note,
+      );
+
+  factory WorldOutboxResult.fromJson(Map<String, Object?> json) =>
+      WorldOutboxResult(
+        messages: [
+          for (var message in json['messages'] as List? ?? const [])
+            (message as Map).cast<String, Object?>(),
+        ],
+        note: json['note'] as String?,
+      );
+
+  /// `{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what
+  /// `worlds deliver` takes.
+  final List<Map<String, Object?>> messages;
+  final String? note;
+
+  @override
+  Map<String, Object?> toJson() => {'messages': messages, 'note': ?note};
+}
+
+/// What `worlds deliver` answers: what it handed to whose app.
+class WorldDeliveryResult implements PluginResult {
+  const WorldDeliveryResult({
+    required this.message,
+    required this.person,
+    required this.how,
+    required this.what,
+  });
+
+  factory WorldDeliveryResult.of(WorldDelivery delivery) => WorldDeliveryResult(
+    message: delivery.message,
+    person: delivery.person,
+    how: delivery.how,
+    what: delivery.what,
+  );
+
+  factory WorldDeliveryResult.fromJson(Map<String, Object?> json) =>
+      WorldDeliveryResult(
+        message: json['message']! as String,
+        person: json['person']! as String,
+        how: json['how']! as String,
+        what: json['what']! as String,
+      );
+
+  final String message;
+  final String person;
+
+  /// `type` — the code went into the field that had focus — or `open`.
+  final String how;
+
+  /// The code typed, or the link opened.
+  final String what;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'message': message,
+    'person': person,
+    'how': how,
+    'what': what,
+  };
+}

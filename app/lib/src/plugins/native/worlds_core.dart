@@ -24,8 +24,8 @@ const worldsPluginId = 'flutterware.worlds';
 /// the studio, `fw` or the MCP server — and go when it closes the world or
 /// ends. So one world at a time per worktree: two would give two people the
 /// same device, `studio-<name>`, in Run. Every other process forwards
-/// `status`, `trace`, `contents`, `invoke`, `restart` and `close` to the owner,
-/// which leaves a `WorldHandle` saying where to ask.
+/// `status`, `trace`, `contents`, `outbox`, `deliver`, `invoke`, `restart` and
+/// `close` to the owner, which leaves a `WorldHandle` saying where to ask.
 class WorldsCore extends PluginCore {
   WorldsCore(super.host);
 
@@ -182,6 +182,58 @@ class WorldsCore extends PluginCore {
           kind: ActionParameterKind.integer,
           required: false,
           description: 'How many of the newest steps, 10 by default',
+        ),
+        _worldParameter,
+      ],
+    ),
+    const PluginAction(
+      'outbox',
+      'Outbox',
+      returns: WorldOutboxResult,
+      description:
+          'The messages the servers sent outside — SMS, push, mail — newest '
+          'first, each with whom it reached, the code or link it carries, '
+          'and the step that sent it. A server takes part by reporting '
+          '`sms`, `push` or `mail` events with their recipient.',
+      parameters: [
+        ActionParameter(
+          'person',
+          'Person',
+          required: false,
+          description: 'Only what reached this person',
+        ),
+        ActionParameter(
+          'limit',
+          'Limit',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description: 'How many of the newest, 20 by default',
+        ),
+        _worldParameter,
+      ],
+    ),
+    const PluginAction(
+      'deliver',
+      'Deliver',
+      returns: WorldDeliveryResult,
+      description:
+          "Hands a message to its recipient's app as a person would take it: "
+          'its code typed into the field that has focus, the way an autofill '
+          'offers one, or its link opened where the OS would deliver it. '
+          'Focus the field first — tap it — for a code.',
+      parameters: [
+        ActionParameter(
+          'message',
+          'Message',
+          description: 'Its id, from `worlds outbox`: `lab/42`',
+        ),
+        ActionParameter(
+          'how',
+          'How',
+          required: false,
+          description:
+              '`type` its code or `open` its link; the code when it '
+              'carries one',
         ),
         _worldParameter,
       ],
@@ -344,12 +396,28 @@ class WorldsCore extends PluginCore {
       hold: arguments['hold'] == true,
     ),
     // A world another process owns is asked there, in its own words.
-    'status' || 'trace' || 'contents' || 'restart' || 'invoke' || 'close'
-        when _open == null && openElsewhere() != null =>
-      await _forward(openElsewhere()!, actionId, arguments),
+    'status' ||
+    'trace' ||
+    'contents' ||
+    'outbox' ||
+    'deliver' ||
+    'restart' ||
+    'invoke' ||
+    'close' when _open == null && openElsewhere() != null => await _forward(
+      openElsewhere()!,
+      actionId,
+      arguments,
+    ),
     'status' => WorldStateResult.of(_required),
     'trace' => _traceAction(arguments),
     'contents' => _contentsAction(arguments),
+    'outbox' => _outboxAction(arguments),
+    'deliver' => WorldDeliveryResult.of(
+      await _required.deliver(
+        '${arguments['message']}',
+        how: arguments['how'] as String?,
+      ),
+    ),
     'restart' => await _restartAction(
       arguments['knobs'] == null
           ? null
@@ -382,6 +450,8 @@ class WorldsCore extends PluginCore {
       'invoke' => WorldActionResult.fromJson(json),
       'trace' => WorldTraceResult.fromJson(json),
       'contents' => WorldContentsResult.fromJson(json),
+      'outbox' => WorldOutboxResult.fromJson(json),
+      'deliver' => WorldDeliveryResult.fromJson(json),
       _ => WorldStateResult.fromJson(
         json,
         note: action == 'close'
@@ -401,6 +471,8 @@ class WorldsCore extends PluginCore {
       'status',
       'trace',
       'contents',
+      'outbox',
+      'deliver',
       'restart',
       'invoke',
       'close',
@@ -586,6 +658,31 @@ class WorldsCore extends PluginCore {
       note: traced.isEmpty
           ? 'No step yet: a step is a tap on one of the apps, by a person or '
                 'through `flutterware_act`.'
+          : null,
+    );
+  }
+
+  WorldOutboxResult _outboxAction(Map<String, Object?> arguments) {
+    var open = _required;
+    var person = arguments['person'] as String?;
+    if (person != null && !open.people.containsKey(person)) {
+      throw WorldRefusal(
+        'Nobody in ${open.file.name} is called $person: '
+        '${open.people.keys.join(', ')}.',
+      );
+    }
+    var limit = switch (arguments['limit']) {
+      int value => value,
+      String value => int.tryParse(value) ?? 20,
+      _ => 20,
+    };
+    var messages =
+        open.tracer?.trace.outbox(person: person, limit: limit) ?? const [];
+    return WorldOutboxResult.of(
+      messages,
+      note: messages.isEmpty
+          ? 'Nothing sent yet. A server takes part by reporting `sms`, '
+                '`push` or `mail` events that name their recipient.'
           : null,
     );
   }

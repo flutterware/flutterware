@@ -2857,6 +2857,50 @@ note: String?
 | `limit` | integer | no | — | How many of the newest steps, 10 by default |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
+#### `outbox` — Outbox
+
+The messages the servers sent outside — SMS, push, mail — newest first, each with whom it reached, the code or link it carries, and the step that sent it. A server takes part by reporting `sms`, `push` or `mail` events with their recipient.
+
+```sh
+fw run worlds outbox [--person=…] [--limit=…] [--world=…]
+```
+
+Returns `WorldOutboxResult`:
+
+```
+messages: List<Map<String, Object?>>   # `{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what `worlds deliver` takes.
+note: String?
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `person` | string | no | — | Only what reached this person |
+| `limit` | integer | no | — | How many of the newest, 20 by default |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
+#### `deliver` — Deliver
+
+Hands a message to its recipient's app as a person would take it: its code typed into the field that has focus, the way an autofill offers one, or its link opened where the OS would deliver it. Focus the field first — tap it — for a code.
+
+```sh
+fw run worlds deliver --message=<string> [--how=…] [--world=…]
+```
+
+Returns `WorldDeliveryResult`:
+
+```
+message: String
+person: String
+how: String   # `type` — the code went into the field that had focus — or `open`.
+what: String   # The code typed, or the link opened.
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `message` | string | yes | — | Its id, from `worlds outbox`: `lab/42` |
+| `how` | string | no | — | `type` its code or `open` its link; the code when it carries one |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
 #### `contents` — Contents
 
 What one part of the system holds, as the world heard it since it opened: every call a route answered and who asked, every record a table was written with its whole life — each write and each phone it reached — every message sent outside and whom it reached, every record the sync engine carried. Each names the step that caused it. With no part, lists the parts there are.

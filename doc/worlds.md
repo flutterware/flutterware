@@ -184,6 +184,31 @@ adapter, a record written on one phone is traced to the others as it
 arrives, and each person's sync state shows beside their phone and in
 `worlds status`.
 
+## Hand a message to a person
+
+What a server sends outside — an SMS, a push, a mail — reaches its person
+through the world. Each person's drawer opens on the messages sent to them:
+**Type it** puts a code into the field that has focus in their app, as an
+autofill would, and **Open** or **Tap it** opens a message's link in their
+app. Tap the field the code goes in first.
+
+```shell
+fw run worlds outbox --person=Leo
+fw run worlds deliver --message=lab/10
+```
+
+A server takes part by reporting each message with its recipient, in its
+adapter for that edge:
+
+```dart
+FlutterwareServer.event('sms', {'to': phone, 'body': body});
+FlutterwareServer.event('push', {'to': userId, 'title': title, 'link': ?link});
+FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text});
+```
+
+The world finds the person by the phone number, user id or address it was
+declared with, or learnt through `FlutterwareServer.identify`.
+
 ## See what the system holds
 
 Each part of the system the canvas draws — a route, a table, the SMS a server

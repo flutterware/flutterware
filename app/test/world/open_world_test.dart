@@ -202,6 +202,17 @@ void main() {
     expect(wave.step, matches(r'^world\.\d+$'));
     expect(wave.progress, 'Ana waves, as ${wave.step}');
     expect(() => world.invoke('Dance'), throwsA(isA<WorldRefusal>()));
+    // Nothing was sent, and the refusal says so rather than failing blind.
+    await expectLater(
+      world.deliver('lab/1'),
+      throwsA(
+        isA<WorldRefusal>().having(
+          (refusal) => refusal.message,
+          'message',
+          contains('No server has sent one yet'),
+        ),
+      ),
+    );
 
     await world.restart({'mood': 'busy'});
     expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));

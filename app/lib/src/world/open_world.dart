@@ -17,6 +17,7 @@ import 'package:path/path.dart' as p;
 import '../embedder/flutter_cache.dart';
 import '../run/entrypoint_knobs.dart';
 import '../run/handle.dart';
+import '../run/journal.dart';
 import '../session/job.dart';
 import 'app_guest.dart';
 import 'guest_launcher.dart';
@@ -168,6 +169,106 @@ class OpenWorld {
     _changed();
     await run._ended.future.timeout(wait, onTimeout: () {});
     return run;
+  }
+
+  /// Hands [messageId] — an SMS, a push, a mail a server sent — to its
+  /// recipient's app, as a person would take it: its code typed into the
+  /// field that has focus, the way an autofill offers one, or its link
+  /// opened where the OS would deliver it. [how] is `type` or `open`; by
+  /// default the code, when the message carries one. What it did lands in
+  /// the person's Run journal as [actor]'s step.
+  Future<WorldDelivery> deliver(
+    String messageId, {
+    String? how,
+    String actor = 'agent',
+  }) async {
+    var tracer = this.tracer;
+    var message = tracer?.trace.messageById(messageId);
+    if (tracer == null || message == null) {
+      var recent = [
+        for (var message
+            in tracer?.trace.outbox(limit: 5) ?? const <OutboxMessage>[])
+          message.id,
+      ];
+      throw WorldRefusal(
+        'No message $messageId in ${file.name}. '
+        '${recent.isEmpty ? 'No server has sent one yet.' : 'The newest: ${recent.join(', ')}.'}',
+      );
+    }
+    var name = message.person;
+    var person = name == null ? null : people[name];
+    if (name == null || person == null) {
+      throw WorldRefusal(
+        'The ${message.kind} to ${message.to} reached nobody in '
+        '${file.name}: no person was declared with that '
+        '${message.kind == 'sms'
+            ? 'phone number'
+            : message.kind == 'mail'
+            ? 'address'
+            : 'user id'}.',
+      );
+    }
+    if (!person.running) throw WorldRefusal("$name's app is not running.");
+    how ??= message.code != null ? 'type' : 'open';
+    String what;
+    switch (how) {
+      case 'type':
+        var code = message.code;
+        if (code == null) {
+          throw WorldRefusal('It carries no code: "${message.text}".');
+        }
+        Map<String, Object?> answer;
+        try {
+          answer = await tracer.ask(name, worldInputChannel, 'type', {
+            'text': code,
+          });
+        } on Object catch (error) {
+          throw WorldRefusal("$name's app did not take it: $error");
+        }
+        if (answer['typed'] != true) {
+          throw WorldRefusal(
+            "Nothing in $name's app has focus: tap the field the code goes "
+            'in, then deliver it again.',
+          );
+        }
+        what = code;
+        _journal(person, 'enterText', actor, '"$code" into the focused field');
+      case 'open':
+        var link = message.link;
+        if (link == null) {
+          throw WorldRefusal('It carries no link: "${message.text}".');
+        }
+        if (!(person.platform?.links.open(link) ?? false)) {
+          throw WorldRefusal(
+            "$name's app is not listening for links: it registers no "
+            'handler with app_links, or has not started it yet.',
+          );
+        }
+        what = link;
+        _journal(person, 'openLink', actor, link);
+      default:
+        throw WorldRefusal('A message is delivered by `type` or `open`.');
+    }
+    return WorldDelivery(
+      message: message.id,
+      person: name,
+      how: how,
+      what: what,
+    );
+  }
+
+  void _journal(WorldPerson person, String verb, String actor, String target) {
+    var handle = person.handle;
+    if (handle == null) return;
+    appendJournal(
+      handle,
+      JournalEntry(
+        at: DateTime.now().toUtc().toIso8601String(),
+        verb: verb,
+        actor: actor,
+        target: target,
+      ),
+    );
   }
 
   /// Stops an action that is still running.
@@ -511,6 +612,7 @@ class OpenWorld {
         person.handle!,
         userId: person.spec.userId,
         phone: person.spec.phone,
+        email: person.spec.email,
       ),
     );
   }
@@ -835,6 +937,24 @@ class WorldKnob {
   final String value;
   final List<String> options;
   final String? description;
+}
+
+/// What [OpenWorld.deliver] did: [what] — the code typed, the link opened —
+/// in [person]'s app.
+class WorldDelivery {
+  const WorldDelivery({
+    required this.message,
+    required this.person,
+    required this.how,
+    required this.what,
+  });
+
+  final String message;
+  final String person;
+
+  /// `type` or `open`.
+  final String how;
+  final String what;
 }
 
 class WorldActionRun {
