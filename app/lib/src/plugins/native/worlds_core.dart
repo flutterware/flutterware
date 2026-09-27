@@ -24,8 +24,9 @@ const worldsPluginId = 'flutterware.worlds';
 /// the studio, `fw` or the MCP server — and go when it closes the world or
 /// ends. So one world at a time per worktree: two would give two people the
 /// same device, `studio-<name>`, in Run. Every other process forwards
-/// `status`, `trace`, `contents`, `outbox`, `deliver`, `invoke`, `restart` and
-/// `close` to the owner, which leaves a `WorldHandle` saying where to ask.
+/// `status`, `trace`, `contents`, `outbox`, `deliver`, `show`, `invoke`,
+/// `restart` and `close` to the owner, which leaves a `WorldHandle` saying
+/// where to ask.
 class WorldsCore extends PluginCore {
   WorldsCore(super.host);
 
@@ -235,6 +236,32 @@ class WorldsCore extends PluginCore {
               '`type` its code or `open` its link; the code when it '
               'carries one',
         ),
+        ActionParameter(
+          'link',
+          'Link',
+          required: false,
+          description:
+              'Which of its links to open, when not the first: one '
+              '`worlds outbox` lists',
+        ),
+        _worldParameter,
+      ],
+    ),
+    const PluginAction(
+      'show',
+      'Show',
+      returns: WorldShowResult,
+      description:
+          "Draws a message as its recipient would see it — a mail's HTML "
+          'rendered by WebKit to a PNG — with the box of each link on it. '
+          "Read the picture to see the mail; open a link in the person's "
+          'app with `worlds deliver`.',
+      parameters: [
+        ActionParameter(
+          'message',
+          'Message',
+          description: 'Its id, from `worlds outbox`: `lab/42`',
+        ),
         _worldParameter,
       ],
     ),
@@ -401,6 +428,7 @@ class WorldsCore extends PluginCore {
     'contents' ||
     'outbox' ||
     'deliver' ||
+    'show' ||
     'restart' ||
     'invoke' ||
     'close' when _open == null && openElsewhere() != null => await _forward(
@@ -416,8 +444,10 @@ class WorldsCore extends PluginCore {
       await _required.deliver(
         '${arguments['message']}',
         how: arguments['how'] as String?,
+        link: arguments['link'] as String?,
       ),
     ),
+    'show' => await _showAction(arguments),
     'restart' => await _restartAction(
       arguments['knobs'] == null
           ? null
@@ -452,6 +482,7 @@ class WorldsCore extends PluginCore {
       'contents' => WorldContentsResult.fromJson(json),
       'outbox' => WorldOutboxResult.fromJson(json),
       'deliver' => WorldDeliveryResult.fromJson(json),
+      'show' => WorldShowResult.fromJson(json),
       _ => WorldStateResult.fromJson(
         json,
         note: action == 'close'
@@ -473,6 +504,7 @@ class WorldsCore extends PluginCore {
       'contents',
       'outbox',
       'deliver',
+      'show',
       'restart',
       'invoke',
       'close',
@@ -685,6 +717,29 @@ class WorldsCore extends PluginCore {
                 '`push` or `mail` events that name their recipient.'
           : null,
     );
+  }
+
+  Future<WorldShowResult> _showAction(Map<String, Object?> arguments) async {
+    var open = _required;
+    var id = '${arguments['message']}';
+    var message = open.tracer?.trace.messageById(id);
+    if (message == null) {
+      throw WorldRefusal('No message $id in ${open.file.name}.');
+    }
+    var html = message.html;
+    if (html == null) {
+      throw WorldRefusal(
+        'The ${message.kind} has no page to draw; its words are all of it: '
+        '"${message.body ?? message.text}".',
+      );
+    }
+    try {
+      return WorldShowResult.of(id, await open.snapshots.of(html));
+    } on UnsupportedError catch (error) {
+      throw WorldRefusal('${error.message}');
+    } on StateError catch (error) {
+      throw WorldRefusal('Could not draw it: ${error.message}');
+    }
   }
 
   WorldContentsResult _contentsAction(Map<String, Object?> arguments) {

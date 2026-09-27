@@ -20,6 +20,17 @@ abstract interface class PushService {
   });
 }
 
+/// Where a mail goes: to an address, as the text and the HTML a mail client
+/// would show.
+abstract interface class MailService {
+  Future<void> send(
+    String to, {
+    required String subject,
+    required String text,
+    required String html,
+  });
+}
+
 /// The lab's SMS edge: every message becomes an `sms` event on the server's
 /// inspection channel, and a log line for whoever started it by hand.
 ///
@@ -49,6 +60,26 @@ class ReportedPush implements PushService {
       'title': title,
       'body': body,
       'link': ?link,
+    });
+  }
+}
+
+/// The lab's mail edge, reported the same way as [ReportedSms]: the whole
+/// mail, HTML included, is what a world shows.
+class ReportedMail implements MailService {
+  @override
+  Future<void> send(
+    String to, {
+    required String subject,
+    required String text,
+    required String html,
+  }) async {
+    _log.info('mail to $to: $subject');
+    FlutterwareServer.event('mail', {
+      'to': to,
+      'subject': subject,
+      'text': text,
+      'html': html,
     });
   }
 }

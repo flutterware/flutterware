@@ -26,5 +26,10 @@ Future<void> main() async {
     });
   });
   var port = int.parse(Platform.environment['WORLD_LAB_PORT'] ?? '8090');
-  await startServer(port: port, sms: ReportedSms(), push: ReportedPush());
+  await startServer(
+    port: port,
+    sms: ReportedSms(),
+    push: ReportedPush(),
+    mail: ReportedMail(),
+  );
 }

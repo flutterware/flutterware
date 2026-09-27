@@ -181,6 +181,28 @@ void main() {
     ]);
   });
 
+  test('a mail reaches the person its address is', () {
+    trace.addPerson('Ana', email: 'Ana@example.com');
+    step('Ben', 'ben.1', 1000, '"Order"');
+    lab(1010, 'mail', {
+      'to': 'ana@example.com',
+      'subject': 'New order: Flat white for Ben',
+      'html': '<a href="worldlab://orders/o1">Open the order</a>',
+      'step': 'ben.1',
+    });
+    var beat = trace.steps().single.beats.single;
+    expect(
+      (beat.what, beat.person, beat.node, beat.line, beat.inbound),
+      (
+        'lab → Ana by mail  New order: Flat white for Ben',
+        'Ana',
+        'lab/sent/mail',
+        'Mail',
+        true,
+      ),
+    );
+  });
+
   test('says who a user is once, on the step that taught it, and never of a '
       'user the script named', () {
     step('Ben', 'ben.1', 1000, '"Sign in"');
@@ -597,6 +619,34 @@ void main() {
       expect(trace.outbox(person: 'Cleo').single.kind, 'push');
       expect(trace.messageById(messages.last.id)?.code, '955046');
       expect(trace.messageById('lab/999'), isNull);
+      // A mail's HTML: its links read from the page, its styles not read as
+      // words, and the code it speaks of found in what it shows.
+      lab(1030, 'mail', {
+        'to': 'leo@example.com',
+        'subject': 'Sign in to Pickup',
+        'text': 'Use the button in this mail.',
+        'html':
+            '<html><head><style>.b{background:url(https://cdn.test/b.png)}'
+            '</style></head><body><p>Your code is <b>731902</b></p>'
+            '<a class="b" href="worldlab://auth?t=1&amp;u=leo">Sign in</a> '
+            "<a href='https://shop.test/help'>Help</a></body></html>",
+      });
+      var mail = trace.outbox().first;
+      expect(
+        (mail.text, mail.body, mail.code, mail.link),
+        (
+          'Sign in to Pickup',
+          'Use the button in this mail.',
+          '731902',
+          'worldlab://auth?t=1&u=leo',
+        ),
+      );
+      expect(mail.links, [
+        'worldlab://auth?t=1&u=leo',
+        'https://shop.test/help',
+      ]);
+      expect(mail.html, contains('<b>731902</b>'));
+
       // The SMS card's contents carry the same message.
       expect(
         trace.contentsOf('lab/sent/sms')!.items.single.message?.code,

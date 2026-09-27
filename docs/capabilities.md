@@ -2868,7 +2868,7 @@ fw run worlds outbox [--person=…] [--limit=…] [--world=…]
 Returns `WorldOutboxResult`:
 
 ```
-messages: List<Map<String, Object?>>   # `{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what `worlds deliver` takes.
+messages: List<Map<String, Object?>>   # `{id, at, kind, to, person?, text, code?, link?, links?, html?, step?}` — `id` is what `worlds deliver` and `worlds show` take; `html: true` says `worlds show` draws it as its recipient would see it.
 note: String?
 ```
 
@@ -2883,7 +2883,7 @@ note: String?
 Hands a message to its recipient's app as a person would take it: its code typed into the field that has focus, the way an autofill offers one, or its link opened where the OS would deliver it. Focus the field first — tap it — for a code.
 
 ```sh
-fw run worlds deliver --message=<string> [--how=…] [--world=…]
+fw run worlds deliver --message=<string> [--how=…] [--link=…] [--world=…]
 ```
 
 Returns `WorldDeliveryResult`:
@@ -2899,6 +2899,30 @@ what: String   # The code typed, or the link opened.
 |---|---|---|---|---|
 | `message` | string | yes | — | Its id, from `worlds outbox`: `lab/42` |
 | `how` | string | no | — | `type` its code or `open` its link; the code when it carries one |
+| `link` | string | no | — | Which of its links to open, when not the first: one `worlds outbox` lists |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
+#### `show` — Show
+
+Draws a message as its recipient would see it — a mail's HTML rendered by WebKit to a PNG — with the box of each link on it. Read the picture to see the mail; open a link in the person's app with `worlds deliver`.
+
+```sh
+fw run worlds show --message=<string> [--world=…]
+```
+
+Returns `WorldShowResult`:
+
+```
+message: String
+picture: String   # The PNG, at twice the page's size.
+width: double   # The page's size in points, the space [links] are in.
+height: double
+links: List<Map<String, Object?>>?   # `{href, text, box: [x, y, width, height]}`.
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `message` | string | yes | — | Its id, from `worlds outbox`: `lab/42` |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `contents` — Contents

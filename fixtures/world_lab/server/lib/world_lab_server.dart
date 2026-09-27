@@ -4,7 +4,14 @@
 /// lives in this package, can start it in-process with its edges swapped.
 library;
 
-export 'src/edges.dart' show PushService, ReportedPush, ReportedSms, SmsService;
+export 'src/edges.dart'
+    show
+        MailService,
+        PushService,
+        ReportedMail,
+        ReportedPush,
+        ReportedSms,
+        SmsService;
 export 'src/orders.dart'
     show MemoryOrders, Order, OrderStore, PostgresOrders, orderStatuses;
 export 'src/server.dart' show LabServer, menu, startServer;

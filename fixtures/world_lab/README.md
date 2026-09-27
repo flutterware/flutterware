@@ -38,6 +38,8 @@ holds, each order with its life from the tap to both phones.
 
 Leo's sign-up code is in his drawer: tap his code field, then *Type it* — or
 `fw run worlds deliver` with the message's id from `fw run worlds outbox`.
+Each new order mails the staff: Ana's drawer has it, *Read it* shows the mail,
+and its *Open the order* button opens the order in her app.
 
 A world script also runs on its own, which is how to debug its setup without
 launching any app: it prints what it declares, and `name=value` arguments are

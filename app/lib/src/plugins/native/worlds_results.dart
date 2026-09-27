@@ -2,6 +2,7 @@ import 'package:flutterware/plugins.dart';
 
 import '../../world/open_world.dart';
 import '../../world/world_files.dart';
+import '../../world/web_snapshot.dart';
 import '../../world/world_trace.dart';
 
 /// What `worlds list` answers: every world the project declares, and which
@@ -606,6 +607,8 @@ class WorldOutboxResult implements PluginResult {
               'text': message.text,
               'code': ?message.code,
               'link': ?message.link,
+              if (message.links.length > 1) 'links': message.links,
+              if (message.html != null) 'html': true,
               'step': ?message.step,
             },
         ],
@@ -621,8 +624,9 @@ class WorldOutboxResult implements PluginResult {
         note: json['note'] as String?,
       );
 
-  /// `{id, at, kind, to, person?, text, code?, link?, step?}` — `id` is what
-  /// `worlds deliver` takes.
+  /// `{id, at, kind, to, person?, text, code?, link?, links?, html?, step?}` —
+  /// `id` is what `worlds deliver` and `worlds show` take; `html: true` says
+  /// `worlds show` draws it as its recipient would see it.
   final List<Map<String, Object?>> messages;
   final String? note;
 
@@ -669,5 +673,66 @@ class WorldDeliveryResult implements PluginResult {
     'person': person,
     'how': how,
     'what': what,
+  };
+}
+
+/// What `worlds show` answers: a message drawn as its recipient would see it
+/// — a PNG to read — and where each of its links is on it.
+class WorldShowResult implements PluginResult {
+  const WorldShowResult({
+    required this.message,
+    required this.picture,
+    required this.width,
+    required this.height,
+    this.links = const [],
+  });
+
+  factory WorldShowResult.of(String message, WebSnapshot page) =>
+      WorldShowResult(
+        message: message,
+        picture: page.picture,
+        width: page.width,
+        height: page.height,
+        links: [
+          for (var link in page.links)
+            {
+              'href': link.href,
+              'text': link.text,
+              'box': [link.left, link.top, link.width, link.height],
+            },
+        ],
+      );
+
+  factory WorldShowResult.fromJson(Map<String, Object?> json) =>
+      WorldShowResult(
+        message: json['message']! as String,
+        picture: json['picture']! as String,
+        width: (json['width']! as num).toDouble(),
+        height: (json['height']! as num).toDouble(),
+        links: [
+          for (var link in json['links'] as List? ?? const [])
+            (link as Map).cast<String, Object?>(),
+        ],
+      );
+
+  final String message;
+
+  /// The PNG, at twice the page's size.
+  final String picture;
+
+  /// The page's size in points, the space [links] are in.
+  final double width;
+  final double height;
+
+  /// `{href, text, box: [x, y, width, height]}`.
+  final List<Map<String, Object?>> links;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'message': message,
+    'picture': picture,
+    'width': width,
+    'height': height,
+    if (links.isNotEmpty) 'links': links,
   };
 }
