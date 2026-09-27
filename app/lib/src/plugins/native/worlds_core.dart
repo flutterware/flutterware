@@ -22,8 +22,8 @@ const worldsPluginId = 'flutterware.worlds';
 /// the studio, `fw` or the MCP server — and go when it closes the world or
 /// ends. So one world at a time per worktree: two would give two people the
 /// same device, `studio-<name>`, in Run. Every other process forwards
-/// `status`, `trace`, `invoke`, `restart` and `close` to the owner, which
-/// leaves a `WorldHandle` saying where to ask.
+/// `status`, `trace`, `contents`, `invoke`, `restart` and `close` to the owner,
+/// which leaves a `WorldHandle` saying where to ask.
 class WorldsCore extends PluginCore {
   WorldsCore(super.host);
 
@@ -182,6 +182,36 @@ class WorldsCore extends PluginCore {
         _worldParameter,
       ],
     ),
+    const PluginAction(
+      'contents',
+      'Contents',
+      returns: WorldContentsResult,
+      description:
+          'What one part of the system holds, as the world heard it since '
+          'it opened: every call a route answered and who asked, every '
+          'record a table was written with its whole life — each write and '
+          'each phone it reached — every message sent outside and whom it '
+          'reached, every record the sync engine carried. Each names the '
+          'step that caused it. With no part, lists the parts there are.',
+      parameters: [
+        ActionParameter(
+          'part',
+          'Part',
+          required: false,
+          description:
+              'As the canvas shows it: a route (`POST /orders`), a table '
+              '(`orders`), `sms` or `push`, or `sync`',
+        ),
+        ActionParameter(
+          'limit',
+          'Limit',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description: 'How many of the newest, 20 by default',
+        ),
+        _worldParameter,
+      ],
+    ),
     PluginAction(
       'restart',
       'Restart',
@@ -310,11 +340,12 @@ class WorldsCore extends PluginCore {
       hold: arguments['hold'] == true,
     ),
     // A world another process owns is asked there, in its own words.
-    'status' || 'trace' || 'restart' || 'invoke' || 'close'
+    'status' || 'trace' || 'contents' || 'restart' || 'invoke' || 'close'
         when _open == null && openElsewhere() != null =>
       await _forward(openElsewhere()!, actionId, arguments),
     'status' => WorldStateResult.of(_required),
     'trace' => _traceAction(arguments),
+    'contents' => _contentsAction(arguments),
     'restart' => await _restartAction(
       arguments['knobs'] == null
           ? null
@@ -346,6 +377,7 @@ class WorldsCore extends PluginCore {
     return switch (action) {
       'invoke' => WorldActionResult.fromJson(json),
       'trace' => WorldTraceResult.fromJson(json),
+      'contents' => WorldContentsResult.fromJson(json),
       _ => WorldStateResult.fromJson(
         json,
         note: action == 'close'
@@ -364,6 +396,7 @@ class WorldsCore extends PluginCore {
     if (!const {
       'status',
       'trace',
+      'contents',
       'restart',
       'invoke',
       'close',
@@ -548,6 +581,40 @@ class WorldsCore extends PluginCore {
           ? 'No step yet: a step is a tap on one of the apps, by a person or '
                 'through `flutterware_act`.'
           : null,
+    );
+  }
+
+  WorldContentsResult _contentsAction(Map<String, Object?> arguments) {
+    var open = _required;
+    var names = open.tracer?.trace.nodeNames ?? const <String, String>{};
+    var part = arguments['part'] as String?;
+    if (part == null) {
+      return WorldContentsResult(
+        parts: names.keys.toList(),
+        note: names.isEmpty
+            ? 'Nothing has reported yet. A Dart server takes part through '
+                  'its inspection adapter; a synced database, through its '
+                  'database panel.'
+            : 'Name one as `part` for what it holds.',
+      );
+    }
+    var node = names[part];
+    if (node == null) {
+      throw WorldRefusal(
+        names.isEmpty
+            ? 'Nothing in ${open.file.name} has reported yet.'
+            : 'No part of the system is called "$part": '
+                  '${names.keys.join(', ')}.',
+      );
+    }
+    var limit = switch (arguments['limit']) {
+      int value => value,
+      String value => int.tryParse(value) ?? 20,
+      _ => 20,
+    };
+    return WorldContentsResult.of(
+      open.tracer!.trace.contentsOf(node, limit: limit)!,
+      part: part,
     );
   }
 

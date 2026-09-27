@@ -25,7 +25,8 @@ import 'world_views.dart';
 /// that arrived. Nothing is declared or guessed.
 ///
 /// Until a step is chosen the stage follows the newest one that caused
-/// something, so a tap on a phone lights what it caused as it happens.
+/// something, so a tap on a phone lights what it caused as it happens. A
+/// part of the system opens, in the column, on what it holds.
 ///
 /// At rest the stage fits every phone and the whole system; a pinch or a
 /// ⌘-scroll zooms into it, and a drag pans it once zoomed — the previews'
@@ -63,6 +64,13 @@ class _WorldCanvasState extends State<WorldCanvas> {
   /// The person whose drawer the column shows.
   String? _drawer;
 
+  /// The node of the system whose contents the column shows.
+  String? _opened;
+
+  /// Whether the step chosen was chosen from [_opened]'s contents, and shows
+  /// over them until its back goes to them again.
+  var _overContents = false;
+
   @override
   void initState() {
     super.initState();
@@ -95,6 +103,8 @@ class _WorldCanvasState extends State<WorldCanvas> {
     if (identical(tracer, _tracer)) return;
     _tracer = tracer;
     _chosen = null;
+    _opened = null;
+    _overContents = false;
     unawaited(_heard?.cancel());
     // A burst of events — a tap's dozen — is one redraw.
     _heard = tracer?.trace.changed.listen((_) {
@@ -133,11 +143,28 @@ class _WorldCanvasState extends State<WorldCanvas> {
             (traced) => traced.beats.isNotEmpty,
             orElse: () => steps.lastOrNull ?? _none,
           )
-        : steps.where((traced) => traced.step.id == _chosen).firstOrNull;
+        : steps.where((traced) => traced.step.id == _chosen).firstOrNull ??
+              // Chosen from a part's contents, older than the column lists.
+              trace?.steps(step: _chosen, limit: 1).firstOrNull;
     if (identical(shown, _none)) shown = null;
     var numbers = shown == null ? const <String, int>{} : numberNodes(shown);
 
     var drawer = _drawer == null ? null : world.people[_drawer];
+    var contents = switch (_opened) {
+      var node? => trace?.contentsOf(node),
+      null => null,
+    };
+    var engine = world.people.keys
+        .map((person) => world.tracer?.syncOf(person)?['engine'])
+        .nonNulls
+        .firstOrNull;
+    var label = contents == null
+        ? null
+        : contentsLabel(contents, engine: engine?.toString());
+    void choose(String step) => setState(() {
+      _chosen = step;
+      _overContents = true;
+    });
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -179,18 +206,39 @@ class _WorldCanvasState extends State<WorldCanvas> {
         Container(width: 1, color: context.colors.line),
         SizedBox(
           width: 340,
-          child: switch ((drawer, _chosen)) {
-            (var person?, _) => _Drawer(
+          // What was opened last is on top: a step over the contents it was
+          // chosen from, the contents over a step held before them.
+          child: switch ((drawer, _chosen, contents)) {
+            (var person?, _, _) => _Drawer(
               person: person,
               color: colorOf(person.name),
               sync: world.tracer?.syncOf(person.name),
               onClose: () => setState(() => _drawer = null),
             ),
-            (null, var chosen?) when shown?.step.id == chosen => TraceDetail(
-              traced: shown!,
-              numbers: numbers,
+            (null, var chosen?, var contents)
+                when shown?.step.id == chosen &&
+                    (contents == null || _overContents) =>
+              TraceDetail(
+                traced: shown!,
+                numbers: numbers,
+                colorOf: colorOf,
+                back: label ?? 'Steps',
+                onBack: () => setState(() {
+                  if (contents != null) {
+                    _overContents = false;
+                  } else {
+                    _chosen = null;
+                  }
+                }),
+              ),
+            (null, _, var contents?) => NodeContentsView(
+              contents: contents,
+              label: label!,
               colorOf: colorOf,
-              onBack: () => setState(() => _chosen = null),
+              shown: shown?.step.id,
+              markColor: colorOf(shown?.step.person),
+              onBack: () => setState(() => _opened = null),
+              onChoose: choose,
             ),
             _ => TraceList(
               steps: steps.reversed.toList(),
@@ -245,6 +293,11 @@ class _WorldCanvasState extends State<WorldCanvas> {
                   litColor: colorOf(shown?.step.person),
                   colorOf: colorOf,
                   anchors: _ends,
+                  opened: _opened,
+                  onOpen: (node) => setState(() {
+                    _opened = _opened == node ? null : node;
+                    _overContents = false;
+                  }),
                 ),
             ],
           ),
@@ -564,6 +617,8 @@ class SystemBand extends StatelessWidget {
     required this.litColor,
     required this.colorOf,
     required this.anchors,
+    this.opened,
+    this.onOpen,
   });
 
   final List<SystemServer> servers;
@@ -577,8 +632,15 @@ class SystemBand extends StatelessWidget {
   /// Where each part registers, for the lines to find it.
   final TraceAnchors anchors;
 
+  /// The node whose contents the column shows.
+  final String? opened;
+
+  /// Shows what a node holds; null draws the band for looking at only.
+  final void Function(String node)? onOpen;
+
   @override
   Widget build(BuildContext context) {
+    var onOpen = this.onOpen ?? (_) {};
     var engine = sync.values
         .map((state) => state['engine'])
         .nonNulls
@@ -633,6 +695,8 @@ class SystemBand extends StatelessWidget {
                                   numbers: numbers,
                                   litColor: litColor,
                                   anchors: anchors,
+                                  opened: opened,
+                                  onOpen: onOpen,
                                 ),
                               ),
                           ],
@@ -648,6 +712,8 @@ class SystemBand extends StatelessWidget {
                       number: numbers[syncNode],
                       litColor: litColor,
                       colorOf: colorOf,
+                      open: opened == syncNode,
+                      onOpen: () => onOpen(syncNode),
                     ),
                   ),
                 ],
@@ -671,12 +737,16 @@ class _ServerCard extends StatelessWidget {
     required this.numbers,
     required this.litColor,
     required this.anchors,
+    required this.opened,
+    required this.onOpen,
   });
 
   final SystemServer server;
   final Map<String, int> numbers;
   final Color litColor;
   final TraceAnchors anchors;
+  final String? opened;
+  final void Function(String node) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -687,6 +757,8 @@ class _ServerCard extends StatelessWidget {
         number: numbers[node],
         litColor: litColor,
         count: count,
+        open: opened == node,
+        onOpen: () => onOpen(node),
         child: label,
       ),
     );
@@ -862,6 +934,8 @@ class _Part extends StatelessWidget {
     required this.count,
     required this.number,
     required this.litColor,
+    required this.open,
+    required this.onOpen,
   });
 
   static const width = 210.0;
@@ -871,31 +945,39 @@ class _Part extends StatelessWidget {
   final int? number;
   final Color litColor;
 
+  /// Whether the column shows what it holds.
+  final bool open;
+  final VoidCallback onOpen;
+
   @override
   Widget build(BuildContext context) {
     var lit = number != null;
-    return Container(
-      width: width,
-      height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: FwSpacing.sm),
-      decoration: BoxDecoration(
-        color: context.colors.bg,
-        border: Border.all(
-          color: lit ? litColor : context.colors.line,
-          width: lit ? 1.5 : 1,
+    return Tappable(
+      onTap: onOpen,
+      feedback: TapFeedback.none,
+      child: Container(
+        width: width,
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: FwSpacing.sm),
+        decoration: BoxDecoration(
+          color: open ? context.colors.accentSoft : context.colors.bg,
+          border: Border.all(
+            color: lit ? litColor : context.colors.line,
+            width: lit ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(context.radii.radiusSmall),
         ),
-        borderRadius: BorderRadius.circular(context.radii.radiusSmall),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: child),
-          const SizedBox(width: FwSpacing.xs),
-          Text(count, style: context.type.caption),
-          if (number case var n?) ...[
+        child: Row(
+          children: [
+            Expanded(child: child),
             const SizedBox(width: FwSpacing.xs),
-            NodeNumber(n, color: litColor),
+            Text(count, style: context.type.caption),
+            if (number case var n?) ...[
+              const SizedBox(width: FwSpacing.xs),
+              NodeNumber(n, color: litColor),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -910,6 +992,8 @@ class _SyncCard extends StatelessWidget {
     required this.number,
     required this.litColor,
     required this.colorOf,
+    required this.open,
+    required this.onOpen,
   });
 
   final String engine;
@@ -917,59 +1001,69 @@ class _SyncCard extends StatelessWidget {
   final int? number;
   final Color litColor;
   final Color Function(String? person) colorOf;
+  final bool open;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
     var lit = number != null;
-    return Container(
-      width: _Part.width,
-      padding: const EdgeInsets.all(FwSpacing.sm),
-      decoration: BoxDecoration(
-        color: context.colors.bg,
-        border: Border.all(
-          color: lit ? litColor : context.colors.line,
-          width: lit ? 1.5 : 1,
-        ),
-        borderRadius: BorderRadius.circular(context.radii.radius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.sync, size: FwIconSize.sm, color: context.colors.ink2),
-              const SizedBox(width: FwSpacing.xs),
-              Expanded(
-                child: Text(
-                  engine == 'powersync' ? 'PowerSync' : engine,
-                  style: context.type.bodyStrong,
-                ),
-              ),
-              if (number case var n?) NodeNumber(n, color: litColor),
-            ],
+    return Tappable(
+      onTap: onOpen,
+      feedback: TapFeedback.none,
+      child: Container(
+        width: _Part.width,
+        padding: const EdgeInsets.all(FwSpacing.sm),
+        decoration: BoxDecoration(
+          color: open ? context.colors.accentSoft : context.colors.bg,
+          border: Border.all(
+            color: lit ? litColor : context.colors.line,
+            width: lit ? 1.5 : 1,
           ),
-          const SizedBox(height: FwSpacing.xs),
-          for (var MapEntry(key: person, value: state) in sync.entries)
+          borderRadius: BorderRadius.circular(context.radii.radius),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Row(
               children: [
-                _Dot(colorOf(person)),
-                const SizedBox(width: FwSpacing.xs),
-                Text(person, style: context.type.body),
+                Icon(
+                  Icons.sync,
+                  size: FwIconSize.sm,
+                  color: context.colors.ink2,
+                ),
                 const SizedBox(width: FwSpacing.xs),
                 Expanded(
                   child: Text(
-                    switch (state['clientId']) {
-                      String id => 'client ${id.split('-').first}',
-                      _ => 'no client yet',
-                    },
-                    style: context.type.bodyMuted,
-                    overflow: TextOverflow.ellipsis,
+                    engine == 'powersync' ? 'PowerSync' : engine,
+                    style: context.type.bodyStrong,
                   ),
                 ),
+                if (number case var n?) NodeNumber(n, color: litColor),
               ],
             ),
-        ],
+            const SizedBox(height: FwSpacing.xs),
+            for (var MapEntry(key: person, value: state) in sync.entries)
+              Row(
+                children: [
+                  _Dot(colorOf(person)),
+                  const SizedBox(width: FwSpacing.xs),
+                  Text(person, style: context.type.body),
+                  const SizedBox(width: FwSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      switch (state['clientId']) {
+                        String id => 'client ${id.split('-').first}',
+                        _ => 'no client yet',
+                      },
+                      style: context.type.bodyMuted,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1212,12 +1306,16 @@ class TraceDetail extends StatelessWidget {
     required this.numbers,
     required this.colorOf,
     required this.onBack,
+    this.back = 'Steps',
   });
 
   final TracedStep traced;
   final Map<String, int> numbers;
   final Color Function(String? person) colorOf;
   final VoidCallback onBack;
+
+  /// Where [onBack] goes: the steps, or the contents it was chosen from.
+  final String back;
 
   @override
   Widget build(BuildContext context) {
@@ -1226,7 +1324,7 @@ class TraceDetail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Back('Steps', onBack: onBack),
+        _Back(back, onBack: onBack),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             FwSpacing.lg,
@@ -1322,6 +1420,289 @@ class TraceDetail extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// `POST /orders/:id/advance`, `orders`, `SMS`, `PowerSync`: what the column
+/// calls a node whose contents it shows.
+String contentsLabel(NodeContents contents, {String? engine}) =>
+    switch (contents.kind) {
+      NodeKind.sent => switch (contents.title) {
+        'sms' => 'SMS',
+        'push' => 'Push',
+        var other => other,
+      },
+      NodeKind.sync => engine == 'powersync' ? 'PowerSync' : engine ?? 'Sync',
+      _ => contents.title,
+    };
+
+/// What one part of the system holds — its calls, its records, what it sent
+/// — newest first, each with the step that caused it. A record carries its
+/// life: every write the server reported and every phone it reached.
+///
+/// What the shown step touched is marked in its person's colour, so the
+/// record a tap changed stands out among the rest.
+class NodeContentsView extends StatelessWidget {
+  const NodeContentsView({
+    super.key,
+    required this.contents,
+    required this.label,
+    required this.colorOf,
+    required this.shown,
+    required this.markColor,
+    required this.onBack,
+    required this.onChoose,
+  });
+
+  final NodeContents contents;
+
+  /// [contentsLabel]'s.
+  final String label;
+  final Color Function(String? person) colorOf;
+
+  /// The step the stage shows.
+  final String? shown;
+  final Color markColor;
+  final VoidCallback onBack;
+  final void Function(String step) onChoose;
+
+  @override
+  Widget build(BuildContext context) {
+    var kind = contents.kind;
+    var total = contents.items.length + contents.earlier + contents.unwritten;
+    String count(String one, String many) =>
+        total == 1 ? '1 $one' : '$total $many';
+    var where = [
+      if (contents.server.isNotEmpty) contents.server,
+      switch (kind) {
+        NodeKind.route => 'API',
+        NodeKind.table => 'Data',
+        NodeKind.sent => 'Outside',
+        NodeKind.sync => 'Sync',
+      },
+      switch (kind) {
+        NodeKind.route => count('call', 'calls'),
+        NodeKind.table => count('record', 'records'),
+        NodeKind.sent => '$total sent',
+        NodeKind.sync => '${count('record', 'records')} carried',
+      },
+    ].join(' · ');
+    var named = kind == NodeKind.route || kind == NodeKind.table;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Back('Steps', onBack: onBack),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            FwSpacing.lg,
+            0,
+            FwSpacing.lg,
+            FwSpacing.md,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    switch (kind) {
+                      NodeKind.route => Icons.alt_route,
+                      NodeKind.table => Icons.table_rows_outlined,
+                      NodeKind.sent when contents.title == 'push' =>
+                        Icons.notifications_none,
+                      NodeKind.sent => Icons.sms_outlined,
+                      NodeKind.sync => Icons.sync,
+                    },
+                    size: FwIconSize.md,
+                    color: context.colors.ink2,
+                  ),
+                  const SizedBox(width: FwSpacing.sm),
+                  Expanded(
+                    child: SelectableText(
+                      label,
+                      style: named
+                          ? context.type.mono.copyWith(
+                              fontSize: context.type.heading.fontSize,
+                              fontWeight: context.type.heading.fontWeight,
+                            )
+                          : context.type.heading,
+                    ),
+                  ),
+                ],
+              ),
+              Text(where, style: context.type.bodyMuted),
+            ],
+          ),
+        ),
+        Container(height: 1, color: context.colors.line),
+        Expanded(
+          child: total == 0
+              ? Padding(
+                  padding: const EdgeInsets.all(FwSpacing.lg),
+                  child: Text('Nothing yet.', style: context.type.bodyMuted),
+                )
+              : ListView(
+                  children: [
+                    for (var item in contents.items) _item(context, item),
+                    if (contents.earlier > 0)
+                      Padding(
+                        padding: const EdgeInsets.all(FwSpacing.lg),
+                        child: Text(
+                          '${contents.earlier} earlier, no longer kept.',
+                          style: context.type.bodyMuted,
+                        ),
+                      ),
+                    if (contents.unwritten case var n when n > 0)
+                      Padding(
+                        padding: const EdgeInsets.all(FwSpacing.lg),
+                        child: Text(
+                          '${n == 1 ? '1 more record' : '$n more records'} '
+                          'arrived that no server here reported writing: '
+                          'older than the world, or written where no '
+                          'adapter reports.',
+                          style: context.type.bodyMuted,
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _item(BuildContext context, TraceItem item) {
+    var kind = contents.kind;
+    var touched =
+        shown != null &&
+        (item.step == shown || item.life.any((moment) => moment.step == shown));
+    var mono = kind != NodeKind.sent;
+    var title = Text(
+      item.title,
+      style: mono ? context.type.mono : context.type.body,
+      overflow: TextOverflow.ellipsis,
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: FwSpacing.lg,
+        vertical: FwSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: touched ? markColor.withValues(alpha: 0.08) : null,
+        border: Border(bottom: BorderSide(color: context.colors.line2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: _Dot(colorOf(item.person)),
+          ),
+          const SizedBox(width: FwSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // A call's answer is short and sits beside it; anything else
+                // said about an item gets a line of its own.
+                if (kind == NodeKind.route)
+                  Row(
+                    children: [
+                      Expanded(child: title),
+                      const SizedBox(width: FwSpacing.sm),
+                      Text(item.detail ?? '', style: context.type.caption),
+                    ],
+                  )
+                else ...[
+                  title,
+                  if (item.detail case var detail? when detail.isNotEmpty)
+                    Text(detail, style: context.type.bodyMuted, maxLines: 3),
+                ],
+                _meta(context, item.at, item.step),
+                if (item.life.isNotEmpty) ...[
+                  const SizedBox(height: FwSpacing.xs),
+                  for (var moment in item.life)
+                    _moment(context, moment, item.life.first.at),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// `22:46:13 · ben.3`, the step a link to its waterfall.
+  Widget _meta(BuildContext context, DateTime at, String? step) => Row(
+    children: [
+      Text(clockOf(at), style: context.type.caption),
+      if (step != null) ...[
+        Text(' · ', style: context.type.caption),
+        Tappable(
+          onTap: () => onChoose(step),
+          feedback: TapFeedback.link,
+          borderRadius: BorderRadius.circular(context.radii.radiusSmall),
+          child: Text(
+            step,
+            style: context.type.caption.copyWith(color: context.colors.accent),
+          ),
+        ),
+      ],
+    ],
+  );
+
+  /// One moment of a record's life, timed from its first.
+  Widget _moment(BuildContext context, TraceItem moment, DateTime first) {
+    var offset = moment.at.difference(first);
+    var marked = shown != null && moment.step == shown;
+    var row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 64,
+            child: Text(
+              offset.inMilliseconds < 1000
+                  ? '+${offset.inMilliseconds} ms'
+                  : '+${(offset.inMilliseconds / 1000).toStringAsFixed(1)} s',
+              style: context.type.caption.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 5, right: FwSpacing.xs),
+            child: _Dot(colorOf(moment.person)),
+          ),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: moment.title,
+                    style: marked
+                        ? context.type.bodySmall.copyWith(
+                            fontWeight: context.type.bodyStrong.fontWeight,
+                          )
+                        : context.type.bodySmall,
+                  ),
+                  if (moment.detail case var detail?)
+                    TextSpan(text: '  $detail', style: context.type.caption),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return switch (moment.step) {
+      var step? => Tappable(
+        onTap: () => onChoose(step),
+        borderRadius: BorderRadius.circular(context.radii.radiusSmall),
+        child: row,
+      ),
+      null => row,
+    };
   }
 }
 

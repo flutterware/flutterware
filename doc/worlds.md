@@ -179,6 +179,40 @@ adapter, a record written on one phone is traced to the others as it
 arrives, and each person's sync state shows beside their phone and in
 `worlds status`.
 
+## See what the system holds
+
+Each part of the system the canvas draws — a route, a table, the SMS a server
+sent, the sync engine — opens on what the world heard it do since it opened,
+the script's own calls included, each with the step that caused it. A record
+comes with its whole life, joined by its key:
+
+```shell
+fw run worlds contents --part=orders
+```
+
+```json
+{
+  "title": "80ef752c",
+  "detail": "update · item Flat white · status preparing · customer Ben",
+  "person": "Cleo",
+  "step": "cleo.1",
+  "life": [
+    "+0 ms  written on Ben's phone  put  (ben.1)",
+    "+9 ms  lab wrote it  insert · item Flat white · status placed · customer Ben  (ben.1)",
+    "+21 ms  arrived on Cleo's phone  op 38  (ben.1)",
+    "+251 ms  back on Ben's phone  op 37  (ben.1)",
+    "+7602 ms  written on Cleo's phone  patch  (cleo.1)",
+    "+7613 ms  lab wrote it  update · item Flat white · status preparing · customer Ben  (cleo.1)",
+    "+7640 ms  arrived on Ben's phone  op 39  (cleo.1)"
+  ]
+}
+```
+
+With no `--part`, it lists the parts there are. What a record says is what
+the server's `write` event carried beyond its table and key; a value that is
+a person's user id reads as their name. A table shows the records this world
+wrote, not the ones already there when it opened.
+
 ## What an app can use in a world
 
 Each person's app runs in the studio's embedded guest, not on a simulator, so

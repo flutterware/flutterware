@@ -7033,6 +7033,36 @@ final resultShapes = <String, ResultShape>{
     ],
     'gates': true,
   }),
+  'WorldContentsResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldContentsResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'part',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The part asked about, as `part` named it.',
+      },
+      <String, Object?>{
+        'name': 'items',
+        'type': 'List<Map<String, Object?>>',
+        'optional': true,
+        'doc': 'Newest first.',
+      },
+      <String, Object?>{
+        'name': 'more',
+        'type': 'int',
+        'optional': true,
+        'doc': 'How many more it holds than [items] lists.',
+      },
+      <String, Object?>{
+        'name': 'parts',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'Asked for no part: every part there is, as `part` takes it.',
+      },
+      <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
+    ],
+  }),
   'WorldListResult': ResultShape.fromJson(<String, Object?>{
     'type': 'WorldListResult',
     'fields': <Object?>[

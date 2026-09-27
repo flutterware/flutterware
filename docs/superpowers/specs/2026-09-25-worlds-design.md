@@ -787,6 +787,19 @@ lines — `+32 ms  Cleo  orders/08468cae arrived (op 24)` — and each person's
 draws is this, and nothing invented: the rounds' boards were redrawn from
 real traces before anything was built.
 
+**What a part holds is the same record read the other way.** Open a part of
+the system and it lists what the world heard it do since the opening,
+whoever caused it, each with its step: a route's calls and who asked, a
+table's records, the messages sent outside and whom they reached, the
+records the sync engine carried. A record carries its life, joined by its
+key — `+0 ms written on Ben's phone`, `+9 ms lab wrote it insert · status
+placed`, `+21 ms arrived on Cleo's phone` — across every step that touched
+it. `worlds contents {part}` answers the same. Contents are heard, not
+pulled, which is less than *Contents are pulled* above asks: a table shows
+the records this world wrote, never the ones seeded before it, and a record
+a first sync brings that no server here wrote is only counted. A server
+answering what it holds now is a server panel's job (slice 3).
+
 Measured on the lab (`2026-09-26-worlds-trace-spike-findings.md`): 8 of 8
 requests after a tap joined through the zone; a synced order reached the
 other phone 23–40 ms after the tap and was confirmed back after ~255 ms.
@@ -807,11 +820,14 @@ meanwhile.
 
 - `worlds list`; `worlds open {world, knobs}` returns the people and their
   apps' run keys; `worlds restart`; `worlds close`. Any process can ask a
-  world another one owns: `status`, `trace`, `invoke`, `restart` and `close`
-  are forwarded to the owner (round 1).
+  world another one owns: `status`, `trace`, `contents`, `invoke`, `restart`
+  and `close` are forwarded to the owner (round 1).
 - `worlds trace {person?, step?, limit?}`: the newest steps on the people's
   apps, each with what it caused (*Traces, as built*). The agent reads an SMS
   code there as readily as the log.
+- `worlds contents {part?, limit?}`: what one part of the system holds —
+  a route's calls, a table's records and their lives, what was sent — or,
+  with no part, the parts there are.
 - `flutterware_act` gains a `person` selector beside `device`, `entrypoint`
   and `run` (`_selectApp`, `run_core.dart:5201`). Its existing `actor`
   argument keeps saying who is driving.
@@ -946,11 +962,15 @@ triggered.
      - the newest step that caused something followed until one is held;
      - the whole stage zoomable as previews' is — a pinch or ⌘-scroll, a
        drag once zoomed, fit to rest — with the phones still taking every
-       gesture the stage does not;
+       gesture the stage does not, and each phone drawn again at the size
+       it is shown once a zoom settles;
      - each person's platform — notifications, links, sync — moved into a
-       drawer that opens from their name.
-   - Not yet: focus, credentials, contents, pending questions; a guest
-     rendered sharper as it is zoomed, as previews' guest is.
+       drawer that opens from their name;
+     - each part of the system opening on what it holds — calls, records
+       with their lives, messages, synced records — each item linked to
+       the step that caused it, and what the shown step touched marked.
+   - Not yet: focus, credentials, pending questions; contents pulled from a
+     server rather than heard.
 3. **Server panels** over `FlutterwareServer.handle`, and **reload of the
    world's process**: an edit to the server it hosts, or to an action,
    reaches the running world without new people.
@@ -958,8 +978,7 @@ triggered.
    person, a macOS window when the script asks for one, and the controls
    where the mechanism already exists — `simctl location`, adb — refusing the
    rest by name.
-5. **Sharp at any zoom,** and a canvas that shows live the guests a CLI or
-   the MCP owns. **Answers for more plugins** run beside every slice, as
+5. **A canvas that shows live the guests a CLI or the MCP owns.** **Answers for more plugins** run beside every slice, as
    worlds need them — sqflite first, then what a real app's first screen
    needs.
 6. **Later:** peripherals, people in a browser, live mirrors of external

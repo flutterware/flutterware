@@ -2857,6 +2857,30 @@ note: String?
 | `limit` | integer | no | — | How many of the newest steps, 10 by default |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
+#### `contents` — Contents
+
+What one part of the system holds, as the world heard it since it opened: every call a route answered and who asked, every record a table was written with its whole life — each write and each phone it reached — every message sent outside and whom it reached, every record the sync engine carried. Each names the step that caused it. With no part, lists the parts there are.
+
+```sh
+fw run worlds contents [--part=…] [--limit=…] [--world=…]
+```
+
+Returns `WorldContentsResult`:
+
+```
+part: String?   # The part asked about, as `part` named it.
+items: List<Map<String, Object?>>?   # Newest first.
+more: int?   # How many more it holds than [items] lists.
+parts: List<String>?   # Asked for no part: every part there is, as `part` takes it.
+note: String?
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `part` | string | no | — | As the canvas shows it: a route (`POST /orders`), a table (`orders`), `sms` or `push`, or `sync` |
+| `limit` | integer | no | — | How many of the newest, 20 by default |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
 #### `restart` — Restart
 
 Runs the script again — its `onClose` first — so the people are new, and restarts each app in place with the knobs the script now gives it. Nothing rebuilds. The script's own edits apply too.

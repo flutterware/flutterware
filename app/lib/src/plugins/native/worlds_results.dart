@@ -451,3 +451,131 @@ class WorldTraceStep {
     if (then.isNotEmpty) 'then': then,
   };
 }
+
+/// What `worlds contents` answers: what one part of the system holds, as the
+/// world heard it — or, asked for none, every part there is to ask about.
+class WorldContentsResult implements PluginResult {
+  const WorldContentsResult({
+    this.part,
+    this.items = const [],
+    this.more = 0,
+    this.parts = const [],
+    this.note,
+  });
+
+  factory WorldContentsResult.of(
+    NodeContents contents, {
+    required String part,
+  }) => WorldContentsResult(
+    part: part,
+    items: [
+      for (var item in contents.items)
+        WorldContentsItem(
+          at: item.at,
+          title: item.title,
+          detail: item.detail,
+          person: item.person,
+          step: item.step,
+          life: [
+            for (var moment in item.life)
+              [
+                '+${moment.at.difference(item.life.first.at).inMilliseconds} ms',
+                moment.title,
+                ?moment.detail,
+                if (moment.step case var step?) '($step)',
+              ].join('  '),
+          ],
+        ),
+    ],
+    more: contents.earlier + contents.unwritten,
+    note: switch (contents.unwritten) {
+      0 => null,
+      var n =>
+        '$n more records arrived that no server here reported writing: '
+            'older than the world, or written where no adapter reports.',
+    },
+  );
+
+  factory WorldContentsResult.fromJson(Map<String, Object?> json) =>
+      WorldContentsResult(
+        part: json['part'] as String?,
+        items: [
+          for (var item in json['items'] as List? ?? const [])
+            WorldContentsItem.fromJson((item as Map).cast()),
+        ],
+        more: json['more'] as int? ?? 0,
+        parts: [...(json['parts'] as List? ?? const []).cast<String>()],
+        note: json['note'] as String?,
+      );
+
+  /// The part asked about, as `part` named it.
+  final String? part;
+
+  /// Newest first.
+  final List<WorldContentsItem> items;
+
+  /// How many more it holds than [items] lists.
+  final int more;
+
+  /// Asked for no part: every part there is, as `part` takes it.
+  final List<String> parts;
+  final String? note;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'part': ?part,
+    if (items.isNotEmpty) 'items': [for (var item in items) item.toJson()],
+    if (more > 0) 'more': more,
+    if (parts.isNotEmpty) 'parts': parts,
+    'note': ?note,
+  };
+}
+
+/// One call, record or message a part holds.
+class WorldContentsItem {
+  const WorldContentsItem({
+    required this.at,
+    required this.title,
+    this.detail,
+    this.person,
+    this.step,
+    this.life = const [],
+  });
+
+  factory WorldContentsItem.fromJson(Map<String, Object?> json) =>
+      WorldContentsItem(
+        at: DateTime.parse(json['at']! as String),
+        title: json['title']! as String,
+        detail: json['detail'] as String?,
+        person: json['person'] as String?,
+        step: json['step'] as String?,
+        life: [...(json['life'] as List? ?? const []).cast<String>()],
+      );
+
+  final DateTime at;
+
+  /// The path asked, the record's key, whom a message went to.
+  final String title;
+
+  /// `200 in 5.6 ms`, `update · status ready`, the message.
+  final String? detail;
+
+  /// Who asked, who wrote it last, whom it reached.
+  final String? person;
+
+  /// The step that caused it — what `worlds trace` takes as `step`.
+  final String? step;
+
+  /// A record's life, oldest first, each line its offset from the first:
+  /// `+21 ms  arrived on Cleo's phone  op 38  (ben.1)`.
+  final List<String> life;
+
+  Map<String, Object?> toJson() => {
+    'at': at.toIso8601String(),
+    'title': title,
+    'detail': ?detail,
+    'person': ?person,
+    'step': ?step,
+    if (life.isNotEmpty) 'life': life,
+  };
+}

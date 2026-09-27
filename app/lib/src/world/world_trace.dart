@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutterware/channels.dart' show PanelDescriptor, panelsChannel;
 // ignore: implementation_imports
@@ -105,6 +106,79 @@ class SystemServer {
 /// A step and what it caused, in the order it happened.
 typedef TracedStep = ({TraceStep step, List<TraceBeat> beats});
 
+/// Which kind of node of the system a [NodeContents] is.
+enum NodeKind { route, table, sent, sync }
+
+/// What one node of the system holds, as the world heard it: every call a
+/// route answered, every record a table was written, every message sent
+/// outside, every record the sync engine carried — since the world opened,
+/// whoever caused it, the script's own seeding included.
+class NodeContents {
+  const NodeContents({
+    required this.node,
+    required this.kind,
+    required this.title,
+    required this.server,
+    required this.items,
+    this.earlier = 0,
+    this.unwritten = 0,
+  });
+
+  final String node;
+  final NodeKind kind;
+
+  /// `POST /orders/:id/advance`, `orders`, `sms`; empty for the sync engine.
+  final String title;
+
+  /// The server it is part of; empty for the sync engine.
+  final String server;
+
+  /// Newest first.
+  final List<TraceItem> items;
+
+  /// How many more it saw than [items] holds: older than the world keeps.
+  final int earlier;
+
+  /// For the sync engine, how many more records the phones received that no
+  /// server here reported writing: a first sync brings everything written
+  /// before the world opened, and a write no adapter reports looks the same.
+  final int unwritten;
+}
+
+/// One thing a node holds — a call, a record, a message — or, in a record's
+/// [life], one moment of it.
+class TraceItem {
+  const TraceItem(
+    this.at,
+    this.title, {
+    this.detail,
+    this.person,
+    this.step,
+    this.life = const [],
+  });
+
+  /// When it happened; for a record, when it last changed.
+  final DateTime at;
+
+  /// What it is: the path asked, the record's key, whom a message went to.
+  final String title;
+
+  /// What came of it: `200 in 5.6 ms`, `update · status ready`, the message.
+  final String? detail;
+
+  /// Whom it is about: who asked, who wrote it last, whom it reached, whose
+  /// phone.
+  final String? person;
+
+  /// The step that caused it; null for what no person's step did — the
+  /// script's seeding, an app's own polling.
+  final String? step;
+
+  /// For a record, each write the server reported and each phone that wrote
+  /// or received it, oldest first.
+  final List<TraceItem> life;
+}
+
 /// Everything the world has heard since it opened, joined into steps.
 ///
 /// Three kinds of source, each joined its own way:
@@ -136,6 +210,9 @@ class WorldTrace {
   final _hosts = <String, String>{};
   final _servers = <String, SystemServer>{};
   final _parts = <String, String>{};
+
+  /// Who each request was, by `server/rid`, as the server identified it.
+  final _callers = <String, String>{};
   final _changed = StreamController<void>.broadcast(sync: true);
 
   /// What each server has reported, in the order they first did.
@@ -209,26 +286,31 @@ class WorldTrace {
     _changed.add(null);
   }
 
+  /// Takes every event since the world opened: one under a person's step
+  /// joins it, and the rest — the script's seeding, an app's own polling —
+  /// are still what the system holds.
   void addServerEvent(String server, InspectorEvent event) {
     if (event.time.isBefore(since)) return;
     _summarize(server, event);
-    _changed.add(null);
-    var step = event.payload['step'];
-    if (step is! String) return;
-    var owner = _owners[worldStepOwner(step)];
-    if (owner == null) return;
-    _stepOf(step, owner);
-    if (event.payload['user'] case String user
-        when event.channel == 'identify') {
-      _users.putIfAbsent(user, () => owner);
+    String? step;
+    if (event.payload['step'] case String id) {
+      if (_owners[worldStepOwner(id)] case var owner?) {
+        step = id;
+        _stepOf(id, owner);
+        if (event.payload['user'] case String user
+            when event.channel == 'identify') {
+          _users.putIfAbsent(user, () => owner);
+        }
+      }
     }
     var served = _ServerEvent(server, step, event);
     _add(_server, served);
-    if (event.channel == 'http') {
+    if (step != null && event.channel == 'http') {
       for (var request in _recent(_requests)) {
         _learnHost(request, served);
       }
     }
+    _changed.add(null);
   }
 
   /// Counts [event] into its server's summary — every event since the world
@@ -239,9 +321,13 @@ class WorldTrace {
     var payload = event.payload;
     switch (event.channel) {
       case 'http':
-        var part = '${payload['method']} ${payload['part'] ?? payload['path']}';
+        var part = _partOf(payload);
         server.parts[part] = (server.parts[part] ?? 0) + 1;
         if (event.rid case var rid?) _parts['$name/$rid'] = part;
+      case 'identify':
+        if ((event.rid, payload['user']) case (var rid?, String user)) {
+          _callers['$name/$rid'] = user;
+        }
       case 'write':
         server.tables
             .putIfAbsent('${payload['table']}', () => {})
@@ -298,6 +384,239 @@ class WorldTrace {
 
   TraceStep _stepOf(String id, String person) =>
       _steps.putIfAbsent(id, () => TraceStep(id, person));
+
+  /// Every node of the system, by the name the band shows it under — a
+  /// route, a table, `sms`, [syncNode] — and each with its server's name in
+  /// front (`lab/orders`) once there are two servers to tell apart.
+  Map<String, String> get nodeNames {
+    var several = _servers.length > 1;
+    var names = <String, String>{};
+    for (var server in _servers.values) {
+      String name(String part) => several ? '${server.name}/$part' : part;
+      for (var part in server.parts.keys) {
+        names[name(part)] = server.partNode(part);
+      }
+      for (var table in server.tables.keys) {
+        names[name(table)] = server.tableNode(table);
+      }
+      for (var channel in server.sent.keys) {
+        names[name(channel)] = server.sentNode(channel);
+      }
+    }
+    if (_records.any((record) => record.change == 'synced')) {
+      names[syncNode] = syncNode;
+    }
+    return names;
+  }
+
+  /// What [node] — a [SystemServer] node or [syncNode] — holds, newest
+  /// first, at most [limit] of it; null for a node nothing reported.
+  NodeContents? contentsOf(String node, {int limit = 200}) {
+    if (node == syncNode) return _synced(limit);
+    for (var server in _servers.values) {
+      var name = server.name;
+      String? after(String kind) => node.startsWith('$name/$kind/')
+          ? node.substring('$name/$kind/'.length)
+          : null;
+      NodeContents contents(
+        NodeKind kind,
+        String title,
+        List<TraceItem> items, {
+        required int total,
+      }) => NodeContents(
+        node: node,
+        kind: kind,
+        title: title,
+        server: name,
+        items: items.take(limit).toList(),
+        earlier: total - min(items.length, limit),
+      );
+      if (after('part') case var part?) {
+        var calls = [
+          for (var event in _server.reversed)
+            if (event.server == name &&
+                event.channel == 'http' &&
+                _partOf(event.payload) == part)
+              TraceItem(
+                event.time,
+                _shortPath('${event.payload['path']}'),
+                detail: _answer(event.payload),
+                person: _callerOf(event),
+                step: event.step,
+              ),
+        ];
+        return contents(
+          NodeKind.route,
+          part,
+          calls,
+          total: server.parts[part] ?? calls.length,
+        );
+      }
+      if (after('table') case var table?) {
+        var writes = <String, List<_ServerEvent>>{};
+        for (var event in _server) {
+          if (event.server == name &&
+              event.channel == 'write' &&
+              '${event.payload['table']}' == table) {
+            writes.putIfAbsent('${event.payload['key']}', () => []).add(event);
+          }
+        }
+        var records = [
+          for (var MapEntry(:key, value: written) in writes.entries)
+            TraceItem(
+              written.last.time,
+              _short(key),
+              detail: _written(written.last.payload),
+              person: _callerOf(written.last),
+              step: written.last.step,
+              life: _lifeOf(key),
+            ),
+        ]..sort((a, b) => b.at.compareTo(a.at));
+        return contents(
+          NodeKind.table,
+          table,
+          records,
+          total: server.tables[table]?.length ?? records.length,
+        );
+      }
+      if (after('sent') case var channel?) {
+        var messages = [
+          for (var event in _server.reversed)
+            if (event.server == name && event.channel == channel)
+              _message(event),
+        ];
+        return contents(
+          NodeKind.sent,
+          channel,
+          messages,
+          total: server.sent[channel] ?? messages.length,
+        );
+      }
+    }
+    return null;
+  }
+
+  /// Every record a phone received through the sync engine, by key — the
+  /// ones a server here wrote; the rest are only counted.
+  NodeContents _synced(int limit) {
+    var latest = <String, _Record>{};
+    for (var record in _records) {
+      if (record.change == 'synced') latest[record.key] = record;
+    }
+    var written = {
+      for (var event in _server)
+        if (event.channel == 'write') '${event.payload['key']}',
+    };
+    var records = [
+      for (var MapEntry(:key, value: record) in latest.entries)
+        if (written.contains(key))
+          TraceItem(
+            record.at,
+            record.table.isEmpty
+                ? _short(key)
+                : '${record.table}/${_short(key)}',
+            detail: _holders(key),
+            step: _causeOf(record),
+            life: _lifeOf(key),
+          ),
+    ]..sort((a, b) => b.at.compareTo(a.at));
+    return NodeContents(
+      node: syncNode,
+      kind: NodeKind.sync,
+      title: '',
+      server: '',
+      items: records.take(limit).toList(),
+      earlier: max(0, records.length - limit),
+      unwritten: latest.keys.where((key) => !written.contains(key)).length,
+    );
+  }
+
+  /// `on Cleo's and Ben's phones`: whose phones a record reached.
+  String _holders(String key) {
+    var people = {
+      for (var record in _records)
+        if (record.key == key && record.change == 'synced') record.person,
+    }.toList();
+    var names = people.map((person) => "$person's").toList();
+    var spelled = names.length <= 1
+        ? names.join()
+        : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
+    return 'on $spelled ${people.length == 1 ? 'phone' : 'phones'}';
+  }
+
+  /// A record's whole life, by its key: each write the server reported, and
+  /// each phone that wrote it itself or received it — oldest first.
+  List<TraceItem> _lifeOf(String key) => [
+    for (var event in _server)
+      if (event.channel == 'write' && event.payload['key'] == key)
+        TraceItem(
+          event.time,
+          '${event.server} wrote it',
+          detail: _written(event.payload),
+          step: event.step,
+        ),
+    for (var record in _records)
+      if (record.key == key) _moment(record),
+  ]..sort((a, b) => a.at.compareTo(b.at));
+
+  /// One phone's part in a record's life.
+  TraceItem _moment(_Record record) {
+    var step = _causeOf(record);
+    var phone = "${record.person}'s phone";
+    if (record.change.startsWith('local ')) {
+      return TraceItem(
+        record.at,
+        'written on $phone',
+        detail: record.change.substring('local '.length),
+        person: record.person,
+        step: step,
+      );
+    }
+    var own = step != null && _steps[step]?.person == record.person;
+    return TraceItem(
+      record.at,
+      own ? 'back on $phone' : 'arrived on $phone',
+      detail: record.op == null ? null : 'op ${record.op}',
+      person: record.person,
+      step: step,
+    );
+  }
+
+  TraceItem _message(_ServerEvent event) {
+    var payload = event.payload;
+    var to = payload['to'] ?? payload['user'];
+    var person = switch (event.channel) {
+      'sms' => _phones[to],
+      _ => to is String ? _users[to] : null,
+    };
+    return TraceItem(
+      event.time,
+      'to ${person ?? to}',
+      detail: switch (event.channel) {
+        'sms' => '${payload['body'] ?? ''}',
+        _ => '${payload['title'] ?? payload['body'] ?? ''}',
+      },
+      person: person,
+      step: event.step,
+    );
+  }
+
+  /// Who asked for what [event] happened under: the person whose step it
+  /// was, or the one the server identified the request as.
+  String? _callerOf(_ServerEvent event) {
+    if (event.step case var step?) return _steps[step]?.person;
+    var user = _callers['${event.server}/${event.event.rid}'];
+    return user == null ? null : _users[user];
+  }
+
+  /// `update · status ready · customer Ben`: what a write said beyond its
+  /// table and key, a user the world knows by the person's name.
+  String _written(Map<String, Object?> payload) => [
+    '${payload['op']}',
+    for (var MapEntry(:key, :value) in payload.entries)
+      if (!const {'table', 'key', 'op', 'step'}.contains(key))
+        '$key ${value is String ? _users[value] ?? _short(value) : value}',
+  ].join(' · ');
 
   void _add<T>(List<T> list, T item) {
     list.add(item);
@@ -490,6 +809,7 @@ class WorldTrace {
   /// Whether a step before [event]'s already identified its user.
   bool _identifiedBefore(_ServerEvent event) => _server.any(
     (other) =>
+        other.step != null &&
         other.channel == 'identify' &&
         other.payload['user'] == event.payload['user'] &&
         other.time.isBefore(event.time),
@@ -503,6 +823,19 @@ class WorldTrace {
   };
 
   static final _uuid = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-');
+
+  /// A path with each UUID in it shortened as [_short] does.
+  static String _shortPath(String path) =>
+      path.replaceAllMapped(_uuidIn, (match) => match[0]!.substring(0, 8));
+
+  static final _uuidIn = RegExp(
+    r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
+  );
+
+  /// The part of the API a request asked: its method, and the route the
+  /// adapter named — `POST /orders/:id/advance` — or its path.
+  static String _partOf(Map<String, Object?> payload) =>
+      '${payload['method']} ${payload['part'] ?? payload['path']}';
 
   static String _answer(Map<String, Object?> payload) {
     var ms = payload['ms'];
@@ -539,7 +872,9 @@ class _ServerEvent {
   _ServerEvent(this.server, this.step, this.event);
 
   final String server;
-  final String step;
+
+  /// The step of a person in this world it happened under, if one.
+  final String? step;
   final InspectorEvent event;
 
   String get channel => event.channel;

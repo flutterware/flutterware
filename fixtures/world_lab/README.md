@@ -33,7 +33,9 @@ where Leo's sign-up code is until the outbox exists.
 Every tap is a step the world follows through the lab server — whose adapter
 reads the `x-fw-step` header — and, in the synced world, through each phone's
 database. `fw run worlds trace` answers with the newest steps and what each
-one caused; Leo's code is under his *Send code* tap there too.
+one caused; Leo's code is under his *Send code* tap there too. `fw run worlds
+contents --part=orders` answers what the orders table holds, each order with
+its life from the tap to both phones.
 
 A world script also runs on its own, which is how to debug its setup without
 launching any app: it prints what it declares, and `name=value` arguments are

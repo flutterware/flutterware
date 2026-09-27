@@ -312,7 +312,9 @@ class _Shop {
       'table': 'orders',
       'key': order.id,
       'op': op,
+      'item': order.item,
       'status': order.status,
+      'customer': order.customerId,
     });
     if (op == 'insert') _log.info('${by.name} ordered a ${order.item}');
     _broadcast(order);

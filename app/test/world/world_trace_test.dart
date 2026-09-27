@@ -234,7 +234,7 @@ void main() {
   });
 
   group('for the canvas', () {
-    /// Ana's advance, reported the way the lab's adapter reports it: every
+    /// Cleo's advance, reported the way the lab's adapter reports it: every
     /// event under the request's id, the request itself last.
     void advance() {
       step('Cleo', 'cleo.1', 1000, '"Advance"');
@@ -359,6 +359,141 @@ void main() {
       lab(1010, 'http', {'method': 'GET', 'path': '/me'});
       app('Ben', 1020, 'something/else', {});
       expect(heard, 2);
+    });
+  });
+
+  group('contents', () {
+    (String, String?, String?, String?) row(TraceItem item) =>
+        (item.title, item.detail, item.person, item.step);
+
+    test("a route holds every call it answered, the script's own among "
+        'them, each by who asked', () {
+      lab(10, 'identify', {'user': 'u1'}, 'req-1');
+      lab(11, 'http', {'method': 'GET', 'path': '/me', 'status': 200}, 'req-1');
+      lab(20, 'http', {'method': 'GET', 'path': '/me', 'status': 401}, 'req-2');
+      step('Ben', 'ben.1', 1000, '"Profile"');
+      lab(1010, 'http', {
+        'method': 'GET',
+        'path': '/me',
+        'status': 200,
+        'ms': 2.5,
+        'step': 'ben.1',
+      }, 'req-3');
+      var contents = trace.contentsOf('lab/part/GET /me')!;
+      expect(
+        (contents.kind, contents.title, contents.server, contents.earlier),
+        (NodeKind.route, 'GET /me', 'lab', 0),
+      );
+      expect(contents.items.map(row), [
+        ('/me', '200 in 2.5 ms', 'Ben', 'ben.1'),
+        ('/me', '401', null, null),
+        ('/me', '200', 'Cleo', null),
+      ]);
+    });
+
+    test('a table holds each record once, with its life: every write the '
+        'server reported and every phone it reached', () {
+      const key = '5cc8e32f-a2bb-4ea1-8363-742901521840';
+      void record(String person, int ms, String change, [int? op]) => app(
+        person,
+        ms,
+        'db:main/records',
+        {'key': key, 'table': 'orders', 'change': change, 'op': ?op},
+      );
+      step('Cleo', 'cleo.1', 1000, '"Order"');
+      record('Cleo', 1003, 'local insert');
+      lab(1010, 'write', {
+        'table': 'orders',
+        'key': key,
+        'op': 'insert',
+        'status': 'placed',
+        'customer': 'u1',
+        'step': 'cleo.1',
+      });
+      record('Ben', 1040, 'synced', 16);
+      record('Cleo', 1250, 'synced', 16);
+      step('Ben', 'ben.1', 2000, '"Advance"');
+      lab(2010, 'write', {
+        'table': 'orders',
+        'key': key,
+        'op': 'update',
+        'status': 'ready',
+        'step': 'ben.1',
+      });
+      record('Cleo', 2040, 'synced', 17);
+      // Written before the world opened: Cleo's first sync brings it.
+      app('Cleo', 50, 'db:main/records', {
+        'key': 'o1',
+        'table': 'orders',
+        'change': 'synced',
+        'op': 3,
+      });
+
+      var table = trace.contentsOf('lab/table/orders')!;
+      expect((table.kind, table.title), (NodeKind.table, 'orders'));
+      var order = table.items.single;
+      expect(row(order), ('5cc8e32f', 'update · status ready', 'Ben', 'ben.1'));
+      expect(order.life.map(row), [
+        ("written on Cleo's phone", 'insert', 'Cleo', 'cleo.1'),
+        (
+          'lab wrote it',
+          'insert · status placed · customer Cleo',
+          null,
+          'cleo.1',
+        ),
+        ("arrived on Ben's phone", 'op 16', 'Ben', 'cleo.1'),
+        ("back on Cleo's phone", 'op 16', 'Cleo', 'cleo.1'),
+        ('lab wrote it', 'update · status ready', null, 'ben.1'),
+        ("arrived on Cleo's phone", 'op 17', 'Cleo', 'ben.1'),
+      ]);
+
+      var synced = trace.contentsOf(syncNode)!;
+      expect(synced.kind, NodeKind.sync);
+      expect(synced.items.map(row), [
+        ('orders/5cc8e32f', "on Ben's and Cleo's phones", null, 'ben.1'),
+      ]);
+      expect(synced.items.single.life, hasLength(6));
+      expect(synced.unwritten, 1);
+
+      // As an agent reads it, through `worlds contents`.
+      var read = WorldContentsResult.fromJson(
+        WorldContentsResult.of(table, part: 'orders').toJson(),
+      );
+      expect(read.items.single.life.take(2), [
+        "+0 ms  written on Cleo's phone  insert  (cleo.1)",
+        '+7 ms  lab wrote it  insert · status placed · customer Cleo  (cleo.1)',
+      ]);
+    });
+
+    test('a message sent outside says whom it reached', () {
+      lab(10, 'sms', {'to': '+447700900001', 'body': 'Your code is 482913'});
+      step('Ben', 'ben.1', 1000, '"Advance"');
+      lab(1010, 'push', {
+        'to': 'u1',
+        'title': 'Your flat white is ready',
+        'body': 'Collect it at the counter.',
+        'step': 'ben.1',
+      });
+      lab(1020, 'sms', {'to': '+15550100', 'body': 'Hello'});
+      expect(trace.contentsOf('lab/sent/sms')!.items.map(row), [
+        ('to +15550100', 'Hello', null, null),
+        ('to Ben', 'Your code is 482913', 'Ben', null),
+      ]);
+      expect(trace.contentsOf('lab/sent/push')!.items.map(row), [
+        ('to Cleo', 'Your flat white is ready', 'Cleo', 'ben.1'),
+      ]);
+    });
+
+    test('keeps the newest, says how many more there were, and knows no '
+        'node nothing reported', () {
+      for (var n = 0; n < 3; n++) {
+        lab(10 + n, 'http', {'method': 'GET', 'path': '/health'}, 'req-$n');
+      }
+      var contents = trace.contentsOf('lab/part/GET /health', limit: 2)!;
+      expect(contents.items, hasLength(2));
+      expect(contents.earlier, 1);
+      expect(trace.contentsOf('lab/part/GET /nothing')!.items, isEmpty);
+      expect(trace.contentsOf('elsewhere/part/GET /health'), isNull);
     });
   });
 

@@ -5,7 +5,8 @@
 /// Ben orders a flat white, his local write uploads, the server writes it,
 /// and PowerSync brings it to Cleo's phone and back to his. The phones are
 /// stand-ins; everything else — the band, the numbers, the lines and where
-/// their words go, the waterfall — is what the Worlds panel draws.
+/// their words go, the waterfall, a table opened on its records — is what
+/// the Worlds panel draws.
 library;
 
 import 'package:flutter/widget_previews.dart';
@@ -23,6 +24,13 @@ Widget worldTrace() => const _Trace();
 
 @Preview(name: 'Trace · dark', group: 'Worlds', wrapper: wrapInDarkTheme)
 Widget worldTraceDark() => const _Trace();
+
+/// The orders table opened: the record Ben's tap made, and its life.
+@Preview(name: 'Contents', group: 'Worlds', wrapper: wrapInAppTheme)
+Widget worldContents() => const _Trace(opened: 'lab/table/orders');
+
+@Preview(name: 'Contents · dark', group: 'Worlds', wrapper: wrapInDarkTheme)
+Widget worldContentsDark() => const _Trace(opened: 'lab/table/orders');
 
 /// Ben's order, as the world heard it.
 WorldTrace _recorded() {
@@ -98,6 +106,9 @@ WorldTrace _recorded() {
     'table': 'orders',
     'key': '5cc8e32f-a2bb-4ea1-8363-742901521840',
     'op': 'insert',
+    'item': 'Flat white',
+    'status': 'placed',
+    'customer': 'u2',
     'step': 'ben.1',
   }, rid);
   lab(12, 'http', {
@@ -128,7 +139,10 @@ const _sync = {
 };
 
 class _Trace extends StatefulWidget {
-  const _Trace();
+  const _Trace({this.opened});
+
+  /// The node whose contents the column shows, instead of the step.
+  final String? opened;
 
   @override
   State<_Trace> createState() => _TraceState();
@@ -146,6 +160,10 @@ class _TraceState extends State<_Trace> {
         : context.colors.person(people.indexOf(person));
     var traced = _trace.steps().last;
     var numbers = numberNodes(traced);
+    var contents = switch (widget.opened) {
+      var node? => _trace.contentsOf(node),
+      null => null,
+    };
     return SizedBox(
       width: 1180,
       height: 720,
@@ -211,6 +229,7 @@ class _TraceState extends State<_Trace> {
                         litColor: colorOf(traced.step.person),
                         colorOf: colorOf,
                         anchors: _anchors,
+                        opened: widget.opened,
                       ),
                     ],
                   ),
@@ -237,12 +256,22 @@ class _TraceState extends State<_Trace> {
           Container(width: 1, color: context.colors.line),
           SizedBox(
             width: 340,
-            child: TraceDetail(
-              traced: traced,
-              numbers: numbers,
-              colorOf: colorOf,
-              onBack: () {},
-            ),
+            child: contents == null
+                ? TraceDetail(
+                    traced: traced,
+                    numbers: numbers,
+                    colorOf: colorOf,
+                    onBack: () {},
+                  )
+                : NodeContentsView(
+                    contents: contents,
+                    label: contentsLabel(contents),
+                    colorOf: colorOf,
+                    shown: traced.step.id,
+                    markColor: colorOf(traced.step.person),
+                    onBack: () {},
+                    onChoose: (_) {},
+                  ),
           ),
         ],
       ),
