@@ -188,6 +188,13 @@ send it to the background. **Everyone** or Esc goes back. The dock along the
 bottom has the world's own log — its script, its server, each app's build —
 as its first tab.
 
+An app nobody can see — someone else in focus, or zoomed out of view — is
+told it is *hidden*, as a minimised desktop window is, a couple of seconds
+after it goes: it stops drawing and gives back the memory drawing took, and
+keeps running — its timers, its connections, its sync. It draws again the
+moment it is back in view. It is not sent to the background, so an app's
+own code for that runs only when you ask for it, from **⋯**.
+
 Each person's app is a Run app on the device `studio-<name>`: an agent opens a
 world with `flutterware_invoke` and drives Leo's app with `flutterware_act`
 and `device: "studio-leo"`, with the same verbs as any other app.

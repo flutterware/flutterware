@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -168,6 +169,31 @@ void main() {
       ),
       isNull,
     );
+  });
+
+  test('an app out of sight is hidden, one sent to the background is '
+      'paused whatever is drawn, and each state is told once', () {
+    var told = <String>[];
+    platform.send = (channel, bytes) {
+      if (channel == 'flutter/lifecycle') told.add(utf8.decode(bytes));
+    };
+    var system = studio.system;
+    system
+      ..drawn = false
+      ..drawn = false
+      ..drawn = true
+      ..inBackground = true
+      ..drawn = false
+      ..drawn = true
+      ..drawn = false
+      ..inBackground = false;
+    expect(told, [
+      'AppLifecycleState.hidden',
+      'AppLifecycleState.resumed',
+      'AppLifecycleState.paused',
+      'AppLifecycleState.hidden',
+    ]);
+    expect(system.lifecycleState, 'hidden');
   });
 
   test('the time zone is a zone name', () async {

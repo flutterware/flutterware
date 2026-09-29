@@ -153,6 +153,7 @@ class WorldStage extends StatefulWidget {
     required this.view,
     required this.onScale,
     required this.onGround,
+    this.onDrawn,
   });
 
   final List<String> people;
@@ -183,6 +184,10 @@ class WorldStage extends StatefulWidget {
 
   /// A press on the ground, which takes the keyboard from any app.
   final VoidCallback onGround;
+
+  /// The people whose device is at least partly in view, each time the
+  /// stage is drawn: all of them until a zoom pans some out.
+  final void Function(Set<String> people)? onDrawn;
 
   @override
   State<WorldStage> createState() => _WorldStageState();
@@ -437,6 +442,12 @@ class _WorldStageState extends State<WorldStage> {
                           rect.bottom,
                         ),
                   };
+                  var inView = Offset.zero & viewport;
+                  widget.onDrawn?.call({
+                    for (var MapEntry(key: person, value: rect)
+                        in _devices.entries)
+                      if (rect.overlaps(inView)) person,
+                  });
                   return Stack(
                     children: [
                       for (var MapEntry(key: person, value: rect)
