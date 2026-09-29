@@ -145,6 +145,99 @@ void main() {
     expect((sent.last.arguments as Map)['location'], '/orders');
   });
 
+  group("a browser's history", () {
+    late List<String> shown;
+
+    setUp(() {
+      shown = [];
+      platform.send = (channel, bytes) {
+        if (channel != 'flutter/navigation') return;
+        var call = json.decodeMethodCall(ByteData.sublistView(bytes));
+        shown.add(switch (call.arguments) {
+          {'location': String location} => location,
+          _ => call.method,
+        });
+      };
+    });
+
+    Future<void> tell(String method, [Object? arguments]) => platform.answer(
+      'flutter/navigation',
+      _bytes(json.encodeMethodCall(MethodCall(method, arguments))),
+    );
+
+    Future<void> report(String uri, {bool replace = false}) => tell(
+      'routeInformationUpdated',
+      {'uri': uri, 'state': null, 'replace': replace},
+    );
+
+    test('a Router app goes back and forward along the routes it was on, '
+        'and somewhere new drops what was ahead', () async {
+      var navigation = studio.navigation;
+      await tell('selectMultiEntryHistory');
+      await report('/orders');
+      expect(navigation.canBack, isFalse);
+      await report('/orders/o1');
+      expect([navigation.canBack, navigation.canForward], [true, false]);
+
+      // A Router reports a route it was told to show as a replacement.
+      navigation.back();
+      await report('/orders', replace: true);
+      expect(navigation.route, '/orders');
+      expect([navigation.canBack, navigation.canForward], [false, true]);
+
+      navigation.forward();
+      await report('/orders/o1', replace: true);
+      expect([navigation.canBack, navigation.canForward], [true, false]);
+
+      navigation.back();
+      await report('/orders', replace: true);
+      await report('/orders/o2');
+      expect([navigation.canBack, navigation.canForward], [true, false]);
+      navigation.back();
+      expect(shown, ['/orders', '/orders/o1', '/orders', '/orders']);
+    });
+
+    test('an address typed in is somewhere new, though the app reports it '
+        'as a replacement', () async {
+      var navigation = studio.navigation;
+      await tell('selectMultiEntryHistory');
+      await report('/orders');
+      navigation.go('/orders/o3');
+      await report('/orders/o3', replace: true);
+      expect(navigation.canBack, isTrue);
+      navigation.back();
+      expect(shown.last, '/orders');
+    });
+
+    test('a Navigator app pops a route on back, and has no forward', () async {
+      var navigation = studio.navigation;
+      await tell('selectSingleEntryHistory');
+      await report('/');
+      await report('/details');
+      expect([navigation.canBack, navigation.canForward], [true, false]);
+      navigation.back();
+      expect(shown, ['popRoute']);
+    });
+
+    test('a reloaded app is taken back to the address it was on, and the '
+        'history stays as it was', () async {
+      var navigation = studio.navigation;
+      await tell('selectMultiEntryHistory');
+      await report('/orders');
+      await report('/orders/o1');
+      // The old app, redrawn by the reload that comes before a restart,
+      // then the new one, where its code starts it.
+      await navigation.reload(() => report('/orders/o1', replace: true));
+      await report('/');
+      expect(navigation.route, '/orders/o1');
+      expect(shown, ['/orders/o1']);
+      await report('/orders/o1', replace: true);
+      expect([navigation.canBack, navigation.canForward], [true, false]);
+      navigation.back();
+      expect(shown.last, '/orders');
+    });
+  });
+
   test('the title an app gives its window is kept, and every other '
       'platform call is still answered as not implemented', () async {
     await platform.answer(

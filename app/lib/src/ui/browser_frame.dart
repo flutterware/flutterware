@@ -12,8 +12,8 @@ import 'theme.dart';
 /// studio's theme, because that is what the person in front of it sees. Its
 /// greys are the browser's, not the studio's tokens.
 ///
-/// The address is live — typed into and submitted — and so is back; the
-/// rest is only drawn.
+/// The address is live — typed into and submitted — and so are back,
+/// forward and reload; the tab and the menu are only drawn.
 class BrowserFrame extends StatefulWidget {
   const BrowserFrame({
     super.key,
@@ -24,6 +24,8 @@ class BrowserFrame extends StatefulWidget {
     required this.child,
     this.titleColor,
     this.onBack,
+    this.onForward,
+    this.onReload,
     this.onGo,
   });
 
@@ -44,6 +46,12 @@ class BrowserFrame extends StatefulWidget {
 
   /// The back button; null draws it greyed.
   final VoidCallback? onBack;
+
+  /// The forward button; null draws it greyed.
+  final VoidCallback? onForward;
+
+  /// The reload button; null draws it greyed, as while a reload runs.
+  final VoidCallback? onReload;
 
   /// An address typed in and submitted, as typed.
   final ValueChanged<String>? onGo;
@@ -234,8 +242,8 @@ class _BrowserFrameState extends State<BrowserFrame> {
       child: Row(
         children: [
           button(Icons.arrow_back, widget.onBack),
-          button(Icons.arrow_forward, null),
-          button(Icons.refresh, null),
+          button(Icons.arrow_forward, widget.onForward),
+          button(Icons.refresh, widget.onReload),
           const SizedBox(width: FwSpacing.sm),
           Expanded(
             child: Container(

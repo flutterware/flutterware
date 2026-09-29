@@ -296,6 +296,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                       size: personSize(person),
                       scale: scale,
                       child: PersonDevice(
+                        world: world,
                         person: person,
                         scale: scale,
                         ignores: ignores,

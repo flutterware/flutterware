@@ -159,7 +159,9 @@ fw run worlds reload
 An open world is its people's apps, live, side by side and all in view on
 the stage, each in its device: a phone in its body, a desktop app in a
 browser whose address bar shows the route the app reports — type one there
-and the app goes to it. Every device is drawn at one scale, so a window
+and the app goes to it. Back and forward walk the routes it has been on, as
+a browser's do for a Flutter web app, and reload starts that person's app
+again on the same address. Every device is drawn at one scale, so a window
 looks as large beside a phone as it is. Above each is the person's name and
 what the servers sent them, by kind (mail, push, SMS); someone with no app
 is a small card naming the actions that act for them. Zoom in with the

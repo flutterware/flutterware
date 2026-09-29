@@ -96,6 +96,7 @@ class _PersonFocusState extends State<PersonFocus> {
                           size: size,
                           scale: scale,
                           child: PersonDevice(
+                            world: widget.world,
                             person: person,
                             scale: scale,
                             ignores: (_) => false,
