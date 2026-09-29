@@ -247,11 +247,14 @@ List<String> actionsFor(String person, Iterable<String> actions) {
 class PersonDevice extends StatelessWidget {
   const PersonDevice({
     super.key,
+    required this.world,
     required this.person,
     required this.scale,
     required this.ignores,
   });
 
+  /// What a browser's reload starts their app again through.
+  final OpenWorld world;
   final WorldPerson person;
 
   /// How much smaller than its size it is drawn: what a note on its screen
@@ -281,7 +284,12 @@ class PersonDevice extends StatelessWidget {
               const Radius.circular(48),
             );
     } else {
-      framed = _Browser(person: person, screen: screen, child: content);
+      framed = _Browser(
+        world: world,
+        person: person,
+        screen: screen,
+        child: content,
+      );
       outline = RRect.fromRectAndRadius(
         Offset.zero & BrowserFrame.frameSize(screen),
         Radius.circular(context.radii.radiusLarge),
@@ -390,11 +398,13 @@ class _Ring extends CustomPainter {
 /// gives itself and the route it reports.
 class _Browser extends StatefulWidget {
   const _Browser({
+    required this.world,
     required this.person,
     required this.screen,
     required this.child,
   });
 
+  final OpenWorld world;
   final WorldPerson person;
   final Size screen;
   final Widget child;
@@ -405,6 +415,10 @@ class _Browser extends StatefulWidget {
 
 class _BrowserState extends State<_Browser> {
   final _heard = <StreamSubscription<Object?>>[];
+
+  /// While the app starts again: reload greyed, as a browser's is while it
+  /// loads.
+  var _reloading = false;
 
   @override
   void initState() {
@@ -448,9 +462,25 @@ class _BrowserState extends State<_Browser> {
     platform.navigation.go(path);
   }
 
+  Future<void> _reload() async {
+    var navigation = widget.person.platform?.navigation;
+    if (navigation == null) return;
+    setState(() => _reloading = true);
+    try {
+      await navigation.reload(
+        () => widget.world.restartApp(widget.person.name),
+      );
+    } on Object {
+      // The world's log says why; the page stays as it was.
+    } finally {
+      if (mounted) setState(() => _reloading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var platform = widget.person.platform;
+    var navigation = platform?.navigation;
     var color = platform?.system.titleColor;
     return BrowserFrame(
       screen: widget.screen,
@@ -458,7 +488,13 @@ class _BrowserState extends State<_Browser> {
       titleColor: color == null ? null : Color(color),
       host: _host,
       path: platform?.navigation.route ?? '',
-      onBack: platform?.navigation.back,
+      onBack: navigation != null && navigation.canBack ? navigation.back : null,
+      onForward: navigation != null && navigation.canForward
+          ? navigation.forward
+          : null,
+      onReload: navigation == null || _reloading
+          ? null
+          : () => unawaited(_reload()),
       onGo: platform == null ? null : _go,
       child: widget.child,
     );

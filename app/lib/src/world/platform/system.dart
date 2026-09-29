@@ -54,13 +54,48 @@ class GuestSystem {
   final _titles = StreamController<String?>.broadcast();
   Stream<String?> get titles => _titles.stream;
 
-  /// Moves the app to a lifecycle state — `resumed`, `inactive`, `hidden`,
-  /// `paused` — as the OS would when it is sent to the background.
-  void lifecycle(String state) {
+  /// Whether the app was sent to the background by hand, as pressing Home
+  /// would: it is `paused` until it is brought back, drawn or not.
+  bool get inBackground => _inBackground;
+  set inBackground(bool value) {
+    _inBackground = value;
+    _tell();
+  }
+
+  var _inBackground = false;
+
+  /// Whether the studio draws the app anywhere.
+  ///
+  /// One it does not is `hidden`, as a desktop makes a minimised window: the
+  /// framework stops asking for frames, so an app animating out of sight
+  /// costs nothing, and the app itself runs on — its timers, its sockets,
+  /// its sync. Not `paused`, which is a phone put away: an app that
+  /// disconnects or stops syncing there would behave differently depending
+  /// on where the studio was looking. A drive still reaches it, as it does a
+  /// hidden window, by forcing the frames it needs.
+  bool get drawn => _drawn;
+  set drawn(bool value) {
+    _drawn = value;
+    _tell();
+  }
+
+  var _drawn = true;
+
+  /// The state the app was moved to last — `resumed`, `hidden` or `paused` —
+  /// and `resumed` until it was.
+  String lifecycleState = 'resumed';
+
+  /// Moves the app to the state [inBackground] and [drawn] make, if it is
+  /// not already there. The framework walks the states between, so an app
+  /// hears `inactive` on its way to `hidden` as it would from a platform.
+  void _tell() {
+    var state = _inBackground
+        ? 'paused'
+        : _drawn
+        ? 'resumed'
+        : 'hidden';
+    if (state == lifecycleState) return;
     lifecycleState = state;
     _platform.raw('flutter/lifecycle', utf8.encode('AppLifecycleState.$state'));
   }
-
-  /// The state [lifecycle] moved the app to last: `resumed` until it did.
-  String lifecycleState = 'resumed';
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -456,42 +457,71 @@ class _JsonViewState extends State<JsonView> {
         color: colors.panel2,
         border: Border(bottom: BorderSide(color: colors.line)),
       ),
-      child: Row(
-        children: [
-          if (root != null)
-            Text(
-              _rootSummary(root),
-              style: _mono(context, colors.mut2).copyWith(fontSize: 12),
-            ),
-          const Spacer(),
-          if (widget.searchable && root != null) ...[
-            _searchField(context),
-            const SizedBox(width: 4),
-          ],
-          if (root != null) ...[
-            _iconButton(
-              context,
-              Icons.unfold_more_rounded,
-              'Expand all',
-              _expandAll,
-            ),
-            _iconButton(
-              context,
-              Icons.unfold_less_rounded,
-              'Collapse all',
-              _collapseAll,
-            ),
-            _CopyButton(_pretty),
-          ],
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // In a narrow pane — Run's network detail beside its list — the
+          // field shrinks before anything overflows: the summary gives up
+          // its room first, and the field goes once it is too small to
+          // type in.
+          final room =
+              constraints.maxWidth -
+              (root == null ? 0 : _toolbarButtons) -
+              FwSpacing.xs;
+          var search = min(_searchWidth, room - _summaryRoom);
+          if (search < _searchMin) search = min(_searchWidth, room);
+          var searching =
+              widget.searchable && root != null && search >= _searchMin;
+          return Row(
+            children: [
+              if (root != null)
+                Expanded(
+                  child: Text(
+                    _rootSummary(root),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: _mono(context, colors.mut2).copyWith(fontSize: 12),
+                  ),
+                ),
+              if (searching) ...[
+                _searchField(context, search),
+                const SizedBox(width: FwSpacing.xs),
+              ],
+              if (root != null) ...[
+                _iconButton(
+                  context,
+                  Icons.unfold_more_rounded,
+                  'Expand all',
+                  _expandAll,
+                ),
+                _iconButton(
+                  context,
+                  Icons.unfold_less_rounded,
+                  'Collapse all',
+                  _collapseAll,
+                ),
+                _CopyButton(_pretty),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _searchField(BuildContext context) {
+  static const _searchWidth = 180.0;
+  static const _searchMin = 96.0;
+
+  /// What `{ } 12 keys` needs beside the field.
+  static const _summaryRoom = 72.0;
+
+  /// Expand all, collapse all and copy: each an icon in 6 around.
+  static const _toolbarButtons = 2 * (FwIconSize.lg + 12) + FwIconSize.md + 12;
+
+  Widget _searchField(BuildContext context, double width) {
     final colors = context.colors;
     return SizedBox(
-      width: 180,
+      width: width,
       height: 28,
       child: TextField(
         controller: _search,

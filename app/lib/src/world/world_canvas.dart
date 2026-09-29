@@ -57,6 +57,9 @@ class _WorldCanvasState extends State<WorldCanvas> {
   /// Where Esc is heard: it closes a mail, then leaves the focus.
   final _keys = FocusNode(debugLabel: 'world canvas');
 
+  /// Who has left the view and is hidden once [_grace] has passed.
+  final _hiding = <String, Timer>{};
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +76,35 @@ class _WorldCanvasState extends State<WorldCanvas> {
       }
     });
   }
+
+  /// Tells each app whether it is drawn (`GuestSystem.drawn`): one in view
+  /// at once, one out of it once it has been gone for [_grace] — a pan
+  /// across a phone's edge, or a look at someone and back, is not worth two
+  /// lifecycle changes to every app it passed.
+  void _see(Set<String> drawn) {
+    for (var person in widget.world.people.values) {
+      var system = person.platform?.system;
+      // Until it runs, what it would be told is dropped; it is told once it
+      // does, since a person starting redraws the canvas.
+      if (system == null || !person.running) continue;
+      var name = person.name;
+      if (drawn.contains(name)) {
+        _hiding.remove(name)?.cancel();
+        system.drawn = true;
+      } else if (system.drawn && !_hiding.containsKey(name)) {
+        _hiding[name] = Timer(_grace, () {
+          _hiding.remove(name);
+          // Looked up again: a restart since gives them a new platform.
+          var person = widget.world.people[name];
+          if (person != null && person.running) {
+            person.platform?.system.drawn = false;
+          }
+        });
+      }
+    }
+  }
+
+  static const _grace = Duration(seconds: 2);
 
   @override
   void didUpdateWidget(WorldCanvas old) {
@@ -104,6 +136,13 @@ class _WorldCanvasState extends State<WorldCanvas> {
     _sharpen?.cancel();
     _view.dispose();
     _keys.dispose();
+    for (var timer in _hiding.values) {
+      timer.cancel();
+    }
+    // Another panel in front, or the world closing: nobody is drawn.
+    for (var person in widget.world.people.values) {
+      if (person.running) person.platform?.system.drawn = false;
+    }
     super.dispose();
   }
 
@@ -134,6 +173,8 @@ class _WorldCanvasState extends State<WorldCanvas> {
     };
     // Someone who left the world at a restart is no longer anyone to show.
     var focused = world.people[_focus];
+    // In focus, theirs is the one app drawn; on the stage, it says.
+    if (focused != null) _see({focused.name});
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
       child: Focus(
@@ -228,6 +269,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
             view: _view,
             onScale: (scale) => _magnify(world.people.values, scale),
             onGround: _keys.requestFocus,
+            onDrawn: _see,
             person: (name, scale, ignores) {
               var person = world.people[name]!;
               return Column(
@@ -254,6 +296,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                       size: personSize(person),
                       scale: scale,
                       child: PersonDevice(
+                        world: world,
                         person: person,
                         scale: scale,
                         ignores: ignores,

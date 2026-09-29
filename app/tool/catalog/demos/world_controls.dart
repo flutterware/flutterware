@@ -142,6 +142,8 @@ class _Browser extends StatelessWidget {
           host: 'lab.localhost',
           path: '/orders/o3',
           onBack: () {},
+          // Nothing ahead: back has not been pressed.
+          onReload: () {},
           onGo: (_) {},
           child: const ColoredBox(
             color: Color(0xFFFDF6F3),

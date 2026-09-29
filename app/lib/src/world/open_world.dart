@@ -147,6 +147,28 @@ class OpenWorld {
     await _run(knobs ?? knobValues);
   }
 
+  /// Starts [person]'s app again in place, as Run's restart does — the same
+  /// person, and what their app keeps on disk still there — and says so in
+  /// the log, where a failure is said too. A browser's reload.
+  Future<void> restartApp(String person) async {
+    var who = people[person];
+    var build = who?._build;
+    if (who == null || build == null || !who.running) {
+      throw WorldRefusal('$person has no app running to start again.');
+    }
+    var watch = Stopwatch()..start();
+    try {
+      await build.restart(who);
+    } on Object catch (error) {
+      _say('$person: the app did not start again. $error');
+      rethrow;
+    }
+    _say(
+      '$person: app started again in '
+      '${(watch.elapsedMilliseconds / 1000).toStringAsFixed(1)} s',
+    );
+  }
+
   /// Brings the open world to the code on disk without new people: the
   /// script's process hot-reloaded — the server it hosts, what its actions
   /// call — and every app reloaded as Run reloads one. What they all hold

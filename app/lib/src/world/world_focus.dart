@@ -96,6 +96,7 @@ class _PersonFocusState extends State<PersonFocus> {
                           size: size,
                           scale: scale,
                           child: PersonDevice(
+                            world: widget.world,
                             person: person,
                             scale: scale,
                             ignores: (_) => false,
@@ -356,7 +357,7 @@ class _PlatformMenuState extends State<_PlatformMenu> {
     var person = widget.person;
     var posted = platform.notifications.shown;
     var opened = platform.urls.opened;
-    var background = platform.system.lifecycleState != 'resumed';
+    var background = platform.system.inBackground;
     return Menu(
       align: PopoverAlign.end,
       minWidth: 240,
@@ -385,9 +386,8 @@ class _PlatformMenuState extends State<_PlatformMenu> {
           icon: background ? Icons.open_in_new : Icons.home_outlined,
           // What a phone does to an app it no longer shows: the framework
           // stops asking for frames, and its memory is given back.
-          onSelected: () => setState(
-            () => platform.system.lifecycle(background ? 'resumed' : 'paused'),
-          ),
+          onSelected: () =>
+              setState(() => platform.system.inBackground = !background),
         ),
       ],
       builder: (context, controller) => Tooltip(

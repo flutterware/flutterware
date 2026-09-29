@@ -482,7 +482,7 @@ trips are no slower than a macOS window's
 
 | runs on | on the canvas | plugins | cost to start | known traps |
 |---|---|---|---|---|
-| embedded guest — **the default** | live, sharp at any zoom | the app's own Dart halves, their native half answered by the studio — 18–60 lines a plugin, written once in flutterware | no native build: a two-person world in 8.6–11.3 s from a cold worktree, 2 s warm; a person ~240 MB, plus one compiler per world | a plugin nobody has answered yet fails at once, by name; the Mac's fonts, not the phone's; background is only a lifecycle message; a guest off screen renders until it is paused; macOS only for now |
+| embedded guest — **the default** | live, sharp at any zoom | the app's own Dart halves, their native half answered by the studio — 18–60 lines a plugin, written once in flutterware | no native build: a two-person world in 8.6–11.3 s from a cold worktree, 2 s warm; a person ~240 MB, plus one compiler per world | a plugin nobody has answered yet fails at once, by name; the Mac's fonts, not the phone's; background is only a lifecycle message; a guest off screen is hidden, and stops rendering; macOS only for now |
 | macOS window | a picture after each step; a strip drawn inside the app names the person | real, where the plugin supports macOS | a native build once, cached; hot restart after | two people on the same app share one sandbox container — prefs, keychain; a phone UI needs a platform override; placing the window beside the studio probably needs accessibility access |
 | simulator or emulator | a picture after each step | real | a native build | iOS suspends apps in the background; with Simulator.app closed a booted app sits inactive |
 | physical device | a picture; there is no window on the Mac | real | build and install | a live mirror is its own feature |
@@ -588,8 +588,16 @@ threshold saves work: a guest drawn as a card, or off screen, stops producing
 frames, so a ten-person world costs little until you look at it. The canvas
 has to make that true: a guest does not know it is not drawn — one scrolled
 out of view kept rendering at 12.5 % CPU and ~430 MB while it animated — so
-the canvas sends it to the background, which stops its frames and gives the
-memory back, and brings it forward on zoom.
+the canvas tells it. **Built** (2026-09-29): an app out of view for two
+seconds — another person in focus, or zoomed off the stage — is told it is
+`hidden`, the state a desktop gives a minimised window, and `resumed` the
+moment it is back. Not `paused`: that is a phone put away, and an app that
+disconnects or stops syncing there would behave differently depending on
+where the studio was looking. Hidden, the framework asks for no frames and
+the app runs on; the lab's spinning app went from 20–28 % CPU and 684 MB to
+0 % and 268 MB. A drive still reaches a hidden app, forcing the frames it
+needs as it does for a hidden window, and *Send to the background* under
+`⋯` is still `paused`, whatever is drawn.
 
 **A guest stays sharp at any zoom.** Its logical size must stay the device's —
 layout depends on it — but it can render at zoom × pixel ratio without laying
@@ -1070,9 +1078,9 @@ triggered.
    SMTP server.
 2. **Canvas v1.** Nodes — people and services — with their credentials and
    contents, the timeline, pending questions, focus, the drawer. Guests are
-   live from the first version, as the lab already draws them, and sent to
-   the background when drawn as a card or off screen; external devices are
-   pictures.
+   live from the first version, as the lab already draws them, and hidden
+   when off screen (built: *Zoom changes what a node is*); external devices
+   are pictures.
    - **Begun, from traces only** (`app/lib/src/world/world_canvas.dart`):
      - the people's phones above a band of the system — each server with
        the parts of its API, the tables it wrote and what it sent outside,

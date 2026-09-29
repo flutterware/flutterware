@@ -219,8 +219,11 @@ with twelve people and on *Pickup order*. Where the result is not the frame:
 - **`⋯` adds *Pages it opened*** when the app has opened any — what the
   platform panel listed as *Opened*.
 - **The browser's tab shows the title's initial** on the title's colour, not
-  an app icon; forward and reload are drawn only. Back pops the app's route;
-  a typed path is pushed to it, a typed link with a scheme is delivered as a
-  link.
+  an app icon. A typed path is pushed to the app, a typed link with a scheme
+  is delivered as a link. Back and forward came after (2026-09-29): for an
+  app on a `Router`, which asks for a history of many entries, they walk the
+  routes it reported, as a browser does for a Flutter web app; for one on a
+  bare `Navigator`, back pops a route and there is no forward. Reload starts
+  that person's app again in place and takes it back to the address.
 - **The address's host is the entry point's name** (`lab.localhost`): a
   desktop app has none of its own.
