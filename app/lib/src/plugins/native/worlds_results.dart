@@ -1,5 +1,6 @@
 import 'package:flutterware/plugins.dart';
 
+import '../../world/guest_platform.dart';
 import '../../world/open_world.dart';
 import '../../world/world_files.dart';
 import '../../world/web_snapshot.dart';
@@ -191,6 +192,7 @@ class WorldPersonEntry {
     this.knobs = const {},
     this.problem,
     this.sync,
+    this.unanswered = const [],
   });
 
   factory WorldPersonEntry.of(
@@ -209,6 +211,12 @@ class WorldPersonEntry {
     knobs: person.knobs,
     problem: person.problem,
     sync: sync == null ? null : syncLine(sync),
+    unanswered: [
+      for (var MapEntry(key: channel, value: method)
+          in person.platform?.platform.unanswered.entries ??
+              const <MapEntry<String, String?>>[])
+        GuestPlatform.describe(channel, method),
+    ],
   );
 
   factory WorldPersonEntry.fromJson(Map<String, Object?> json) =>
@@ -225,6 +233,7 @@ class WorldPersonEntry {
         knobs: (json['knobs'] as Map? ?? const {}).cast(),
         problem: json['problem'] as String?,
         sync: json['sync'] as String?,
+        unanswered: (json['unanswered'] as List? ?? const []).cast(),
       );
 
   final String name;
@@ -256,6 +265,10 @@ class WorldPersonEntry {
   /// 1 to upload` — for an app whose database panel reads one.
   final String? sync;
 
+  /// The plugins their app asked that nothing answers in a world —
+  /// `com.example.scale (connect)` — each a call that failed in the app.
+  final List<String> unanswered;
+
   Map<String, Object?> toJson() => {
     'name': name,
     'phase': phase,
@@ -269,6 +282,7 @@ class WorldPersonEntry {
     if (knobs.isNotEmpty) 'knobs': knobs,
     'problem': ?problem,
     'sync': ?sync,
+    if (unanswered.isNotEmpty) 'unanswered': unanswered,
   };
 }
 

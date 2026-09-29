@@ -16,7 +16,9 @@ on one zoomable canvas.
 **Decision:** the shape below was agreed with the owner in a brainstorm. The
 device experiment then settled where a person's app runs by default: **in the
 studio's embedded guest, the studio answering its plugins' platform calls**
-(*go*, `2026-09-25-worlds-guest-phase5-decision.md`). A person whose app needs
+(*go*, `2026-09-25-worlds-guest-phase5-decision.md`) — narrowed since to the
+platform and the plugins a world acts through, the project faking the rest
+(*Plugins are the project's*). A person whose app needs
 what a guest cannot carry — a camera, a view the OS draws, Bluetooth — runs on
 a simulator, a phone or a macOS window, and external devices stay
 first-class. Built so far: slice 0 — `package:flutterware/world.dart`, the
@@ -482,7 +484,7 @@ trips are no slower than a macOS window's
 
 | runs on | on the canvas | plugins | cost to start | known traps |
 |---|---|---|---|---|
-| embedded guest — **the default** | live, sharp at any zoom | the app's own Dart halves, their native half answered by the studio — 18–60 lines a plugin, written once in flutterware | no native build: a two-person world in 8.6–11.3 s from a cold worktree, 2 s warm; a person ~240 MB, plus one compiler per world | a plugin nobody has answered yet fails at once, by name; the Mac's fonts, not the phone's; background is only a lifecycle message; a guest off screen is hidden, and stops rendering; macOS only for now |
+| embedded guest — **the default** | live, sharp at any zoom | the app's own Dart halves; the studio answers the platform and the plugins a world acts through, 18–60 lines each, and the project fakes the rest behind a knob | no native build: a two-person world in 8.6–11.3 s from a cold worktree, 2 s warm; a person ~240 MB, plus one compiler per world | a plugin nothing answers fails in the app, and the world names it; the Mac's fonts, not the phone's; background is only a lifecycle message; a guest off screen is hidden, and stops rendering; macOS only for now |
 | macOS window | a picture after each step; a strip drawn inside the app names the person | real, where the plugin supports macOS | a native build once, cached; hot restart after | two people on the same app share one sandbox container — prefs, keychain; a phone UI needs a platform override; placing the window beside the studio probably needs accessibility access |
 | simulator or emulator | a picture after each step | real | a native build | iOS suspends apps in the background; with Simulator.app closed a booted app sits inactive |
 | physical device | a picture; there is no window on the Mac | real | build and install | a live mirror is its own feature |
@@ -504,6 +506,26 @@ second: six plugins answered in 35 lines each on average, and a real app
 carrying 21 plugins with a native half needs about 14 more, sqflite the
 largest. Its first screen needed three of them, and reached it signed in and
 synced (slice 0).
+
+**Plugins are the project's** (decided 2026-09-29). Answering every plugin a
+real app carries is a job with no end, and not flutterware's: counting the 14
+the consumer's app still lacked put a database plugin at the top of the
+roadmap with no screen that needed it. The studio answers two kinds of
+channel — what makes it a platform (the lifecycle, the address, the
+keyboard, text input, the cursor, the title) and the plugins a world acts
+through or keeps apart per person (links, notifications, the URLs an app
+opens, permissions, preferences and secure storage, the person's device).
+Three answers built before this line — package info, time zone, Firebase's
+start — stay, and no more are added. Everything else is the project's: a
+fake in the entry point the world starts, behind a knob, as a scenario fakes
+it; the guest registers the plugins' Dart halves before it calls `main`, so a
+fake set there wins. A call nothing answers fails in the app, as on a
+platform the plugin does not support, and the world says so once a plugin:
+in its log, on the person, and as `unanswered` in `worlds status`. Two doors
+wait for a case that needs them: a channel the app answers itself in a
+guest, for a plugin with no Dart seam to fake — the guest's counterpart of a
+scenario's mock handler — and an answer from the world script, for state
+people share or the script's actions steer, which is what a peripheral is.
 
 **Where a person's app runs is chosen for what the case needs.** A map drawn
 by a native view cannot render in a guest; one drawn in Flutter from tiles
@@ -1029,7 +1051,9 @@ passed, and a two-person world opened from a cold worktree in 11.3 s against
 31.6 s for macOS windows and 43.2 s for simulators. Candidate 2 is the
 default: its answers are flutterware's, written once per plugin, where
 candidate 1's fakes are every project's to write. Candidate 3 was never
-triggered.
+triggered. *Narrowed 2026-09-29:* flutterware's answers stop at the platform
+and the plugins a world acts through; for the rest, candidate 1's fakes are
+the project's after all (*Plugins are the project's*).
 
 ## Slices
 
@@ -1164,9 +1188,11 @@ triggered.
    person, a macOS window when the script asks for one, and the controls
    where the mechanism already exists — `simctl location`, adb — refusing the
    rest by name.
-5. **A canvas that shows live the guests a CLI or the MCP owns.** **Answers for more plugins** run beside every slice, as
-   worlds need them — sqflite first, then what a real app's first screen
-   needs.
+5. **A canvas that shows live the guests a CLI or the MCP owns.** Answers
+   for more plugins were to run beside every slice, a database plugin first;
+   dropped 2026-09-29 — a plugin a world does not act through is the
+   project's to fake, and the world names each one nothing answers
+   (*Plugins are the project's*).
 6. **Later:** peripherals, people in a browser, live mirrors of external
    devices, a world as a live scenario's setup.
 

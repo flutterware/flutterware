@@ -410,7 +410,8 @@ wrote, not the ones already there when it opened.
 
 Each person's app runs in the studio's embedded guest, not on a simulator, so
 opening a world builds nothing native. The app's plugins run their own Dart
-code, and the studio answers what they ask of the platform:
+code. The studio stands in for the platform, and answers a short list of
+plugins, mostly ones a world acts through or keeps apart per person:
 
 - `shared_preferences`, `flutter_secure_storage` and `path_provider`, kept
   apart per person, so two people never share a session;
@@ -425,9 +426,29 @@ code, and the studio answers what they ask of the platform:
 
 HTTP, WebSockets and native libraries built by build hooks, such as
 `sqlite3`, work as they do in the app. Each app runs in its person's own
-folder, so a file it writes relative to where it runs stays theirs. A plugin the studio doesn't answer
-behaves as on a platform it has no implementation for: its calls throw.
-Cameras, maps and web views aren't available.
+folder, so a file it writes relative to where it runs stays theirs. Cameras,
+maps and web views aren't available.
+
+**Every other plugin is yours to fake.** flutterware doesn't answer every
+plugin there is, and won't. A call nothing answers fails in the app, as it
+would on a platform the plugin doesn't support, and the world says so the
+first time: a line in the world log, a warning on the person, and
+`unanswered` in `worlds status`. Fake the plugin in the entry point the world
+starts, behind a knob, as you would in a scenario. The guest
+registers each plugin's Dart half before it calls `main`, so what `main` sets
+wins: a plugin's platform interface, or a class of your own that wraps the
+plugin.
+
+```dart
+void main({String server = '', bool fakeScale = false}) {
+  if (fakeScale) ScalePlatform.instance = FakeScale();
+  runApp(ShopApp(server: Uri.parse(server)));
+}
+```
+
+```dart
+app: Launch('Shop', knobs: {'server': '${server.url}', 'fakeScale': true}),
+```
 
 In a guest, `dart:io`'s `Platform` says macOS whatever the person's device,
 while `Theme.of(context).platform` follows the device. An app that picks a

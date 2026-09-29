@@ -37,18 +37,58 @@ class GuestPlatform {
   /// app reached for.
   Set<String> get asked => _asked;
 
-  /// Channels the app used that nothing here answers.
-  final unanswered = <String>{};
+  /// The plugins' channels the app used that nothing here answers, each with
+  /// the method it asked first: a call that failed in the app, as it would on
+  /// a platform the plugin has no implementation for.
+  ///
+  /// Answering them is the project's, not the studio's — a fake in the entry
+  /// point the world starts. A channel under `flutter/` is left out: it is
+  /// the framework's own, and nothing a project could fake.
+  final unanswered = <String, String?>{};
+
+  /// Called the first time the app uses a channel [unanswered] then holds.
+  void Function(String channel, String? method)? onUnanswered;
 
   /// Answers one message from the app. Null is "no implementation".
   Future<Uint8List?> answer(String channel, Uint8List bytes) async {
     _asked.add(channel);
     var handler = _channels[channel];
     if (handler == null) {
-      unanswered.add(channel);
+      if (!channel.startsWith('flutter/') && !unanswered.containsKey(channel)) {
+        var method = unanswered[channel] = _methodOf(channel, bytes);
+        onUnanswered?.call(channel, method);
+      }
       return null;
     }
     return handler(bytes);
+  }
+
+  /// The method a message on [channel] calls, when it is a method call: a
+  /// Pigeon channel names its method itself, and a message that is not a
+  /// method call — a basic message channel's — has none.
+  static String? _methodOf(String channel, Uint8List bytes) {
+    if (channel.startsWith(_pigeon)) return null;
+    try {
+      return standardMethods.decodeCall(bytes).$1;
+    } on Object {
+      return null;
+    }
+  }
+
+  static const _pigeon = 'dev.flutter.pigeon.';
+
+  /// A channel [unanswered] holds, as a person reads it: a Pigeon channel's
+  /// package and method — `camera_avfoundation: CameraApi.create` — or the
+  /// channel and the method it was asked.
+  static String describe(String channel, String? method) {
+    if (channel.startsWith(_pigeon)) {
+      var name = channel.substring(_pigeon.length);
+      var dot = name.indexOf('.');
+      if (dot > 0) {
+        return '${name.substring(0, dot)}: ${name.substring(dot + 1)}';
+      }
+    }
+    return method == null ? channel : '$channel ($method)';
   }
 
   /// A method channel with the standard method codec — how most plugins that

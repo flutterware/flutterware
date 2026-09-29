@@ -139,8 +139,9 @@ the three answers above was found.
 - ~~**The consumer opening worlds itself.**~~ Done in round 1 (below). It
   makes fresh users through its public API, about 0.5 s each, so seeding
   needs no debug endpoint until a state the API cannot reach.
-- **The rest of its plugins** — about 11 of the 14 — answered as its screens
-  reach them; sqflite is still the largest.
+- ~~**The rest of its plugins**~~ — about 11 of the 14. Not flutterware's
+  to answer (decided 2026-09-29): the project fakes them, and the world names
+  each one nothing answers (the design's *Plugins are the project's*).
 - **Its runs are not this session's.** A person's Run handle belongs to the
   checkout their app is in, and the MCP server of one repository lists that
   repository's runs only, so the consumer's people were observed straight
