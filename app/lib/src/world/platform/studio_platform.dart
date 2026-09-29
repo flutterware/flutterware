@@ -6,6 +6,7 @@ import '../guest_platform.dart';
 import 'device_info.dart';
 import 'firebase.dart';
 import 'links.dart';
+import 'navigation.dart';
 import 'notifications.dart';
 import 'package_info.dart';
 import 'permissions.dart';
@@ -16,13 +17,14 @@ import 'timezone.dart';
 import 'urls.dart';
 
 export 'links.dart' show GuestLinks;
+export 'navigation.dart' show GuestNavigation;
 export 'notifications.dart' show GuestNotification, GuestNotifications;
 export 'system.dart' show GuestSystem;
 export 'urls.dart' show GuestUrls;
 
 /// Everything the studio answers for one person's app, and the handles a
 /// world acts through: links to open, notifications shown, URLs opened, the
-/// cursor and the lifecycle.
+/// route the app is on, the cursor and the lifecycle.
 ///
 /// `path_provider` is not here: on macOS its Swift half became a direct call
 /// into Foundation, which runs inside the guest. Isolation for it comes from
@@ -45,6 +47,7 @@ class StudioPlatform {
     notifications = GuestNotifications(platform);
     urls = GuestUrls(platform);
     system = GuestSystem(platform);
+    navigation = GuestNavigation(platform);
   }
 
   final GuestPlatform platform;
@@ -52,4 +55,5 @@ class StudioPlatform {
   late final GuestNotifications notifications;
   late final GuestUrls urls;
   late final GuestSystem system;
+  late final GuestNavigation navigation;
 }

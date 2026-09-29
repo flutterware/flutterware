@@ -397,6 +397,14 @@ class WorldTrace {
     if (email != null) _emails[email.toLowerCase()] = person;
   }
 
+  /// Whether [person]'s app says it opens [link]: a scheme of its own, or a
+  /// web host it claims — where a phone would send the link.
+  bool claims(String person, String link) =>
+      _links[person]?.claims(link) ?? false;
+
+  /// The step [id] names — `leo.3`, `world.2` — if the world heard of it.
+  TraceStep? step(String id) => _steps[id];
+
   /// Whose [userId] is, as the world knows by now.
   String? personOfUser(String userId) => _users[userId];
 
@@ -602,6 +610,17 @@ class WorldTrace {
       if (traced.length >= limit) break;
     }
     return traced.reversed.toList();
+  }
+
+  /// The person a message went to, when the world knows whose its address
+  /// is.
+  String? _recipientOf(_ServerEvent event) {
+    var to = '${event.payload['to'] ?? event.payload['user'] ?? ''}';
+    return switch (event.channel) {
+      'sms' => _phones[to],
+      'mail' => _emails[to.toLowerCase()],
+      _ => _users[to],
+    };
   }
 
   TraceStep _stepOf(String id, String person) =>
@@ -900,11 +919,7 @@ class WorldTrace {
         if (payload[key] case String text) text,
       if (html != null) html.replaceAll(_hidden, ' ').replaceAll(_tag, ' '),
     ].join('\n');
-    var person = switch (event.channel) {
-      'sms' => _phones[to],
-      'mail' => _emails[to.toLowerCase()],
-      _ => _users[to],
-    };
+    var person = _recipientOf(event);
     var found = {
       for (var match in _link.allMatches(words)) match[0]!,
       if (html != null)

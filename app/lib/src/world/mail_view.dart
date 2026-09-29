@@ -5,43 +5,51 @@ import 'package:material_ui/material_ui.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../session/job.dart' show ActionRefusal;
-import '../ui/action_button.dart';
-import '../ui/filter_bar.dart' show FwPill;
+import '../ui/chip.dart';
 import '../ui/loading_state.dart';
+import '../ui/segmented.dart';
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
+import 'open_world.dart' show WorldDelivery;
 import 'web_snapshot.dart';
-import 'world_canvas.dart' show ColumnBack, clockOf, messageIcon;
+import 'world_focus.dart' show ColumnBack;
+import 'world_messages.dart';
 import 'world_trace.dart';
 
-/// One mail as its recipient would see it, two ways: a **picture** WebKit
-/// drew of it ([WebSnapshots]) — what the column opens on, which zooms, keeps
-/// and reads like any widget — and the **page** itself, live in a web view.
+/// One mail as its recipient would see it, read in their panel: a
+/// **picture** WebKit drew of it ([WebSnapshots]), which zooms, keeps and
+/// reads like any widget, with every link clickable where it is drawn.
 ///
-/// Either way a link goes where a phone would send it: an app's link into
-/// the person's app, a web link to a browser — here, the page view. The
-/// links it carries are listed beneath, each with a way into the app too,
-/// for a web link the app claims.
+/// A link goes where a phone would send it: into the recipient's app when
+/// the app opens it — a scheme of its own, a web host it claims — and to a
+/// browser otherwise, here the **page**, live in a web view. Under the mail,
+/// what was opened in the app from it, and when.
 class MailView extends StatefulWidget {
   const MailView({
     super.key,
     required this.message,
     required this.snapshots,
-    required this.back,
+    required this.cause,
+    required this.deliveries,
+    required this.claims,
     required this.onBack,
-    required this.onChoose,
     this.onDeliver,
   });
 
   final OutboxMessage message;
   final WebSnapshots snapshots;
 
-  /// Where [onBack] goes.
-  final String back;
-  final VoidCallback onBack;
+  /// What caused it, in the trace's words.
+  final String? cause;
 
-  /// Opens the step that sent it.
-  final void Function(String step) onChoose;
+  /// What was delivered from it so far, oldest first.
+  final List<WorldDelivery> deliveries;
+
+  /// Whether the recipient's app opens a link.
+  final bool Function(String link) claims;
+
+  /// Back to the messages.
+  final VoidCallback onBack;
 
   /// Opens one of its links in the recipient's app; null while their app is
   /// not running.
@@ -71,10 +79,10 @@ class _MailViewState extends State<MailView> {
     }
   }
 
-  /// A link, followed as a phone would: the web in a browser, anything else
-  /// in the app that claims it.
+  /// A link, followed as a phone would: into the app that opens it, else to
+  /// a browser.
   Future<void> _follow(String link) async {
-    if (_isWeb(link)) {
+    if (_isWeb(link) && !widget.claims(link)) {
       setState(() => _live = true);
       var page = _pageController();
       await page.setJavaScriptMode(JavaScriptMode.unrestricted);
@@ -87,13 +95,13 @@ class _MailViewState extends State<MailView> {
   Future<void> _deliver(String link) async {
     var deliver = widget.onDeliver;
     var person = widget.message.person ?? 'their';
+    setState(() => _said = null);
     if (deliver == null) {
       setState(() => _said = "$person's app is not running.");
       return;
     }
     try {
       await deliver(link);
-      if (mounted) setState(() => _said = "Opened in $person's app: $link");
     } on ActionRefusal catch (refusal) {
       if (mounted) setState(() => _said = refusal.message);
     }
@@ -106,7 +114,8 @@ class _MailViewState extends State<MailView> {
     ..setNavigationDelegate(
       NavigationDelegate(
         onNavigationRequest: (request) {
-          if (_isWeb(request.url) || request.url.startsWith('about:')) {
+          if (request.url.startsWith('about:') ||
+              _isWeb(request.url) && !widget.claims(request.url)) {
             return NavigationDecision.navigate;
           }
           unawaited(_deliver(request.url));
@@ -119,102 +128,101 @@ class _MailViewState extends State<MailView> {
   @override
   Widget build(BuildContext context) {
     var message = widget.message;
+    var colors = context.colors;
+    var sender = message.sender ?? message.id.split('/').first;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ColumnBack(widget.back, onBack: widget.onBack),
+        ColumnBack('Messages', onBack: widget.onBack),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            FwSpacing.lg,
-            0,
-            FwSpacing.lg,
-            FwSpacing.sm,
+            FwSpacing.xl,
+            FwSpacing.xs,
+            FwSpacing.xl,
+            FwSpacing.md,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              SelectableText(message.text, style: context.type.heading),
+              const SizedBox(height: FwSpacing.xxs),
               Row(
                 children: [
-                  Icon(
-                    messageIcon(message.kind),
-                    size: FwIconSize.md,
-                    color: context.colors.ink2,
-                  ),
-                  const SizedBox(width: FwSpacing.sm),
                   Expanded(
-                    child: SelectableText(
-                      message.text,
-                      style: context.type.heading,
+                    child: Text(
+                      [
+                        'From $sender to ${message.to}',
+                        clockOf(message.at),
+                      ].join(' · '),
+                      style: context.type.bodyMuted,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ],
-              ),
-              Row(
-                children: [
-                  Text(
-                    [
-                      'to ${message.person ?? message.to}',
-                      clockOf(message.at),
-                    ].join(' · '),
-                    style: context.type.bodyMuted,
-                  ),
-                  if (message.step case var step?) ...[
-                    Text(' · ', style: context.type.bodyMuted),
-                    Tappable(
-                      onTap: () => widget.onChoose(step),
-                      feedback: TapFeedback.link,
-                      child: Text(
-                        step,
-                        style: context.type.body.copyWith(
-                          color: context.colors.accent,
-                        ),
-                      ),
+                  // Only once a link took the reader to a page: the way
+                  // back to the mail.
+                  if (_page != null)
+                    FwSegmented<bool>(
+                      segments: const [
+                        FwSegment(false, 'Mail'),
+                        FwSegment(true, 'Page'),
+                      ],
+                      selected: _live,
+                      onChanged: (live) => setState(() => _live = live),
                     ),
-                  ],
-                  const Spacer(),
-                  FwPill(
-                    label: 'Picture',
-                    selected: !_live,
-                    onTap: () => setState(() => _live = false),
-                  ),
-                  const SizedBox(width: FwSpacing.xs),
-                  FwPill(
-                    label: 'Page',
-                    selected: _live,
-                    onTap: () => setState(() => _live = true),
-                  ),
                 ],
               ),
+              if (widget.cause case var cause?) ...[
+                const SizedBox(height: FwSpacing.sm),
+                FwChip(
+                  cause,
+                  icon: Icons.subdirectory_arrow_right,
+                  mono: true,
+                  tooltip: 'What caused it: ${message.step}',
+                ),
+              ],
             ],
           ),
         ),
-        Container(height: 1, color: context.colors.line),
         Expanded(
-          child: _live
-              ? (Platform.isMacOS
-                    ? WebViewWidget(controller: _pageController())
-                    : Center(
-                        child: Text(
-                          'The live page needs macOS.',
-                          style: context.type.bodyMuted,
-                        ),
-                      ))
-              : _Picture(future: _picture, onLink: _follow),
-        ),
-        if (_said case var said?)
-          Padding(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              FwSpacing.lg,
-              FwSpacing.sm,
-              FwSpacing.lg,
+              FwSpacing.xl,
               0,
+              FwSpacing.xl,
+              FwSpacing.lg,
             ),
-            child: Text(said, style: context.type.bodyMuted),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Flexible(
+                  child: Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(context.radii.radius),
+                      border: Border.all(color: colors.line),
+                    ),
+                    child: _live
+                        ? (Platform.isMacOS
+                              ? WebViewWidget(controller: _pageController())
+                              : Center(
+                                  child: Text(
+                                    'The live page needs macOS.',
+                                    style: context.type.bodyMuted,
+                                  ),
+                                ))
+                        : _Picture(future: _picture, onLink: _follow),
+                  ),
+                ),
+                if (widget.deliveries.isNotEmpty)
+                  DeliveredLines(deliveries: widget.deliveries),
+                if (_said case var said?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: FwSpacing.sm),
+                    child: Text(said, style: context.type.bodyMuted),
+                  ),
+              ],
+            ),
           ),
-        _Links(
-          message: message,
-          picture: _picture,
-          onDeliver: widget.onDeliver == null ? null : _deliver,
         ),
       ],
     );
@@ -284,83 +292,6 @@ class _Picture extends StatelessWidget {
             ),
           );
         },
-      );
-    },
-  );
-}
-
-/// Every link the mail carries, each with a way into the recipient's app —
-/// the answer for a web link the app claims, which a click would open in
-/// the page instead.
-class _Links extends StatelessWidget {
-  const _Links({
-    required this.message,
-    required this.picture,
-    required this.onDeliver,
-  });
-
-  final OutboxMessage message;
-  final Future<WebSnapshot> picture;
-  final Future<void> Function(String link)? onDeliver;
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder(
-    future: picture,
-    builder: (context, drawn) {
-      // The words on each link, once the picture says them.
-      var words = {
-        for (var link in drawn.data?.links ?? const <WebLink>[])
-          link.href: link.text,
-      };
-      var links = message.links;
-      if (links.isEmpty) return const SizedBox.shrink();
-      var whose = message.person == null ? 'their' : "${message.person}'s";
-      return Container(
-        constraints: const BoxConstraints(maxHeight: 180),
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: context.colors.line)),
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(
-            horizontal: FwSpacing.lg,
-            vertical: FwSpacing.sm,
-          ),
-          children: [
-            Text('Links', style: context.type.sectionLabel),
-            for (var link in links)
-              Padding(
-                padding: const EdgeInsets.only(top: FwSpacing.xs),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (words[link] ?? words['$link/'] case var text?
-                              when text.isNotEmpty)
-                            Text(text, style: context.type.body),
-                          Text(
-                            link,
-                            style: context.type.caption,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: FwSpacing.sm),
-                    FwActionButton(
-                      label: 'Open in $whose app',
-                      onPressed: switch (onDeliver) {
-                        var deliver? => () => deliver(link),
-                        null => null,
-                      },
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
       );
     },
   );

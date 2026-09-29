@@ -2,12 +2,13 @@ import 'package:flutterware/world.dart';
 
 import 'src/lab.dart';
 
-/// A barista and a regular. Ana runs the counter, signed in; Leo has a phone
-/// number and has never used the app, so signing up with a code by SMS is the
-/// first thing he does — the code is in the world's log.
+/// A barista and a regular. Ana runs the counter, signed in, in a browser on
+/// a desktop; Leo has a phone number and has never used the app, so signing
+/// up with a code by SMS is the first thing he does — the code is in the
+/// world's log.
 ///
-/// The Leo knob starts him signed in instead, and the action Mia orders a
-/// flat white puts an order on Ana's board from a customer with no app.
+/// The Leo knob starts him signed in instead. Mia has no app: the action Mia
+/// orders a flat white puts her order on Ana's board.
 void main(List<String> args) => World.run(args, (w) async {
   var server = await startLabServer(w);
   var leoSignedIn = w.knob(
@@ -31,6 +32,8 @@ void main(List<String> args) => World.run(args, (w) async {
       'Lab',
       knobs: {'server': '${server.url}', 'session': ana.token, 'person': 'Ana'},
     ),
+    // The counter is a desktop: the same app, in a window, in a browser.
+    on: const Studio(Devices.window),
   );
 
   var phone = newPhone();
@@ -51,6 +54,10 @@ void main(List<String> args) => World.run(args, (w) async {
     ),
   );
 
+  var miaPhone = newPhone();
+  var mia = await createUser(server, 'Mia', phone: miaPhone);
+  w.person('Mia', phone: miaPhone, userId: mia.id);
+
   // A service in the stack that is not Dart and sends its own mail stands
   // here as a few lines of SMTP to the world's inbox.
   var mail = await w.smtp('newsletter');
@@ -64,7 +71,7 @@ void main(List<String> args) => World.run(args, (w) async {
   // Reload, where an edit inside a closure would wait for a restart.
   w.action(
     'Mia orders a flat white',
-    (run) => miaOrders(server, run),
+    (run) => miaOrders(server, run, mia: mia),
     description: 'A customer with no app puts an order on the board',
   );
 });

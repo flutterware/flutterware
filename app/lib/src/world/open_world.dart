@@ -67,8 +67,9 @@ class OpenWorld {
   /// A new, not yet started guest for a person.
   final WorldGuest Function(String person) guests;
 
-  /// Called whenever anything below changes.
-  final void Function()? onChanged;
+  /// Called whenever anything below changes. Moves with the world when a
+  /// config edit hands it to a new core.
+  void Function()? onChanged;
 
   /// Where each app's guest build goes; its package's own `build/` when null.
   final String? buildRoot;
@@ -95,8 +96,11 @@ class OpenWorld {
   final runs = <int, WorldActionRun>{};
 
   /// The script's progress and what it printed, newest last, each line
-  /// stamped with the seconds since this opening started: `12.4s  Built Shop`.
-  final log = <String>[];
+  /// stamped with the time since this opening started.
+  final logLines = <WorldLogLine>[];
+
+  /// [logLines] as text, each stamped: `12.4s  Built Shop`.
+  List<String> get log => [for (var line in logLines) line.line];
 
   /// What this opening's people did and what it caused — each step on an
   /// app, joined to the requests, server events and synced records that
@@ -351,14 +355,22 @@ class OpenWorld {
       default:
         throw WorldRefusal('A message is delivered by `type` or `open`.');
     }
-    return WorldDelivery(
+    var delivery = WorldDelivery(
       message: message.id,
       person: name,
       how: how,
       what: what,
       step: step,
+      at: DateTime.now(),
     );
+    (deliveries[message.id] ??= []).add(delivery);
+    _changed();
+    return delivery;
   }
+
+  /// What each message was delivered as, by its id, oldest first: the codes
+  /// typed and the links opened from it, for as long as this opening lasts.
+  final deliveries = <String, List<WorldDelivery>>{};
 
   void _journal(WorldPerson person, String verb, String actor, String target) {
     var handle = person.handle;
@@ -411,6 +423,7 @@ class OpenWorld {
     // The trace starts afresh, and the people's steps start again at `.1`:
     // so do the world's own.
     runs.clear();
+    deliveries.clear();
     _nextRun = 1;
     var declared = <String>{};
     var settled = _settled = Completer<void>();
@@ -549,7 +562,7 @@ class OpenWorld {
           compiler: _compiler,
           onOutput: (line) {
             if (starting) said.add(line);
-            _say(line);
+            _say(line, printed: true);
           },
         );
         starting = false;
@@ -793,12 +806,15 @@ class OpenWorld {
     _say(why);
   }
 
-  void _say(String said) {
-    var line =
-        '${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(1)}s  $said';
-    _lines.add(line);
-    log.add(line);
-    if (log.length > 500) log.removeRange(0, log.length - 500);
+  /// Says [said] in the log: the world's own words, or a line the script
+  /// [printed].
+  void _say(String said, {bool printed = false}) {
+    var line = WorldLogLine.of(_clock.elapsed, said, printed: printed);
+    _lines.add(line.line);
+    logLines.add(line);
+    if (logLines.length > 500) {
+      logLines.removeRange(0, logLines.length - 500);
+    }
     _changed();
   }
 
@@ -1073,7 +1089,11 @@ class WorldDelivery {
     required this.how,
     required this.what,
     this.step,
+    this.at,
   });
+
+  /// When it was delivered.
+  final DateTime? at;
 
   final String message;
   final String person;
@@ -1196,4 +1216,38 @@ class HeadlessWorldGuest implements WorldGuest {
 
   @override
   Future<void> stop() async => _process?.shutdown();
+}
+
+/// One line of an [OpenWorld]'s log: when, who said it, and what.
+class WorldLogLine {
+  const WorldLogLine(this.at, this.source, this.text, [this._said]);
+
+  /// A line the world said is its own; one the script printed is the
+  /// script's, or — printed the way `package:logging` records usually are,
+  /// `edges: mail to …` — the logger's that wrote it.
+  factory WorldLogLine.of(Duration at, String said, {required bool printed}) {
+    if (!printed) return WorldLogLine(at, 'world', said);
+    var logger = _logger.firstMatch(said);
+    return logger == null
+        ? WorldLogLine(at, 'script', said)
+        : WorldLogLine(at, logger[1]!, said.substring(logger.end), said);
+  }
+
+  static final _logger = RegExp(r'^([a-z][\w.-]{0,23}): ');
+
+  /// Since the opening started.
+  final Duration at;
+
+  /// `world`, `script`, or a logger's name.
+  final String source;
+  final String text;
+
+  /// What was said, the logger's name still on it.
+  final String? _said;
+
+  /// `12.4s`.
+  String get stamp => '${(at.inMilliseconds / 1000).toStringAsFixed(1)}s';
+
+  /// The line as text: `12.4s  edges: mail to …`.
+  String get line => '$stamp  ${_said ?? text}';
 }

@@ -88,6 +88,19 @@ DeviceInfo islandPhoneFrame(Device device) {
   );
 }
 
+/// The outline of the body [islandPhoneFrame] draws for [device], in the
+/// frame's own coordinates — for a ring drawn around the phone, which has to
+/// follow the metal rather than the frame's bounding box.
+RRect islandBodyOutline(Device device) => RRect.fromRectAndRadius(
+  Rect.fromLTWH(
+    _buttonDepth,
+    0,
+    device.width + 2 * (_bezel + _band),
+    device.height + 2 * (_bezel + _band),
+  ),
+  const Radius.circular(_screenRadius + _bezel + _band),
+);
+
 /// Paints the body [islandPhoneFrame] laid out: the buttons, the metal edge,
 /// and the black the screen's island hole shows through.
 class IslandPhoneFramePainter extends CustomPainter {

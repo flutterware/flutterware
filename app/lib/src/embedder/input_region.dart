@@ -69,6 +69,26 @@ class EmbedderInputRegion extends StatelessWidget {
   bool _ignores(PointerEvent event) =>
       shouldIgnorePointer?.call(event) ?? false;
 
+  /// The trackpad swipes each guest was sent the start of, and is owed the
+  /// end of. Kept beside the engine rather than in this widget, which is
+  /// rebuilt — and can be replaced — while a swipe is under way.
+  static final _panZooms = Expando<Set<int>>('pan-zooms open in the guest');
+
+  /// [PointerPanZoomUpdateEvent.pan] in this region's space, as a distance.
+  ///
+  /// Not the event's own `localPan`, which transforms the pan as though it
+  /// were a point — the region's offset in the window included — and turns a
+  /// 40px swipe into a jump of thousands.
+  static Offset _localPan(PointerPanZoomUpdateEvent event) {
+    var transform = event.transform;
+    if (transform == null) return event.pan;
+    return PointerEvent.transformPosition(
+          transform,
+          event.position + event.pan,
+        ) -
+        event.localPosition;
+  }
+
   /// One contact event, as whichever kind of pointer is driving the guest.
   void _contact(PointerPhase phase, PointerEvent event, {int buttons = 0}) =>
       engine.sendPointer(
@@ -158,30 +178,51 @@ class EmbedderInputRegion extends StatelessWidget {
               scrollDeltaY: e.scrollDelta.dy * engine.pixelRatio,
             );
           },
-          onPointerPanZoomStart: (e) => engine.sendPointer(
-            phaseKind: PointerPhase.panZoomStart,
-            x: e.localPosition.dx * engine.pixelRatio,
-            y: e.localPosition.dy * engine.pixelRatio,
-          ),
+          // A swipe the host keeps is not the guest's at all — not its start
+          // and end with nothing between, which reads in the guest as a
+          // gesture that began and gave up. So the start goes only when the
+          // host leaves the swipe alone, and the end follows the start: one
+          // taken over halfway, a pan turned into a pinch the stage zooms,
+          // still gets its end, or the guest waits for it forever.
+          onPointerPanZoomStart: (e) {
+            if (_ignores(e)) return;
+            (_panZooms[engine] ??= {}).add(e.pointer);
+            engine.sendPointer(
+              phaseKind: PointerPhase.panZoomStart,
+              x: e.localPosition.dx * engine.pixelRatio,
+              y: e.localPosition.dy * engine.pixelRatio,
+            );
+          },
           // Cumulative since the start event, not per-update deltas — the
           // embedder API's convention, and the framework's own events already
           // carry it that way.
-          onPointerPanZoomUpdate: (e) => _ignores(e)
-              ? null
-              : engine.sendPointer(
-                  phaseKind: PointerPhase.panZoomUpdate,
-                  x: e.localPosition.dx * engine.pixelRatio,
-                  y: e.localPosition.dy * engine.pixelRatio,
-                  panX: e.pan.dx * engine.pixelRatio,
-                  panY: e.pan.dy * engine.pixelRatio,
-                  scale: e.scale,
-                  rotation: e.rotation,
-                ),
-          onPointerPanZoomEnd: (e) => engine.sendPointer(
-            phaseKind: PointerPhase.panZoomEnd,
-            x: e.localPosition.dx * engine.pixelRatio,
-            y: e.localPosition.dy * engine.pixelRatio,
-          ),
+          //
+          // In the guest's own space, like the position: a phone drawn at a
+          // third of its size under two fingers moves its content as far as
+          // the fingers went on screen. The window's pan moved it a third as
+          // far — a swipe too short to turn a page, and a fling too slow to
+          // carry it.
+          onPointerPanZoomUpdate: (e) {
+            if (_ignores(e)) return;
+            var pan = _localPan(e);
+            engine.sendPointer(
+              phaseKind: PointerPhase.panZoomUpdate,
+              x: e.localPosition.dx * engine.pixelRatio,
+              y: e.localPosition.dy * engine.pixelRatio,
+              panX: pan.dx * engine.pixelRatio,
+              panY: pan.dy * engine.pixelRatio,
+              scale: e.scale,
+              rotation: e.rotation,
+            );
+          },
+          onPointerPanZoomEnd: (e) {
+            if (!(_panZooms[engine]?.remove(e.pointer) ?? false)) return;
+            engine.sendPointer(
+              phaseKind: PointerPhase.panZoomEnd,
+              x: e.localPosition.dx * engine.pixelRatio,
+              y: e.localPosition.dy * engine.pixelRatio,
+            );
+          },
           child: child,
         ),
       ),

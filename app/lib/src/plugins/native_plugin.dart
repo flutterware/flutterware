@@ -50,6 +50,12 @@ abstract class NativePlugin<C extends PluginCore> extends ChangeNotifier
 
   String get id => core.id;
 
+  /// Another panel of the same worktree, by its plugin's id; null when the
+  /// project declares none. For a panel that shows another plugin's views —
+  /// Worlds shows Run's of each person's app — rather than drawing its own
+  /// copy of them. Set by the [WorktreeSession] that holds them both.
+  NativePlugin? Function(String id) peer = (_) => null;
+
   /// What this plugin is still working on, or null when it has nothing in
   /// flight.
   ///

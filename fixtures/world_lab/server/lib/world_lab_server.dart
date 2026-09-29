@@ -12,6 +12,7 @@ export 'src/edges.dart'
         ReportedPush,
         ReportedSms,
         SmsService;
+export 'src/kitchen.dart' show Kitchen;
 export 'src/orders.dart'
     show MemoryOrders, Order, OrderStore, PostgresOrders, orderStatuses;
 export 'src/server.dart' show LabServer, menu, startServer;

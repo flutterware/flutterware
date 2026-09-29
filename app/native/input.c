@@ -53,8 +53,14 @@ void input_handle_pointer(FlutterEngine engine, const uint8_t* p, size_t len) {
   // A separate device id, not only a separate kind: the engine keeps one state
   // per device, and a device that changed kind mid-stream would be a mouse and
   // a finger wearing the same name. The wheel still arrives as the mouse.
+  //
+  // The trackpad is a third. Sharing the mouse's, a pointer that left the
+  // guest mid-swipe — a stage sliding the phone out from under a cursor that
+  // never moved — removed the device the swipe was open on: the engine
+  // renumbered its end, the framework never delivered it, and the page the
+  // swipe was dragging stayed where it was, as did every later swipe's.
   bool touch = !pan_zoom && len >= 81 && p[80] != 0;
-  ev.device = touch ? 1 : 0;
+  ev.device = pan_zoom ? 2 : touch ? 1 : 0;
   ev.device_kind = pan_zoom  ? kFlutterPointerDeviceKindTrackpad
                    : touch   ? kFlutterPointerDeviceKindTouch
                              : kFlutterPointerDeviceKindMouse;

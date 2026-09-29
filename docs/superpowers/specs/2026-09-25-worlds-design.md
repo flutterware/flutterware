@@ -1108,6 +1108,32 @@ triggered.
      own width. Open questions, to judge in use: how the band reads on a
      busy world, and whether the outline and the band read as the same
      thing twice.
+   - **Stripped back to the phones** (2026-09-27, after judging A2 on the
+     lab's busy *Rush hour*). Every layer meant to explain the system —
+     outline, band, arrows, numbered trace, a timeline of steps summarised
+     by kind — made the screen harder to read, and none started from a
+     question somebody had. Now: the people's phones side by side, all in
+     view, each with a count of the messages sent to them; a name opens that
+     phone in focus beside its messages and Run's own Network, App and Logs
+     panes (a panel reaches another plugin's through `NativePlugin.peer`).
+     Nothing of the system is drawn. The trace still answers `worlds trace`
+     for agents. What comes back on screen comes back one question at a
+     time, when using a world raises it.
+   - **Redrawn** (2026-09-29, the five frames of the 2026-09-28 UI pass;
+     plan in `docs/superpowers/plans/2026-09-28-worlds-screen-pass.md`). One
+     toolbar — knobs, actions, and a switch between everyone and one person,
+     the rest of a crowd in a `+N` menu. Devices in their bodies on the stage
+     grey, all at one scale: an iPhone's, or a browser the studio draws
+     around a desktop person's app, whose address bar is the route the app
+     reports over `flutter/navigation` and whose tab is the title it gives
+     over `flutter/platform`. A crowd fits the stage in the rows that draw it
+     largest and zooms from there (the experiment's *Fit*, with *Canvas*
+     folded in); a scroll goes to the app under the pointer. A person with
+     no app is a card. The focus's panel says who, what caused each message
+     in its step's words, marks a push the app showed, reads a mail beside
+     the app with what it opened, and keeps the platform's controls under
+     `⋯`. The world log is the first tab of the dock Previews, Scenarios and
+     Run share.
    - Not yet: focus, credentials, pending questions; contents pulled from a
      server rather than heard.
 3. **Server panels** over `FlutterwareServer.handle`, and **reload of the

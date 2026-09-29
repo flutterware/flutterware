@@ -14,7 +14,9 @@ should: `docs/superpowers/specs/2026-09-25-worlds-guest-phase5-decision.md`)
 - **`app/`** — the customer app, with the plugin profile of a real one on
   purpose. At boot it touches every plugin once and prints how each answered,
   and it prints the time of its first frame, so a runner that cannot carry a
-  plugin says which, and a launch can be timed from outside.
+  plugin says which, and a launch can be timed from outside. Routed, as a
+  real app is — `/orders`, `/orders/o3` — and, for staff in a window as wide
+  as a desktop's, a counter board rather than a phone's list.
 
 ## Opening a world
 
@@ -36,16 +38,35 @@ is `world.1`. `fw run worlds trace` answers with the newest steps and what each
 one caused, and `fw run worlds contents --part=orders` what the orders table
 holds, each order with its life from the tap to both phones.
 
-Leo's sign-up code is in his drawer: tap his code field, then *Type it* — or
-`fw run worlds deliver` with the message's id from `fw run worlds outbox`.
-Each new order mails the staff: Ana's drawer has it, *Read it* shows the mail,
-and its *Open the order* button opens the order in her app. Each delivery is
-a step of its own, `leo.3 type the code from the SMS`.
+In *Pickup order* Ana runs the counter at a desktop: her app is the same
+one, in a browser the studio draws, whose address bar shows the route the app
+reports. Mia has no app; *Mia orders a flat white* orders for her.
+
+Leo's sign-up code is in Leo's messages: pick Leo, tap the code field on the
+phone, then *Type it* — or `fw run worlds deliver` with the message's id from
+`fw run worlds outbox`. Each new order mails the staff: in Ana's messages,
+*Read it* shows the mail, and its *Open the order* button opens the order in
+Ana's app — the address bar moves to it and the board picks it out. Each
+delivery is a step of its own, `leo.3 type the code from the SMS`.
+
+Every app has a database to look at in its person's panel, under *App*: the synced
+worlds' PowerSync copy, and otherwise the orders the app has seen, which the
+plain app keeps in a SQLite cache (`app/lib/src/order_cache.dart`).
 
 *The newsletter goes out* stands in for a service in the stack that is not
 Dart and sends its own mail: a few lines of SMTP to the world's inbox
 (`w.smtp('newsletter')`). Its mail reaches Ana drawn as the newsletter's,
 joined to the action's step by time.
+
+*Rush hour* is the world to judge the Worlds screen on when a lot is going
+on: two baristas, three regulars with the app, and a kitchen
+(`server/lib/src/kitchen.dart`) that brews every order through a job queue —
+each job runs under the step of the request that queued it, writes its own
+rows to the `jobs` table in a layer of their own, moves the order to
+preparing and ready, and stamps a loyalty card. Its *Rush hour* action
+brings a dozen walk-ins a few hundred milliseconds apart, and the kitchen
+backs up; *The regulars order* runs alongside it, so their pushes arrive
+among the walk-ins'.
 
 A world script also runs on its own, which is how to debug its setup without
 launching any app: it prints what it declares, and `name=value` arguments are

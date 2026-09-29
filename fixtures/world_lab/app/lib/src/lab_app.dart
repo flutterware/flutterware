@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show SynchronousFuture;
+
 import 'package:app_links/app_links.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutterware/devbar.dart';
@@ -9,10 +11,11 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'api.dart';
 import 'menu.dart';
+import 'order_cache.dart';
 import 'plugin_check.dart';
 import 'synced_orders.dart';
 
-class LabApp extends StatelessWidget {
+class LabApp extends StatefulWidget {
   const LabApp({
     super.key,
     required this.server,
@@ -27,22 +30,111 @@ class LabApp extends StatelessWidget {
   final bool sync;
 
   @override
+  State<LabApp> createState() => _LabAppState();
+}
+
+class _LabAppState extends State<LabApp> {
+  late final _Routes _routes = _Routes(
+    (context) => _Home(
+      server: widget.server,
+      session: widget.session,
+      person: widget.person,
+      sync: widget.sync,
+      routes: _routes,
+    ),
+  );
+
+  @override
+  void dispose() {
+    _routes.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Headless in a guest: panels for Run and the studio, no overlay.
     return Devbar(
       plugins: const [],
-      child: MaterialApp(
+      // Routed, as a real app is: `/orders`, `/orders/o3`. On the web, and
+      // in a world's browser, that is the address.
+      child: MaterialApp.router(
         title: 'Pickup',
+        // A person's phone has no ribbon on it.
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(colorSchemeSeed: const Color(0xFF6F4E37)),
-        home: _Home(
-          server: server,
-          session: session,
-          person: person,
-          sync: sync,
+        routerConfig: RouterConfig(
+          routeInformationProvider: PlatformRouteInformationProvider(
+            initialRouteInformation: RouteInformation(
+              uri: Uri(path: '/orders'),
+            ),
+          ),
+          routeInformationParser: const _Paths(),
+          routerDelegate: _routes,
+          backButtonDispatcher: RootBackButtonDispatcher(),
         ),
       ),
     );
   }
+}
+
+/// The app's two places: the orders, and one order picked out on them —
+/// what a delivered link, a tapped notification or a typed address opens.
+class _Routes extends RouterDelegate<Uri> with ChangeNotifier {
+  _Routes(this._home);
+
+  final WidgetBuilder _home;
+
+  /// The order picked out, by id; null for the orders alone.
+  String? order;
+
+  void show(String? id) {
+    if (id == order) return;
+    order = id;
+    notifyListeners();
+  }
+
+  @override
+  Uri get currentConfiguration =>
+      Uri(path: order == null ? '/orders' : '/orders/$order');
+
+  @override
+  Future<void> setNewRoutePath(Uri configuration) async {
+    var segments = configuration.pathSegments;
+    show(
+      segments.length == 2 && segments.first == 'orders' ? segments[1] : null,
+    );
+  }
+
+  /// Back from an order to the orders; from the orders, out of the app.
+  @override
+  Future<bool> popRoute() async {
+    if (order == null) return false;
+    show(null);
+    return true;
+  }
+
+  /// One page: the orders are the whole app, and an order is picked out on
+  /// them rather than pushed. A navigator still, for the overlay a tooltip
+  /// and a menu need.
+  @override
+  Widget build(BuildContext context) => Navigator(
+    pages: [
+      MaterialPage<void>(key: const ValueKey('orders'), child: _home(context)),
+    ],
+    onDidRemovePage: (_) {},
+  );
+}
+
+class _Paths extends RouteInformationParser<Uri> {
+  const _Paths();
+
+  @override
+  Future<Uri> parseRouteInformation(RouteInformation routeInformation) =>
+      SynchronousFuture(routeInformation.uri);
+
+  @override
+  RouteInformation restoreRouteInformation(Uri configuration) =>
+      RouteInformation(uri: configuration);
 }
 
 class _Home extends StatefulWidget {
@@ -51,12 +143,14 @@ class _Home extends StatefulWidget {
     required this.session,
     required this.person,
     required this.sync,
+    required this.routes,
   });
 
   final Uri server;
   final String session;
   final String person;
   final bool sync;
+  final _Routes routes;
 
   @override
   State<_Home> createState() => _HomeState();
@@ -73,12 +167,15 @@ class _HomeState extends State<_Home> {
   var _codeSent = false;
   var _spinning = false;
   String? _error;
-  String? _highlight;
   WebSocketChannel? _live;
   SyncedOrders? _synced;
 
-  /// The synced database as a devbar panel, `db:main`: its tables, and —
-  /// being PowerSync — what waits to upload and every record that arrives.
+  /// Where the plain app keeps the orders it has seen.
+  OrderCache? _cache;
+
+  /// The phone's database as a devbar panel, `db:main`: the synced one's
+  /// tables and — being PowerSync — what waits to upload and every record
+  /// that arrives; the plain app's cache of the orders it has seen.
   DatabasePanelSource? _databasePanel;
   StreamSubscription<List<Order>>? _watching;
   StreamSubscription<Uri>? _links;
@@ -112,15 +209,16 @@ class _HomeState extends State<_Home> {
   void _openLink(Uri link) {
     // worldlab://orders/o12 — what the server's push carries.
     if (link.host != 'orders') return;
-    if (link.pathSegments.isNotEmpty) {
-      setState(() => _highlight = link.pathSegments.first);
-    }
+    widget.routes.show(
+      link.pathSegments.isNotEmpty ? link.pathSegments.first : null,
+    );
     // Opened from outside, the board may be behind: fetch it afresh, as a
     // phone that was asleep would. A synced board is never behind.
     if (widget.sync || _user == null) return;
     unawaited(
       _run(() async {
         var orders = await _api.orders();
+        _cache?.keep(orders);
         if (mounted) setState(() => _orders = orders);
       }),
     );
@@ -162,6 +260,9 @@ class _HomeState extends State<_Home> {
       return;
     }
     var orders = await _api.orders();
+    var cache = _cache ??= await OrderCache.open();
+    _databasePanel ??= DatabasePanelSource(cache.adapter);
+    cache.keep(orders);
     await _live?.sink.close();
     var live = _api.live();
     _api.orderUpdates(live).listen(_onOrder, onError: (Object _) {});
@@ -173,6 +274,7 @@ class _HomeState extends State<_Home> {
   });
 
   void _onOrder(Order order) {
+    _cache?.keep([order]);
     setState(() {
       _orders = [order, ..._orders.where((o) => o.id != order.id)];
     });
@@ -214,13 +316,27 @@ class _HomeState extends State<_Home> {
     unawaited(_watching?.cancel());
     _databasePanel?.dispose();
     unawaited(_synced?.close());
+    _cache?.close();
     _phone.dispose();
     _code.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.routes,
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        // A counter in a browser: the board, as wide as the window.
+        if (_user case var user? when user.isStaff) {
+          if (constraints.maxWidth >= 900) return _counter(user);
+        }
+        return _phoneLayout(context);
+      },
+    ),
+  );
+
+  Widget _phoneLayout(BuildContext context) {
     var who =
         _user?.name ?? (widget.person.isEmpty ? 'signed out' : widget.person);
     return DefaultTabController(
@@ -291,7 +407,7 @@ class _HomeState extends State<_Home> {
           if (_orders.isEmpty) const Text('No orders yet.'),
           for (var order in _orders)
             Card(
-              color: order.id == _highlight
+              color: order.id == widget.routes.order
                   ? Theme.of(context).colorScheme.primaryContainer
                   : null,
               child: ListTile(
@@ -346,6 +462,127 @@ class _HomeState extends State<_Home> {
           secondary: _spinning ? const CircularProgressIndicator() : null,
         ),
       ],
+    );
+  }
+
+  /// The counter, in a browser: the orders on the board by where they are,
+  /// each with the step that moves it on, the one a link picked out ringed.
+  Widget _counter(User user) {
+    var theme = Theme.of(context);
+    var colors = theme.colorScheme;
+    var order = widget.routes.order;
+    const columns = [
+      ('placed', 'Placed'),
+      ('preparing', 'Preparing'),
+      ('ready', 'Ready'),
+    ];
+    String next(String status) => switch (status) {
+      'placed' => 'Preparing',
+      'preparing' => 'Ready',
+      _ => 'Collected',
+    };
+    return Title(
+      title: 'Pickup · Counter',
+      color: colors.primary,
+      child: Scaffold(
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: colors.outlineVariant),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text('Pickup · Counter', style: theme.textTheme.titleLarge),
+                  const Spacer(),
+                  Text(user.name, style: theme.textTheme.bodyMedium),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.account_circle_outlined),
+                  IconButton(
+                    tooltip: 'Sign out',
+                    onPressed: _signOut,
+                    icon: const Icon(Icons.logout),
+                  ),
+                ],
+              ),
+            ),
+            if (_error case var error?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(28, 12, 28, 0),
+                child: Text(error, style: TextStyle(color: colors.error)),
+              ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var (i, (status, label)) in columns.indexed) ...[
+                      if (i > 0) const SizedBox(width: 20),
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(text: label.toUpperCase()),
+                                  TextSpan(
+                                    text:
+                                        '  ${_orders.where((o) => o.status == status).length}',
+                                    style: TextStyle(color: colors.onSurface),
+                                  ),
+                                ],
+                              ),
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                letterSpacing: 0.8,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            for (var each in _orders)
+                              if (each.status == status)
+                                Card(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: each.id == order
+                                        ? BorderSide(
+                                            color: colors.primary,
+                                            width: 3,
+                                          )
+                                        : BorderSide.none,
+                                  ),
+                                  child: ListTile(
+                                    title: Text(
+                                      each.customer == null
+                                          ? each.item
+                                          : '${each.item} for ${each.customer}',
+                                    ),
+                                    subtitle: Text(each.id),
+                                    onTap: () => widget.routes.show(each.id),
+                                    trailing: TextButton(
+                                      onPressed: () => _run(() async {
+                                        _onOrder(await _api.advance(each.id));
+                                      }),
+                                      child: Text('${next(status)} →'),
+                                    ),
+                                  ),
+                                ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

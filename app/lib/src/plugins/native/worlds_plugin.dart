@@ -2,25 +2,27 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../address/address_scope.dart';
 import '../../ui/action_button.dart';
 import '../../ui/code_block.dart';
 import '../../ui/empty_state.dart';
 import '../../ui/panel_header.dart';
-import '../../ui/picker.dart';
 import '../../ui/theme.dart';
 import '../../world/live_guest.dart';
 import '../../world/open_world.dart';
 import '../../world/world_canvas.dart';
 import '../../world/world_files.dart';
 import '../native_plugin.dart';
+import 'run_core.dart' show RunCore, runPluginId;
+import 'run_plugin.dart' show RunPlugin;
 import 'worlds_core.dart';
 
 export 'worlds_core.dart' show WorldsCore, worldsPluginId;
 
 /// The studio's Worlds panel: the worlds a project declares, and the one
-/// open here on its canvas — its people's apps live, taking the mouse and
-/// keyboard when clicked, above the system they use, with each step taken
-/// on them traced through it ([WorldCanvas]).
+/// open here — its people's apps live, side by side, taking the mouse and
+/// keyboard when clicked, and each one's messages and Run's views of it a
+/// click away ([WorldCanvas]).
 class WorldsPlugin extends NativePlugin<WorldsCore> {
   WorldsPlugin(super.core) {
     // Opened here, a person's app draws here.
@@ -73,16 +75,88 @@ class _WorldsPanelState extends State<_WorldsPanel> {
     unawaited(plugin.core.computeAll());
   }
 
+  /// A config edit gives the panel a new plugin under the same state, whose
+  /// core nothing has read yet.
+  @override
+  void didUpdateWidget(_WorldsPanel old) {
+    super.didUpdateWidget(old);
+    if (old.plugin != widget.plugin) unawaited(plugin.core.computeAll());
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: plugin,
     builder: (context, _) {
       var core = plugin.core;
-      return switch (core.open) {
-        var open? => _OpenWorldView(core: core, world: open),
-        null => _WorldList(core: core),
+      // The rail names a world by its address; the one open is the only
+      // one a checkout has, and the address must not claim another.
+      var asked = AddressScope.maybeOf(context) == null
+          ? null
+          : AddressScope.segments(context).firstOrNull;
+      var other = core.worlds
+          .where((world) => world.id == asked && world.id != core.open?.file.id)
+          .firstOrNull;
+      return switch ((core.open, other)) {
+        (var open?, var other?) => _AnotherOpen(
+          core: core,
+          open: open,
+          asked: other,
+        ),
+        (var open?, null) => _OpenWorldView(
+          core: core,
+          world: open,
+          // Run's, for its views of each person's app.
+          run: switch (plugin.peer(runPluginId)) {
+            RunPlugin run => run.core,
+            _ => null,
+          },
+        ),
+        (null, _) => _WorldList(core: core),
       };
     },
+  );
+}
+
+/// A world asked for by its address while another is open: a checkout has
+/// one world at a time, so this says which is open and offers both ways on.
+class _AnotherOpen extends StatelessWidget {
+  const _AnotherOpen({
+    required this.core,
+    required this.open,
+    required this.asked,
+  });
+
+  final WorldsCore core;
+  final OpenWorld open;
+  final WorldFile asked;
+
+  @override
+  Widget build(BuildContext context) => EmptyState(
+    icon: Icons.public_outlined,
+    title: '${asked.name} is not open',
+    message:
+        '${open.file.name} is, and a checkout opens one world at a time: two '
+        'would give two people the same device in Run.',
+    action: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FwActionButton(
+          label: 'Back to ${open.file.name}',
+          acknowledges: false,
+          onPressed: () async =>
+              AddressScope.write(context).setSegments([open.file.id]),
+        ),
+        const SizedBox(width: FwSpacing.sm),
+        FwActionButton(
+          label: 'Close it and open ${asked.name}',
+          primary: true,
+          onPressed: () async {
+            await core.closeWorld();
+            await core.openWorld(asked.id);
+          },
+        ),
+      ],
+    ),
   );
 }
 
@@ -232,10 +306,15 @@ fw.use(Worlds(packages: [
 
 /// The open world: what it is doing, what can be done to it, and its people.
 class _OpenWorldView extends StatelessWidget {
-  const _OpenWorldView({required this.core, required this.world});
+  const _OpenWorldView({
+    required this.core,
+    required this.world,
+    required this.run,
+  });
 
   final WorldsCore core;
   final OpenWorld world;
+  final RunCore? run;
 
   Future<void> _reload() async {
     try {
@@ -253,23 +332,26 @@ class _OpenWorldView extends StatelessWidget {
       children: [
         FwPanelHeader(
           world.file.name,
-          subtitle: [
-            world.phase.name,
-            '${world.file.package}/${world.file.path}',
-          ],
+          badge: _PhaseBadge(world.phase),
+          subtitle: ['${world.file.package}/${world.file.path}'],
+          selectableSubtitle: true,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               FwActionButton(
                 label: 'Reload',
+                icon: Icons.refresh,
+                plain: true,
                 tooltip:
                     'Bring the script, its server and every app to the code '
                     'on disk: same people',
                 onPressed: world.phase == WorldPhase.open ? _reload : null,
               ),
-              const SizedBox(width: FwSpacing.sm),
+              const SizedBox(width: FwSpacing.xs),
               FwActionButton(
                 label: 'Restart',
+                icon: Icons.restart_alt,
+                plain: true,
                 tooltip: 'Run the script again: new people, same apps',
                 onPressed: moving ? null : () => world.restart(),
               ),
@@ -282,7 +364,6 @@ class _OpenWorldView extends StatelessWidget {
               ),
             ],
           ),
-          below: _Controls(world: world, enabled: !moving),
         ),
         if (world.problem case var problem?)
           Padding(
@@ -298,98 +379,51 @@ class _OpenWorldView extends StatelessWidget {
             ),
           ),
         Expanded(
-          child: world.people.isEmpty
-              ? const EmptyState(
-                  icon: Icons.person_outline,
-                  title: 'Nobody yet',
-                  message: 'People appear as the script declares them.',
-                )
-              : WorldCanvas(world: world),
+          child: WorldCanvas(world: world, run: run),
         ),
       ],
     );
   }
 }
 
-/// The world's knobs, each a restart with a new value, and its actions.
-class _Controls extends StatelessWidget {
-  const _Controls({required this.world, required this.enabled});
+/// Where the world is, beside its name: `● Open`.
+class _PhaseBadge extends StatelessWidget {
+  const _PhaseBadge(this.phase);
 
-  final OpenWorld world;
-  final bool enabled;
+  final WorldPhase phase;
 
   @override
   Widget build(BuildContext context) {
-    var knobs = [
-      for (var knob in world.knobs.values)
-        if (knob.options.isNotEmpty) knob,
-    ];
-    if (knobs.isEmpty && world.actions.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    // Two kinds of control, said apart: a knob restarts the world with new
-    // people, an action runs in the world as it is.
-    Widget group(String label, List<Widget> children) => Row(
+    var colors = context.colors;
+    var color = switch (phase) {
+      WorldPhase.open => colors.grn,
+      WorldPhase.failed => colors.red,
+      _ => colors.mut,
+    };
+    var word = switch (phase) {
+      WorldPhase.opening => 'Opening',
+      WorldPhase.open => 'Open',
+      WorldPhase.restarting => 'Restarting',
+      WorldPhase.failed => 'Failed',
+      WorldPhase.closing => 'Closing',
+      WorldPhase.closed => 'Closed',
+    };
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: context.type.fieldLabel),
-        const SizedBox(width: FwSpacing.sm),
-        for (var (i, child) in children.indexed) ...[
-          if (i > 0) const SizedBox(width: FwSpacing.sm),
-          child,
-        ],
-      ],
-    );
-    return Wrap(
-      spacing: FwSpacing.xl,
-      runSpacing: FwSpacing.sm,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        if (knobs.isNotEmpty)
-          group('OPENED WITH', [
-            for (var knob in knobs)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(knob.name, style: context.type.bodyMuted),
-                  const SizedBox(width: FwSpacing.xs),
-                  SizedBox(
-                    width: 150,
-                    child: Tooltip(
-                      message: 'Changing it restarts the world',
-                      child: FwPicker<String>(
-                        choices: [
-                          for (var option in knob.options)
-                            FwChoice(value: option, label: option),
-                        ],
-                        selected: knob.value,
-                        onChanged: (value) {
-                          if (!enabled || value == knob.value) return;
-                          unawaited(
-                            world.restart({
-                              ...world.knobValues,
-                              knob.name: value,
-                            }),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ]),
-        if (world.actions.isNotEmpty)
-          group('ACTIONS', [
-            for (var MapEntry(key: action, value: description)
-                in world.actions.entries)
-              FwActionButton(
-                label: action,
-                icon: Icons.play_arrow_rounded,
-                primary: true,
-                tooltip: description,
-                onPressed: enabled ? () async => world.invoke(action) : null,
-              ),
-          ]),
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: FwSpacing.xs),
+        Text(
+          word,
+          style: context.type.caption.copyWith(
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }

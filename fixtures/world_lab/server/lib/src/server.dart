@@ -11,6 +11,7 @@ import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'edges.dart';
+import 'kitchen.dart';
 import 'orders.dart';
 import 'sync_auth.dart';
 
@@ -21,14 +22,18 @@ const menu = ['Flat white', 'Cortado', 'Filter'];
 
 /// A running lab server.
 class LabServer {
-  LabServer._(this._http);
+  LabServer._(this._http, this._kitchen);
 
   final HttpServer _http;
+  final Kitchen? _kitchen;
 
   /// Where it answers — what an app's `server` knob is set to.
   Uri get url => Uri.parse('http://localhost:${_http.port}');
 
-  Future<void> close() => _http.close(force: true);
+  Future<void> close() async {
+    await _kitchen?.close();
+    await _http.close(force: true);
+  }
 }
 
 /// Starts the lab server on [port] (0 picks a free one).
@@ -40,6 +45,8 @@ class LabServer {
 /// [orders] is where orders live — in memory unless a world hands it
 /// Postgres. With [sync], apps sync them through a sync engine rather than
 /// asking this server: it hands each app its token and takes its uploads.
+/// With [kitchen], a [Kitchen] brews every order and moves it along itself,
+/// through a job queue — a busy shop's traffic.
 Future<LabServer> startServer({
   int port = 8090,
   required SmsService sms,
@@ -47,6 +54,7 @@ Future<LabServer> startServer({
   required MailService mail,
   OrderStore? orders,
   SyncAuth? sync,
+  bool kitchen = false,
 }) async {
   var shop = _Shop(
     sms: sms,
@@ -55,12 +63,15 @@ Future<LabServer> startServer({
     orders: orders ?? MemoryOrders(),
     sync: sync,
   );
+  if (kitchen) {
+    shop.kitchen = Kitchen(advance: shop._advance, push: push)..start();
+  }
   // Built again after every hot reload — its middleware and its routes — so
   // an edit to either reaches a world that hosts this server, on Reload. The
   // shop, with its users and orders, is what it is built over, and stays.
   var handler = FlutterwareServer.reloadable(() => _handler(shop));
   var http = await shelf_io.serve(handler, InternetAddress.loopbackIPv4, port);
-  var server = LabServer._(http);
+  var server = LabServer._(http, shop.kitchen);
   _log.info('listening on ${server.url}');
   FlutterwareServer.info(
     ServerInfo(
@@ -124,6 +135,12 @@ class _Shop {
   final MailService mail;
   final OrderStore orders;
   final SyncAuth? sync;
+
+  /// Brews what is ordered, when the shop has one.
+  Kitchen? kitchen;
+
+  /// Who moves an order along when the kitchen does.
+  final _barista = _User(id: 'kitchen', name: 'The kitchen', role: 'staff');
 
   final _random = Random.secure();
   final _users = <String, _User>{};
@@ -215,7 +232,7 @@ class _Shop {
         return _json({
           'orders': [
             for (var order in await orders.all())
-              if (user.isStaff || order.customerId == user.id) order.toJson(),
+              if (user.isStaff || order.customerId == user.id) _served(order),
           ],
         });
       case ('POST', ['orders']):
@@ -223,7 +240,7 @@ class _Shop {
         if (!menu.contains(item)) return _error(400, 'not on the menu: $item');
         var order = Order(id: orders.newId(), customerId: user.id, item: item);
         await _write(order, user, 'insert');
-        return _json(order.toJson());
+        return _json(_served(order));
       case ('POST', ['orders', var id, 'advance']):
         if (!user.isStaff) return _error(403, 'staff only');
         var order = await orders.find(id);
@@ -232,7 +249,7 @@ class _Shop {
         if (next == orderStatuses.length) return _error(409, 'collected');
         order = order.withStatus(orderStatuses[next]);
         await _write(order, user, 'update');
-        return _json(order.toJson());
+        return _json(_served(order));
       // What a synced app asks this server, rather than for its orders.
       case ('GET', ['sync', 'token']) when sync != null:
         return _json({
@@ -324,6 +341,7 @@ class _Shop {
     if (op == 'insert') {
       _log.info('${by.name} ordered a ${order.item}');
       await _mailStaff(order, by);
+      kitchen?.queue(order);
     }
     _broadcast(order);
     if (op == 'update' && order.status == 'ready') {
@@ -334,6 +352,13 @@ class _Shop {
         link: 'worldlab://orders/${order.id}',
       );
     }
+  }
+
+  /// Moves [id] to [status] for the kitchen.
+  Future<void> _advance(String id, String status) async {
+    var order = await orders.find(id);
+    if (order == null) return;
+    await _write(order.withStatus(status), _barista, 'update');
   }
 
   /// Every member of staff with an address hears of a new order by mail,
@@ -352,8 +377,15 @@ class _Shop {
     }
   }
 
+  /// [order] as the apps are sent it: with its customer's name, which a
+  /// counter shows and the stored order does not keep.
+  Map<String, Object?> _served(Order order) => {
+    ...order.toJson(),
+    'customer': ?_users[order.customerId]?.name,
+  };
+
   void _broadcast(Order order) {
-    var message = jsonEncode({'type': 'order', 'order': order.toJson()});
+    var message = jsonEncode({'type': 'order', 'order': _served(order)});
     for (var listener in _listeners) {
       if (!listener.wants(order)) continue;
       listener.channel.sink.add(message);
