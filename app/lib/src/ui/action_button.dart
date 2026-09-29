@@ -43,6 +43,8 @@ class FwActionButton extends StatefulWidget {
     this.primary = false,
     this.acknowledges = true,
     this.icon,
+    this.iconColor,
+    this.plain = false,
   });
 
   final String label;
@@ -51,6 +53,16 @@ class FwActionButton extends StatefulWidget {
   /// button does, where a row mixes kinds — an action that runs beside a
   /// choice that restarts.
   final IconData? icon;
+
+  /// [icon]'s colour at rest, where the icon says more than the label's
+  /// colour would: the accent of a play glyph on a button that runs
+  /// something. The label keeps its own.
+  final Color? iconColor;
+
+  /// No border at rest, for the quieter actions of a row whose main one is
+  /// bordered — a header's Reload beside its Close. The hover still shows
+  /// it is a button, and a done or failed state still draws its border.
+  final bool plain;
 
   /// The tooltip while idle. The running, done and failed states describe
   /// themselves.
@@ -158,6 +170,7 @@ class _FwActionButtonState extends State<FwActionButton> {
     var border = switch (_phase) {
       _Phase.done => colors.accent,
       _Phase.failed => colors.red,
+      _ when widget.plain => Colors.transparent,
       _ => widget.primary ? colors.accent : colors.line,
     };
 
@@ -186,7 +199,11 @@ class _FwActionButtonState extends State<FwActionButton> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: FwIconSize.sm, color: fg),
+                Icon(
+                  icon,
+                  size: FwIconSize.sm,
+                  color: _phase == _Phase.idle ? widget.iconColor ?? fg : fg,
+                ),
                 const SizedBox(width: FwSpacing.xs),
                 Text(label, style: context.type.caption.copyWith(color: fg)),
               ],

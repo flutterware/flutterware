@@ -32,16 +32,21 @@ class Order {
     required this.customerId,
     required this.item,
     required this.status,
+    this.customer,
   });
 
   Order.fromJson(Map<String, Object?> json)
     : id = json['id']! as String,
       customerId = json['customerId']! as String,
+      customer = json['customer'] as String?,
       item = json['item']! as String,
       status = json['status']! as String;
 
   final String id;
   final String customerId;
+
+  /// Who ordered it, by name, where the server said.
+  final String? customer;
   final String item;
   final String status;
 }

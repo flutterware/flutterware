@@ -434,9 +434,18 @@ void main() => Flutterware.configure((fw) {
               'tool/worlds/pickup_order.dart',
               name: 'Pickup order',
               description:
-                  'A barista and a regular. Ana runs the counter, signed in; '
-                  'Leo has never used the app and signs up with a code by '
-                  "SMS, which is in the world's log",
+                  'A barista and two customers. Ana runs the counter in a '
+                  'browser on a desktop, signed in; Leo has never used the '
+                  'app and signs up with a code by SMS, which is in the '
+                  "world's log; Mia has no app, and an action orders for her",
+            ),
+            WorldScript(
+              'tool/worlds/rush_hour.dart',
+              name: 'Rush hour',
+              description:
+                  'A busy shop: two baristas, regulars with the app, and a '
+                  'kitchen that brews every order through a job queue. Its '
+                  'Rush hour action brings a dozen walk-ins',
             ),
             WorldScript(
               'tool/worlds/synced_pickup.dart',

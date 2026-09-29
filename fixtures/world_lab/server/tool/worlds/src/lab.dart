@@ -16,6 +16,7 @@ Future<LabServer> startLabServer(
   World w, {
   OrderStore? orders,
   SyncAuth? sync,
+  bool kitchen = false,
 }) async {
   Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen(
@@ -27,6 +28,7 @@ Future<LabServer> startLabServer(
   var server = await startServer(
     orders: orders,
     sync: sync,
+    kitchen: kitchen,
     port: await w.freePort(),
     sms: _WorldSms(w),
     push: _WorldPush(w),
@@ -195,9 +197,29 @@ Future<void> sendNewsletter({required int port, required String to}) async {
 }
 
 /// A customer with no app orders a flat white, through the API: what the
-/// worlds' *Mia orders a flat white* does.
-Future<void> miaOrders(LabServer server, ActionRun run) async {
-  var mia = await createUser(server, 'Mia', phone: newPhone());
+/// worlds' *Mia orders a flat white* does — as [mia], the person a world
+/// declared, or as a new customer each time.
+Future<void> miaOrders(LabServer server, ActionRun run, {LabUser? mia}) async {
+  mia ??= await createUser(server, 'Mia', phone: newPhone());
   run.progress('Mia is ${mia.id}');
   await call(server, 'POST', '/orders', {'item': 'Flat white'}, mia.token);
+}
+
+/// Rush hour: a dozen customers with no app walk in and order, a few
+/// hundred milliseconds apart, and the kitchen works through the queue they
+/// make — what the worlds' *Rush hour* does.
+Future<void> rushHour(
+  LabServer server,
+  ActionRun run, {
+  int walkIns = 12,
+}) async {
+  for (var i = 1; i <= walkIns; i++) {
+    if (run.cancelled) return;
+    var customer = await createUser(server, 'Walk-in $i', phone: newPhone());
+    await call(server, 'POST', '/orders', {
+      'item': menu[i % menu.length],
+    }, customer.token);
+    run.progress('$i of $walkIns ordered', fraction: i / walkIns);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
 }

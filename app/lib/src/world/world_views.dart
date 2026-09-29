@@ -1,17 +1,17 @@
-import 'dart:async';
-
 import 'package:material_ui/material_ui.dart';
 
 import '../embedder/embedded_engine.dart';
 import '../embedder/guest_texture.dart';
 import '../embedder/input_region.dart';
-import '../ui/action_button.dart';
 import '../ui/theme.dart';
 import 'live_guest.dart';
 import 'platform/studio_platform.dart';
 
 /// One person's app, live: the guest's texture at the device's logical size,
 /// taking the mouse and the keyboard when it is clicked, as a window would.
+///
+/// Edge to edge: what stands around it — a phone's body, a browser — is the
+/// caller's, and so is showing which app has the keyboard.
 class WorldPhone extends StatelessWidget {
   const WorldPhone({
     super.key,
@@ -41,23 +41,7 @@ class WorldPhone extends StatelessWidget {
       builder: (context, _) => Container(
         width: size.width,
         height: size.height,
-        decoration: BoxDecoration(
-          color: context.colors.panel,
-          borderRadius: BorderRadius.circular(context.radii.radiusLarge),
-        ),
-        // In front, not around: a border in `decoration` pads the child by
-        // its width, and the guest — sized to the phone — would be drawn 4px
-        // smaller than it is and clicked 2px off.
-        foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(context.radii.radiusLarge),
-          border: Border.all(
-            color: guest.focus.hasFocus
-                ? context.colors.accent
-                : context.colors.line,
-            width: 2,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
+        color: context.colors.panel,
         child: switch ((engine?.phase, engine?.textureId)) {
           (EmbeddedEnginePhase.error, _) => WorldPhoneNote(
             '${engine?.errorMessage}',
@@ -140,154 +124,4 @@ class _Cursor extends StatelessWidget {
       ),
     );
   }
-}
-
-/// What one person's app did through the platform the studio stands in for —
-/// the notifications it posted, the URLs it opened — and what the studio can
-/// do to it: open a link in it, delivered where the OS would deliver one, and
-/// send it to the background. Above it, where the app's synced database
-/// stands, for an app with one.
-class WorldPlatformPanel extends StatefulWidget {
-  const WorldPlatformPanel({
-    super.key,
-    required this.person,
-    required this.platform,
-    this.sync,
-  });
-
-  final String person;
-  final StudioPlatform platform;
-
-  /// The app's database panel's `sync` state, as the world last read it.
-  final Map<String, Object?>? sync;
-
-  @override
-  State<WorldPlatformPanel> createState() => _WorldPlatformPanelState();
-}
-
-class _WorldPlatformPanelState extends State<WorldPlatformPanel> {
-  final _link = TextEditingController();
-  final _subscriptions = <StreamSubscription<Object?>>[];
-  String? _said;
-  var _background = false;
-
-  @override
-  void initState() {
-    super.initState();
-    var platform = widget.platform;
-    _subscriptions
-      ..add(platform.notifications.shows.listen((_) => setState(() {})))
-      ..add(platform.urls.opens.listen((_) => setState(() {})));
-  }
-
-  @override
-  void dispose() {
-    for (var subscription in _subscriptions) {
-      unawaited(subscription.cancel());
-    }
-    _link.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    var platform = widget.platform;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (widget.sync case var sync?) ...[
-          Text('Sync', style: context.type.sectionLabel),
-          const SizedBox(height: FwSpacing.xs),
-          _Sync(sync),
-          const SizedBox(height: FwSpacing.md),
-        ],
-        Text('Notifications', style: context.type.sectionLabel),
-        const SizedBox(height: FwSpacing.xs),
-        if (platform.notifications.shown.isEmpty)
-          Text('None posted', style: context.type.bodyMuted),
-        for (var notification in platform.notifications.shown)
-          Row(
-            children: [
-              Expanded(child: Text('$notification', style: context.type.body)),
-              FwActionButton(
-                label: 'Tap',
-                onPressed: () async => platform.notifications.tap(notification),
-              ),
-            ],
-          ),
-        const SizedBox(height: FwSpacing.md),
-        Text('Opened', style: context.type.sectionLabel),
-        const SizedBox(height: FwSpacing.xs),
-        Text(
-          platform.urls.opened.isEmpty
-              ? 'Nothing'
-              : platform.urls.opened.join('\n'),
-          style: platform.urls.opened.isEmpty
-              ? context.type.bodyMuted
-              : context.type.body,
-        ),
-        const SizedBox(height: FwSpacing.md),
-        Text('Open a link', style: context.type.sectionLabel),
-        const SizedBox(height: FwSpacing.xs),
-        TextField(controller: _link),
-        const SizedBox(height: FwSpacing.sm),
-        FwActionButton(
-          label: "Open in ${widget.person}'s app",
-          onPressed: () async {
-            var opened = platform.links.open(_link.text);
-            setState(() => _said = opened ? null : 'The app is not listening');
-          },
-        ),
-        if (_said case var said?) Text(said, style: context.type.bodyMuted),
-        const SizedBox(height: FwSpacing.md),
-        Text('App', style: context.type.sectionLabel),
-        const SizedBox(height: FwSpacing.xs),
-        // What a phone does to an app it no longer shows: the framework stops
-        // asking for frames, and its memory is given back.
-        FwActionButton(
-          label: _background ? 'Bring to the front' : 'Send to the background',
-          onPressed: () async {
-            setState(() => _background = !_background);
-            platform.system.lifecycle(_background ? 'paused' : 'resumed');
-          },
-        ),
-      ],
-    );
-  }
-}
-
-/// A synced database at a glance: when it last synced, what is waiting to
-/// upload, and the client id its sync service logs it by. A clock time rather
-/// than an age, since nothing redraws this while nothing changes.
-class _Sync extends StatelessWidget {
-  const _Sync(this.state);
-
-  final Map<String, Object?> state;
-
-  @override
-  Widget build(BuildContext context) {
-    var synced = switch (state['lastSyncedAt']) {
-      String at when DateTime.tryParse(at) != null =>
-        'Synced at ${_clock(DateTime.parse(at).toLocal())}',
-      _ => 'Not synced yet',
-    };
-    var pending = state['pendingUploads'];
-    var client = state['clientId'];
-    return SelectableText(
-      [
-        synced,
-        pending is int && pending > 0
-            ? '$pending to upload'
-            : 'Nothing to upload',
-        if (client is String) 'Client ${client.split('-').first}',
-      ].join('\n'),
-      style: context.type.body,
-    );
-  }
-
-  static String _clock(DateTime at) => [
-    at.hour,
-    at.minute,
-    at.second,
-  ].map((part) => '$part'.padLeft(2, '0')).join(':');
 }

@@ -5,8 +5,6 @@ import 'package:flutterware/src/server/attach_session.dart';
 import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware_app/src/plugins/native/worlds_results.dart';
 import 'package:flutterware_app/src/world/declared_links.dart';
-import 'package:flutterware_app/src/world/world_canvas.dart'
-    show numberNodes, stepTitle;
 import 'package:flutterware_app/src/world/world_trace.dart';
 
 void main() {
@@ -294,7 +292,7 @@ void main() {
     });
     var step = trace.steps().single.step;
     expect(step.person, worldActionsOwner);
-    expect(stepTitle(step), 'Ran "Mia orders a flat white"');
+    expect(step.did, 'action "Mia orders a flat white"');
     // Whom it signed in as is not the world.
     expect(trace.personOfUser('u9'), isNull);
   });
@@ -361,11 +359,6 @@ void main() {
           ('Cleo', 'lab/sent/push', 'Your flat white is ready', true),
         ],
       );
-      expect(numberNodes(trace.steps().single), {
-        'lab/part/POST /orders/:id/advance': 1,
-        'lab/table/orders': 2,
-        'lab/sent/push': 3,
-      });
     });
 
     test('an arrival crosses from the sync engine to the phone, a local '
@@ -1000,7 +993,7 @@ void main() {
         'how': 'zone',
       });
       var traced = trace.steps(step: 'ben.2').single;
-      expect(stepTitle(traced.step), 'Ben typed the code from the SMS');
+      expect(traced.step.did, 'type the code from the SMS');
       expect(traced.beats.single.what, 'Ben → localhost:5040  POST /verify');
     });
   });

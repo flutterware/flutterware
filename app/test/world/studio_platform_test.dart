@@ -11,16 +11,18 @@ import 'package:flutterware_app/src/world/platform/studio_platform.dart';
 /// hit.
 void main() {
   late Directory home;
+  late StudioPlatform studio;
   late GuestPlatform platform;
 
   setUp(() {
     home = Directory.systemTemp.createTempSync('studio_platform');
-    platform = StudioPlatform(
+    studio = StudioPlatform(
       person: 'Ana',
       home: home,
       package: Directory.current.path,
       device: Devices.iphone16,
-    ).platform;
+    );
+    platform = studio.platform;
   });
 
   tearDown(() => home.deleteSync(recursive: true));
@@ -104,6 +106,68 @@ void main() {
     expect(await call(channel, 'requestPermissions', [camera]), {camera: 1});
     expect(await call(channel, 'checkPermissionStatus', camera), 1);
     expect(await call(channel, 'checkServiceStatus', camera), 1);
+  });
+
+  // `flutter/navigation` and `flutter/platform` speak JSON, as the
+  // framework's own `SystemChannels` do.
+  const json = JSONMethodCodec();
+
+  test('the route an app reports is the address, and back and a typed '
+      'address are sent back to it', () async {
+    await platform.answer(
+      'flutter/navigation',
+      _bytes(
+        json.encodeMethodCall(
+          const MethodCall('routeInformationUpdated', {
+            'uri': '/orders/o3',
+            'state': null,
+            'replace': false,
+          }),
+        ),
+      ),
+    );
+    expect(studio.navigation.route, '/orders/o3');
+
+    var sent = <MethodCall>[];
+    platform.send = (channel, bytes) {
+      if (channel == 'flutter/navigation') {
+        sent.add(json.decodeMethodCall(ByteData.sublistView(bytes)));
+      }
+    };
+    studio.navigation
+      ..back()
+      ..go('/orders');
+    expect(
+      [for (var call in sent) call.method],
+      ['popRoute', 'pushRouteInformation'],
+    );
+    expect((sent.last.arguments as Map)['location'], '/orders');
+  });
+
+  test('the title an app gives its window is kept, and every other '
+      'platform call is still answered as not implemented', () async {
+    await platform.answer(
+      'flutter/platform',
+      _bytes(
+        json.encodeMethodCall(
+          const MethodCall('SystemChrome.setApplicationSwitcherDescription', {
+            'label': 'Pickup · Counter',
+            'primaryColor': 0xFF6F4E37,
+          }),
+        ),
+      ),
+    );
+    expect(studio.system.title, 'Pickup · Counter');
+    expect(studio.system.titleColor, 0xFF6F4E37);
+    expect(
+      await platform.answer(
+        'flutter/platform',
+        _bytes(
+          json.encodeMethodCall(const MethodCall('HapticFeedback.vibrate')),
+        ),
+      ),
+      isNull,
+    );
   });
 
   test('the time zone is a zone name', () async {

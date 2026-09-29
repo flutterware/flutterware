@@ -4,9 +4,13 @@ import '../guest_platform.dart';
 
 /// A notification an app showed, as the studio holds it.
 class GuestNotification {
-  GuestNotification(this.id, this.title, this.body, this.payload);
+  GuestNotification(this.id, this.title, this.body, this.payload)
+    : at = DateTime.now();
 
   final int id;
+
+  /// When the app showed it: what joins it to the push it was shown for.
+  final DateTime at;
   final String? title;
   final String? body;
   final String? payload;

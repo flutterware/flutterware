@@ -84,8 +84,10 @@ users through your server's API.
 - **A person starts signed in through their app's knobs.** `Launch` names an
   entry point and the [knobs](run.md#knobs) its `main` is called with. A
   session token, a server URL or a starting page are all knobs.
-- **`on:` picks the device**: `Studio(Devices.iPad)` for a tablet. The default
-  is an iPhone 16.
+- **`on:` picks the device**: `Studio(Devices.iPad)` for a tablet,
+  `Studio(Devices.window)` for someone at a desktop — the same app, run at a
+  1280 × 800 window in a browser the studio draws. The default is an iPhone
+  16. A person with no `app:` is someone the script acts for.
 - **`w.knob('Leo', options: ['signed out', 'signed in'], initial: 'signed out')`**
   is a choice the world opens with, and answers the one it was opened with.
   Changing it restarts the world.
@@ -154,16 +156,37 @@ fw run worlds open --world=pickup_order --hold=true   # Ctrl-C closes it
 fw run worlds reload
 ```
 
-An open world is three columns. On the left, everything it holds: its
-people, each server with every route, table and message channel it has
-used, and the messages sent. In the middle, the stage: the people's apps,
-live, above a band that shows each server by its counts and the parts the
-chosen step touched — or, switched to **Sequence**, a lane for each person
-and each server with what crossed between them, step by step. On the
-right, the timeline: every step and every message, newest first, a step
-opening where it is on what it caused. Whatever you choose — a person, a
-part, a message — opens in one sheet over the timeline; Esc closes it. The
-world's log folds into the timeline's foot.
+An open world is its people's apps, live, side by side and all in view on
+the stage, each in its device: a phone in its body, a desktop app in a
+browser whose address bar shows the route the app reports — type one there
+and the app goes to it. Every device is drawn at one scale, so a window
+looks as large beside a phone as it is. Above each is the person's name and
+what the servers sent them, by kind (mail, push, SMS); someone with no app
+is a small card naming the actions that act for them. Zoom in with the
+buttons in the corner, a pinch or ⌘-scroll, and the stage pans; a scroll
+over a phone scrolls its app. Use them as phones: an order placed on one
+shows up on another.
+
+The toolbar holds the world's knobs and actions, and on the right who is in
+view: **Everyone**, or one person — their name on the stage does the same.
+One person is in focus with their device as large as the room allows, and
+beside it their panel: who they are and what their app runs on, and
+
+- **Messages** — the texts, pushes and mails the servers sent that person,
+  each saying what caused it, in the words of its step (`action "Rush
+  hour"`, `Leo: tap "Order a flat white"`), and with the button that hands
+  it to their app: **Type it** for a code, **Open** or **Tap it** for a
+  link, **Read it** for a mail. A push the app showed a notification for is
+  marked *shown*.
+- **Network**, **App** and **Logs** — Run's own views of that app: every
+  request it made, its devbar panels (its database, when it exposes one —
+  `doc/database_watch.md`), and its log.
+
+**⋯** on the person is what the studio can do as their app's platform: open
+a link in it, show the notifications it posted and the pages it opened, and
+send it to the background. **Everyone** or Esc goes back. The dock along the
+bottom has the world's own log — its script, its server, each app's build —
+as its first tab.
 
 Each person's app is a Run app on the device `studio-<name>`: an agent opens a
 world with `flutterware_invoke` and drives Leo's app with `flutterware_act`
@@ -251,13 +274,13 @@ it reached. A record updated several times in a row is one line,
 counts folds into it: the SQL statements it ran and how long they took
 together, `POST /orders  201 in 9 ms, 12 statements, 6.1 ms`, and its
 writes to a table in a layer. `fw run worlds trace --statements=true` lists
-them beneath the line, and the canvas opens them from it. Statements run
+them beneath the line. Statements run
 under no request fold into one line for each burst of them.
 
 **A table can sit in a layer of its own.** A `write` event with a `layer`,
 `FlutterwareServer.event('write', {'table': 'jobs', 'key': id, 'layer': 'jobs'})`,
-files the table under that name on the canvas, beneath the records people
-act on, and counts its writes on the line of the request or job that made
+files the table under that name, apart from the records people act on,
+and counts its writes on the line of the request or job that made
 them rather than listing each. Job queues and outboxes belong there.
 
 **A server the script hosts is named after the script**, because it reports
@@ -272,14 +295,14 @@ step it ran as. `--person=world` lists only those.
 An app that keeps its data in a synced database follows its records instead:
 with `sync: DatabaseSync.powersync` on its [Database watch](database_watch.md)
 adapter, a record written on one phone is traced to the others as it
-arrives, and each person's sync state shows beside their phone and in
+arrives, and each person's sync state shows in their focus and in
 `worlds status`.
 
 ## Hand a message to a person
 
 What a server sends outside — an SMS, a push, a mail — reaches its person
-through the world. Each message is a row of the timeline, beside the steps,
-and of its person's sheet: **Type it** puts a code into the field that has
+through the world. Each message is listed under its person — open their
+phone in focus — and **Type it** puts a code into the field that has
 focus in their app, as an autofill would, and **Open** or **Tap it** opens a
 message's link in their app. Tap the field the code goes in first.
 
@@ -330,10 +353,11 @@ that is not Dart carries no step, so what it sent joins the newest step
 heard in the three seconds before it, and says it joined by time.
 
 A mail with `html` is read as its recipient would see it: **Read it** opens
-it as a picture WebKit draws, with each link clickable where it sits, and
-**Page** shows the page itself, live. A link to the app opens in the
-person's app; a web link opens in the page; every link is listed beneath
-with **Open in Leo's app** too. `fw run worlds show --message=<id>` draws the
+it in the person's panel, beside their app, as a picture WebKit draws, with
+each link clickable where it sits. A link goes where a phone would send it:
+into the app when the app opens it — a scheme of its own, a web host it
+claims — and otherwise to the page, live, with **Mail** to come back. Under
+the mail, each link opened from it in the app, and when. `fw run worlds show --message=<id>` draws the
 picture for an agent to read, with each link's box, and
 `fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
 Drawing needs the Xcode command line tools, as the native layer does: the
@@ -341,8 +365,8 @@ helper is compiled on first use.
 
 ## See what the system holds
 
-Each part of the system the canvas draws — a route, a table, the SMS a server
-sent, the sync engine — opens on what the world heard it do since it opened,
+Each part of the system — a route, a table, the SMS a server sent, the sync
+engine — answers with what the world heard it do since it opened,
 the script's own calls included, each with the step that caused it. A record
 comes with its whole life, joined by its key:
 

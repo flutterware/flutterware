@@ -28,7 +28,20 @@ const worldsPluginId = 'flutterware.worlds';
 /// `restart` and `close` to the owner, which leaves a `WorldHandle` saying
 /// where to ask.
 class WorldsCore extends PluginCore {
-  WorldsCore(super.host);
+  WorldsCore(super.host) {
+    if (_handedOver.remove(host.worktree.path) case var open?) {
+      _open = open..onChanged = notifyChanged;
+      unawaited(_serveElsewhere(open));
+    }
+  }
+
+  /// A world whose core a config edit disposed, for the core built in its
+  /// place. Saving `tool/flutterware.dart` rebuilds every core, and adding a
+  /// world to it is no reason to close the one open, its people mid-flow.
+  /// The shell builds the new cores in the same turn it disposes the old, so
+  /// a world nobody has taken by the next microtask — the worktree closed,
+  /// or the config stopped declaring worlds — closes as it always did.
+  static final _handedOver = <String, OpenWorld>{};
 
   /// Where a person's app draws: nowhere, unless a surface that can show a
   /// guest says otherwise — the studio's panel sets a live one.
@@ -856,7 +869,15 @@ class WorldsCore extends PluginCore {
   @override
   void dispose() {
     unawaited(_stopServingElsewhere());
-    unawaited(_open?.close());
+    if (_open case var open?) {
+      var worktree = host.worktree.path;
+      _handedOver[worktree] = open..onChanged = null;
+      scheduleMicrotask(() {
+        if (_handedOver[worktree] != open) return;
+        _handedOver.remove(worktree);
+        unawaited(open.close());
+      });
+    }
     _open = null;
     super.dispose();
   }

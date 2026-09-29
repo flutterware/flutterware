@@ -69,6 +69,14 @@ class GuestPlatform {
     };
   }
 
+  /// A channel answered in its own terms, for a codec neither of the others
+  /// speaks — `flutter/navigation` is JSON. [handler] is given the message's
+  /// bytes and returns the reply's.
+  void bytes(
+    String channel,
+    Future<Uint8List?> Function(Uint8List message) handler,
+  ) => _channels[channel] = handler;
+
   /// A Pigeon API: one channel per method, `<api>.<method>`, arguments as a
   /// list, the result in a one-element list. [codec] is the API's own, for
   /// the classes and enums it declares.

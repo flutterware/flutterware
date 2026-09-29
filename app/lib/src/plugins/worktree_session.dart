@@ -32,6 +32,7 @@ class WorktreeSession extends ChangeNotifier {
   WorktreeSession({required this.session, required List<NativePlugin> plugins})
     : plugins = List.unmodifiable(plugins) {
     for (var plugin in this.plugins) {
+      plugin.peer = pluginById;
       plugin.addListener(notifyListeners);
       // Every panel, not the ones that remembered to ask. A capture must not
       // photograph a worktree whose panels are still filling in, and which

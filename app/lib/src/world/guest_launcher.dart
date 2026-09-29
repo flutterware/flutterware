@@ -58,6 +58,11 @@ class GuestLauncher {
   }
 
   /// Loads the kernel delta at [dill] into the app and has it rebuild.
+  ///
+  /// An app still starting — reloaded because another person's app on the
+  /// same program was — has not registered the framework's extensions yet,
+  /// and has built nothing a reassemble would rebuild: its first frame
+  /// builds from the new code anyway. Only the code has to be in.
   Future<void> reloadFrom(String dill) async {
     var isolate = await _rootIsolate();
     var report = await _service.reloadSources(isolate, rootLibUri: dill);
@@ -66,10 +71,15 @@ class GuestLauncher {
         'reloadSources refused ${p.basename(dill)}: ${report.json}',
       );
     }
-    await _service.callServiceExtension(
-      'ext.flutter.reassemble',
-      isolateId: isolate,
-    );
+    try {
+      await _service.callServiceExtension(
+        'ext.flutter.reassemble',
+        isolateId: isolate,
+      );
+    } on RPCError catch (error) {
+      // Not built yet: nothing to rebuild.
+      if (error.code != RPCErrorKind.kMethodNotFound.code) rethrow;
+    }
   }
 
   /// Starts the app again from the whole program at [dill], in the same

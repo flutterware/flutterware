@@ -12,6 +12,7 @@ class InspectDockTab {
   const InspectDockTab({
     required this.id,
     required this.label,
+    this.icon,
     this.badge = 0,
     this.enabled = true,
     this.disabledReason,
@@ -20,6 +21,10 @@ class InspectDockTab {
 
   final String id;
   final String label;
+
+  /// Before the label, for a strip whose tabs are kinds of thing rather than
+  /// views of one — a log beside a server.
+  final IconData? icon;
 
   /// Zero draws nothing at all — a badge that is always there is a
   /// decoration.
@@ -250,6 +255,7 @@ class InspectTabStrip extends StatelessWidget {
                     for (var tab in tabs)
                       _Tab(
                         label: tab.label,
+                        icon: tab.icon,
                         selected: tab.id == current,
                         badge: tab.badge,
                         enabled: tab.enabled,
@@ -326,6 +332,7 @@ class InspectSplitGrip extends StatelessWidget {
 class _Tab extends StatelessWidget {
   const _Tab({
     required this.label,
+    this.icon,
     required this.selected,
     required this.onTap,
     this.badge = 0,
@@ -334,6 +341,7 @@ class _Tab extends StatelessWidget {
   });
 
   final String label;
+  final IconData? icon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -354,6 +362,11 @@ class _Tab extends StatelessWidget {
   /// wash inside its own subtree, where no ancestor can cover it.
   @override
   Widget build(BuildContext context) {
+    var tone = !enabled
+        ? context.colors.mut3
+        : selected
+        ? context.colors.ink
+        : context.colors.mut;
     var tab = Tappable(
       // Null is the disable, so the wash, the click cursor and keyboard
       // traversal all go with it — [Tappable] already knows how to be off, and
@@ -376,16 +389,11 @@ class _Tab extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: context.type.caption.copyWith(
-                color: !enabled
-                    ? context.colors.mut3
-                    : selected
-                    ? context.colors.ink
-                    : context.colors.mut,
-              ),
-            ),
+            if (icon case var icon?) ...[
+              Icon(icon, size: FwIconSize.sm, color: tone),
+              const SizedBox(width: FwSpacing.sm),
+            ],
+            Text(label, style: context.type.caption.copyWith(color: tone)),
             if (badge > 0) ...[
               const SizedBox(width: FwSpacing.sm),
               // Quiet, not alarming. This used to be a red pill, written for a
