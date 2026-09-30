@@ -20,6 +20,7 @@ import '../translations/index.dart';
 import 'aim.dart';
 import 'asset_bundle.dart';
 import 'async_watchdog.dart';
+import 'fake_timers.dart';
 import 'film.dart';
 import '../ambient/ambient.dart';
 import '../app_events/events.dart';
@@ -204,6 +205,44 @@ void scenario(
       return withClock(Clock(pinned.now), () => scenarioBody(pinned));
     },
   );
+}
+
+/// How far `act` moves the clock per frame while its body waits: the interval
+/// the settle policies pump at, so a wait inside an act is drawn at the same
+/// cadence as a verb's.
+const _clockInterval = Duration(milliseconds: 100);
+
+/// A zone for `act`'s body whose microtasks can be held back while the act
+/// pumps, and scheduled once the pump has returned.
+///
+/// A future the body started completes during a frame — an animation's
+/// `TickerFuture`, say — by scheduling a microtask in *this* zone, and the
+/// pump flushes its microtasks between the frame's two halves. Run there, a
+/// body that goes on to call a verb calls it from inside a pump.
+class _HeldMicrotasks {
+  var holding = false;
+  final _held = <void Function()>[];
+
+  late final Zone zone = Zone.current.fork(
+    specification: ZoneSpecification(
+      scheduleMicrotask: (self, parent, zone, task) {
+        if (holding) {
+          _held.add(() => parent.scheduleMicrotask(zone, task));
+        } else {
+          parent.scheduleMicrotask(zone, task);
+        }
+      },
+    ),
+  );
+
+  void release() {
+    holding = false;
+    var held = List.of(_held);
+    _held.clear();
+    for (var schedule in held) {
+      schedule();
+    }
+  }
 }
 
 /// The scenario's pinned clock: [origin] plus the fake time since it started.
@@ -669,7 +708,10 @@ Future<void> _runScenario(
       scenarioFlushHeld = s._flushPending;
       scenarioBreakPlacement = s._breakPlacement;
       try {
-        await body(s);
+        // Inside a zone that records the timers the app starts, so `act` can
+        // tell a body waiting on the fake clock from one waiting on nothing,
+        // and a deadline can say which.
+        await recordingTimers(() => body(s));
         s._flushPending();
         // The closing hold, once the body is through: a film that cut on the
         // frame its last verb happened to land on would end mid-gesture.
@@ -809,6 +851,18 @@ class ScenarioFailure implements Exception {
 
   @override
   String toString() => 'in split branch "$path": $error';
+}
+
+/// What `s.act` throws when its body is still waiting at the end of its
+/// `timeout` of fake time. Caught like every other failure, so the step's
+/// picture is the screen the wait gave up on.
+class ScenarioStillWaiting implements Exception {
+  ScenarioStillWaiting(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 /// A verb's target that names no widget, or several — raised before the
@@ -1146,6 +1200,15 @@ class ScenarioTester {
   /// are measured from. Set at construction, which is after the replay's
   /// teardown pump, so tearing the tree down never counts as a stray frame.
   var _framesAtLastStep = _frames;
+
+  /// Verbs in flight: more than one while a verb runs inside `act`'s body.
+  /// Read by [act], which must never move the clock under a verb that is
+  /// moving it itself.
+  var _stepDepth = 0;
+
+  /// Completed as the next verb returns — what [act] waits on while one runs
+  /// inside its body.
+  Completer<void>? _stepReturned;
 
   /// The frame count when this replay last passed a capture point — emitted,
   /// adopted, or recognised from an earlier replay's shared prefix. While
@@ -1687,8 +1750,24 @@ class ScenarioTester {
   ///
   /// [body] may be synchronous or return a future, and whatever it returns
   /// comes back — a handle the rest of the scenario needs is not worth a
-  /// variable declared a line above. It runs under fake time like everything
-  /// else, and it is not the place for work that needs the *real* event loop:
+  /// variable declared a line above.
+  ///
+  /// It runs under fake time like everything else, and the clock moves for
+  /// it. A body that awaits something only the fake clock can finish — a
+  /// `Future.delayed`, a debounce, a repository answering behind a timer, an
+  /// animation it started — would otherwise wait forever, since nothing pumps
+  /// while it waits. So while it waits on one, the act pumps frames the way a
+  /// settle does, until the body completes or [timeout] of fake time is
+  /// spent, and a body still waiting then fails the step with what the clock
+  /// still held:
+  ///
+  /// ```dart
+  /// await s.act('The search debounce fires', () => search.query('latte'));
+  /// ```
+  ///
+  /// A body that needs no time moves none, and a verb called inside the body
+  /// moves the clock itself — the act waits for it rather than pumping under
+  /// it. It is not the place for work that needs the *real* event loop:
   /// [runAsync] is its own step, so putting one inside this one captures
   /// twice, once for what landed and once for the name.
   Future<T> act<T>(
@@ -1696,12 +1775,93 @@ class ScenarioTester {
     FutureOr<T> Function() body, {
     List<String> tags = const [],
     Settle? settle,
+    Duration timeout = const Duration(seconds: 10),
   }) => _step(
     Shot(description, tags: tags),
     settle,
-    () async => await body(),
+    () => _awaitMovingClock(description, body, timeout),
     verb: 'act',
   );
+
+  /// [body]'s result, with the fake clock moved for as long as the body waits
+  /// on it — see [act].
+  ///
+  /// The clock moves only while the body is *parked*: the fake zone has
+  /// nothing queued, no verb is running inside the body, no `runAsync` is
+  /// open, and a timer or a frame is actually pending. Anything else is
+  /// either work that will finish without it or work it would break — a verb
+  /// pumping, real work that only a turn of the real loop lands — and the
+  /// body is simply awaited, exactly as it was before the clock ever moved
+  /// here. Frames are pumped at the settle interval, and each goes to the
+  /// recorder, so a movie of the step has the wait in it rather than a cut.
+  ///
+  /// What the pump fires is held until it returns. Whatever a firing timer
+  /// completes resumes on the timer's own stack, inside the pump, and a body
+  /// that resumes there and calls a verb calls a pump from inside a pump. So
+  /// timer callbacks wait until the clock stops (see [deferringTimers]), and
+  /// the microtasks the body's own zone schedules during the frame — an
+  /// animation's future completing — wait until the pump has returned. Both
+  /// then run in order, where a verb may be called.
+  Future<T> _awaitMovingClock<T>(
+    String description,
+    FutureOr<T> Function() body,
+    Duration timeout,
+  ) async {
+    // On the real clock the body's timers fire on their own.
+    if (tester.binding is LiveTestWidgetsFlutterBinding) return await body();
+    var held = _HeldMicrotasks();
+    var result = held.zone.run(body);
+    if (result is! Future<T>) return result;
+    var done = false;
+    var finished = result.then<void>(
+      (_) {
+        done = true;
+      },
+      onError: (Object _) {
+        done = true;
+      },
+    );
+    var depth = _stepDepth;
+    var interval = _sink?.interval ?? _clockInterval;
+    var moved = Duration.zero;
+    // Once before anything else, so the first pump never happens inside the
+    // call to `act` itself: `expectLater(s.act(…), …)` guards its own call,
+    // and a pump already open there is a guarded call it did not await.
+    await Future<void>.value();
+    while (!done) {
+      // Behind whatever is queued: it may be the body getting on with it, and
+      // a body that finishes on microtasks alone must move no time at all.
+      if (tester.binding.microtaskCount > 0) {
+        await Future<void>.value();
+        continue;
+      }
+      if (_stepDepth > depth) {
+        await Future.any([finished, (_stepReturned ??= Completer()).future]);
+        continue;
+      }
+      if (runAsyncOpen) break;
+      var timers = pendingScenarioTimers;
+      if (timers.isEmpty && !tester.binding.hasScheduledFrame) break;
+      if (moved >= timeout) {
+        throw ScenarioStillWaiting(
+          stillWaitingMessage(description, timeout, interval, timers),
+        );
+      }
+      await deferringTimers(() async {
+        held.holding = true;
+        try {
+          _keyboard.step();
+          await tester.pump(interval);
+        } finally {
+          held.release();
+        }
+      });
+      moved += interval;
+      _sink?.capture(tester);
+      await _sink?.flush(tester);
+    }
+    return await result;
+  }
 
   /// Names the screen as it stands, without performing an action.
   ///
@@ -2194,6 +2354,7 @@ class ScenarioTester {
         ? null
         : ScenarioVerbInFlight(verb, target, StackTrace.current);
     scenarioVerbInFlight = inFlight;
+    _stepDepth++;
     try {
       // The frame the transition starts from, banked before the verb acts —
       // otherwise a movie of a tap opens on the frame after the tap and the
@@ -2272,6 +2433,9 @@ class ScenarioTester {
       await _captureFailure(error, verb: verb, target: target);
       rethrow;
     } finally {
+      _stepDepth--;
+      _stepReturned?.complete();
+      _stepReturned = null;
       if (inFlight != null) scenarioLastVerb = inFlight;
       scenarioVerbInFlight = null;
       markScenarioProgress();

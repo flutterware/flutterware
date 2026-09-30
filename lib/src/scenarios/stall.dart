@@ -31,6 +31,7 @@ library;
 
 import '../design_libraries.dart';
 import '../real_work/tracker.dart';
+import 'fake_timers.dart';
 import 'progress.dart';
 
 /// A verb the body is inside — `tap "Pay"` — and where the scenario called it.
@@ -103,6 +104,7 @@ List<PendingSend> get pendingSends => _pendingSends.values.toList();
 /// Forgets what an earlier scenario was doing. Called as each begins.
 void resetStallFacts() {
   _pendingSends.clear();
+  forgetScenarioTimers();
   scenarioVerbInFlight = null;
   scenarioLastVerb = null;
 }
@@ -177,7 +179,9 @@ const _framework = [
 /// zone's queue length at the deadline, or null where it could not be read.
 /// [previousScenario] is what ran before this one in the same process, since
 /// a future created in *its* fake zone is the usual thing a body waits on
-/// forever.
+/// forever. [timers] are the scenario's timers still waiting on the fake
+/// clock: with nothing queued beside them they are what a pump *would*
+/// complete, which is the one case the empty queue does not mean a dead zone.
 String stallDiagnosis({
   required Duration deadline,
   ScenarioStallKind kind = ScenarioStallKind.stalled,
@@ -193,14 +197,18 @@ String stallDiagnosis({
   int pendingImages = 0,
   String? previousScenario,
   bool eventsOnFailedStep = false,
+  List<ScenarioTimer> timers = const [],
 }) {
+  // Queued microtasks are the stronger fact: a pump would run them first,
+  // and they are what the body is waiting on, whatever the clock holds.
+  var clock = (microtasks ?? 0) == 0 && timers.isNotEmpty;
   var lines = <String>[
     switch (kind) {
       ScenarioStallKind.stalled =>
         'the scenario made no progress for ${spanOf(deadline)} — no '
             'verb returned, no step was captured, no tracked work was pending, '
             'and the isolate sat idle, so it was waiting rather than working: '
-            '${watchdog ?? _where(inFlight, lastVerb)}',
+            '${watchdog ?? _where(inFlight, lastVerb, clock: clock)}',
       ScenarioStallKind.trackedWork =>
         'tracked real work `$overdue` was still pending after '
             '${spanOf(overdue?.pendingFor ?? elapsed ?? trackedWorkCeiling)}, '
@@ -216,11 +224,15 @@ String stallDiagnosis({
         'the scenario was still running after ${spanOf(elapsed ?? deadline)}, '
             'though it never went ${spanOf(deadline)} without progress — a '
             'flow that loops without end? '
-            '${watchdog ?? _where(inFlight, lastVerb)}',
+            '${watchdog ?? _where(inFlight, lastVerb, clock: clock)}',
     },
   ];
   if (kind == ScenarioStallKind.stalled && watchdog == null) {
-    lines.add(_mechanism(microtasks, previousScenario));
+    lines.add(
+      clock
+          ? _clockMechanism(timers)
+          : _mechanism(microtasks, previousScenario),
+    );
   }
   for (var send in sends) {
     var frames = appFrames(send.at);
@@ -282,18 +294,26 @@ String _waitingFor(
       '${_where(inFlight, lastVerb)}';
 }
 
-String _where(ScenarioVerbInFlight? inFlight, ScenarioVerbInFlight? lastVerb) {
+String _where(
+  ScenarioVerbInFlight? inFlight,
+  ScenarioVerbInFlight? lastVerb, {
+  bool clock = false,
+}) {
   if (inFlight != null) {
     var site = inFlight.callSite;
     return 'it was inside `s.${inFlight.label}`'
         '${site == null ? '' : ', called from $site'}, waiting on a future '
-        'no pump can complete.';
+        '${clock ? 'that never completed' : 'no pump can complete'}.';
   }
   if (lastVerb != null) {
     var site = lastVerb.callSite;
     return 'it was between verbs: `s.${lastVerb.label}`'
         '${site == null ? '' : ' ($site)'} had returned, and whatever the '
         'body awaited next never completed.';
+  }
+  if (clock) {
+    return 'the body was waiting on a future that never completed, before '
+        'its first verb.';
   }
   return 'the body was waiting on a real future no pump can complete before '
       'its first verb.';
@@ -325,4 +345,67 @@ String _mechanism(int? microtasks, String? previousScenario) {
       'answers, a real-clock timer outside `s.runAsync`. To reproduce the '
       'first, run the two files together in order: '
       '`--file=<earlier>,<this>`.';
+}
+
+/// The sentence `s.act` fails with when its body is still waiting after
+/// [timeout] of fake time, moved [interval] at a time; [timers] are what the
+/// clock still held when it gave up.
+String stillWaitingMessage(
+  String description,
+  Duration timeout,
+  Duration interval,
+  List<ScenarioTimer> timers,
+) {
+  var head =
+      '`s.act` "$description" was still waiting for its body after '
+      '${spanOf(timeout)} of fake time, moved ${spanOf(interval)} a frame.';
+  if (timers.isEmpty) {
+    return '$head Nothing was left on the fake clock — only frames, and '
+        'pumping drew them — so it is not fake time the body is waiting on. '
+        'Real work is: a platform channel nobody answers, a file, an isolate, '
+        'which belong in `s.runAsync`; or a future made in an earlier '
+        "scenario's fake zone, which never completes at all.";
+  }
+  return '$head The fake clock still holds ${describeTimers(timers)}. If the '
+      'body is waiting on one of them, give it longer: `s.act(…, timeout: …)`. '
+      'If it is waiting on real work instead — a platform channel, a file, an '
+      'isolate — no amount of fake time completes it: that belongs in '
+      '`s.runAsync`.';
+}
+
+/// The mechanism when nothing is queued but the clock still holds timers: the
+/// body awaited something only moving the clock would finish, between the
+/// pumps that move it.
+String _clockMechanism(List<ScenarioTimer> timers) =>
+    'Nothing is queued in the fake zone, but the fake clock still holds '
+    '${describeTimers(timers)}, and only a pump moves that clock — the '
+    'suspended body is the one thing that would have run it. A '
+    '`Future.delayed`, a debounce or a timer-driven load awaited between verbs '
+    'never completes. Await it inside `s.act(…)`, which moves the clock until '
+    'its body completes, or move the clock first with `s.wait(…)`.';
+
+/// [timers] as a sentence names them — "a 2s timer from `Repo.load
+/// (lib/repo.dart:12)`, a periodic 1s timer and 3 more".
+///
+/// Three at most, and the app's own frame for each: the delay, debounce or
+/// poll a reader will recognise, rather than the framework line that started
+/// it on their behalf.
+String describeTimers(List<ScenarioTimer> timers) {
+  var named = [for (var timer in timers.take(3)) _describeTimer(timer)];
+  var more = timers.length - named.length;
+  if (more > 0) named.add('$more more');
+  return switch (named.length) {
+    1 => named.single,
+    _ => '${named.sublist(0, named.length - 1).join(', ')} and ${named.last}',
+  };
+}
+
+String _describeTimer(ScenarioTimer timer) {
+  var kind = timer.periodic ? 'a periodic' : 'a';
+  var from = switch (timer.at) {
+    var at? => appFrames(at, max: 1).firstOrNull,
+    null => null,
+  };
+  return '$kind ${spanOf(timer.duration)} timer'
+      '${from == null ? '' : ' from `$from`'}';
 }

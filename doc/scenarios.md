@@ -79,6 +79,7 @@ Each one acts, waits for the screen to settle, and captures.
 | `scrollTo(target)` | scrolls until the target is on screen, then stops |
 | `back()` | the Android back button — pops the route |
 | `wait(duration)` | moves the fake clock past a timer |
+| `act(description, body)` | a cause that is not a finger — a push, a completer, a backend — named on the step |
 | `screen(name)` | captures without acting |
 | `split({...})` | forks the flow |
 
@@ -287,6 +288,26 @@ and then a deadline; inside `s.runAsync`, no pump can run at all and the
 watchdog names it after eight. `s.runAsync` is for work that needs the real
 clock and nothing else — a database, a socket — never for a future the app
 already created.
+
+### Work on the fake clock
+
+A future that waits on the *fake* clock — a `Future.delayed`, a debounce, a
+repository that answers behind a timer — is the opposite case, and has the
+same symptom. Only a pump moves the clock, so awaited bare between verbs it
+never completes; the deadline says so, and names the timer and the line that
+started it. Await it inside `s.act`, which moves the clock for its body:
+
+```dart
+await s.act('The search debounce fires', () => search.query('latte'));
+```
+
+While the body waits on a timer or a frame, the act pumps at the settle
+interval until the body completes, up to `timeout:` of fake time (ten seconds
+by default); a body still waiting then fails the step with what the clock
+still held. A body that needs no time moves none, and a verb called inside the
+body moves the clock itself, so the act waits for it rather than pumping under
+it. On the real clock (`ScenarioTime.real`) the body's timers fire on their
+own and the act only awaits it.
 
 ## Shots
 
