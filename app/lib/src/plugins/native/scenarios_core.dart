@@ -1961,8 +1961,11 @@ class ScenariosCore extends PluginCore {
               kind: ActionParameterKind.string,
               required: false,
               description:
-                  'Only this scenario file, package-relative — or a directory, '
-                  'for everything under it',
+                  'Only this scenario file, package-relative — as `list` '
+                  'reports it. A directory keeps everything under it, which '
+                  'is the unit the folder profiles are declared in. Several, '
+                  'comma-separated (or `--file` repeated), run in the order '
+                  'given in one process',
             ),
           ],
         ),
@@ -2398,9 +2401,8 @@ class ScenariosCore extends PluginCore {
     _PickedStep picked,
     Map<String, Object?> arguments,
   ) {
-    var channels = switch (arguments['channel']) {
-      String text when text.trim().isNotEmpty =>
-        text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet(),
+    var channels = switch (_axisList(arguments['channel'], 'channel')) {
+      var named when named.isNotEmpty => named.toSet(),
       _ => null,
     };
     var errorsOnly = ScreenRead.boolArgument(arguments['errors']);
@@ -2954,7 +2956,7 @@ class ScenariosCore extends PluginCore {
   /// else, and copying out of a live run directory would leave both.
   Future<ScenarioShotsResult> _shots(Map<String, Object?> arguments) async {
     var paths = _requested(arguments);
-    var file = arguments['file'] as String?;
+    var file = _fileArgument(arguments['file']);
     var tag = arguments['tag'] as String?;
     var devices = _axisList(arguments['devices'], 'devices');
     for (var id in devices) {
@@ -3335,7 +3337,7 @@ class ScenariosCore extends PluginCore {
     for (var path in paths) {
       track(path);
     }
-    var file = arguments['file'] as String?;
+    var file = _fileArgument(arguments['file']);
     var scenario = arguments['scenario'] as String?;
     if (scenario != null && file == null) {
       throw ArgumentError(
@@ -4092,11 +4094,18 @@ class ScenariosCore extends PluginCore {
       );
     }
     var path = paths.single;
-    var file = arguments['file'] as String?;
+    var file = _fileArgument(arguments['file']);
     if (file == null || file.isEmpty) {
       throw ArgumentError(
         '`file` names the scenario file to film — as `list` reports it. A '
         'film is one scenario, so there is no "all of them" here.',
+      );
+    }
+    if (fileSelectors(file).length > 1) {
+      throw ArgumentError.value(
+        file,
+        'file',
+        'names several files, and a film is one scenario. Name one',
       );
     }
     var scenario = switch (arguments['scenario']) {
@@ -4397,7 +4406,6 @@ class ScenariosCore extends PluginCore {
     return [?selector, if (tag != null) 'tag "$tag"'].join(' with ');
   }
 
-  /// A comma-separated axis list, trimmed and emptied of blanks.
   /// The branches a film was told to take, outermost first.
   ///
   /// Never comma-split, unlike an axis list: a branch is a label an author
@@ -4410,9 +4418,17 @@ class ScenariosCore extends PluginCore {
     var other => throw ArgumentError.value(other, 'branch', 'a branch label'),
   };
 
+  /// A comma-separated axis list, trimmed and emptied of blanks — or the
+  /// same values already split, which is what a caller reading `repeatable`
+  /// sends.
   static List<String> _axisList(Object? raw, String name) {
     if (raw == null) return const [];
-    if (raw is List) return [for (var item in raw) '$item'.trim()];
+    if (raw is List) {
+      return [
+        for (var item in raw)
+          if ('$item'.trim().isNotEmpty) '$item'.trim(),
+      ];
+    }
     if (raw is! String) {
       throw ArgumentError.value(raw, name, 'a comma-separated list');
     }
@@ -4421,6 +4437,27 @@ class ScenariosCore extends PluginCore {
         if (part.trim().isNotEmpty) part.trim(),
     ];
   }
+
+  /// The `file` argument as the one comma-separated string the runner and
+  /// `fileSelectors` take, however it arrived.
+  ///
+  /// `file` is declared repeatable, and a caller that reads the listing takes
+  /// that to mean a list — which is what an agent sent over MCP, and what a
+  /// bare `as String?` answered with a cast error. The CLI never showed it:
+  /// a repeated `--file` reaches an action already comma-joined.
+  static String? _fileArgument(Object? raw) => switch (raw) {
+    null => null,
+    String one => one,
+    List list => switch (_axisList(list, 'file')) {
+      var files when files.isNotEmpty => files.join(','),
+      _ => null,
+    },
+    var other => throw ArgumentError.value(
+      other,
+      'file',
+      'a package-relative path, or several — as a list or comma-separated',
+    ),
+  };
 
   /// The orientation list a matrix asked for, checked. Empty stays empty — the
   /// caller decides what "nothing fanned out" falls back to.

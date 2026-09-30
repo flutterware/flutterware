@@ -493,6 +493,43 @@ void main() {
     },
   );
 
+  test('`file` takes the list its listing says it repeats', () async {
+    // Declared repeatable, so an agent sent a list — and a bare `as String?`
+    // answered with a cast error. The CLI joins a repeated flag before the
+    // action sees it, which is why only MCP ever met this.
+    var runner = _FakeRunner();
+    var subject = core(runner: runner);
+    var files = ['test/scenarios/a_test.dart', 'test/scenarios/b_test.dart'];
+
+    var run =
+        (await subject.invoke(
+              'run',
+              arguments: {'package': '.', 'file': files},
+            ))!
+            as ScenarioRunResult;
+    expect(runner.seenFiles.last, files.join(','));
+    expect(run.packages.single.error, isNull);
+
+    runner.writeShots = true;
+    var shots =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'package': '.',
+                'output': p.join(root.path, 'store'),
+                'file': [files.first],
+              },
+            ))!
+            as ScenarioShotsResult;
+    expect(runner.seenFiles.last, files.first);
+    expect(shots.packages.single.error, isNull);
+
+    await expectLater(
+      subject.invoke('run', arguments: {'package': '.', 'file': 42}),
+      throwsArgumentError,
+    );
+  });
+
   test("shots over several packages keeps every package's tree", () async {
     // The output was emptied before each package, so the second deleted the
     // first's screenshots and the answer still counted them.
@@ -644,6 +681,7 @@ class _FakeRunner extends ScenarioRunner {
   final seenCaptureScales = <double?>[];
   final seenOutDirs = <String>[];
   final seenTags = <String?>[];
+  final seenFiles = <String?>[];
   final seenNative = <bool>[];
 
   /// When set, the fake writes real PNGs and reports the steps below —
@@ -704,6 +742,7 @@ class _FakeRunner extends ScenarioRunner {
     seenRaw.add(captureRaw);
     seenOutDirs.add(outDir);
     seenTags.add(tag);
+    seenFiles.add(file);
     seenNative.add(captureNative);
     resolvedDevice = axes.device ?? unspecifiedDevice;
     if (writeShots) return _shotRun(outDir, file, scenario);
@@ -729,13 +768,15 @@ class _FakeRunner extends ScenarioRunner {
     return {
       'ms': 5,
       'scenarios': [
-        {
-          'file': file,
-          'name': scenario,
-          'ok': true,
-          'ms': 3,
-          'steps': [step],
-        },
+        // One per file selector, as the harness answers a run over several.
+        for (var one in file?.split(',') ?? [null])
+          {
+            'file': one,
+            'name': scenario,
+            'ok': true,
+            'ms': 3,
+            'steps': [step],
+          },
       ],
     };
   }

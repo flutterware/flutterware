@@ -518,6 +518,13 @@ void main() {
 
       var both = await read({'channel': 'db,log'});
       expect([for (var e in both.events!) e.channel], ['db', 'log']);
+
+      // Repeatable, so a list is what a caller reading the listing sends —
+      // and it used to fall through to "no filter" without a word.
+      var listed = await read({
+        'channel': ['db', 'log'],
+      });
+      expect([for (var e in listed.events!) e.channel], ['db', 'log']);
     });
 
     test('errors: true is the first question to ask of a red step', () async {
