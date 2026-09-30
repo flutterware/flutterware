@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../scenarios/target.dart';
+import 'lane.dart';
 import 'live_settle.dart';
 import 'resolve.dart';
 
@@ -43,26 +43,6 @@ class DriveStep {
   };
 }
 
-/// `LiveWidgetController` with a pump that survives a hidden window: frames
-/// are forced when the platform has disabled them, and every wait is capped
-/// so nothing here can hang the verb that pumps.
-class _DriveController extends LiveWidgetController {
-  _DriveController(super.binding);
-
-  @override
-  Future<void> pump([Duration? duration]) async {
-    if (duration != null) {
-      await Future<void>.delayed(duration);
-    }
-    binding.scheduleFrame();
-    if (!binding.framesEnabled) binding.scheduleForcedFrame();
-    await Future.any([
-      binding.endOfFrame,
-      Future<void>.delayed(const Duration(milliseconds: 250)),
-    ]);
-  }
-}
-
 /// The live half of the verb engine: scenarios' vocabulary — same targets,
 /// same actionability ladder, same refusal wording — executed against a
 /// running app's real `WidgetsBinding`.
@@ -75,11 +55,18 @@ class _DriveController extends LiveWidgetController {
 /// (a plain wait advances zero frames on a hidden window), and only the
 /// deadline surfaces the error. Measured: taps land on the first frame a
 /// transition releases them (`2026-08-11-run-drive-spike-findings.md`).
+///
+/// **Where it runs is a [DriveLane].** The default is the live one; a
+/// [TesterLane] runs the same verbs under a widget test's fake clock, which is
+/// how a preview reaches a state before it is photographed.
 class Drive {
   Drive({WidgetsBinding? binding})
-    : controller = _DriveController(binding ?? WidgetsBinding.instance);
+    : this.on(LiveLane(binding ?? WidgetsBinding.instance));
 
-  final LiveWidgetController controller;
+  Drive.on(this.lane) : controller = lane.controller;
+
+  final DriveLane lane;
+  final WidgetController controller;
 
   /// Deadline for the resolve/reachability retry ladder.
   var actTimeout = const Duration(seconds: 3);
@@ -110,6 +97,17 @@ class Drive {
 
   SemanticsHandle? _semantics;
 
+  /// Lets go of what a verb took hold of for the rest of the drive's life —
+  /// the semantics tree a `{"label"}` target turned on.
+  ///
+  /// A live app keeps it for as long as it runs, and never needs this. A
+  /// widget test does: it fails a body that ends with a handle open, so a
+  /// drive on a [TesterLane] is disposed before its body returns.
+  void dispose() {
+    _semantics?.dispose();
+    _semantics = null;
+  }
+
   late final TargetResolver _resolver = TargetResolver(
     controller,
     messages: const TargetMessages(
@@ -129,7 +127,7 @@ class Drive {
     describeScreen: _describeScreen,
     ensureSemantics: () async {
       _semantics ??= controller.binding.ensureSemantics();
-      await settleLive(budget: const Duration(milliseconds: 100));
+      await lane.settle(const Duration(milliseconds: 100));
     },
   );
 
@@ -165,7 +163,7 @@ class Drive {
       // a widget that the first tap moved.
       var at = _contact(target, finder);
       await controller.tapAt(at);
-      await Future<void>.delayed(gap ?? doubleTapGap);
+      await lane.elapse(gap ?? doubleTapGap);
       await controller.tapAt(at);
     });
   }
@@ -216,12 +214,12 @@ class Drive {
   /// other widget — a hover is how "does this control explain itself" becomes
   /// a question with a machine-readable answer.
   ///
-  /// [hold] is real elapsed time, which is why it exists at all.
-  /// A settle waits on frames, tickers and image decodes; the interesting half
+  /// [hold] is time on the lane's clock — real on a live app, exact on a
+  /// tester — which is why it exists at all. A settle waits on frames, tickers and image decodes; the interesting half
   /// of a hover is very often a `Timer` — `Tooltip.waitDuration` — which
   /// schedules none of the three until it fires. Measured on an app whose theme
   /// sets 400ms: hover-and-settle reported `settled: true` at 80ms with no
-  /// tooltip on screen, every time. See [_holdForHover] for what the hold
+  /// tooltip on screen, every time. See [DriveLane.hold] for what the hold
   /// actually watches.
   ///
   /// The pointer stays where it is put. A mouse does not leave the screen
@@ -236,7 +234,7 @@ class Drive {
         _mouse.hover(_contact(target, finder)),
       );
       _hovering = describeTarget(target);
-      await _holdForHover(hold ?? hoverHold);
+      await lane.hold(hold ?? hoverHold);
     });
   }
 
@@ -256,9 +254,9 @@ class Drive {
       // Held for the same reason the enter is: a `Tooltip` dismisses on a
       // timer too (`_hoverExitDuration`), so an unhover that only settled
       // would come back with the tooltip still on screen.
-      await _holdForHover(hold ?? hoverHold);
+      await lane.hold(hold ?? hoverHold);
     }
-    var result = await settleLive(budget: settle ?? settleBudget);
+    var result = await lane.settle(settle ?? settleBudget);
     return DriveStep(
       verb: 'unhover',
       target: released,
@@ -320,41 +318,6 @@ class Drive {
   static const _mouseDevice = 1000;
   static const _mousePointerId = 1000;
 
-  /// Waits out a hover's *delayed* reaction, in real time.
-  ///
-  /// Two phases, and the order is the whole trick. The immediate reaction — a
-  /// tint, an elevation, a cursor — schedules a frame the moment the event
-  /// lands, so a plain "stop as soon as the app reacts" poll would stop on
-  /// that and never see the thing hovering is usually asked about. The settle
-  /// absorbs the immediate reaction first; only after it is a newly scheduled
-  /// frame or a newly running ticker evidence of the *second*, delayed one.
-  ///
-  /// Missing that evidence costs latency and never correctness: on a visible
-  /// window a frame can be scheduled and run inside one 16ms beat, and then
-  /// this simply holds the full budget — and the caller's settle, which runs
-  /// after every hold, sees the finished screen either way.
-  ///
-  /// [budget] covers both phases, which is why the clock starts before the
-  /// settle. The two used to have a budget each, and a hover that landed
-  /// mid-route-transition paid twice: the settle spent the whole 600ms on the
-  /// transition, the poll then found the app quiet and spent 600ms more. What
-  /// the caller asked for is how long the pointer is held there, and the
-  /// settle happens while it is held. Nothing is lost by counting it — a
-  /// delayed reaction's own timer starts when the hover lands, not when the
-  /// immediate one finishes, so it is still inside this window.
-  Future<void> _holdForHover(Duration budget) async {
-    if (budget <= Duration.zero) return;
-    var watch = Stopwatch()..start();
-    await settleLive(budget: budget);
-    var binding = controller.binding;
-    while (watch.elapsed < budget) {
-      if (binding.hasScheduledFrame || binding.transientCallbackCount > 0) {
-        return;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 16));
-    }
-  }
-
   Future<DriveStep> drag(dynamic target, Offset by, {Duration? settle}) {
     return _act(
       'drag',
@@ -394,7 +357,7 @@ class Drive {
       // Already on screen: nothing to walk, nothing to do — the same no-op
       // the scenario verb makes, so a flow ported between the two engines
       // keeps working on its short pages.
-      var settled = await settleLive(budget: settle ?? settleBudget);
+      var settled = await lane.settle(settle ?? settleBudget);
       return DriveStep(
         verb: 'scrollTo',
         target: describeTarget(target),
@@ -409,7 +372,7 @@ class Drive {
     if (finder.evaluate().isEmpty) {
       if (scrolledPastTarget(finder, scrollable) case var behind?) {
         await Scrollable.ensureVisible(behind);
-        var settled = await settleLive(budget: settle ?? settleBudget);
+        var settled = await lane.settle(settle ?? settleBudget);
         if (finder.evaluate().isNotEmpty) {
           return DriveStep(
             verb: 'scrollTo',
@@ -437,7 +400,7 @@ class Drive {
         ),
       );
     }
-    var result = await settleLive(budget: settle ?? settleBudget);
+    var result = await lane.settle(settle ?? settleBudget);
     return DriveStep(
       verb: 'scrollTo',
       target: describeTarget(target),
@@ -481,7 +444,7 @@ class Drive {
           (elements.single as StatefulElement).state as EditableTextState;
       state.requestKeyboard();
       // Focus and the input connection apply over a frame; give them one.
-      await settleLive(budget: const Duration(milliseconds: 100));
+      await lane.settle(const Duration(milliseconds: 100));
       state.userUpdateTextEditingValue(
         TextEditingValue(
           text: text,
@@ -600,7 +563,7 @@ class Drive {
       );
     }
 
-    var result = await settleLive(budget: settle ?? settleBudget);
+    var result = await lane.settle(settle ?? settleBudget);
     return DriveStep(
       verb: 'key',
       target: chord,
@@ -799,29 +762,24 @@ class Drive {
   /// `flutter/navigation` — so `PopScope`s run on the way in.
   Future<DriveStep> back({Duration? settle}) async {
     var watch = Stopwatch()..start();
-    var completer = Completer<void>();
-    ui.channelBuffers.push(
-      'flutter/navigation',
-      const JSONMethodCodec().encodeMethodCall(const MethodCall('popRoute')),
-      (_) => completer.complete(),
-    );
-    await completer.future;
-    var result = await settleLive(budget: settle ?? settleBudget);
+    await lane.popRoute();
+    var result = await lane.settle(settle ?? settleBudget);
     return DriveStep(verb: 'back', settle: result, elapsed: watch.elapsed);
   }
 
-  /// Real elapsed time, then a settle so what the wait released is applied.
+  /// [duration] of the lane's clock, then a settle so what the wait released
+  /// is applied.
   Future<DriveStep> wait(Duration duration, {Duration? settle}) async {
     var watch = Stopwatch()..start();
-    await Future<void>.delayed(duration);
-    var result = await settleLive(budget: settle ?? settleBudget);
+    await lane.elapse(duration);
+    var result = await lane.settle(settle ?? settleBudget);
     return DriveStep(verb: 'wait', settle: result, elapsed: watch.elapsed);
   }
 
   /// The act-less transaction: settle and look.
   Future<DriveStep> observe({Duration? settle}) async {
     var watch = Stopwatch()..start();
-    var result = await settleLive(budget: settle ?? settleBudget);
+    var result = await lane.settle(settle ?? settleBudget);
     return DriveStep(verb: 'observe', settle: result, elapsed: watch.elapsed);
   }
 
@@ -867,11 +825,11 @@ class Drive {
         await act(finder);
         break;
       } on TargetError {
-        if (watch.elapsed >= actTimeout) rethrow;
-        await settleLive(budget: retryPump);
+        if (!lane.retries || watch.elapsed >= actTimeout) rethrow;
+        await lane.settle(retryPump);
       }
     }
-    var result = await settleLive(budget: settle ?? settleBudget);
+    var result = await lane.settle(settle ?? settleBudget);
     return DriveStep(
       verb: verb,
       target: describeTarget(target),

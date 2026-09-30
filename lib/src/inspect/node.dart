@@ -1540,6 +1540,46 @@ class InspectTree {
     return exact != null ? [exact] : matching(selector).toList();
   }
 
+  /// The *places* on screen [selector] could mean: [resolve], with matches
+  /// nested inside one another taken as one place.
+  ///
+  /// A row's words name the row as well as the text. Its semantics label
+  /// carries them, so `Cold brew` matches the `Text`, the card around it and
+  /// the padding around that — measured on a real menu screen, four nodes for
+  /// one row. Those are one place, and the outermost is the one returned
+  /// because it holds every other: a picture of it shows whatever the caller
+  /// meant, and scrolling to it brings all of them on screen. Refusing them
+  /// instead left a row below the fold with no name at all — its ids only
+  /// exist once the list has scrolled, and mean other rows at rest.
+  ///
+  /// Matches side by side are several places, and which one was meant is not
+  /// this method's to guess: they all come back, for the caller to refuse.
+  ///
+  /// Once there is more than one match, nodes without a box drop out — a
+  /// provider or a builder is nowhere to cut or scroll to. A lone match is
+  /// returned boxed or not, so the caller can say which mistake it is.
+  List<InspectNode> places(String selector) {
+    var found = resolve(selector);
+    if (found.length <= 1) return found;
+    var boxed = [
+      for (var node in found)
+        if (node.layout != null) node,
+    ];
+    if (boxed.length <= 1) return boxed;
+    var outermost = boxed.reduce(
+      (a, b) => _depthOf(a.id) <= _depthOf(b.id) ? a : b,
+    );
+    var nested = boxed.every(
+      (node) =>
+          node == outermost ||
+          outermost.id.isEmpty ||
+          node.id.startsWith('${outermost.id}/'),
+    );
+    return nested ? [outermost] : boxed;
+  }
+
+  static int _depthOf(String id) => id.isEmpty ? 0 : id.split('/').length;
+
   /// This tree, narrowed to what [filter] asks for.
   ///
   /// Throws when [InspectFilter.root] names no node, for the reason

@@ -37,6 +37,9 @@ void main() {
     var keyboards = scan.entries.singleWhere(
       (entry) => entry.id == 'demo/input.dart#keyboards',
     );
+    var scrolling = scan.entries.singleWhere(
+      (entry) => entry.id == 'demo/input.dart#scrolling',
+    );
 
     var buildDirectory = claimBuildDirectory(
       packageRoot,
@@ -45,7 +48,7 @@ void main() {
     var runner = PreviewTestRunner(
       packageRoot: packageRoot,
       flutterSdkRoot: flutterRoot!,
-      read: () => (entries: [keyboards], canvases: const []),
+      read: () => (entries: [keyboards, scrolling], canvases: const []),
       buildDirectory: buildDirectory,
     );
     var renderer = TesterRenderer(runner: runner);
@@ -192,6 +195,90 @@ void main() {
       // the request rather than about whatever the surface happens to be.
       expect(declared.stagedOn!.width, CaptureViewport.panel.width);
       expect(declared.stagedOn!.pixelRatio, 1);
+
+      // **Steps: the drive verbs, run before anything is read.** A row the
+      // lazy list had not built is on the tree the steps left — the tree and
+      // the picture are of the screen they reached, not the entry at rest.
+      var stepped = await renderer.render(
+        CatalogRender(
+          entryId: scrolling.id,
+          wantTree: true,
+          steps: const [
+            {'verb': 'scrollTo', 'target': 'Row 57'},
+          ],
+        ),
+      );
+      expect(stepped.tree!.matching('Row 57'), isNotEmpty);
+      // And a refused step refuses the call, in drive's words, saying which
+      // step it was — the message alone does not know it was one of several.
+      await expectLater(
+        renderer.render(
+          CatalogRender(
+            entryId: scrolling.id,
+            steps: const [
+              {'verb': 'scrollTo', 'target': 'Row 57'},
+              {'verb': 'tap', 'target': 'Nonesuch'},
+            ],
+          ),
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            allOf(contains('step 2 of 2'), contains('"Nonesuch"')),
+          ),
+        ),
+      );
+
+      // **Full: the screen grown to its list.** A hundred rows on one tree
+      // and one picture, and the picture a screen at a time beside it, cut
+      // where one row ends and the next begins.
+      //
+      // At 3×, which a hundred rows take past the rasteriser's largest
+      // texture: drawn smaller and said, rather than scaled in silence and
+      // cut at the wrong rows.
+      const tall = CaptureViewport(width: 1200, height: 2400, pixelRatio: 3);
+      var full = await renderer.render(
+        CatalogRender(
+          entryId: scrolling.id,
+          viewport: tall,
+          wantTree: true,
+          screenshot: p.join(shots.path, 'full.png'),
+          full: true,
+        ),
+      );
+      expect(full.grown!.from, 800);
+      expect(full.grown!.to, greaterThan(100 * 56));
+      expect(full.grown!.truncated, isFalse);
+      expect(full.tree!.matching('Row 99'), isNotEmpty);
+      var drawnAt = full.drawnAt!;
+      expect(drawnAt, lessThan(3));
+      var fullImage = img.decodePng(full.screenshot!.readAsBytesSync())!;
+      expect(fullImage.width, closeTo(400 * drawnAt, 1));
+      expect(fullImage.height, lessThanOrEqualTo(16384));
+
+      var tops = <double>[];
+      var top = 0;
+      for (var page in full.pages) {
+        var height = img.decodePng(page.readAsBytesSync())!.height;
+        expect(height / drawnAt, lessThanOrEqualTo(800 + 1));
+        tops.add(top / drawnAt);
+        top += height;
+      }
+      expect(full.pages.length, greaterThan(1));
+      expect(top, fullImage.height);
+      var rowEdges = [
+        for (var node in full.tree!.nodes)
+          if (node.type == 'ListTile')
+            if (node.layout case var box?) ...[box.y, box.y + box.height],
+      ];
+      for (var cut in tops.skip(1)) {
+        expect(
+          rowEdges.any((edge) => (edge - cut).abs() <= 1),
+          isTrue,
+          reason: 'the page starting at ${cut}pt starts inside a row',
+        );
+      }
     } finally {
       await runner.dispose();
       releaseBuildDirectory(

@@ -34,6 +34,8 @@ void main() {
               child: const _Local(),
             ),
             const Offstage(child: Text('Hidden')),
+            // Its count is a `Text` the design library builds: read from 3.
+            Badge.count(count: 3, child: const SizedBox(width: 8, height: 8)),
           ],
         ),
       ),
@@ -102,6 +104,24 @@ MaterialApp
         Text: Text("Local")
     Offstage
       Text: Text("Hidden") (offstage)
+''',
+  // Words a design library draws are kept. The badge joined the widgets here
+  // with this format, since nothing above had any: under 2 it read `Badge`
+  // over its `SizedBox` and nothing else, and its count was only a picture.
+  3: '''
+MaterialApp
+  Column
+    Text: Text("Plain")
+    Text: Text("Rich span")
+    RichText: RichText("Painted")
+    Padding key [<'padded'>]
+      _Local
+        Text: Text("Local")
+    Offstage
+      Text: Text("Hidden") (offstage)
+    Badge
+      SizedBox
+      Text: Text("3")
 ''',
 };
 

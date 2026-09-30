@@ -186,6 +186,38 @@ const _axesDoc =
     '`describe --entry=<id> --with-axes=true`, which also names the shell; an '
     'entry whose wrapper is not a shell offers none.';
 
+/// What `--steps` is, on both actions that render one state of an entry.
+const _stepsDoc =
+    'Act on the preview before it is read or photographed — **the '
+    '`flutterware_act` verbs**, as a list of the same objects: '
+    '`[{"verb": "tap", "target": "Coffee"}, {"verb": "hover", "target": '
+    r'{"tooltip": "Add to cart"}}]` — a target is text, or the JSON object '
+    '`act` takes, inline. tap, doubleTap, longPress, '
+    'secondaryTap, hover, unhover, drag, scroll, scrollTo, enterText, key, '
+    'back and wait, with the targets and parameters `act` takes, refused in '
+    'the words it refuses them in. How to reach a state the entry does not '
+    'open in — a menu, a tooltip, a row far down a list, a field filled in — '
+    'with one call and no scenario. They run on the fake clock after the '
+    'knobs, each settled until the screen is quiet, so the same steps give '
+    'the same picture every time; a refused step refuses the call and names '
+    'which one it was. Recorded on the address. Several pictures, or a flow '
+    'worth keeping, is a scenario.';
+
+/// What `--full` is, on both actions that render one state of an entry.
+const _fullDoc =
+    'Make the screen as tall as what its lists hold, so the answer has '
+    '**every row** rather than the first screenful — for "what is in this '
+    'list" and "does the bottom of this page survive". The screen grows '
+    "rather than being scrolled and stitched, like a browser's full-page "
+    'screenshot: one layout, nothing repeated at a seam, and the same '
+    "bargain — anything sized from the screen's height grows with it, and "
+    'what is pinned to the bottom, a navigation bar or a floating button, is '
+    'drawn once, at the very bottom. A list in a box of its own height stays '
+    'as it was, and a list with no end stops at ten screens: `grown` in the '
+    'reply says how tall it got and `truncated` when a list had more. After '
+    'the steps, so a state they reach is shown whole. For what the phone '
+    'shows after a scroll instead, pass a `scroll` step.';
+
 /// What `--live` is, on every read that can be answered by a window somebody
 /// already has open.
 const _liveDoc =
@@ -1027,9 +1059,45 @@ class PreviewsCore extends PluginCore {
                 'you then have to squint at. A tree id works too, for the case '
                 'where the name is ambiguous — several matches are refused '
                 'with their ids rather than guessed at, because cropping to '
-                'the wrong one gives a picture that looks right. Cut out of '
+                'the wrong one gives a picture that looks right; matches '
+                'nested in one another — a row, its card and its text all '
+                'carry its words — are one widget, the outermost. Cut out of '
                 'the real frame rather than re-rendered alone, so the widget '
-                'is still surrounded by what surrounds it.',
+                'is still surrounded by what surrounds it. **Scrolled into '
+                'view first**: a widget half off the screen, or a row far '
+                'down a list that has not built it yet, is brought on screen '
+                'before the picture, and `scrolled` in the reply says how far '
+                'the lists moved.',
+          ),
+          const ActionParameter(
+            'steps',
+            'Steps',
+            required: false,
+            description: _stepsDoc,
+          ),
+          const ActionParameter(
+            'full',
+            'Every row',
+            kind: ActionParameterKind.boolean,
+            required: false,
+            defaultValue: 'false',
+            description:
+                '$_fullDoc A picture taller than a screen comes back **a '
+                'screen at a time**, cut between rows rather than through '
+                'them, because an image that tall reaches a model too narrow '
+                'to read: the whole picture is at `path`, and each page is '
+                'beside it under `pages`.',
+          ),
+          ActionParameter(
+            'page',
+            'Page',
+            kind: ActionParameterKind.integer,
+            required: false,
+            description:
+                'With `full`, hand back only this page of the picture, '
+                'counted from 1 — for looking again at one part of a long '
+                'list without the rest. A `full` reply says how many there '
+                'are.',
           ),
           const ActionParameter(
             'annotate',
@@ -1225,7 +1293,28 @@ class PreviewsCore extends PluginCore {
                 'from tree shape, so one taken in another process still names '
                 'this node. A name matching several widgets narrows to the '
                 'outermost of them here, and is refused by `screenshot`, '
-                'because too much tree is visible and the wrong crop is not.',
+                'because too much tree is visible and the wrong crop is not. '
+                'Scrolled into view first, however far down a list it is, so '
+                'everything this answers is of the scrolled screen — the '
+                '`note` says when that happened.',
+          ),
+          const ActionParameter(
+            'steps',
+            'Steps',
+            required: false,
+            description: _stepsDoc,
+          ),
+          const ActionParameter(
+            'full',
+            'Every row',
+            kind: ActionParameterKind.boolean,
+            required: false,
+            defaultValue: 'false',
+            description:
+                '$_fullDoc The `screen` then lists every row with its box, '
+                'which is far cheaper than looking at them: reach for this '
+                'before a `full` screenshot when the question is what a list '
+                'holds.',
           ),
           ActionParameter(
             'depth',
@@ -2581,6 +2670,8 @@ class PreviewsCore extends PluginCore {
       debug: want.debug,
       node: want.node,
       annotate: want.annotate,
+      steps: want.steps,
+      full: want.full,
     );
 
     var observed = await _observe(want, packagePath, address);
@@ -2644,6 +2735,8 @@ class PreviewsCore extends PluginCore {
               : null,
           annotate: want.annotate,
           cropNode: want.node,
+          steps: want.steps,
+          full: want.full,
         ),
       ),
       false,
@@ -2693,6 +2786,10 @@ class PreviewsCore extends PluginCore {
     var projected = want.screen && tree != null
         ? Screen.tryOf(tree)
         : (screen: null, note: null);
+    // The node as the scrolled tree numbers it: `want.node` may be an id, and
+    // the row it named at rest is not the one there now.
+    var node = observed.revealed?.id ?? want.node;
+    var scrolled = observed.revealed?.scrolled ?? 0;
     return CatalogInspectResult(
       entry: want.entryId,
       address: '$address',
@@ -2711,13 +2808,27 @@ class PreviewsCore extends PluginCore {
           ? [for (var error in observed.errors.errors) _asRenderError(error)]
           : const [],
       tree: want.tree && tree != null
-          ? _asNodes(_scoped(tree, want.node, want.depth, want.entryId))
+          ? _asNodes(_scoped(tree, node, want.depth, want.entryId))
           : null,
       // The screen, which with no other flag is now the answer: what
       // rendered, as a nested list of the things carrying words or responding
       // to touch, rather than only the news that something did.
       screen: projected.screen,
-      note: projected.note,
+      note:
+          projected.note ??
+          switch ((observed.grown, scrolled)) {
+            (CatalogGrown(:var from, :var to, truncated: true), _) =>
+              'Grew the screen from ${from.round()}pt to ${to.round()}pt and '
+                  'stopped with a list still going — it has no end, or is '
+                  'longer than ten screens — so its last rows are not here.',
+            (CatalogGrown(:var from, :var to), _) when to > from =>
+              'Grew the screen from ${from.round()}pt to ${to.round()}pt to '
+                  'show every row, so every box here is on one tall screen.',
+            (_, > 0) =>
+              'Scrolled ${scrolled.round()}pt to bring `${want.node}` on '
+                  'screen, so every box here is of the scrolled screen.',
+            _ => null,
+          },
       styles: want.styles ? narrowed?.styles() : null,
       nodes: narrowed?.length,
       next: ScreenRead.offer,
@@ -2754,6 +2865,13 @@ class PreviewsCore extends PluginCore {
           // Worktree-relative, so the value survives being read on another
           // machine and an agent whose tools are scoped to the repo can open it.
           path: p.relative(file.path, from: host.worktree.path),
+          meta: {
+            if (observed.pages.isNotEmpty)
+              'pages': [
+                for (var page in observed.pages)
+                  p.relative(page.path, from: host.worktree.path),
+              ],
+          },
         ),
         null => null,
       },
@@ -2900,6 +3018,7 @@ class PreviewsCore extends PluginCore {
     required Map<String, String> debug,
     required bool wantsPicture,
     required bool reframed,
+    required bool stepped,
   }) =>
       // Opt-in. Reading a window somebody is using answers questions nothing
       // else can, and it makes the same command answer differently depending on
@@ -2917,7 +3036,9 @@ class PreviewsCore extends PluginCore {
       axes.isEmpty &&
       debug.isEmpty &&
       !wantsPicture &&
-      !reframed;
+      !reframed &&
+      // A step would tap the person's window.
+      !stepped;
 
   /// Runs [body] against the guest a person has open, when there is one and it
   /// is **already showing** [entryId].
@@ -3058,6 +3179,9 @@ class PreviewsCore extends PluginCore {
     }
     var annotate = arguments['annotate'] == true;
     var opaque = arguments['opaque'] == true;
+    var steps = parseSteps(arguments['steps']);
+    var full = arguments['full'] == true;
+    var page = _parsePage(arguments['page'], full: full);
 
     var address = _pixelAddress(
       packagePath: packagePath,
@@ -3071,6 +3195,9 @@ class PreviewsCore extends PluginCore {
       node: node as String?,
       annotate: annotate,
       opaque: opaque,
+      steps: steps,
+      full: full,
+      page: page,
     );
 
     var output =
@@ -3094,9 +3221,30 @@ class PreviewsCore extends PluginCore {
             debug: debug,
             cropNode: node,
             annotate: annotate,
+            steps: steps,
+            full: full,
           ),
         );
-    if (opaque) await flattenPngFile(captured.file.path, captured.file.path);
+    var pages = captured.pages;
+    if (opaque) {
+      for (var file in [captured.file, ...pages]) {
+        await flattenPngFile(file.path, file.path);
+      }
+    }
+    // A picture that fits one screen is its own only page.
+    var shown = switch (page) {
+      null || 1 when pages.isEmpty => captured.file,
+      null => captured.file,
+      var n when n <= pages.length => pages[n - 1],
+      var n => throw ArgumentError.value(
+        n,
+        'page',
+        'the picture is ${pages.isEmpty ? 'one page' : '${pages.length} pages'}'
+            ' tall',
+      ),
+    };
+    String relative(File file) =>
+        p.relative(file.path, from: host.worktree.path);
 
     return Artifact(
       kind: Artifact.png,
@@ -3104,19 +3252,119 @@ class PreviewsCore extends PluginCore {
       // Relative to the worktree root, so the value survives being read on
       // another machine — and so an agent whose tools are scoped to the repo
       // can open it.
-      path: p.relative(captured.file.path, from: host.worktree.path),
+      path: relative(shown),
       meta: {
         'name': entry.name,
         'group': ?entry.group,
         'package': packagePath,
-        'bytes': captured.file.lengthSync(),
+        'bytes': shown.lengthSync(),
         // What the entry reported after the values landed. A demo may clamp
         // one, and a caller comparing this with what it asked for is the only
         // way to notice.
         if (captured.knobs.isNotEmpty)
           'knobs': {for (var knob in captured.knobs) knob.name: knob.value},
+        // How far the lists moved to bring `--node` on screen. Absent when
+        // nothing moved, so its presence alone says the picture is not of the
+        // entry at rest.
+        if (captured.scrolled > 0) 'scrolled': captured.scrolled.round(),
+        // How tall the screen grew for `full`, and whether a list still had
+        // more when it stopped.
+        if (captured.grown case var grown?) 'grown': grown.toJson(),
+        // Lower than the device's only when the picture would not fit the
+        // rasteriser's largest texture — said, because 2× where 3× was
+        // expected is a picture that looks merely soft.
+        if (captured.drawnAt case var ratio?)
+          'pixelRatio': double.parse(ratio.toStringAsFixed(2)),
+        // A screen at a time, which is what a model is shown instead of a
+        // picture too tall to read — see `McpServer._jsonWithImage`.
+        if (page == null && pages.isNotEmpty)
+          'pages': [for (var file in pages) relative(file)],
+        if (page != null) ...{
+          'page': page,
+          'of': pages.isEmpty ? 1 : pages.length,
+          'whole': relative(captured.file),
+        },
       },
     );
+  }
+
+  /// `--page`: which screen of a `full` picture to hand back, from 1.
+  static int? _parsePage(Object? value, {required bool full}) {
+    var page = switch (value) {
+      null || '' => null,
+      int n => n,
+      String text => int.tryParse(text.trim()),
+      _ => null,
+    };
+    if (value != null && value != '' && (page == null || page < 1)) {
+      throw ArgumentError.value(value, 'page', 'a page number, from 1');
+    }
+    if (page != null && !full) {
+      throw ArgumentError.value(
+        value,
+        'page',
+        'only a `full` picture has pages — pass `full: true` too',
+      );
+    }
+    return page;
+  }
+
+  /// Steps, however they arrived — a list when an agent sent JSON, a string
+  /// holding one when a shell did — as `act`'s wire spells a call: every
+  /// value a string, a target object encoded as the JSON `act` would have
+  /// been handed.
+  ///
+  /// Checked here rather than in the harness only for what is wrong wherever
+  /// it runs: a step with no verb, and `item`, which names a thing on the
+  /// screen of a reply this call never had.
+  static List<Map<String, String>> parseSteps(Object? value) {
+    var list = switch (value) {
+      null || '' => const <Object?>[],
+      List list => list,
+      String text => switch (_decodeJson(text)) {
+        List list => list,
+        _ => throw ArgumentError.value(
+          value,
+          'steps',
+          'must be a JSON list of act steps — '
+              '`[{"verb": "tap", "target": "Coffee"}]`',
+        ),
+      },
+      _ => throw ArgumentError.value(value, 'steps', 'must be a list'),
+    };
+    var steps = <Map<String, String>>[];
+    for (var (index, step) in list.indexed) {
+      if (step is! Map || step['verb'] is! String) {
+        throw ArgumentError.value(
+          step,
+          'steps',
+          'step ${index + 1} is not an act step — each is an object with a '
+              '`verb`, as `flutterware_act` takes it',
+        );
+      }
+      if (step.containsKey('item')) {
+        throw ArgumentError.value(
+          step,
+          'steps',
+          'step ${index + 1} names an `item`, which is a number on the screen '
+              'of a live reply — there is none here. Name the target instead.',
+        );
+      }
+      steps.add({
+        for (var MapEntry(:key, :value) in step.entries)
+          if (value != null)
+            '$key': value is String ? value : jsonEncode(value),
+      });
+    }
+    return steps;
+  }
+
+  static Object? _decodeJson(String text) {
+    try {
+      return jsonDecode(text);
+    } on FormatException {
+      return null;
+    }
   }
 
   /// Knob values, however they arrived.
@@ -3213,6 +3461,9 @@ class PreviewsCore extends PluginCore {
     required String? node,
     required bool annotate,
     bool opaque = false,
+    List<Map<String, String>> steps = const [],
+    bool full = false,
+    int? page,
   }) => addressFor(
     packagePath,
     entryId,
@@ -3245,6 +3496,15 @@ class PreviewsCore extends PluginCore {
       if (annotate) 'annotate': 'true',
       // Another file even where the pixels agree, and a store checks the file.
       if (opaque) 'opaque': 'true',
+      // The state the picture is of. Keys sorted, so two spellings of one
+      // step are one address.
+      if (steps.isNotEmpty)
+        'steps': jsonEncode([
+          for (var step in steps)
+            {for (var key in step.keys.toList()..sort()) key: step[key]},
+        ]),
+      if (full) 'full': 'true',
+      if (page != null) 'page': '$page',
     },
   );
 
@@ -3386,6 +3646,8 @@ class _InspectRequest {
     required this.debug,
     required this.mayAttach,
     required this.engine,
+    required this.steps,
+    required this.full,
   });
 
   /// Which engine to render on when the live session is not the answer — null
@@ -3409,6 +3671,7 @@ class _InspectRequest {
     var knobs = PreviewsCore.parsePairs(arguments['knobs']);
     var axes = PreviewsCore.parsePairs(arguments['axes']);
     var debug = PreviewsCore.parsePairs(arguments['debug']);
+    var steps = PreviewsCore.parseSteps(arguments['steps']);
     var (deviceId, orientationId, viewport) = PreviewsCore.framingFor(
       arguments,
       fallback: fallback,
@@ -3465,9 +3728,16 @@ class _InspectRequest {
         axes: axes,
         debug: debug,
         wantsPicture: picture,
-        reframed: deviceId != null || viewport != CaptureViewport.panel,
+        // Growing the screen reframes it as much as naming a size does.
+        reframed:
+            deviceId != null ||
+            viewport != CaptureViewport.panel ||
+            arguments['full'] == true,
+        stepped: steps.isNotEmpty,
       ),
       engine: arguments['engine'],
+      steps: steps,
+      full: arguments['full'] == true,
     );
   }
 
@@ -3515,6 +3785,12 @@ class _InspectRequest {
   /// Whether this call may read an already-open window — decided here so
   /// that the reasons sit beside the flags they are about.
   final bool mayAttach;
+
+  /// Drive verbs to run first, in `act`'s wire spelling.
+  final List<Map<String, String>> steps;
+
+  /// Grow the screen to what its lists hold first.
+  final bool full;
 }
 
 /// A package's syntactic scan — see [PreviewsCore.new].

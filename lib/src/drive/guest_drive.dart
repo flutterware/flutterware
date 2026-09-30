@@ -233,116 +233,8 @@ class GuestDrive {
     }
   }
 
-  Future<DriveStep> _run(Map<String, String> params, Duration? settle) async {
-    switch (params['verb']) {
-      case 'tap':
-        return drive.tap(_target(params), settle: settle);
-      case 'longPress':
-        return drive.longPress(_target(params), settle: settle);
-      case 'doubleTap':
-        return drive.doubleTap(
-          _target(params),
-          gap: _durationOf(params, 'gapMs'),
-          settle: settle,
-        );
-      case 'secondaryTap':
-        return drive.secondaryTap(_target(params), settle: settle);
-      case 'hover':
-        return drive.hover(
-          _target(params),
-          hold: _durationOf(params, 'holdMs'),
-          settle: settle,
-        );
-      case 'unhover':
-        return drive.unhover(
-          hold: _durationOf(params, 'holdMs'),
-          settle: settle,
-        );
-      case 'drag':
-        return drive.drag(
-          _target(params),
-          Offset(
-            double.parse(params['dx'] ?? '0'),
-            double.parse(params['dy'] ?? '0'),
-          ),
-          settle: settle,
-        );
-      case 'scroll':
-        return drive.scroll(
-          _target(params),
-          Offset(
-            double.parse(params['dx'] ?? '0'),
-            double.parse(params['dy'] ?? '0'),
-          ),
-          settle: settle,
-        );
-      case 'key':
-        return drive.key(params['keys'] ?? '', settle: settle);
-      case 'scrollTo':
-        return drive.scrollTo(
-          _target(params),
-          within: params['within'] == null
-              ? null
-              : wireTarget(params['within']!),
-          step: double.parse(params['step'] ?? '200'),
-          maxScrolls: int.parse(params['maxScrolls'] ?? '50'),
-          settle: settle,
-        );
-      case 'enterText':
-        return drive.enterText(
-          _target(params),
-          params['text'] ?? '',
-          settle: settle,
-        );
-      case 'back':
-        return drive.back(settle: settle);
-      case 'wait':
-        return drive.wait(
-          _durationOf(params, 'waitMs') ?? const Duration(seconds: 1),
-          settle: settle,
-        );
-      case 'observe':
-        return drive.observe(settle: settle);
-      case 'navigate':
-        var handler = navigator;
-        if (handler == null) {
-          throw TargetError(
-            TargetFailure.notFound,
-            'this app declares no navigation handler — `navigate` needs one. '
-            'A routing system registers it with `GuestDrive.navigator = …`; '
-            'until then, `tap` walks the UI.',
-          );
-        }
-        var watch = Stopwatch()..start();
-        handler(params['route'] ?? '');
-        var result = await settleLive(budget: settle ?? drive.settleBudget);
-        return DriveStep(
-          verb: 'navigate',
-          target: params['route'],
-          settle: result,
-          elapsed: watch.elapsed,
-        );
-      default:
-        throw ArgumentError(
-          'unknown verb ${params['verb']} — one of tap, doubleTap, '
-          'longPress, secondaryTap, hover, unhover, drag, scroll, scrollTo, '
-          'enterText, key, back, wait, observe, navigate',
-        );
-    }
-  }
-
-  dynamic _target(Map<String, String> params) {
-    var spec = params['target'];
-    if (spec == null) {
-      throw ArgumentError('this verb needs a `target` parameter');
-    }
-    return wireTarget(spec);
-  }
-
-  Duration? _durationOf(Map<String, String> params, String key) {
-    var ms = params[key];
-    return ms == null ? null : Duration(milliseconds: int.parse(ms));
-  }
+  Future<DriveStep> _run(Map<String, String> params, Duration? settle) =>
+      runWireVerb(drive, params, settle: settle, navigator: navigator);
 
   ({int logCursor, Map<String, int> errorCounts}) _beforeAct() =>
       (logCursor: _logCursor, errorCounts: _errorCounts);
@@ -453,6 +345,126 @@ class GuestDrive {
       image.dispose();
     }
   }
+}
+
+/// One verb, as the wire spells it: `act`'s parameters, every value a string
+/// — `verb`, `target` (bare text, or JSON for the rest of the grammar), and
+/// whichever of `text`, `keys`, `dx`, `dy`, `holdMs`, `gapMs`, `waitMs`,
+/// `within`, `step`, `maxScrolls` and `route` the verb reads.
+///
+/// Its own function rather than a method of [GuestDrive] because it is not
+/// the live app's alone: a preview that is tapped before it is photographed
+/// parses its steps here too, so a step there and an `act` here mean the same
+/// thing and are refused in the same words.
+Future<DriveStep> runWireVerb(
+  Drive drive,
+  Map<String, String> params, {
+  Duration? settle,
+  void Function(String route)? navigator,
+}) async {
+  switch (params['verb']) {
+    case 'tap':
+      return drive.tap(_target(params), settle: settle);
+    case 'longPress':
+      return drive.longPress(_target(params), settle: settle);
+    case 'doubleTap':
+      return drive.doubleTap(
+        _target(params),
+        gap: _durationOf(params, 'gapMs'),
+        settle: settle,
+      );
+    case 'secondaryTap':
+      return drive.secondaryTap(_target(params), settle: settle);
+    case 'hover':
+      return drive.hover(
+        _target(params),
+        hold: _durationOf(params, 'holdMs'),
+        settle: settle,
+      );
+    case 'unhover':
+      return drive.unhover(hold: _durationOf(params, 'holdMs'), settle: settle);
+    case 'drag':
+      return drive.drag(
+        _target(params),
+        Offset(
+          double.parse(params['dx'] ?? '0'),
+          double.parse(params['dy'] ?? '0'),
+        ),
+        settle: settle,
+      );
+    case 'scroll':
+      return drive.scroll(
+        _target(params),
+        Offset(
+          double.parse(params['dx'] ?? '0'),
+          double.parse(params['dy'] ?? '0'),
+        ),
+        settle: settle,
+      );
+    case 'key':
+      return drive.key(params['keys'] ?? '', settle: settle);
+    case 'scrollTo':
+      return drive.scrollTo(
+        _target(params),
+        within: params['within'] == null ? null : wireTarget(params['within']!),
+        step: double.parse(params['step'] ?? '200'),
+        maxScrolls: int.parse(params['maxScrolls'] ?? '50'),
+        settle: settle,
+      );
+    case 'enterText':
+      return drive.enterText(
+        _target(params),
+        params['text'] ?? '',
+        settle: settle,
+      );
+    case 'back':
+      return drive.back(settle: settle);
+    case 'wait':
+      return drive.wait(
+        _durationOf(params, 'waitMs') ?? const Duration(seconds: 1),
+        settle: settle,
+      );
+    case 'observe':
+      return drive.observe(settle: settle);
+    case 'navigate':
+      var handler = navigator;
+      if (handler == null) {
+        throw TargetError(
+          TargetFailure.notFound,
+          'this app declares no navigation handler — `navigate` needs one. '
+          'A routing system registers it with `GuestDrive.navigator = …`; '
+          'until then, `tap` walks the UI.',
+        );
+      }
+      var watch = Stopwatch()..start();
+      handler(params['route'] ?? '');
+      var result = await drive.lane.settle(settle ?? drive.settleBudget);
+      return DriveStep(
+        verb: 'navigate',
+        target: params['route'],
+        settle: result,
+        elapsed: watch.elapsed,
+      );
+    default:
+      throw ArgumentError(
+        'unknown verb ${params['verb']} — one of tap, doubleTap, '
+        'longPress, secondaryTap, hover, unhover, drag, scroll, scrollTo, '
+        'enterText, key, back, wait, observe, navigate',
+      );
+  }
+}
+
+dynamic _target(Map<String, String> params) {
+  var spec = params['target'];
+  if (spec == null) {
+    throw ArgumentError('this verb needs a `target` parameter');
+  }
+  return wireTarget(spec);
+}
+
+Duration? _durationOf(Map<String, String> params, String key) {
+  var ms = params[key];
+  return ms == null ? null : Duration(milliseconds: int.parse(ms));
 }
 
 /// Parses the wire spelling of a target into the verb-facing value.
