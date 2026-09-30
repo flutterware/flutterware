@@ -1611,7 +1611,7 @@ next: String   # The command that runs what was just written.
 
 #### `shots` — Store screenshots
 
-The store/documentation lane: runs the scenarios and keeps only their **named** shots, at the pixel ratio each device really has, into `<output>/<language>/<device>/NN-name.png`. Everything a `run` leaves behind — the automatic steps, the widget trees — is dropped. A separate action because every default differs; `run` stays the debugging lane.
+The store/documentation lane: runs the scenarios and keeps only their **named** shots, at the pixel ratio each device really has, into `<output>/<language>/<device>/<scenario>/NN-name.png` — numbered within each scenario, so adding a shot renames nothing in any other. Everything a `run` leaves behind — the automatic steps, the widget trees — is dropped. A separate action because every default differs; `run` stays the debugging lane.
 
 ```sh
 fw run scenarios shots [--package=…] [--output=…] [--devices=…] [--languages=…] [--orientations=…] [--tag=…] [--file=…]
@@ -1622,11 +1622,11 @@ Returns `ScenarioShotsResult`:
 ```
 packages: List<ScenarioShotsPackage>
   path: String
-  output: String   # The root of the tree — `<language>/<device>/` beneath it.
+  output: String   # The root of the tree — `<language>/<device>/<scenario>/` beneath it.
   sets: List<ScenarioShotSet>
     directory: String   # Relative to `ScenarioShotsPackage.output`, so the whole tree can be moved or uploaded as it stands.
     axes: Map<String, String>
-    images: List<String>   # File names, in the order they were captured — which is the order they were numbered with.
+    images: List<String>   # Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.
     failed: int   # Scenarios that failed while producing this set.
     failures: List<ScenarioShotFailure>   # Why, one entry per failed scenario — [failed] is their count.
       file: String   # Package-relative, as `list` reports it.

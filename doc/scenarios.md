@@ -608,10 +608,19 @@ fw run scenarios shots --languages=en,fr --tag=store
 Keeps only the **named** shots, at each device's own pixel ratio, into
 
 ```
-<output>/<language>/<device>/01-welcome.png
-                             02-menu.png
-                             03-order-placed.png
+<output>/<language>/<device>/around-the-shop/01-welcome.png
+                                              02-menu.png
+                                              03-order-placed.png
+                             checkout/01-cart.png
 ```
+
+A directory per scenario, named after it, and the shots numbered in flow
+order within it. Adding a shot renumbers only the rest of its own scenario,
+so an export's diff is the screens that changed rather than every file after
+the first new one. Two files that each have a scenario of the same name get
+their file names in front — `cart-happy-path/`, `checkout-happy-path/`. The
+scenario name is the order: prefix names (`01 Login`) rather than files if
+the directories should sort a particular way.
 
 With no `--devices`, each folder's profile answers, so one invocation produces
 a phone tree for the mobile folder and a window tree for the desktop one. The

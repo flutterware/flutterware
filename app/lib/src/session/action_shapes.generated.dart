@@ -6270,7 +6270,7 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{
         'name': 'images',
         'type': 'List<String>',
-        'doc': 'File names, in the order they were captured — which is the order they were numbered with.',
+        'doc': 'Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.',
       },
       <String, Object?>{
         'name': 'failed',
@@ -6312,7 +6312,7 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{
         'name': 'output',
         'type': 'String',
-        'doc': 'The root of the tree — `<language>/<device>/` beneath it.',
+        'doc': 'The root of the tree — `<language>/<device>/<scenario>/` beneath it.',
       },
       <String, Object?>{
         'name': 'sets',
@@ -6329,7 +6329,7 @@ final resultShapes = <String, ResultShape>{
             <String, Object?>{
               'name': 'images',
               'type': 'List<String>',
-              'doc': 'File names, in the order they were captured — which is the order they were numbered with.',
+              'doc': 'Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.',
             },
             <String, Object?>{
               'name': 'failed',
@@ -6386,8 +6386,7 @@ final resultShapes = <String, ResultShape>{
             <String, Object?>{
               'name': 'output',
               'type': 'String',
-              'doc':
-                  'The root of the tree — `<language>/<device>/` beneath it.',
+              'doc': 'The root of the tree — `<language>/<device>/<scenario>/` beneath it.',
             },
             <String, Object?>{
               'name': 'sets',
@@ -6407,7 +6406,7 @@ final resultShapes = <String, ResultShape>{
                   <String, Object?>{
                     'name': 'images',
                     'type': 'List<String>',
-                    'doc': 'File names, in the order they were captured — which is the order they were numbered with.',
+                    'doc': 'Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.',
                   },
                   <String, Object?>{
                     'name': 'failed',

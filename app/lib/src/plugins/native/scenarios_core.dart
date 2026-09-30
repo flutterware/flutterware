@@ -1880,7 +1880,9 @@ class ScenariosCore extends PluginCore {
               'The store/documentation lane: runs the scenarios and keeps '
               'only their **named** shots, at the pixel ratio each device '
               'really has, '
-              'into `<output>/<language>/<device>/NN-name.png`. Everything a '
+              'into `<output>/<language>/<device>/<scenario>/NN-name.png` — '
+              'numbered within each scenario, so adding a shot renames '
+              'nothing in any other. Everything a '
               '`run` leaves behind — the automatic steps, the widget trees — '
               'is dropped. A separate action because every default differs; '
               '`run` stays the debugging lane.',
@@ -3022,6 +3024,8 @@ class ScenariosCore extends PluginCore {
       var flatten = <(String, String)>[];
       var failures = <String, List<ScenarioShotFailure>>{};
       var axesOf = <String, Map<String, String>>{};
+      // Shots so far per scenario directory, which is what numbers them.
+      var numbered = <String, int>{};
       try {
         for (var assignment in assignments) {
           var report = await _runnerFor(path).run(
@@ -3043,6 +3047,10 @@ class ScenariosCore extends PluginCore {
             report,
             axes: assignment,
           );
+          // Every outcome is placed in its set before any shot is named: a
+          // scenario's directory depends on the others beside it — see
+          // [_scenarioDirectories].
+          var sets = <String, List<ScenarioRunOutcome>>{};
           for (var outcome in described.scenarios) {
             var language = assignment.language ?? 'default';
             var device = outcome.device ?? fitDeviceId;
@@ -3061,9 +3069,7 @@ class ScenariosCore extends PluginCore {
               if (assignment.isLandscape)
                 'orientation': ScreenOrientation.landscape.name,
             };
-            var into = Directory(p.join(output, key))
-              ..createSync(recursive: true);
-            var kept = images.putIfAbsent(key, () => []);
+            sets.putIfAbsent(key, () => []).add(outcome);
             if (!outcome.ok) {
               failures
                   .putIfAbsent(key, () => [])
@@ -3076,30 +3082,49 @@ class ScenariosCore extends PluginCore {
                     ),
                   );
             }
-            for (var step in outcome.steps) {
-              // Named shots only, and only the tag asked for: an automatic
-              // capture is a debugging artefact, not a screenshot somebody
-              // chose to show.
-              if (step.name == null) continue;
-              if (tag != null && !step.tags.contains(tag)) continue;
-              // A named step with no picture: the scenario emitted a document
-              // or a notification beat, which is a step in the flow and not a
-              // screenshot of anything.
-              if (step.image == null) continue;
-              var number = (kept.length + 1).toString().padLeft(2, '0');
-              var name = '$number-${_shotSlug(step.name!)}.png';
-              // `step.image` is relative to the worktree, which is what keeps
-              // a result portable; `step.root` is this machine's copy of it.
-              //
-              // Flattened rather than copied: a capture is RGBA whatever it
-              // holds, and neither store accepts a PNG with an alpha channel.
-              // See `flattenPng`.
-              flatten.add((
-                p.join(step.root, step.image!),
-                p.join(into.path, name),
-              ));
-              kept.add(name);
-              total++;
+          }
+          for (var MapEntry(:key, value: outcomes) in sets.entries) {
+            Directory(p.join(output, key)).createSync(recursive: true);
+            var kept = images.putIfAbsent(key, () => []);
+            var directories = _scenarioDirectories(outcomes);
+            for (var (index, outcome) in outcomes.indexed) {
+              var directory = p.join(key, directories[index]);
+              for (var step in outcome.steps) {
+                // Named shots only, and only the tag asked for: an automatic
+                // capture is a debugging artefact, not a screenshot somebody
+                // chose to show.
+                if (step.name == null) continue;
+                if (tag != null && !step.tags.contains(tag)) continue;
+                // A named step with no picture: the scenario emitted a
+                // document or a notification beat, which is a step in the
+                // flow and not a screenshot of anything.
+                if (step.image == null) continue;
+                // Counted within the scenario, never across the set: a
+                // number shared by the whole set moved every later file of
+                // every later scenario whenever one shot was added, and an
+                // export's diff touched all of it.
+                var number = numbered[directory] =
+                    (numbered[directory] ?? 0) + 1;
+                var name = p.join(
+                  directories[index],
+                  '${number.toString().padLeft(2, '0')}-'
+                  '${_shotSlug(step.name!)}.png',
+                );
+                Directory(p.join(output, directory)).createSync();
+                // `step.image` is relative to the worktree, which is what
+                // keeps a result portable; `step.root` is this machine's copy
+                // of it.
+                //
+                // Flattened rather than copied: a capture is RGBA whatever it
+                // holds, and neither store accepts a PNG with an alpha
+                // channel. See `flattenPng`.
+                flatten.add((
+                  p.join(step.root, step.image!),
+                  p.join(output, key, name),
+                ));
+                kept.add(name);
+                total++;
+              }
             }
           }
         }
@@ -3156,6 +3181,37 @@ class ScenariosCore extends PluginCore {
     if (assignment.isLandscape) '--orientation=landscape',
     if (assignment.language case var language?) '--language=$language',
   ].join(' ');
+
+  /// The directory each of [outcomes] writes its shots into, inside their
+  /// set: the scenario's name, slugged — `Checkout` → `checkout/`.
+  ///
+  /// A name is unique per file, not per package, so two files can each have
+  /// a `Happy path`. Those — and only those — are told apart by their files,
+  /// `cart-happy-path/` and `checkout-happy-path/`: putting the file in
+  /// every directory would lengthen them all to settle a clash most suites
+  /// never have. Whatever still clashes shares a directory, and the
+  /// numbering, which is per directory, keeps it from overwriting.
+  static List<String> _scenarioDirectories(List<ScenarioRunOutcome> outcomes) {
+    String slug(String text) => switch (_shotSlug(text)) {
+      '' => 'scenario',
+      var slug => slug,
+    };
+    // `test/scenarios/cart_test.dart` → `cart`.
+    String stem(String file) => slug(
+      p.url.basenameWithoutExtension(file).replaceFirst(RegExp(r'_test$'), ''),
+    );
+    var filesOf = <String, Set<String>>{};
+    for (var outcome in outcomes) {
+      filesOf.putIfAbsent(slug(outcome.name), () => {}).add(outcome.file);
+    }
+    return [
+      for (var outcome in outcomes)
+        if (filesOf[slug(outcome.name)]!.length < 2)
+          slug(outcome.name)
+        else
+          '${stem(outcome.file)}-${slug(outcome.name)}',
+    ];
+  }
 
   /// `01-order-placed.png` from `Order placed` — a name that sorts, survives
   /// every filesystem, and still reads as what it shows.

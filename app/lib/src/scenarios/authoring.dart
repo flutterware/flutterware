@@ -136,11 +136,20 @@ String _wrap(String text, {String hanging = ''}) {
 /// Where `new` writes when the caller names no file. Public because the GUI's
 /// dialog previews the path while you type: the action never overwrites, so
 /// which file a name lands in is half of what pressing Create does.
+///
+/// Never a name the `file_names` lint refuses, which is any that starts with
+/// a digit. A leading number is an order, so it is dropped: `01 Login` →
+/// `login_test.dart`. The order belongs to the scenario's name, which is
+/// what `shots` files its pictures by, and a numbered file was only ever a
+/// way to sort the suite. A digit inside the first word is part of the name,
+/// so it stays, behind a prefix: `2FA setup` → `scenario_2fa_setup_test.dart`.
 String scenarioFileName(String name) {
   var slug = name
       .toLowerCase()
       .replaceAll(RegExp('[^a-z0-9]+'), '_')
-      .replaceAll(RegExp(r'^_+|_+$'), '');
+      .replaceAll(RegExp(r'^_+|_+$'), '')
+      .replaceFirst(RegExp(r'^(\d+_)+'), '');
+  if (slug.startsWith(RegExp('[0-9]'))) slug = 'scenario_$slug';
   return '${slug.isEmpty ? 'scenario' : slug}_test.dart';
 }
 
