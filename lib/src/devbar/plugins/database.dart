@@ -217,10 +217,16 @@ class DatabasePanelSource implements DevbarPanelSource {
   final _seenOps = <String, int>{};
   var _recordsRead = false;
 
-  /// Every bucket a record has arrived in: one that is not is new to this
-  /// phone — a stream it has just subscribed to — which is why a record
-  /// written long ago can arrive now.
-  final _buckets = <String>{};
+  /// The buckets the phone held at the last read, as `ps_buckets` lists
+  /// them — empty ones too. One listed later is a stream it has just
+  /// subscribed to, which is why a record written long ago can arrive now;
+  /// one it held from the start is not, even when its first record is late
+  /// in coming. Null before the first read.
+  Set<String>? _held;
+
+  /// Buckets subscribed to since the first read whose first records have not
+  /// arrived yet: those records are new to this phone.
+  final _subscribed = <String>{};
   Future<void>? _reading;
   var _readAgain = false;
 
@@ -517,29 +523,39 @@ class DatabasePanelSource implements DevbarPanelSource {
       'WHERE o.op_id <= b.last_applied_op GROUP BY o.row_type, o.row_id',
       const [],
     );
+    var held = {
+      for (var row in await adapter.query(
+        'SELECT name FROM ps_buckets',
+        const [],
+      ))
+        '${row['name']}',
+    };
+    if (_held case var before?) _subscribed.addAll(held.difference(before));
+    _held = held;
     var first = !_recordsRead;
     _recordsRead = true;
     var arrived = 0;
-    var known = {..._buckets};
+    var arrivedIn = <String>{};
     for (var row in applied) {
       var key = '${row['t']}/${row['k']}';
       var op = row['op']! as int;
       var bucket = row['bucket'] as String?;
-      if (bucket != null) _buckets.add(bucket);
       if ((_seenOps[key] ?? -1) >= op) continue;
       _seenOps[key] = op;
       arrived++;
       // What was there when the panel started is one line, not one per row.
       if (first) continue;
+      if (bucket != null) arrivedIn.add(bucket);
       panel.emit('records', {
         'key': row['k'],
         'table': row['t'],
         'change': 'synced',
         'op': op,
         'bucket': ?bucket,
-        if (bucket != null && !known.contains(bucket)) 'newBucket': true,
+        if (_subscribed.contains(bucket)) 'newBucket': true,
       });
     }
+    _subscribed.removeAll(arrivedIn);
     if (first && arrived > 0) {
       panel.emit('records', {'key': '$arrived records', 'change': 'present'});
     }

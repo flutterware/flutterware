@@ -923,6 +923,58 @@ server events headed by no request or job, with nothing to say — the
 server's side of a live connection opening, whose only news was a user it
 already knew — is no longer a bare `lab` line.
 
+**A fifth round** (2026-09-27, on #396's head, driven only through `fw`: the
+consumer's session cannot see the studio) timed and broke the reload, and
+read its richest step, 39.7 s, as a tree of 52 lines where the fourth had
+74. A reload took 0.47–0.57 s with no edit and 0.86 s with edits in seven
+files; of that the script's code 0.37–0.40 s, its `onReassemble` 26–31 ms,
+the rest the apps. Every kind of edit reached the running world — a
+handler, a new route, middleware, a service kept across builds, a job's
+closure, a helper, a tear-off held since the opening — except work in
+flight, which the old app finishes on the old code as it lets go: a job
+queue drained for up to 30 s, sync streams reconnecting 5–9 s after. What
+it moved (2026-09-30):
+
+- **A reload the VM would not run says so.** Pressed while a hot reloader
+  of the project's own reloaded the script on a save, Reload read *did not
+  compile*, with the VM's `Bad state: No element` as the compiler's words,
+  and the collision killed the script. The world's reloads now run one at
+  a time and the button waits while one runs; a reload the VM will not run
+  is tried again for up to 10 s, then refused in the VM's words. A compile
+  error is told from it by the compiler naming a line of the source: it
+  too arrives as an RPC error, not as a failed report. Reproducing their
+  collision in a test found its end: two reloads compiling at once can take
+  down the resident compiler the script reloads through, and every reload
+  after it is refused on its socket. Reload says so and points at Restart,
+  which starts the script on a fresh compiler; the collision itself stays
+  out of the tests, where machine load decides whether it happens.
+  Found on the way, and not pinned down: a script open for about 50
+  minutes answered every reload `Kernel service was not set up for
+  incremental compilation`, as a failed report rather than an error, and
+  only a restart cleared it. Not the resident compiler's idle shutdown: a
+  reload survives that, the VM compiling for itself (0.79 s against
+  0.17 s). A failed report is now a compile error only when the compiler
+  names a line; otherwise Reload says the VM would not, and points at
+  Restart.
+- **The reply splits the time**: `scriptMs`, `reassembleMs`, `appsMs`, and
+  the log line the same.
+- **What a phone received sits beneath the write that sent it** — 17 of the
+  52 lines were arrivals at the top of the step. The timeline sorts its
+  rows by time, so an arrival long after its write is drawn where it
+  happened.
+- **New to this phone is read from its bucket list** (`ps_buckets`): a
+  bucket it held from the start, empty, no longer reads as new at its first
+  record.
+- **`FlutterwareServer.job` starts its body in its caller's turn**, said in
+  its doc and the guide, with `Future` for work that must follow its
+  caller — a webhook delivered once its sender has answered.
+
+Left for a decision: marking each event with the reload it ran after, so a
+line says which code ran it; letting `.0` take what an app's sync client
+sends from another isolate with no step — by the person the server
+identifies, or by the database adapter reporting its streams opening; and
+a subscription as a moment on the person's lane.
+
 What it does not do yet, each a known next step: the world's opening takes
 no step, because what its body starts — the server it hosts, a timer —
 would step under it for ever after, so the sign-ups a script seeds are

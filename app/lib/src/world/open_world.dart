@@ -179,7 +179,32 @@ class OpenWorld {
   /// it now declares waits for a [restart], as does an edit inside a closure
   /// it handed to `w.action`. Source that does not compile is refused with
   /// the compiler's words, and what was running runs on.
+  ///
+  /// One at a time: a reload asked for while one runs waits for it, then
+  /// reloads what changed since. Two at once, and the VM refuses one.
   Future<WorldReload> reload() async {
+    for (var running = _reloading; running != null; running = _reloading) {
+      await running;
+    }
+    var done = Completer<void>();
+    _reloading = done.future;
+    _changed();
+    try {
+      return await _reload();
+    } finally {
+      _reloading = null;
+      done.complete();
+      _changed();
+    }
+  }
+
+  /// The reload running, which the next one waits for.
+  Future<void>? _reloading;
+
+  /// Whether a [reload] is running.
+  bool get reloading => _reloading != null;
+
+  Future<WorldReload> _reload() async {
     var script = _script;
     if (script == null || phase != WorldPhase.open) {
       throw WorldRefusal(
@@ -194,13 +219,18 @@ class OpenWorld {
       throw WorldRefusal(why);
     }
 
+    ({Duration code, Duration reassemble}) took;
     try {
-      await script.reload();
+      took = await script.reload();
     } on WorldScriptReloadFailed catch (failure) {
       refuse(
         failure.reloaded
             ? 'The script reloaded, but a reassemble callback failed; what '
                   'it was rebuilding serves as it was.\n${failure.message}'
+            : failure.refused
+            ? 'Nothing was reloaded: the VM would not reload the world '
+                  'script, though nothing in it failed to compile. Restart '
+                  'starts it afresh.\n${failure.message}'
             : 'The world script did not compile; nothing was reloaded.\n'
                   '${failure.message}',
       );
@@ -209,6 +239,7 @@ class OpenWorld {
       for (var build in _builds.values)
         if (build.people.any((person) => person.running)) build,
     ];
+    var appsWatch = Stopwatch()..start();
     try {
       await Future.wait([for (var build in apps) build.reload()]);
     } on StateError catch (error) {
@@ -218,11 +249,18 @@ class OpenWorld {
     }
     var reloaded = WorldReload(
       elapsed: watch.elapsed,
+      script: took.code,
+      reassemble: took.reassemble,
+      appsTook: appsWatch.elapsed,
       apps: [for (var build in apps) build.label],
     );
+    String secs(Duration took) =>
+        '${(took.inMilliseconds / 1000).toStringAsFixed(2)} s';
     _say(
-      'Reloaded in ${(reloaded.elapsed.inMilliseconds / 1000).toStringAsFixed(1)} s: '
-      '${['the script', ...reloaded.apps].join(', ')}',
+      'Reloaded in ${secs(reloaded.elapsed)}: the script in '
+      '${secs(reloaded.script)}, its onReassemble in '
+      '${secs(reloaded.reassemble)}'
+      '${apps.isEmpty ? '' : ', ${reloaded.apps.join(', ')} in ${secs(reloaded.appsTook)}'}',
     );
     return reloaded;
   }
@@ -1099,9 +1137,26 @@ class WorldKnob {
 /// in [person]'s app.
 /// What [OpenWorld.reload] did.
 class WorldReload {
-  const WorldReload({required this.elapsed, required this.apps});
+  const WorldReload({
+    required this.elapsed,
+    required this.apps,
+    this.script = Duration.zero,
+    this.reassemble = Duration.zero,
+    this.appsTook = Duration.zero,
+  });
 
+  /// The whole of it: [script], [reassemble], then [appsTook].
   final Duration elapsed;
+
+  /// The script's code reloading in its VM.
+  final Duration script;
+
+  /// Its `FlutterwareServer.onReassemble` callbacks rebuilding on the new
+  /// code.
+  final Duration reassemble;
+
+  /// The apps reloading, side by side.
+  final Duration appsTook;
 
   /// The apps reloaded with the script, by their entry points' names.
   final List<String> apps;

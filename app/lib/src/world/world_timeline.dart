@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart' show mergeSort;
+
 // ignore: implementation_imports
 import 'package:flutterware/src/world/step_names.dart' show worldActionsOwner;
 
@@ -240,6 +242,9 @@ class Timeline {
           }
         }
       }
+      // Time runs down, whatever the tree: a record a phone received sits
+      // beneath the write that sent it, and may arrive after the next tap.
+      mergeSort(rows, compare: (a, b) => a.at.compareTo(b.at));
       return _together(rows);
     }
 

@@ -1227,6 +1227,10 @@ class WorldTrace {
           if (!answered.contains(event)) event,
       ]),
     );
+    // What a phone received sits beneath the write that sent it, where that
+    // write is a line: the record's key and op say which. A write folded
+    // into a count, or none found, leaves it a line of the step's own.
+    var received = <(TraceBeat, _ServerEvent)>[];
     for (var record in _records) {
       if (_causeOf(record) != step.id) continue;
       var key = _short(record.key);
@@ -1239,31 +1243,83 @@ class WorldTrace {
           : confirmed
           ? '$name confirmed$op'
           : '$name arrived$op';
-      beats.add(
-        TraceBeat(
-          record.at,
-          '${record.person}  $said',
-          // Arriving on someone else's phone is what the step was for;
-          // the writer's own copy coming back is the engine at work.
-          level: local || confirmed ? TraceLevel.wire : TraceLevel.product,
-          kind: BeatKind.record,
-          said: said,
-          data: {
-            'table': record.table,
-            'key': record.key,
-            'change': record.change,
-            'op': ?record.op,
-            'bucket': ?record.bucket,
-            if (record.newBucket) 'newBucket': true,
-          },
-          person: record.person,
-          node: local ? null : syncNode,
-          line: local ? null : '$name$op',
-          inbound: !local,
-        ),
+      var beat = TraceBeat(
+        record.at,
+        '${record.person}  $said',
+        // Arriving on someone else's phone is what the step was for; the
+        // writer's own copy coming back is the engine at work.
+        level: local || confirmed ? TraceLevel.wire : TraceLevel.product,
+        kind: BeatKind.record,
+        said: said,
+        data: {
+          'table': record.table,
+          'key': record.key,
+          'change': record.change,
+          'op': ?record.op,
+          'bucket': ?record.bucket,
+          if (record.newBucket) 'newBucket': true,
+        },
+        person: record.person,
+        node: local ? null : syncNode,
+        line: local ? null : '$name$op',
+        inbound: !local,
       );
+      if (local) {
+        beats.add(beat);
+      } else {
+        received.add((beat, _writeOf(record)!));
+      }
     }
-    return beats..sort((a, b) => a.at.compareTo(b.at));
+    return _beneathWrites(beats, received)
+      ..sort((a, b) => a.at.compareTo(b.at));
+  }
+
+  /// [beats] in the order they happened; those at one time as they were.
+  static List<TraceBeat> _byTime(List<TraceBeat> beats) {
+    mergeSort(beats, compare: (a, b) => a.at.compareTo(b.at));
+    return beats;
+  }
+
+  /// [beats] with each of [received] beneath the line of the write that
+  /// sent it — the last line writing its table and key at or before that
+  /// write, which is its own or its record's run of updates — or beside
+  /// them when no line is.
+  List<TraceBeat> _beneathWrites(
+    List<TraceBeat> beats,
+    List<(TraceBeat, _ServerEvent)> received,
+  ) {
+    var writes = [
+      for (var beat in everyBeat(beats))
+        if (beat.kind == BeatKind.write) beat,
+    ];
+    var beneath = <TraceBeat, List<TraceBeat>>{};
+    var beside = <TraceBeat>[];
+    for (var (arrival, write) in received) {
+      TraceBeat? line;
+      for (var candidate in writes) {
+        if (candidate.data['table'] == write.payload['table'] &&
+            candidate.data['key'] == write.payload['key'] &&
+            !candidate.at.isAfter(write.time) &&
+            (line == null || candidate.at.isAfter(line.at))) {
+          line = candidate;
+        }
+      }
+      if (line == null) {
+        beside.add(arrival);
+      } else {
+        beneath.putIfAbsent(line, () => []).add(arrival);
+      }
+    }
+    if (beneath.isEmpty) return [...beats, ...beside];
+    List<TraceBeat> place(List<TraceBeat> beats) => [
+      for (var beat in beats)
+        beat._copy(
+          what: beat.what,
+          alone: beat.alone,
+          children: _byTime([...place(beat.children), ...?beneath[beat]]),
+        ),
+    ];
+    return [...place(beats), ...beside];
   }
 
   /// A request or a job no app recorded — an action's request, a storage
@@ -1586,13 +1642,19 @@ class WorldTrace {
       }
       return latest?.id;
     }
+    return _writeOf(record)?.step;
+  }
+
+  /// The server's write a record that arrived on a phone carries: the last
+  /// of its table and key before it arrived.
+  _ServerEvent? _writeOf(_Record record) {
     _ServerEvent? write;
     for (var event in _server) {
       if (event.channel != 'write' || !_sameRecord(event, record)) continue;
       if (event.time.isAfter(record.at)) continue;
       if (write == null || event.time.isAfter(write.time)) write = event;
     }
-    return write?.step;
+    return write;
   }
 
   /// [event] as a line of a step. [nested] beneath the request or job it
