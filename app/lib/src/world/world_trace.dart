@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:collection/collection.dart' show mergeSort;
 import 'package:flutterware/channels.dart' show PanelDescriptor, panelsChannel;
 // ignore: implementation_imports
 import 'package:flutterware/src/app_events/events.dart' show foldSql;
@@ -47,11 +48,72 @@ class TraceStep {
   String get did => '${verb ?? 'step'} ${target ?? ''}'.trim();
 }
 
+/// How far into the system a line of a trace goes. Watching a world, the
+/// question is rarely what a part did, and more often whether someone got
+/// something — which is [product]. Each level shows the ones above it too.
+enum TraceLevel {
+  /// What people do and what reaches someone else: a message sent outside,
+  /// an update pushed to another person's app, a record arriving on it.
+  product,
+
+  /// The parts and the work passed between them: calls, jobs, an update
+  /// pushed back to the app that asked for it.
+  system,
+
+  /// The plumbing: writes, statements, which user a request is, a record
+  /// the sync engine confirmed to the phone that wrote it.
+  wire;
+
+  /// Whether a line at [other] is seen at this level.
+  bool shows(TraceLevel other) => other.index <= index;
+}
+
+/// What a [TraceBeat] is, for a view that draws each kind its own way.
+enum BeatKind {
+  /// A request: one a person's app sent, or one a server answered for
+  /// someone no app here is — the world's script, a callback.
+  call,
+
+  /// A job a server ran, and what it did within it.
+  job,
+
+  /// A write to a table, or a record's updates in a row.
+  write,
+
+  /// Statements, and writes to a table in a layer, run under no request:
+  /// counted, a burst to a line.
+  statements,
+
+  /// A server learning which user a request is.
+  identify,
+
+  /// An update a server sent down a connection someone held open.
+  reach,
+  sms,
+  mail,
+  push,
+
+  /// A synced record on a phone: written there, arrived, or confirmed.
+  record,
+  log,
+  error,
+
+  /// A channel the trace has no words for.
+  other,
+}
+
 /// One thing a step caused, somewhere in the world.
 class TraceBeat {
   const TraceBeat(
     this.at,
     this.what, {
+    required this.level,
+    required this.kind,
+    required this.said,
+    this.server,
+    this.data = const {},
+    this.event,
+    this.alone,
     this.person,
     this.node,
     this.line,
@@ -64,6 +126,35 @@ class TraceBeat {
 
   /// Where and what, in a line: `Ben → lab  POST /orders  201 in 12 ms`.
   final String what;
+
+  /// What it says on a line of its own, where [what] leans on the line it
+  /// is beneath to name the server: `lab → Cleo  order o3 · ready` for
+  /// `→ Cleo  order o3 · ready`. Null when [what] says it all.
+  final String? alone;
+
+  /// The coarsest [TraceLevel] it is seen at.
+  final TraceLevel level;
+  final BeatKind kind;
+
+  /// [what] without whom it passed between, which a timeline's columns
+  /// draw: `POST /orders  201 in 12 ms`, `order o3 · ready`. A recipient
+  /// the world does not know stays in it: no column is theirs.
+  final String said;
+
+  /// The server it happened on, that answered it or that sent it — `lab`,
+  /// a service that mailed on its own, or the host of a request no server
+  /// here answered; null for what happened on a phone alone.
+  final String? server;
+
+  /// What it was reported with, for whoever opens it: the server's event —
+  /// a write's fields, a job's name — a request's method and address with
+  /// the server's answer, a record's change as the phone reported it.
+  final Map<String, Object?> data;
+
+  /// The server's event it is, by the id `worlds deliver` takes: `lab/42`.
+  /// Null for what no server reported alone — a request no server answered,
+  /// a record on a phone, a line counting many.
+  final String? event;
 
   /// The person at the device end of it: who sent the request, who was
   /// reached, whose phone the record arrived on.
@@ -90,6 +181,57 @@ class TraceBeat {
   /// What happened within it — a request's or a job's writes, the messages
   /// it sent, whom it reached — each a beat of its own, beneath it.
   final List<TraceBeat> children;
+
+  /// This line beneath one naming [server], which it then leaves out:
+  /// [what] is `server  said` or `server → said`, and says `said` or
+  /// `→ said`.
+  TraceBeat _beneath(String server) => what.startsWith(server)
+      ? _copy(what: what.substring(server.length).trimLeft(), alone: what)
+      : this;
+
+  TraceBeat _copy({String? what, String? alone, List<TraceBeat>? children}) =>
+      TraceBeat(
+        at,
+        what ?? this.what,
+        level: level,
+        kind: kind,
+        said: said,
+        server: server,
+        data: data,
+        event: event,
+        alone: alone,
+        person: person,
+        node: node,
+        line: line,
+        inbound: inbound,
+        folded: folded,
+        children: children ?? this.children,
+      );
+}
+
+/// [beats] as seen at [level]: a line finer than it is left out, and what
+/// happened within it rises into its place, in time with the rest. At
+/// [TraceLevel.product] the SMS a request sent is still seen, where the
+/// request is not, and names the server itself.
+List<TraceBeat> atLevel(List<TraceBeat> beats, TraceLevel level) => [
+  for (var beat in _seenAt(beats, level))
+    beat.alone == null ? beat : beat._copy(what: beat.alone),
+];
+
+List<TraceBeat> _seenAt(List<TraceBeat> beats, TraceLevel level) {
+  var seen = [
+    for (var beat in beats)
+      if (level.shows(beat.level))
+        beat._copy(
+          what: beat.what,
+          alone: beat.alone,
+          children: _seenAt(beat.children, level),
+        )
+      else
+        ..._seenAt(beat.children, level),
+  ];
+  mergeSort(seen, compare: (a, b) => a.at.compareTo(b.at));
+  return seen;
 }
 
 /// [beats] and every beat beneath them, each after the one it is beneath.
@@ -1042,11 +1184,17 @@ class WorldTrace {
         // Unreported — a WebSocket upgrade, which shelf hands over by
         // throwing, or a server with no adapter — but named, when another
         // request to the same host was answered by a server that reports.
+        var server = _hosts[request.host] ?? request.host;
+        var said = '${request.method} ${request.path}$how';
         beats.add(
           TraceBeat(
             request.at,
-            '${request.person} → ${_hosts[request.host] ?? request.host}  '
-            '${request.method} ${request.path}$how',
+            '${request.person} → $server  $said',
+            level: TraceLevel.system,
+            kind: BeatKind.call,
+            said: said,
+            server: server,
+            data: request.data,
             person: request.person,
           ),
         );
@@ -1056,9 +1204,13 @@ class WorldTrace {
       beats.add(
         _grouped(
           request.at,
-          '${request.person} → ${served.server}  ${request.method} '
-          '${request.path}  ${_answer(served.payload)}',
+          '${request.person} → ${served.server}',
+          '${request.method} ${request.path}  ${_answer(served.payload)}',
           groups.remove(served.group) ?? [served],
+          kind: BeatKind.call,
+          server: served.server,
+          data: {...served.payload, ...request.data},
+          event: served.id,
           how: how,
           person: request.person,
           node: _partNode(served),
@@ -1067,7 +1219,7 @@ class WorldTrace {
       );
     }
     for (var group in groups.values) {
-      beats.add(_serverGroup(group));
+      if (_serverGroup(group) case var beat?) beats.add(beat);
     }
     beats.addAll(
       _looseBeats([
@@ -1081,14 +1233,29 @@ class WorldTrace {
       var name = record.table.isEmpty ? key : '${record.table}/$key';
       var op = record.op == null ? '' : ' (op ${record.op})';
       var local = record.change.startsWith('local ');
+      var confirmed = !local && record.person == step.person;
+      var said = local
+          ? 'wrote $name locally'
+          : confirmed
+          ? '$name confirmed$op'
+          : '$name arrived$op';
       beats.add(
         TraceBeat(
           record.at,
-          local
-              ? '${record.person}  wrote $name locally'
-              : record.person == step.person
-              ? '${record.person}  $name confirmed$op'
-              : '${record.person}  $name arrived$op',
+          '${record.person}  $said',
+          // Arriving on someone else's phone is what the step was for;
+          // the writer's own copy coming back is the engine at work.
+          level: local || confirmed ? TraceLevel.wire : TraceLevel.product,
+          kind: BeatKind.record,
+          said: said,
+          data: {
+            'table': record.table,
+            'key': record.key,
+            'change': record.change,
+            'op': ?record.op,
+            'bucket': ?record.bucket,
+            if (record.newBucket) 'newBucket': true,
+          },
           person: record.person,
           node: local ? null : syncNode,
           line: local ? null : '$name$op',
@@ -1101,8 +1268,10 @@ class WorldTrace {
 
   /// A request or a job no app recorded — an action's request, a storage
   /// callback, a worker's job — as its [group] shows it: its own `http` or
-  /// `job` event heads it, or its first event does.
-  TraceBeat _serverGroup(List<_ServerEvent> group) {
+  /// `job` event heads it, or its first event does. Null for one headed by
+  /// neither that did nothing worth a line: the server's side of a live
+  /// connection opening, whose only news is a user it already knew.
+  TraceBeat? _serverGroup(List<_ServerEvent> group) {
     var first = group.first;
     var server = first.server;
     // When it started: its report comes at its end, less how long it took —
@@ -1120,9 +1289,14 @@ class WorldTrace {
         var ms = event.payload['ms'];
         return _grouped(
           began(event, ms is num ? ms : null),
-          '$server  ${event.payload['method']} ${event.payload['path']}  '
+          server,
+          '${event.payload['method']} ${event.payload['path']}  '
           '${_answer(event.payload)}',
           group,
+          kind: BeatKind.call,
+          server: server,
+          data: event.payload,
+          event: event.id,
           node: _partNode(event),
         );
       }
@@ -1137,8 +1311,9 @@ class WorldTrace {
       var error = ended?.payload['error'];
       return _grouped(
         ended == null || jobs.length > 1 ? jobs.first.time : began(ended, ms),
+        server,
         [
-          '$server  job ${_jobName(jobs.first.payload)}',
+          'job ${_jobName(jobs.first.payload)}',
           if (error != null)
             'failed after ${_duration(ms!)}: $error'
           else if (ms != null)
@@ -1147,10 +1322,23 @@ class WorldTrace {
             'running',
         ].join(', '),
         group,
+        kind: BeatKind.job,
+        server: server,
+        data: {...jobs.first.payload, ...?ended?.payload},
+        event: (ended ?? jobs.first).id,
         node: _partNode(first),
       );
     }
-    return _grouped(first.time, server, group, node: _partNode(first));
+    var beat = _grouped(
+      first.time,
+      server,
+      '',
+      group,
+      kind: BeatKind.call,
+      server: server,
+      node: _partNode(first),
+    );
+    return beat.children.isEmpty && beat.folded.isEmpty ? null : beat;
   }
 
   /// What a job is called: its name, and the queue it came off.
@@ -1163,14 +1351,19 @@ class WorldTrace {
       ? '${ms < 10 ? ms.toStringAsFixed(1) : ms.round()} ms'
       : '${(ms / 1000).toStringAsFixed(ms < 10000 ? 2 : 1)} s';
 
-  /// A line headed [head], with what [group] did beneath it: its writes, the
-  /// messages it sent, whom it reached. Its statements, and its writes to a
-  /// table in a layer of its own — a job queue's — are counted on the line
-  /// and folded behind it.
+  /// A line of [who] and what they [said], with what [group] did beneath
+  /// it: its writes, the messages it sent, whom it reached. Its statements,
+  /// and its writes to a table in a layer of its own — a job queue's — are
+  /// counted on the line and folded behind it.
   TraceBeat _grouped(
     DateTime at,
-    String head,
+    String who,
+    String said,
     List<_ServerEvent> group, {
+    required BeatKind kind,
+    required String server,
+    Map<String, Object?> data = const {},
+    String? event,
     String how = '',
     String? person,
     String? node,
@@ -1192,9 +1385,16 @@ class WorldTrace {
       }
     }
     var counted = _counted(statements, layered);
+    var all = [if (said.isNotEmpty) said, ?counted].join(', ') + how;
     return TraceBeat(
       at,
-      [head, ?counted].join(', ') + how,
+      all.isEmpty ? who : '$who  $all',
+      level: TraceLevel.system,
+      kind: kind,
+      said: all,
+      server: server,
+      data: data,
+      event: event,
       person: person,
       node: node,
       line: line,
@@ -1220,10 +1420,15 @@ class WorldTrace {
           if (event.channel == 'write') event,
       ];
       var first = folding.first;
+      var counted = _counted(statements, layered)!;
       beats.add(
         TraceBeat(
           first.time,
-          '${first.server}  ${_counted(statements, layered)}',
+          '${first.server}  $counted',
+          level: TraceLevel.wire,
+          kind: BeatKind.statements,
+          said: counted,
+          server: first.server,
           node: _partNode(first),
           folded: [..._statements(statements), ..._writeLines(layered)],
         ),
@@ -1302,21 +1507,22 @@ class WorldTrace {
         continue;
       }
       var table = '${event.payload['table']}';
-      beats.add(
-        TraceBeat(
-          event.time,
-          [
-            if (event.group == null) event.server,
-            [
-              'updated $table/${_short(event.payload['key'])} ×${run.length}',
-              if (_changes(run) case var changes when changes.isNotEmpty)
-                changes,
-            ].join(' · '),
-          ].join('  '),
-          node: _servers[event.server]?.tableNode(table),
-          folded: _writeLines(run),
-        ),
+      var said = [
+        'updated $table/${_short(event.payload['key'])} ×${run.length}',
+        if (_changes(run) case var changes when changes.isNotEmpty) changes,
+      ].join(' · ');
+      var updated = TraceBeat(
+        event.time,
+        '${event.server}  $said',
+        level: TraceLevel.wire,
+        kind: BeatKind.write,
+        said: said,
+        server: event.server,
+        data: run.last.payload,
+        node: _servers[event.server]?.tableNode(table),
+        folded: _writeLines(run),
       );
+      beats.add(event.group == null ? updated : updated._beneath(event.server));
     }
     return beats;
   }
@@ -1392,24 +1598,74 @@ class WorldTrace {
   /// [event] as a line of a step. [nested] beneath the request or job it
   /// happened in, which already names the server.
   TraceBeat? _serverBeat(_ServerEvent event, {bool nested = false}) {
+    var beat = _serverLine(event);
+    return nested ? beat?._beneath(event.server) : beat;
+  }
+
+  TraceBeat? _serverLine(_ServerEvent event) {
     var server = event.server;
     var payload = event.payload;
-    var at = event.time;
     var node = _partNode(event);
     var system = _servers[server];
     String? personOf(Object? user) => user is String ? _users[user] : null;
     var how = event.byTime ? ', joined by time' : '';
-    String by(String said) => nested ? said : '$server  $said';
-    String toward(String said) => nested ? '→ $said' : '$server → $said';
+    // What the server did: `lab  wrote orders/o1 (insert)`.
+    TraceBeat by(
+      String said, {
+      required BeatKind kind,
+      required TraceLevel level,
+      String? node,
+    }) => TraceBeat(
+      event.time,
+      '$server  $said',
+      level: level,
+      kind: kind,
+      said: said,
+      server: server,
+      data: payload,
+      event: event.id,
+      node: node,
+    );
+    // What reached [to], who is [person] if the world knows whose it is:
+    // `lab → Leo by SMS  Your code is 1234`.
+    TraceBeat toward(
+      Object? to,
+      String? person,
+      String said, {
+      required BeatKind kind,
+      required String line,
+      String via = '',
+      TraceLevel level = TraceLevel.product,
+      String? node,
+    }) => TraceBeat(
+      event.time,
+      '$server → ${person ?? to}$via  $said',
+      level: level,
+      kind: kind,
+      said: person == null ? '$to: $said' : said,
+      server: server,
+      data: payload,
+      event: event.id,
+      person: person,
+      node: node,
+      line: line,
+      inbound: true,
+    );
     switch (event.channel) {
       case 'http':
-        return TraceBeat(
-          at,
-          by('${payload['method']} ${payload['path']}  ${_answer(payload)}'),
+        return by(
+          '${payload['method']} ${payload['path']}  ${_answer(payload)}',
+          kind: BeatKind.call,
+          level: TraceLevel.system,
           node: node,
         );
       case 'job':
-        return TraceBeat(at, by('job ${_jobName(payload)}'), node: node);
+        return by(
+          'job ${_jobName(payload)}',
+          kind: BeatKind.job,
+          level: TraceLevel.system,
+          node: node,
+        );
       case 'identify':
         // Every request says who it is; only the first says something new,
         // and only of a user the script did not name — except under the
@@ -1420,74 +1676,94 @@ class WorldTrace {
         if ((_declared.contains(user) && !acted) || _identifiedBefore(event)) {
           return null;
         }
-        return TraceBeat(
-          at,
-          by('knows ${personOf(user) ?? 'someone'} as $user'),
+        return by(
+          'knows ${personOf(user) ?? 'someone'} as $user',
+          kind: BeatKind.identify,
+          level: TraceLevel.wire,
           node: node,
         );
       case 'reach':
         var user = payload['user'];
         var person = personOf(user);
-        return TraceBeat(
-          at,
-          toward('${person ?? user}  ${payload['what']}'),
-          person: person,
-          node: node,
+        return toward(
+          user,
+          person,
+          '${payload['what']}',
+          kind: BeatKind.reach,
           line: '${payload['what']}',
-          inbound: true,
+          // An update back to whoever acted is their own app catching up;
+          // one to anybody else is the step reaching them.
+          level: person != null && person == _steps[event.step]?.person
+              ? TraceLevel.system
+              : TraceLevel.product,
+          node: node,
         );
       case 'write':
-        return TraceBeat(
-          at,
-          by(_writeLine(payload)),
+        return by(
+          _writeLine(payload),
+          kind: BeatKind.write,
+          level: TraceLevel.wire,
           node: system?.tableNode('${payload['table']}'),
         );
       case 'sms':
         var to = payload['to'];
-        var person = _phones[to];
-        return TraceBeat(
-          at,
-          toward('${person ?? to} by SMS  ${payload['body']}$how'),
-          person: person,
-          node: system?.sentNode('sms'),
+        return toward(
+          to,
+          _phones[to],
+          '${payload['body']}$how',
+          kind: BeatKind.sms,
+          via: ' by SMS',
           line: 'SMS',
-          inbound: true,
+          node: system?.sentNode('sms'),
         );
       case 'mail':
         var to = '${payload['to'] ?? ''}';
-        var person = _emails[to.toLowerCase()];
-        return TraceBeat(
-          at,
-          toward('${person ?? to} by mail  ${payload['subject']}$how'),
-          person: person,
-          node: system?.sentNode('mail'),
+        return toward(
+          to,
+          _emails[to.toLowerCase()],
+          '${payload['subject']}$how',
+          kind: BeatKind.mail,
+          via: ' by mail',
           line: 'Mail',
-          inbound: true,
+          node: system?.sentNode('mail'),
         );
       case 'push':
         var to = payload['to'] ?? payload['user'];
-        var person = personOf(to);
         var said = [?payload['title'], ?payload['body']].join(' — ');
-        return TraceBeat(
-          at,
-          toward('${person ?? to} by push  $said$how'),
-          person: person,
-          node: system?.sentNode('push'),
+        return toward(
+          to,
+          personOf(to),
+          '$said$how',
+          kind: BeatKind.push,
+          via: ' by push',
           line: '${payload['title'] ?? payload['body']}',
-          inbound: true,
+          node: system?.sentNode('push'),
         );
       case 'log':
-        return TraceBeat(at, by('${payload['message']}'), node: node);
+        return by(
+          '${payload['message']}',
+          kind: BeatKind.log,
+          level: TraceLevel.wire,
+          node: node,
+        );
       case 'error':
-        return TraceBeat(
-          at,
-          by('error: ${payload['message'] ?? payload['error']}'),
+        return by(
+          'error: ${payload['message'] ?? payload['error']}',
+          kind: BeatKind.error,
+          level: TraceLevel.system,
           node: node,
         );
       case 'info':
         return null;
       case var channel:
-        return TraceBeat(at, by('$channel  ${_gist(payload)}'), node: node);
+        // Words the trace has none for, so no level it could vouch for:
+        // the middle one, rather than buried at the wire.
+        return by(
+          '$channel  ${_gist(payload)}',
+          kind: BeatKind.other,
+          level: TraceLevel.system,
+          node: node,
+        );
     }
   }
 
@@ -1587,6 +1863,14 @@ class _Request {
   /// `localhost:5040/orders`: host, port and path, as the guest reported it.
   final String url;
   final bool window;
+
+  /// What a line of it is reported with.
+  Map<String, Object?> get data => {
+    'method': method,
+    'path': path,
+    'url': url,
+    'how': window ? 'window' : 'zone',
+  };
 
   String get host =>
       url.contains('/') ? url.substring(0, url.indexOf('/')) : url;

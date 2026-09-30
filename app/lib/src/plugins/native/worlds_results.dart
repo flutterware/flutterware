@@ -405,10 +405,12 @@ class WorldTraceResult implements PluginResult {
   const WorldTraceResult({required this.steps, this.note});
 
   /// [statements] lists what each line only counts: the statements a
-  /// request ran, its writes in a layer.
+  /// request ran, its writes in a layer. [level] leaves out the lines finer
+  /// than it, and keeps what they caused.
   factory WorldTraceResult.of(
     List<TracedStep> traced, {
     bool statements = false,
+    TraceLevel level = TraceLevel.wire,
     String? note,
   }) => WorldTraceResult(
     steps: [
@@ -418,7 +420,7 @@ class WorldTraceResult implements PluginResult {
           person: step.person,
           at: step.at!,
           did: step.did,
-          then: traceLines(beats, step.at!, folded: statements),
+          then: traceLines(atLevel(beats, level), step.at!, folded: statements),
         ),
     ],
     note: note,

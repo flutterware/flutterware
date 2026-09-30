@@ -15,6 +15,8 @@ import 'open_world.dart';
 import 'world_focus.dart';
 import 'world_person.dart';
 import 'world_stage.dart';
+import 'world_timeline_detail.dart' show WorldSources;
+import 'world_timeline_view.dart';
 import 'world_toolbar.dart';
 import 'world_trace.dart';
 
@@ -45,8 +47,15 @@ class _WorldCanvasState extends State<WorldCanvas> {
   StreamSubscription<void>? _heard;
   Timer? _redraw;
 
-  /// The person in focus; null shows everyone.
+  /// The person in focus — on the timeline, a part of the system's
+  /// column may be — or null for everyone.
   String? _focus;
+
+  var _viewing = WorldView.phones;
+
+  /// What an opened row of the timeline reads beyond the trace: the apps'
+  /// own records of their requests, the mails drawn.
+  late final _sources = WorldSources(() => widget.world);
 
   /// A mail open to read, by its message id.
   String? _reading;
@@ -136,6 +145,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
     _sharpen?.cancel();
     _view.dispose();
     _keys.dispose();
+    _sources.dispose();
     for (var timer in _hiding.values) {
       timer.cancel();
     }
@@ -171,10 +181,13 @@ class _WorldCanvasState extends State<WorldCanvas> {
       ),
       _ => context.colors.mut2,
     };
+    var timeline = _viewing == WorldView.timeline;
     // Someone who left the world at a restart is no longer anyone to show.
-    var focused = world.people[_focus];
-    // In focus, theirs is the one app drawn; on the stage, it says.
+    var focused = timeline ? null : world.people[_focus];
+    // In focus, theirs is the one app drawn; on the stage, it says; on the
+    // timeline, none is.
     if (focused != null) _see({focused.name});
+    if (timeline) _see(const {});
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
       child: Focus(
@@ -185,9 +198,16 @@ class _WorldCanvasState extends State<WorldCanvas> {
             WorldToolbar(
               world: world,
               enabled: !world.phase.isMoving,
-              focus: focused?.name,
+              focus: world.people.containsKey(_focus) ? _focus : null,
               colorOf: colorOf,
               onFocus: _focusOn,
+              view: _viewing,
+              onView: (view) => setState(() {
+                _viewing = view;
+                _reading = null;
+                // A part of the system has a column on the timeline alone.
+                if (!world.people.containsKey(_focus)) _focus = null;
+              }),
             ),
             Expanded(
               child: LayoutBuilder(
@@ -201,6 +221,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                           title: 'Nobody yet',
                           message: 'People appear as the script declares them.',
                         ),
+                        _ when timeline => _timeline(colorOf),
                         null => _stage(context, colorOf),
                         var person => PersonFocus(
                           key: ValueKey(person.name),
@@ -242,6 +263,27 @@ class _WorldCanvasState extends State<WorldCanvas> {
         ),
       ),
     );
+  }
+
+  /// What happened in the world, in order.
+  Widget _timeline(Color Function(String?) colorOf) {
+    var world = widget.world;
+    return switch (world.tracer?.trace) {
+      var trace? => WorldTimelineView(
+        trace: trace,
+        people: world.people.keys.toList(),
+        actions: world.actions.isNotEmpty,
+        colorOf: colorOf,
+        focus: _focus,
+        onFocus: _focusOn,
+        sources: _sources,
+      ),
+      null => const EmptyState(
+        icon: Icons.view_timeline_outlined,
+        title: 'Nothing traced yet',
+        message: 'The world traces what happens in it once it is open.',
+      ),
+    };
   }
 
   /// Everyone, on the stage, with the zoom on its corner.

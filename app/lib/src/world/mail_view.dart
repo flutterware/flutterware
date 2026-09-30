@@ -66,7 +66,7 @@ class _MailViewState extends State<MailView> {
   String? _said;
 
   Future<WebSnapshot> _draw() =>
-      widget.snapshots.of(widget.message.html ?? _asHtml(widget.message));
+      widget.snapshots.of(widget.message.html ?? mailHtml(widget.message));
 
   @override
   void didUpdateWidget(MailView old) {
@@ -123,7 +123,7 @@ class _MailViewState extends State<MailView> {
         },
       ),
     )
-    ..loadHtmlString(widget.message.html ?? _asHtml(widget.message));
+    ..loadHtmlString(widget.message.html ?? mailHtml(widget.message));
 
   @override
   Widget build(BuildContext context) {
@@ -301,7 +301,7 @@ bool _isWeb(String link) =>
     link.startsWith('https://') || link.startsWith('http://');
 
 /// A mail with no HTML, as the plain text a mail client would show.
-String _asHtml(OutboxMessage message) {
+String mailHtml(OutboxMessage message) {
   String escape(String text) => text
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')

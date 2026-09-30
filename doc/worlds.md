@@ -190,8 +190,25 @@ send it to the background. **Everyone** or Esc goes back. The dock along the
 bottom has the world's own log — its script, its server, each app's build —
 as its first tab.
 
-An app nobody can see — someone else in focus, or zoomed out of view — is
-told it is *hidden*, as a minimised desktop window is, a couple of seconds
+**Timeline**, beside **Phones** in the toolbar, shows what happened in the
+world rather than who is in it: a column for each person and each part of
+the system — a server, the SMS, mail and push it sent, a service that mailed
+on its own — and time running down. A pill is something someone did; an
+arrow is something that reached someone, in the colour of whoever caused
+it. **Product** shows what people did and what reached someone else,
+**System** adds the calls and the jobs, and **Wire** the writes, the
+statements and the sync; each says how many rows it has. A column's name —
+or a person in the toolbar — shows only what touches it. Three rows or more
+alike on one step, differing only in their numbers, fold into one (`×4`),
+and a pause is marked where it was (`12.7 s later`). A row opens in place
+onto what it was, its step lit and the rest faded: a call's request and
+response — headers and bodies, read from the app that sent it, secrets cut —
+the fields a write set and the statements its request ran, a message with
+its code and links, a mail as its recipient sees it. `worlds trace` takes
+the same `level`.
+
+An app nobody can see — someone else in focus, zoomed out of view, or the
+timeline shown — is told it is *hidden*, as a minimised desktop window is, a couple of seconds
 after it goes: it stops drawing and gives back the memory drawing took, and
 keeps running — its timers, its connections, its sync. It draws again the
 moment it is back in view. It is not sent to the background, so an app's
