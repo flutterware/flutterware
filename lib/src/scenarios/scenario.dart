@@ -1367,9 +1367,31 @@ class ScenarioTester {
     target: describeTarget(target),
   );
 
+  /// Puts [text] in the field at [target], replacing what was there — in one
+  /// edit, the way a paste arrives.
+  ///
+  /// [typing] types it instead: one edit per character, each followed by that
+  /// much of the fake clock, the way keystrokes arrive. Most fields cannot
+  /// tell the two apart, and the ones that can are the ones worth a scenario —
+  /// a search that debounces its query, a field that validates as it goes, a
+  /// code input that moves to the next box. In one edit a debounce sees one
+  /// change; typed faster than it waits, it restarts on every character and
+  /// fires once, after the last:
+  ///
+  /// ```dart
+  /// await s.enterText(Keys.search, 'flat white',
+  ///     typing: const Duration(milliseconds: 100));
+  /// await s.wait(const Duration(milliseconds: 300)); // the debounce's own
+  /// ```
+  ///
+  /// The `wait` is the debounce's to ask for, not the verb's: a pending timer
+  /// schedules no frame, so the step settles before it fires, the same as it
+  /// would after one edit. A character is what one key types — an emoji or an
+  /// accented letter goes in whole.
   Future<void> enterText(
     dynamic target,
     String text, {
+    Duration? typing,
     Shot? shot,
     Settle? settle,
   }) => _step(
@@ -1388,9 +1410,10 @@ class ScenarioTester {
       // otherwise box the render object under the finger.
       _aimAt(editable);
       await _approach('enterText');
-      // A film types; a run sets the value. The verb hands the setter over
-      // rather than the film reaching for the editable, so what lands in the
-      // field is the same call either way — see [ScenarioFilm.type].
+      // A film types; a run sets the value, or types it when asked to. The
+      // verb hands the setter over rather than the film reaching for the
+      // editable, so what lands in the field is the same call either way —
+      // see [ScenarioFilm.type].
       if (_film case var film?) {
         await film.type(
           tester,
@@ -1402,7 +1425,15 @@ class ScenarioTester {
           // different question asked ten frames later.
           follow: () =>
               _boundsOf(editable.evaluate().firstOrNull?.renderObject)?.center,
+          // The same clock as the run without a film, to the microsecond: the
+          // film's own frames would round the pace to themselves.
+          pause: typing == null ? null : () => _elapse(typing),
         );
+      } else if (typing != null) {
+        for (var typed in typedPrefixes(text)) {
+          await tester.enterText(editable, typed);
+          await _elapse(typing);
+        }
       } else {
         await tester.enterText(editable, text);
       }

@@ -75,7 +75,7 @@ Each one acts, waits for the screen to settle, and captures.
 | `tap(target)` | taps |
 | `doubleTap(target)` | taps twice, close enough to be one gesture |
 | `longPress(target)` | presses and holds |
-| `enterText(target, text)` | types into a field |
+| `enterText(target, text)` | fills a field — or types it a key at a time, `typing:` |
 | `drag(target, offset)` | drags by an offset |
 | `scrollTo(target)` | scrolls until the target is on screen, then stops |
 | `hover(target)` / `unhover()` | parks the mouse over it and holds — tooltips, hover states |
@@ -155,6 +155,21 @@ held: `meta+k`, `shift+tab`, `ctrl+s`. A keystroke goes to whatever holds
 focus, so one pressed while nothing does, and taken by nothing, fails the step
 rather than passing without having reached the app: `tap` something first, or
 give the widget the shortcut belongs to `autofocus: true`.
+
+`enterText` puts the whole value in one edit, the way a paste arrives. A field
+that listens to its edits — a search that debounces its query, a code input
+that moves to the next box — needs them the way keystrokes arrive, and
+`typing:` types one character at a time with that much of the fake clock after
+each:
+
+```dart
+await s.enterText(Keys.search, 'flat white',
+    typing: const Duration(milliseconds: 100));
+await s.wait(const Duration(milliseconds: 300));   // the debounce's own wait
+```
+
+The step settles as usual afterwards, and a pending timer schedules no frame,
+so the debounce's own delay is yours to `wait` out.
 
 ## Settling
 

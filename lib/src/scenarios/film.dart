@@ -344,6 +344,15 @@ class ScenarioFilm implements ScenarioFrameSink {
     /// coordinate it tapped ends up parked in the middle of the keyboard,
     /// about to press a key it never presses. It rides the field instead.
     Offset? Function()? follow,
+
+    /// What passes after each character when the scenario typed at a pace of
+    /// its own — `enterText(…, typing:)` — in place of the film's.
+    ///
+    /// The scenario's pace is not the film's to change: it is part of what
+    /// the field does, and a debounce that fired once per word under the
+    /// suite and once per character under the film would be a film of a
+    /// different app — one whose next assertion may not hold.
+    Future<void> Function()? pause,
   }) async {
     _down = false;
     // **Focus first, and let the keyboard arrive.** On a phone the field is
@@ -355,13 +364,17 @@ class ScenarioFilm implements ScenarioFrameSink {
     _mark('focus', verb: 'enterText');
     await _untilQuiet(tester, follow: follow);
     _mark('type', verb: 'enterText', target: text);
-    for (var i = 1; i <= text.length; i++) {
-      await set(text.substring(0, i));
+    for (var typed in typedPrefixes(text)) {
+      await set(typed);
+      if (pause != null) {
+        await pause();
+        continue;
+      }
       // A word gap. The cheapest unevenness there is, and unevenness is most
       // of what separates typing from a ticker.
       await _hold(
         tester,
-        text[i - 1] == ' ' ? settings.typing * 1.6 : settings.typing,
+        typed.endsWith(' ') ? settings.typing * 1.6 : settings.typing,
       );
     }
     // Whatever the field does about the text it now has belongs to the verb,
@@ -942,6 +955,20 @@ class _Banked {
 
   /// Seconds since the last press began, or null before the first one.
   final double? sincePress;
+}
+
+/// What a field holds after each keystroke of [text]: its first character,
+/// its first two, and so on to the whole of it.
+///
+/// A character is a grapheme — what one key types — so an emoji, or a letter
+/// written with a combining accent, goes in whole. Cutting by code units would
+/// hand the field half a surrogate pair on the way.
+Iterable<String> typedPrefixes(String text) sync* {
+  var typed = '';
+  for (var character in text.characters) {
+    typed += character;
+    yield typed;
+  }
 }
 
 /// The film this process is rendering, if any.
