@@ -180,7 +180,30 @@ class HeadlessCatalog extends CatalogRenderer {
   /// does: a silently ignored knob produces a picture that looks right and is
   /// not.
   @override
-  Future<CatalogObservation> render(CatalogRender request) => _withGuest(
+  Future<CatalogObservation> render(CatalogRender request) {
+    // Refused by name rather than dropped: a picture of the entry at rest,
+    // handed back for a call that asked for three taps first — or for the
+    // whole of its list — looks right.
+    if (request.steps.isNotEmpty) {
+      throw ArgumentError.value(
+        request.steps,
+        'steps',
+        'the guest engine does not run steps yet — the harness does. Drop '
+            '`engine: guest`, and `logs`, which only the guest collects.',
+      );
+    }
+    if (request.full) {
+      throw ArgumentError.value(
+        request.full,
+        'full',
+        'the guest engine does not grow its screen yet — the harness does. '
+            'Drop `engine: guest`, and `logs`, which only the guest collects.',
+      );
+    }
+    return _render(request);
+  }
+
+  Future<CatalogObservation> _render(CatalogRender request) => _withGuest(
     entryId: request.entryId,
     viewport: request.viewport,
     (guest) async {

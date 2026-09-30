@@ -82,7 +82,39 @@ class TesterRenderer extends CatalogRenderer {
       // a second chance to pick up an edit, and the values would then be
       // applied against declarations from before it.
       sync: declared == null && sync,
+      kept: true,
     );
+    if (reply.stepRefused case var refused?) {
+      throw ArgumentError.value(
+        request.steps,
+        'steps',
+        _stepRefusal(request.steps, refused),
+      );
+    }
+    if (reply.refused case var refused?) {
+      throw ArgumentError.value(request.cropNode, 'node', refused);
+    }
+    // A harness that rendered and said nothing about the growing never grew
+    // anything: the checkout resolves a `package:flutterware` from before
+    // `full`, which renders the entry at rest and ignores the argument.
+    if (request.full && reply.grown == null && reply.stagedOn != null) {
+      throw ArgumentError.value(
+        request.full,
+        'full',
+        "this checkout's package:flutterware predates `full`: the harness "
+            'rendered the entry at its own height',
+      );
+    }
+    var picture = switch ((request.screenshot, reply.frame)) {
+      (var output?, var frame?) => _file(
+        request,
+        output,
+        frame,
+        reply.tree,
+        cropTo: reply.revealed?.id ?? request.cropNode,
+      ),
+      _ => null,
+    };
 
     return CatalogObservation(
       errors: reply.errors,
@@ -91,10 +123,11 @@ class TesterRenderer extends CatalogRenderer {
       stagedOn: reply.stagedOn,
       tree: request.wantTree ? reply.tree : null,
       hits: reply.hits,
-      screenshot: switch ((request.screenshot, reply.frame)) {
-        (var output?, var frame?) => _file(request, output, frame, reply.tree),
-        _ => null,
-      },
+      revealed: reply.revealed,
+      grown: reply.grown,
+      drawnAt: reply.frame?.pixelRatio,
+      screenshot: picture?.file,
+      pages: picture?.pages ?? const [],
     );
   }
 
@@ -197,12 +230,16 @@ class TesterRenderer extends CatalogRenderer {
   /// and the same `writePicture` encodes it, whichever engine drew the pixels.
   /// What differs is one decode — packed rgba here against the embedder's BGRA
   /// behind a header.
-  File _file(
+  ///
+  /// A `--full` picture taller than the screen it started as is also written
+  /// a screen at a time, cut between the rows [tree] places.
+  ({File file, List<File> pages}) _file(
     CatalogRender request,
     String output,
     _Frame frame,
-    InspectTree? tree,
-  ) {
+    InspectTree? tree, {
+    required String? cropTo,
+  }) {
     // Read and deleted here rather than inside the harness call, which is
     // where the numbering below earns itself: `TesterHost.exclusive`
     // serialises the *render*, and this runs after it returns. Two renders in
@@ -214,20 +251,38 @@ class TesterRenderer extends CatalogRenderer {
         ? img.decodePng(bytes)!
         : decodeTesterFrame(bytes, width: frame.width, height: frame.height);
     try {
-      return writePicture(
-        image,
-        output,
-        framing: request.framed
-            ? PictureFraming.of(
-                // `framed` is what put us here and the request's `needsTree`
-                // covers it, so the tree was asked for and is in hand.
-                tree!,
-                node: request.cropNode,
-                annotate: request.annotate,
-                entryId: request.entryId,
-              )
-            : const PictureFraming(),
-        pixelRatio: request.viewport.pixelRatio,
+      var framing = request.framed
+          ? PictureFraming.of(
+              // `framed` is what put us here and the request's `needsTree`
+              // covers it, so the tree was asked for and is in hand.
+              tree!,
+              node: cropTo,
+              annotate: request.annotate,
+              entryId: request.entryId,
+            )
+          : const PictureFraming();
+      // The ratio the frame was *drawn* at, which is what turns the tree's
+      // boxes into its pixels.
+      var ratio = frame.pixelRatio ?? request.viewport.pixelRatio;
+      var picture = framePicture(image, framing: framing, pixelRatio: ratio);
+      var file = writePicture(picture, output);
+      if (!request.full || tree == null) return (file: file, pages: const []);
+      // The screen it started as, which is what a page is: a reader that
+      // takes in one screenshot takes in one of these.
+      var top = framing.crop?.y ?? 0;
+      return (
+        file: file,
+        pages: writePages(
+          picture,
+          output,
+          pageCuts(
+            tree,
+            page: request.viewport.height / request.viewport.pixelRatio,
+            top: top,
+            bottom: top + picture.height / ratio,
+          ),
+          pixelRatio: ratio,
+        ),
       );
     } finally {
       // The frame was scaffolding: raw at a phone's ratio is megabytes, and
@@ -245,6 +300,7 @@ class TesterRenderer extends CatalogRenderer {
     bool wantAxes = false,
     bool? sync,
     CatalogWalk? walk,
+    bool kept = false,
   }) async {
     var reply = await runner.render(
       entryId: request.entryId,
@@ -292,6 +348,13 @@ class TesterRenderer extends CatalogRenderer {
         if (walk == null) 'motionT': ?request.motionT,
         if (request.needsTree) 'tree': true,
         if (request.at != null) 'at': '${request.at!.$1},${request.at!.$2}',
+        // Only on the call whose frame is kept: the probe that reads what an
+        // entry declares would walk a long list, and tap its way through the
+        // steps, for nothing.
+        if (kept && (request.cropNode?.isNotEmpty ?? false))
+          'reveal': request.cropNode,
+        if (kept && request.steps.isNotEmpty) 'steps': request.steps,
+        if (kept && request.full) 'full': true,
         // Named rather than omitted, so the harness refuses it by name — a
         // request that came back looking answered and was not is the failure
         // this lane has to be safe from.
@@ -320,6 +383,29 @@ class TesterRenderer extends CatalogRenderer {
         List ids => [for (var id in ids) '$id'],
         _ => null,
       },
+      revealed: switch (reply['reveal']) {
+        Map json when json['refused'] == null => CatalogReveal(
+          id: json['id'] as String?,
+          scrolled: (json['scrolled'] as num? ?? 0).toDouble(),
+        ),
+        _ => null,
+      },
+      refused: switch (reply['reveal']) {
+        {'refused': String refused} => refused,
+        _ => null,
+      },
+      stepRefused: switch (reply['stepRefused']) {
+        Map json => json.cast<String, Object?>(),
+        _ => null,
+      },
+      grown: switch (reply['grown']) {
+        Map json => CatalogGrown(
+          from: (json['from'] as num).toDouble(),
+          to: (json['to'] as num).toDouble(),
+          truncated: json['truncated'] == true,
+        ),
+        _ => null,
+      },
       durationMs: (reply['durationMs'] as num? ?? 0).toInt(),
       scope: reply['scope'] as String?,
       scopes: [for (var id in (reply['scopes'] as List? ?? const [])) '$id'],
@@ -339,10 +425,24 @@ class TesterRenderer extends CatalogRenderer {
           format: reply['format'] as String? ?? 'raw',
           width: reply['width'] as int? ?? 0,
           height: reply['height'] as int? ?? 0,
+          pixelRatio: (reply['pixelRatio'] as num?)?.toDouble(),
         ),
         _ => null,
       },
     );
+  }
+
+  /// A refused step, said the way `act` says it, with which step it was: the
+  /// message alone is drive's, and does not know it was one of several.
+  static String _stepRefusal(
+    List<Map<String, String>> steps,
+    Map<String, Object?> refused,
+  ) {
+    var index = refused['index'] as int? ?? 0;
+    var step = index < steps.length ? steps[index] : const <String, String>{};
+    var named = [step['verb'], ?step['target']].nonNulls.join(' ');
+    return 'step ${index + 1} of ${steps.length} ($named) was refused, and '
+        'the steps after it did not run: ${refused['error']}';
   }
 
   /// Where the next frame lands on its way to being a picture.
@@ -366,12 +466,18 @@ class _Frame {
     required this.format,
     required this.width,
     required this.height,
+    this.pixelRatio,
   });
 
   final String path;
   final String format;
   final int width;
   final int height;
+
+  /// The ratio it was drawn at, when that is lower than the one asked for:
+  /// a picture taller than the rasteriser's largest texture is drawn
+  /// smaller rather than cut short.
+  final double? pixelRatio;
 }
 
 class _Reply {
@@ -382,6 +488,10 @@ class _Reply {
     this.stagedOn,
     this.tree,
     this.hits,
+    this.revealed,
+    this.refused,
+    this.stepRefused,
+    this.grown,
     this.frame,
     this.walk = const [],
     this.durationMs = 0,
@@ -395,6 +505,18 @@ class _Reply {
   final AxisReport axes;
   final InspectTree? tree;
   final List<String>? hits;
+  final CatalogReveal? revealed;
+
+  /// Why the `--node` could not be brought on screen, when a walk found it
+  /// ambiguous.
+  final String? refused;
+
+  /// The step that was refused — its index and drive's own words — when one
+  /// was. The steps after it did not run.
+  final Map<String, Object?>? stepRefused;
+
+  /// How far the screen grew, answered whenever `full` was asked.
+  final CatalogGrown? grown;
   final _Frame? frame;
   final List<_WalkFrame> walk;
   final int durationMs;

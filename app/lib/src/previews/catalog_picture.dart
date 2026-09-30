@@ -15,9 +15,11 @@
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 
 // The node types, not the umbrella `ui_catalog.dart`: that one reaches
 // `package:flutter/widgets.dart`, and this file is on `fw`'s import graph.
@@ -67,22 +69,18 @@ class PictureFraming {
   /// Matched by [InspectTree.matching], which is the same matcher `find` uses,
   /// so one grammar covers looking something up and cropping to it.
   ///
-  /// Several matches are refused, never guessed. A silently-picked first
+  /// Several places are refused, never guessed. A silently-picked first
   /// match is a picture of the wrong widget that looks like a picture of the
   /// right one, and the refusal carries the ids so the next call is exact.
+  /// Matches nested in one another are one place — see
+  /// [InspectTree.places], which is the rule the harness scrolls by too.
   static InspectLayout _cropTo(
     InspectTree tree,
     String selector,
     String entryId,
   ) {
-    var found = tree.resolve(selector);
-    if (found.length == 1) return _boxOf(found.single, selector, entryId);
-
-    var matches = [
-      for (var node in found)
-        if (node.layout != null) node,
-    ];
-    if (matches.length == 1) return matches.single.layout!;
+    var matches = tree.places(selector);
+    if (matches.length == 1) return _boxOf(matches.single, selector, entryId);
     if (matches.isEmpty) {
       throw ArgumentError.value(
         selector,
@@ -290,4 +288,145 @@ File writePicture(
     ),
   );
   return file;
+}
+
+/// Where a picture taller than a screen is cut into pages, in logical pixels
+/// from the picture's top: the top of every page after the first.
+///
+/// **Pages because of who reads them.** A model is shown an image no taller
+/// than about two thousand pixels, so a phone's whole list in one picture
+/// reaches it about a hundred and fifty pixels wide, every row a smudge. A
+/// screen at a time, each page is as legible as an ordinary screenshot.
+///
+/// **Between the rows, never through them.** A cut goes only where no box
+/// crosses — a row, a label, a button. A box taller than half a page is a
+/// container rather than something to read, and may be cut through; a page
+/// with nowhere clean to end is cut at its full height.
+///
+/// **As few pages as that allows, and even.** The count is what cutting
+/// each page as low as it can go takes; the cuts are then moved as near an
+/// even share as a clean line allows, so a picture a little taller than a
+/// screen is two half screens rather than a screen and a strip — and never
+/// so far that the pages after a cut would need one more.
+///
+/// [top] and [bottom] are the part of the screen the picture shows, in the
+/// tree's coordinates: the whole of it, or a `--node` crop.
+List<double> pageCuts(
+  InspectTree tree, {
+  required double page,
+  required double top,
+  required double bottom,
+}) {
+  if (bottom - top <= page + _seam) return const [];
+  var boxes = [
+    for (var node in _distinctBoxes(tree.nodes.toList()))
+      if (!node.offstage)
+        if (node.layout case var box? when box.height < page / 2) box,
+  ];
+
+  /// The lines between [low] and [high] that no box crosses.
+  List<double> clean(double low, double high) {
+    var near = [
+      for (var box in boxes)
+        if (box.y < high && box.y + box.height > low) box,
+    ];
+    return [
+      for (var y in {
+        for (var box in near) ...[box.y, box.y + box.height],
+      })
+        if (y > low &&
+            y <= high &&
+            !near.any(
+              (box) => box.y < y - _seam && box.y + box.height > y + _seam,
+            ))
+          y,
+    ];
+  }
+
+  /// Where a page from [start] ends when it goes as low as it can.
+  double furthest(double start) {
+    var lines = clean(start + page / 2, start + page);
+    return lines.isEmpty ? start + page : lines.reduce(math.max);
+  }
+
+  /// How many pages from [start] to the bottom, each as long as it can be.
+  int pagesFrom(double start) {
+    var count = 1;
+    while (bottom - start > page + _seam) {
+      start = furthest(start);
+      count++;
+    }
+    return count;
+  }
+
+  var count = pagesFrom(top);
+  var share = (bottom - top) / count;
+  var cuts = <double>[];
+  var previous = top;
+  for (var k = 1; k < count; k++) {
+    var ideal = top + k * share;
+    var options = [
+      for (var y in clean(previous + share / 2, previous + page))
+        if (pagesFrom(y) <= count - k) y,
+    ];
+    // Nearest the share, and the higher of two equally near: a page is
+    // better a row short than a row long.
+    var cut = options.isEmpty
+        ? furthest(previous)
+        : options.reduce((a, b) {
+            var da = (a - ideal).abs(), db = (b - ideal).abs();
+            if ((da - db).abs() > _seam) return da < db ? a : b;
+            return math.min(a, b);
+          });
+    cuts.add(cut - top);
+    previous = cut;
+  }
+  return cuts;
+}
+
+/// How far a box may overlap a cut and still count as not crossing it: a
+/// layout that rounds is not a row sliced in half.
+const _seam = 0.5;
+
+/// [picture] cut at [cuts] — logical pixels from its top — and written
+/// beside [output] as `<name>.page-<n>.png`, first page first.
+///
+/// Pages a previous picture left under the same name are removed first, so
+/// what is on disk is this picture's pages and no stale seventh.
+List<File> writePages(
+  img.Image picture,
+  String output,
+  List<double> cuts, {
+  double pixelRatio = 1,
+}) {
+  var stem = p.withoutExtension(output);
+  var directory = File(output).parent..createSync(recursive: true);
+  var name = RegExp(
+    '^${RegExp.escape(p.basename(stem))}'
+    r'\.page-\d+\.png$',
+  );
+  for (var stale in directory.listSync().whereType<File>()) {
+    if (name.hasMatch(p.basename(stale.path))) stale.deleteSync();
+  }
+  if (cuts.isEmpty) return const [];
+
+  var rows = {
+    0,
+    for (var cut in cuts) (cut * pixelRatio).round().clamp(0, picture.height),
+    picture.height,
+  }.toList()..sort();
+  return [
+    for (var i = 0; i + 1 < rows.length; i++)
+      File('$stem.page-${i + 1}.png')..writeAsBytesSync(
+        img.encodePng(
+          img.copyCrop(
+            picture,
+            x: 0,
+            y: rows[i],
+            width: picture.width,
+            height: rows[i + 1] - rows[i],
+          ),
+        ),
+      ),
+  ];
 }

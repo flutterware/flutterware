@@ -63,7 +63,13 @@ class GuestInspector {
   ///
   /// 2 — boxes in logical pixels on a walk rooted at the view (a run, a
   /// scenario), where 1 reported them ×devicePixelRatio. See [boxWithin].
-  static const treeFormat = 2;
+  ///
+  /// 3 — words a design library draws for the app are kept: a shown
+  /// tooltip, a field's label, a badge's count. Measured on the probe app's
+  /// text fields: three labels joined the tree, and the screen read the same
+  /// six items, each label having already been its field's words. See
+  /// [_withoutDesignLibraries].
+  static const treeFormat = 3;
 
   /// Registers the extensions. Call once, before `runApp`, beside the knobs and
   /// axes ones — an extension has to outlive every entry switch.
@@ -123,6 +129,18 @@ class GuestInspector {
   InspectTree read({InspectFilter? filter}) {
     var tree = _build().tree;
     return filter == null ? tree : tree.filtered(filter);
+  }
+
+  /// [read], and the element behind each node, by id.
+  ///
+  /// For a caller that has to act on a node it found: an id is a position, so
+  /// it stops naming the same widget the moment the screen moves — a lazy
+  /// list that scrolls renumbers its rows — and the element is what is still
+  /// the same widget afterwards.
+  ({InspectTree tree, Map<String, Element> elements}) readElements() {
+    var elements = <String, Element>{};
+    var tree = _build(elements: elements).tree;
+    return (tree: tree, elements: elements);
   }
 
   /// The handle that keeps semantics on while a panel is watching.
@@ -218,7 +236,9 @@ class GuestInspector {
     return null;
   }
 
-  ({InspectTree tree, Map<RenderObject, String> byRenderObject}) _build() {
+  ({InspectTree tree, Map<RenderObject, String> byRenderObject}) _build({
+    Map<String, Element>? elements,
+  }) {
     var entryId = entryIdOf();
     var byRenderObject = <RenderObject, String>{};
     // One entry per distinct style rather than per text — see [_describeStyle].
@@ -270,6 +290,7 @@ class GuestInspector {
             null,
             false,
             false,
+            elements: elements,
           ),
         ),
         byRenderObject: byRenderObject,
@@ -299,13 +320,22 @@ class GuestInspector {
   /// above the first widget the app wrote, and a `TextField` its
   /// `MouseRegion` and `TextFieldTapRegion`. Hoisting their children draws the
   /// tree the SDK drew when Material was `package:flutter`.
+  ///
+  /// **Except the words.** A `Text` a library builds out of a string the app
+  /// handed it is not scaffolding, it is what the screen says: a tooltip's
+  /// message, a field's label, a badge's count. Hoisting it left nothing
+  /// behind — it has no children in this tree — so a hover that put a tooltip
+  /// on screen put it in the picture and nowhere a reader of the screen could
+  /// find it, while the run's flat `texts` had it all along. The SDK's own tree
+  /// never had them either, so this is the one place this walk is not the
+  /// tree the SDK drew, on purpose.
   static Map<String, Object?> _withoutDesignLibraries(
     Map<String, Object?> node,
   ) {
     if (node['children'] case List children) {
       List<Map<String, Object?>> kept(List children) => [
         for (var child in children.whereType<Map>())
-          if (_designLibraryCreated(child))
+          if (_designLibraryCreated(child) && !_drawsWords(child))
             ...kept(child['children'] as List? ?? const [])
           else
             _withoutDesignLibraries(child.cast<String, Object?>()),
@@ -314,6 +344,11 @@ class GuestInspector {
     }
     return node;
   }
+
+  static bool _drawsWords(Map node) => switch (node['widgetRuntimeType']) {
+    'Text' || 'RichText' => true,
+    _ => false,
+  };
 
   static bool _designLibraryCreated(Map node) =>
       switch (node['creationLocation']) {
@@ -430,8 +465,9 @@ class GuestInspector {
     ({Map<Element, InspectKey> claims, Set<RenderObject> paragraphs}) sources,
     RenderObject? ancestorRender,
     bool ancestorOffstage,
-    bool ancestorClaimed,
-  ) {
+    bool ancestorClaimed, {
+    Map<String, Element>? elements,
+  }) {
     var children = json['children'] as List? ?? const [];
     var described = json['description'] as String?;
     var type = json['widgetRuntimeType'] as String? ?? described ?? '';
@@ -441,6 +477,7 @@ class GuestInspector {
     // Resolved once for the three readers below: the id round-trips through
     // the inspector's object registry, which is not free per node.
     var element = _elementOf(json);
+    if (element != null) elements?[path] = element;
     var render = element?.renderObject;
     var textStyle = _textStyleOf(render, styles);
     // **The widget's own property, for anything that renders text its own way.**
@@ -515,6 +552,7 @@ class GuestInspector {
               render ?? ancestorRender,
               offstage,
               underClaim,
+              elements: elements,
             ),
       ],
     );

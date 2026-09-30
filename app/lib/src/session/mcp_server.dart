@@ -1143,26 +1143,51 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// open is the difference between a working tool and a plausible one. The
   /// JSON travels alongside, so the address and the resolved axes are still
   /// there to ask for the same frame again.
+  ///
+  /// **A picture that names its `pages` is sent as those instead.** A model
+  /// is shown an image no taller than about two thousand pixels, so a
+  /// phone's whole list in one picture arrives about a hundred and fifty
+  /// pixels wide — sent, and unreadable. The pages are the same picture a
+  /// screen at a time, and the whole one is still at `path` for anything
+  /// that is not a model.
   static CallToolResult _jsonWithImage(
     Session session,
     Artifact? artifact,
     Map<String, Object?> summary,
   ) {
-    if (artifact != null && artifact.kind.startsWith('image/')) {
-      var file = File(p.join(session.root, artifact.path!));
-      if (file.existsSync()) {
-        return CallToolResult(
-          content: [
-            ImageContent(
-              data: base64Encode(file.readAsBytesSync()),
-              mimeType: artifact.kind,
-            ),
-            TextContent(text: _encode(summary)),
-          ],
-        );
-      }
+    var images = imagesOf(artifact, root: session.root);
+    if (images.isEmpty) return _json(summary);
+    return CallToolResult(
+      content: [
+        ...images,
+        TextContent(text: _encode(summary)),
+      ],
+    );
+  }
+
+  /// The images [artifact] is shown as, read from under [root]: its pages
+  /// when it names them, itself otherwise, and nothing when it is not a
+  /// picture or its files are gone.
+  @visibleForTesting
+  static List<ImageContent> imagesOf(
+    Artifact? artifact, {
+    required String root,
+  }) {
+    if (artifact == null || !artifact.kind.startsWith('image/')) {
+      return const [];
     }
-    return _json(summary);
+    var paths = switch (artifact.meta['pages']) {
+      List pages when pages.isNotEmpty => [for (var page in pages) '$page'],
+      _ => [?artifact.path],
+    };
+    return [
+      for (var path in paths)
+        if (File(p.join(root, path)) case var file when file.existsSync())
+          ImageContent(
+            data: base64Encode(file.readAsBytesSync()),
+            mimeType: artifact.kind,
+          ),
+    ];
   }
 
   /// Compact, unlike the CLI's `--json`.
