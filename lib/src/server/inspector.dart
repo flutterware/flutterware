@@ -81,6 +81,12 @@ class FlutterwareServer {
   ///
   /// Reports a `job` event as it starts and another as it ends, with how
   /// long it took and what it threw; the error is rethrown.
+  ///
+  /// [body] starts at once, in the caller's turn: like any `async` function
+  /// it runs synchronously up to its first `await`. Work that must come
+  /// after its caller — a webhook delivered once the request that fired it
+  /// has answered, as a webhook service would — goes in a `Future`:
+  /// `unawaited(Future(() => FlutterwareServer.job('deliver', …)))`.
   static Future<T> job<T>(
     String name,
     FutureOr<T> Function() body, {

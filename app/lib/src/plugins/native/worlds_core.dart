@@ -353,7 +353,9 @@ class WorldsCore extends PluginCore {
           "The people, their sessions and the server's data stay. The "
           "script's body does not run again: a person, action or knob it now "
           'declares, or an edit inside a closure it handed to `w.action`, '
-          'waits for a restart.',
+          'waits for a restart. One reload runs at a time; one asked for '
+          'meanwhile runs after it. The answer splits the time between the '
+          "script's code, its onReassemble callbacks and the apps.",
       parameters: [_worldParameter],
     ),
     PluginAction(

@@ -2955,7 +2955,7 @@ note: String?
 
 #### `reload` — Reload
 
-Brings the open world to the code on disk without new people: the script's process hot-reloaded — the server it hosts, what its actions call — and every app reloaded, in well under a second. The people, their sessions and the server's data stay. The script's body does not run again: a person, action or knob it now declares, or an edit inside a closure it handed to `w.action`, waits for a restart.
+Brings the open world to the code on disk without new people: the script's process hot-reloaded — the server it hosts, what its actions call — and every app reloaded, in well under a second. The people, their sessions and the server's data stay. The script's body does not run again: a person, action or knob it now declares, or an edit inside a closure it handed to `w.action`, waits for a restart. One reload runs at a time; one asked for meanwhile runs after it. The answer splits the time between the script's code, its onReassemble callbacks and the apps.
 
 ```sh
 fw run worlds reload [--world=…]
@@ -2964,7 +2964,10 @@ fw run worlds reload [--world=…]
 Returns `WorldReloadResult`:
 
 ```
-ms: int
+ms: int   # The whole reload: [scriptMs], [reassembleMs], then [appsMs].
+scriptMs: int?   # The script's code reloading in its VM.
+reassembleMs: int?   # Its `FlutterwareServer.onReassemble` callbacks rebuilding.
+appsMs: int?   # The [apps] reloading, side by side.
 apps: List<String>
 ```
 

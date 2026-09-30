@@ -91,12 +91,19 @@ void main() {
     var crud = <Map<String, Object?>>[];
     var oplog = <Map<String, Object?>>[];
 
+    /// The buckets the phone holds, empty ones too.
+    var held = <String>[];
+
     setUp(() {
       crud = [];
       oplog = [
         {'t': 'orders', 'k': 'o1', 'op': 3, 'bucket': 'shop_orders["main"]'},
       ];
+      held = ['shop_orders["main"]', 'profile["u2"]'];
       db.onQuery = (sql, args) async => switch (sql) {
+        'SELECT name FROM ps_buckets' => [
+          for (var name in held) {'name': name},
+        ],
         _ when sql.contains("key = 'client_id'") => [
           {'value': 'client-7'},
         ],
@@ -158,13 +165,24 @@ void main() {
       ];
       db.updates.add({'orders'});
       await pumpEventQueue();
+      held = [...held, 'profile["u1"]'];
       oplog = [
         {'t': 'orders', 'k': 'o1', 'op': 3, 'bucket': 'shop_orders["main"]'},
         {'t': 'orders', 'k': 'o2', 'op': 9, 'bucket': 'shop_orders["main"]'},
         // Written long ago, arriving now: the app has just subscribed.
         {'t': 'profiles', 'k': 'u1', 'op': 2, 'bucket': 'profile["u1"]'},
+        // The first record of a bucket the phone held, empty, from the
+        // start: late in coming, not new to it.
+        {'t': 'profiles', 'k': 'u2', 'op': 10, 'bucket': 'profile["u2"]'},
       ];
       db.updates.add({'orders'});
+      await pumpEventQueue();
+      // A later record of the bucket just subscribed to is not new either.
+      oplog = [
+        ...oplog,
+        {'t': 'profiles', 'k': 'u3', 'op': 11, 'bucket': 'profile["u1"]'},
+      ];
+      db.updates.add({'profiles'});
       await pumpEventQueue();
 
       expect(ringed('db:main/records').skip(1), [
@@ -184,6 +202,20 @@ void main() {
           'op': 2,
           'bucket': 'profile["u1"]',
           'newBucket': true,
+        },
+        {
+          'key': 'u2',
+          'table': 'profiles',
+          'change': 'synced',
+          'op': 10,
+          'bucket': 'profile["u2"]',
+        },
+        {
+          'key': 'u3',
+          'table': 'profiles',
+          'change': 'synced',
+          'op': 11,
+          'bucket': 'profile["u1"]',
         },
       ]);
     });

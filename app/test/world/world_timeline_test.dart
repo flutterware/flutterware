@@ -146,6 +146,34 @@ void main() {
     });
   });
 
+  test('a record a phone received is drawn when it arrived, though the '
+      'trace keeps it beneath its write', () {
+    tap('Leo', 'leo.1', 1000, '"Order"');
+    lab(1003, 'write', {
+      'table': 'orders',
+      'key': 'o1',
+      'op': 'insert',
+      'step': 'leo.1',
+    });
+    tap('Ana', 'ana.1', 2000, '"Orders"');
+    // Late: its bucket reached Ana's phone after she tapped.
+    app('Ana', 2500, 'db:main/records', {
+      'key': 'o1',
+      'table': 'orders',
+      'change': 'synced',
+      'op': 4,
+    });
+    expect(rows(timeline(TraceLevel.wire)), [
+      'Leo  taps "Order"',
+      'system/server/lab  wrote orders/o1 (insert)',
+      'Ana  taps "Orders"',
+      'system/sync → Ana  orders/o1 arrived (op 4)',
+    ]);
+    var arrival = timeline(TraceLevel.wire).rows.last;
+    expect(arrival.step.id, 'leo.1');
+    expect(arrival.within?.said, 'wrote orders/o1 (insert)');
+  });
+
   test("the world's own request starts in its column, and a service that "
       'only sent a message is a column of its own', () {
     trace.addActionStep(

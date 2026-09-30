@@ -146,7 +146,17 @@ For a server whose handler is all it rebuilds,
 line.
 
 Source that does not compile is refused with the compiler's message, and
-the world runs on as it was.
+the world runs on as it was. One reload runs at a time: one asked for while
+another runs — **Reload** pressed as `fw run worlds reload` answers — goes
+after it. A hot reloader of your own inside the script, reloading it on a
+save, is waited for too, for up to ten seconds; if the VM still will not
+reload, the refusal says so in its words rather than as a compile error.
+Keep such a reloader out of a world all the same: two reloads compiling at
+once can take down the compiler the script reloads through. Reload then
+says the compiler is gone, and **Restart** starts the script on a fresh one.
+The answer, and the world's log, split the time between the script's code,
+its `onReassemble` callbacks and the apps:
+`Reloaded in 0.86 s: the script in 0.38 s, its onReassemble in 0.03 s, Shop in 0.45 s`.
 
 From the command line, the world lives as long as the command does:
 
@@ -292,10 +302,18 @@ line, however long after: `job thumbnail on jobs, done in 1.2 s`. For work
 that is not a job — a storage notification — `FlutterwareServer.inStep(step,
 body)` re-enters the step alone.
 
+`job` starts its body at once, in its caller's turn: like any `async`
+function, it runs synchronously up to its first `await`. Work that must come
+after its caller — a webhook delivered once the request that fired it has
+answered, as a webhook service would — goes in a `Future`:
+`unawaited(Future(() => FlutterwareServer.job('deliver', …)))`.
+
 **A step reads as a tree.** Each request and each job is a line, and what it
 did sits beneath it: the records it wrote, with what changed
 (`wrote orders/o7 (update · status ready)`), the messages it sent and whom
-it reached. A record updated several times in a row is one line,
+it reached. Beneath a write, where the record arrived: each phone it
+reached, and its writer's own copy confirmed, however long after. A record
+updated several times in a row is one line,
 `updated uploads/u1 ×16 · status queued → … → ready`. What a line only
 counts folds into it: the SQL statements it ran and how long they took
 together, `POST /orders  201 in 9 ms, 12 statements, 6.1 ms`, and its

@@ -333,25 +333,56 @@ class WorldKnobEntry {
   };
 }
 
-/// What `worlds reload` answers: how long it took, and which apps were
-/// reloaded with the script.
+/// What `worlds reload` answers: how long it took, split between the
+/// script's code, its onReassemble callbacks and the apps, and which apps
+/// were reloaded with the script.
 class WorldReloadResult implements PluginResult {
-  const WorldReloadResult({required this.ms, this.apps = const []});
+  const WorldReloadResult({
+    required this.ms,
+    this.apps = const [],
+    this.scriptMs,
+    this.reassembleMs,
+    this.appsMs,
+  });
 
-  factory WorldReloadResult.of(WorldReload reload) =>
-      WorldReloadResult(ms: reload.elapsed.inMilliseconds, apps: reload.apps);
+  factory WorldReloadResult.of(WorldReload reload) => WorldReloadResult(
+    ms: reload.elapsed.inMilliseconds,
+    apps: reload.apps,
+    scriptMs: reload.script.inMilliseconds,
+    reassembleMs: reload.reassemble.inMilliseconds,
+    appsMs: reload.appsTook.inMilliseconds,
+  );
 
   factory WorldReloadResult.fromJson(Map<String, Object?> json) =>
       WorldReloadResult(
         ms: json['ms']! as int,
         apps: [...(json['apps'] as List? ?? const []).cast<String>()],
+        scriptMs: json['scriptMs'] as int?,
+        reassembleMs: json['reassembleMs'] as int?,
+        appsMs: json['appsMs'] as int?,
       );
 
+  /// The whole reload: [scriptMs], [reassembleMs], then [appsMs].
   final int ms;
   final List<String> apps;
 
+  /// The script's code reloading in its VM.
+  final int? scriptMs;
+
+  /// Its `FlutterwareServer.onReassemble` callbacks rebuilding.
+  final int? reassembleMs;
+
+  /// The [apps] reloading, side by side.
+  final int? appsMs;
+
   @override
-  Map<String, Object?> toJson() => {'ms': ms, 'apps': apps};
+  Map<String, Object?> toJson() => {
+    'ms': ms,
+    'scriptMs': ?scriptMs,
+    'reassembleMs': ?reassembleMs,
+    'appsMs': ?appsMs,
+    'apps': apps,
+  };
 }
 
 /// What `worlds invoke` answers: the action, ended or still running.

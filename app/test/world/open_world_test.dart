@@ -344,6 +344,27 @@ void main() {
     expect(await said('Route'), '/health, reloadable, v2');
     expect(await said('Route once'), '/health, built once, v1');
     expect(world.log.last, contains('Reloaded in'));
+    // The time, split: the code, then what rebuilt on it.
+    expect(reload.script, greaterThan(Duration.zero));
+    expect(
+      reload.elapsed,
+      greaterThanOrEqualTo(reload.script + reload.reassemble),
+    );
+    expect(world.log.last, contains('its onReassemble in'));
+
+    // Two at once — the Reload button and `worlds reload`, a save and a
+    // click — reload one after the other, where the VM would refuse one.
+    script.writeAsStringSync(original.replaceAll('v1', 'v4'));
+    int reloads() => world.log.where((l) => l.contains('Reloaded in')).length;
+    var before = reloads();
+    var both = [world.reload(), world.reload()];
+    expect(world.reloading, isTrue);
+    await Future.wait(both);
+    expect(world.reloading, isFalse);
+    expect(reloads(), before + 2);
+    expect(await said('Greet'), 'hello, v4');
+    script.writeAsStringSync(original.replaceAll('v1', 'v2'));
+    await world.reload();
 
     script.writeAsStringSync(
       original.replaceAll('v1', 'v2').replaceFirst("'hello, v2';", "'v3'"),

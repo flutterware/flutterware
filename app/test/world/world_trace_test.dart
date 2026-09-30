@@ -119,14 +119,15 @@ void main() {
         '+4 ms  Ben → lab  POST /orders  201 in 13 ms',
         '+5 ms  lab  knows Ben as u2',
         '+6 ms  lab  wrote orders/o5 (insert)',
+        // What the phones received, beneath the write that sent it.
+        '  +40 ms  Cleo  orders/o5 arrived (op 16)',
+        '  +270 ms  Ben  orders/o5 confirmed (op 15)',
         '+7 ms  lab → Cleo  order o5 · placed',
         '+20 ms  Ben  wrote orders/o5 locally',
-        '+40 ms  Cleo  orders/o5 arrived (op 16)',
-        '+270 ms  Ben  orders/o5 confirmed (op 15)',
       ],
       'cleo.1 tap "Advance"': [
         '+10 ms  lab  wrote orders/o5 (update)',
-        '+40 ms  Ben  orders/o5 arrived (op 17)',
+        '  +40 ms  Ben  orders/o5 arrived (op 17)',
       ],
     });
     expect(traced(person: 'Cleo').keys, ['cleo.1 tap "Advance"']);
@@ -327,7 +328,7 @@ void main() {
         '+5 ms  lab  POST /orders  201',
         '  +5 ms  knows someone as u9',
         '  +6 ms  wrote orders/o7 (insert)',
-        '+30 ms  Cleo  orders/o7 arrived (op 5)',
+        '    +30 ms  Cleo  orders/o7 arrived (op 5)',
       ],
     });
     var step = trace.steps().single.step;
@@ -1074,12 +1075,12 @@ void main() {
         '+4 ms  Ben → lab  POST /orders  201 in 4.0 ms',
         '  +5 ms  knows Ben as u2',
         '  +6 ms  wrote orders/o5 (insert)',
+        '    +40 ms  Cleo  orders/o5 arrived (op 16)',
+        '    +270 ms  Ben  orders/o5 confirmed (op 15)',
         '  +7 ms  → Cleo  order o5 · placed',
         '  +8 ms  → Ben  order o5 · placed',
         '  +9 ms  → Ben by SMS  Your order is placed',
         '+20 ms  Ben  wrote orders/o5 locally',
-        '+40 ms  Cleo  orders/o5 arrived (op 16)',
-        '+270 ms  Ben  orders/o5 confirmed (op 15)',
       ]);
       // The call, and the update back to Ben's own app, which asked.
       expect(traced(level: TraceLevel.system)[order], [
@@ -1087,7 +1088,8 @@ void main() {
         '  +7 ms  → Cleo  order o5 · placed',
         '  +8 ms  → Ben  order o5 · placed',
         '  +9 ms  → Ben by SMS  Your order is placed',
-        '+40 ms  Cleo  orders/o5 arrived (op 16)',
+        // Its write hidden, what the phone received rises into its place.
+        '  +40 ms  Cleo  orders/o5 arrived (op 16)',
       ]);
       // What reached somebody: the call is gone, and what it sent says
       // which server sent it.

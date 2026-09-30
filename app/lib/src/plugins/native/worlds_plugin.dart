@@ -342,10 +342,13 @@ class _OpenWorldView extends StatelessWidget {
                 label: 'Reload',
                 icon: Icons.refresh,
                 plain: true,
-                tooltip:
-                    'Bring the script, its server and every app to the code '
-                    'on disk: same people',
-                onPressed: world.phase == WorldPhase.open ? _reload : null,
+                tooltip: world.reloading
+                    ? 'Reloading…'
+                    : 'Bring the script, its server and every app to the '
+                          'code on disk: same people',
+                onPressed: world.phase == WorldPhase.open && !world.reloading
+                    ? _reload
+                    : null,
               ),
               const SizedBox(width: FwSpacing.xs),
               FwActionButton(

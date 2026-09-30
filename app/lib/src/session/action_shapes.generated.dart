@@ -7125,7 +7125,29 @@ final resultShapes = <String, ResultShape>{
   'WorldReloadResult': ResultShape.fromJson(<String, Object?>{
     'type': 'WorldReloadResult',
     'fields': <Object?>[
-      <String, Object?>{'name': 'ms', 'type': 'int'},
+      <String, Object?>{
+        'name': 'ms',
+        'type': 'int',
+        'doc': 'The whole reload: [scriptMs], [reassembleMs], then [appsMs].',
+      },
+      <String, Object?>{
+        'name': 'scriptMs',
+        'type': 'int',
+        'optional': true,
+        'doc': 'The script\'s code reloading in its VM.',
+      },
+      <String, Object?>{
+        'name': 'reassembleMs',
+        'type': 'int',
+        'optional': true,
+        'doc': 'Its `FlutterwareServer.onReassemble` callbacks rebuilding.',
+      },
+      <String, Object?>{
+        'name': 'appsMs',
+        'type': 'int',
+        'optional': true,
+        'doc': 'The [apps] reloading, side by side.',
+      },
       <String, Object?>{'name': 'apps', 'type': 'List<String>'},
     ],
   }),

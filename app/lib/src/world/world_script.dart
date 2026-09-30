@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutterware/src/server/inspector.dart' show reassembleExtension;
 // ignore: implementation_imports
 import 'package:flutterware/src/world/protocol.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -133,32 +134,51 @@ class WorldScriptProcess {
   /// callback then runs ([reassembleExtension]), and a server builds its
   /// router and middleware again from the new code.
   ///
+  /// Answers how long the code took to reload, and how long the reassemble
+  /// callbacks then took to rebuild on it.
+  ///
   /// Throws a [WorldScriptReloadFailed] with the compiler's words when the
-  /// source does not compile, and the script runs on as it was; or with what
-  /// a reassemble callback threw, once the code is in.
-  Future<void> reload() async {
-    var service = await (_service ??= _connect());
-    var isolates = (await service.getVM()).isolates ?? const <IsolateRef>[];
+  /// source does not compile, and the script runs on as it was; with the
+  /// VM's when it refused to reload at all; or with what a reassemble
+  /// callback threw, once the code is in.
+  ///
+  /// A reload the VM will not run — the script already reloading, from a
+  /// hot reloader of the project's own running inside it, or its compiler
+  /// tripping over that reload's — waits and goes after it, for up to
+  /// [busyFor].
+  Future<({Duration code, Duration reassemble})> reload({
+    Duration busyFor = const Duration(seconds: 10),
+  }) async {
+    var watch = Stopwatch()..start();
+    var isolates =
+        (await (await _live()).getVM()).isolates ?? const <IsolateRef>[];
     // One reload per isolate group: the isolates of a group share code.
     var groups = <String>{};
     for (var isolate in isolates) {
       if (!groups.add(isolate.isolateGroupId ?? isolate.id!)) continue;
-      ReloadReport report;
-      try {
-        report = await service.reloadSources(isolate.id!);
-      } on RPCError catch (error) {
-        throw WorldScriptReloadFailed(error.details ?? error.message);
-      }
+      var report = await reloadWhenFree(
+        // Asked for again each time: a connection that dropped is made
+        // again.
+        () async => (await _live()).reloadSources(isolate.id!),
+        busyFor: busyFor,
+      );
       if (report.success != true) {
         var notices = [
           for (var notice in report.json?['notices'] as List? ?? const [])
             if (notice case {'message': String message}) message,
         ];
+        var said = notices.join('\n');
+        // Not every failed report is the source: a script open long enough
+        // was answered `Kernel service was not set up for incremental
+        // compilation`, which only a restart cleared.
         throw WorldScriptReloadFailed(
-          notices.isEmpty ? 'The VM refused the reload.' : notices.join('\n'),
+          notices.isEmpty ? 'The VM refused the reload.' : said,
+          refused: !_compilerError.hasMatch(said),
         );
       }
     }
+    var code = watch.elapsed;
+    var service = await _live();
     for (var ref in isolates) {
       var isolate = await service.getIsolate(ref.id!);
       if (!(isolate.extensionRPCs ?? const []).contains(reassembleExtension)) {
@@ -176,6 +196,17 @@ class WorldScriptProcess {
         );
       }
     }
+    return (code: code, reassemble: watch.elapsed - code);
+  }
+
+  /// The connection to the script's VM, made again once one has dropped.
+  Future<VmService> _live() {
+    if (_service case var live?) return live;
+    var live = _service = _connect();
+    live.then((service) => service.onDone).then((_) {
+      if (identical(_service, live)) _service = null;
+    }).ignore();
+    return live;
   }
 
   Future<VmService> _connect() async {
@@ -216,14 +247,83 @@ class WorldScriptProcess {
 
 /// A reload the world script's source did not survive — a compile error —
 /// with what the compiler said.
+/// Runs [reload] — one `reloadSources` — and again while the VM will not
+/// run it, for up to [busyFor]: already reloading, from a hot reloader of the
+/// project's own inside the script, or its compiler tripping over that
+/// reload's (`Bad state: No element`). A compile error is not that, and is
+/// thrown at once: the compiler says what is wrong where, a line of the
+/// source. Nor is a compiler that is gone — two reloads compiling at once
+/// can take it down — which no wait brings back.
+@visibleForTesting
+Future<T> reloadWhenFree<T>(
+  Future<T> Function() reload, {
+  Duration busyFor = const Duration(seconds: 10),
+  Duration pause = const Duration(milliseconds: 200),
+}) async {
+  var waited = Stopwatch()..start();
+  while (true) {
+    try {
+      return await reload();
+    } on RPCError catch (error) {
+      var said = [error.message, ?error.details].join('\n');
+      if (_compilerError.hasMatch(said)) {
+        throw WorldScriptReloadFailed(error.details ?? error.message);
+      }
+      // Nothing to wait for: the compiler the script reloads through is not
+      // coming back, and a restart starts the script on a fresh one.
+      if (_compilerGone.hasMatch(said)) {
+        throw WorldScriptReloadFailed(
+          "The script's compiler is gone, so nothing can reload it: two "
+          'reloads compiling at once — a hot reloader of your own inside '
+          'the script, say — can take it down. Restart the world for a '
+          'fresh one.\n$said',
+          refused: true,
+        );
+      }
+      if (waited.elapsed < busyFor) {
+        await Future<void>.delayed(pause);
+        continue;
+      }
+      throw WorldScriptReloadFailed(
+        [
+          error.code == RPCErrorKind.kIsolateIsReloading.code
+              ? 'The script was still reloading after ${busyFor.inSeconds} s '
+                    '— another reloader running inside it, most likely.'
+              : 'The VM would not reload the script, and still would not '
+                    'after ${busyFor.inSeconds} s.',
+          '${error.message} (${error.code})',
+          ?error.details,
+        ].join('\n'),
+        refused: true,
+      );
+    }
+  }
+}
+
+/// How the compiler names a mistake: `lib/world.dart:17:22: Error: …`.
+final _compilerError = RegExp(r':\d+:\d+: Error: ');
+
+/// What the VM says when the resident compiler it reloads through is gone.
+final _compilerGone = RegExp(
+  r'SocketException: (Connection refused|Connection reset)',
+);
+
 class WorldScriptReloadFailed implements Exception {
-  WorldScriptReloadFailed(this.message, {this.reloaded = false});
+  WorldScriptReloadFailed(
+    this.message, {
+    this.reloaded = false,
+    this.refused = false,
+  });
 
   final String message;
 
   /// Whether the code reloaded and a handler then failed to build again,
   /// rather than the code not compiling.
   final bool reloaded;
+
+  /// Whether the VM would not reload at all — the script already reloading,
+  /// in no state to — rather than the code not compiling.
+  final bool refused;
 
   @override
   String toString() => message;
