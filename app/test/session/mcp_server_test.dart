@@ -155,7 +155,7 @@ void main() {
 
     expect(result.isError, isTrue);
     var text = (result.content.single as TextContent).text;
-    expect(text, contains('"parameters" is not an argument'));
+    expect(text, contains('takes no argument "parameters"'));
     expect(
       text,
       contains('It takes: plugin, action, arguments, brief.'),
@@ -172,7 +172,27 @@ void main() {
     );
     expect(
       (result.content.single as TextContent).text,
-      contains('did you mean "plugin"?'),
+      contains('"plugins" (did you mean `plugin`?)'),
+    );
+  });
+
+  test('and every key it does not declare, not only the first', () async {
+    var result = await connection.callTool(
+      CallToolRequest(
+        name: 'flutterware_invoke',
+        arguments: {
+          'plugin': 'previews',
+          'action': 'list',
+          'parameters': {'top': '3'},
+          'brif': true,
+        },
+      ),
+    );
+    expect(
+      (result.content.single as TextContent).text,
+      contains(
+        'takes no arguments "parameters" and "brif" (did you mean `brief`?).',
+      ),
     );
   });
 
@@ -195,7 +215,7 @@ void main() {
         expect(result.isError, isTrue, reason: '${tool.name} took a bogus key');
         expect(
           (result.content.single as TextContent).text,
-          contains('"notAKey" is not an argument of ${tool.name}'),
+          contains('${tool.name} takes no argument "notAKey"'),
         );
       }
     },

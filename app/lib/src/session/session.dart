@@ -482,10 +482,17 @@ class Session {
     var declared = {
       for (var parameter in declaredAction.parameters) parameter.id: parameter,
     };
+    var undeclared = [
+      for (var key in arguments.keys)
+        if (!declared.containsKey(key)) key,
+    ];
+    if (undeclared.isNotEmpty) {
+      throw _undeclared(core, declaredAction, undeclared);
+    }
 
     return {
       for (var entry in arguments.entries)
-        entry.key: switch (declared[entry.key]?.kind) {
+        entry.key: switch (declared[entry.key]!.kind) {
           // Only text needs converting; anything already typed came from a
           // transport that has types, and second-guessing it would be how
           // `7.0` becomes `7`.
@@ -503,9 +510,6 @@ class Session {
               '`--${entry.key} <value>`',
               entry.key,
             ),
-          // `kind` has a default and is never null, so this is the undeclared
-          // key and nothing else.
-          null => throw _undeclared(core, declaredAction, entry.key),
           ActionParameterKind.string ||
           ActionParameterKind.choice => entry.value,
           ActionParameterKind.boolean => _asBoolean(entry.key, entry.value),
@@ -514,7 +518,7 @@ class Session {
     };
   }
 
-  /// The refusal for an argument naming a parameter the action does not have.
+  /// The refusal for arguments naming parameters the action does not have.
   ///
   /// Silence was the expensive failure here. `describe --entry=… --axes=true`
   /// is a call somebody really made; the parameter is `with-axes`. The argument
@@ -527,20 +531,20 @@ class Session {
   /// `arguments['…']` read across every core names a declared id, and the one
   /// dynamically-named argument — a dev-stack command's — is declared alongside
   /// the command that reads it.
+  ///
+  /// No `name` on the error, because the sentence already leads with every
+  /// one of them. [describeJobError] would otherwise append the first in
+  /// parentheses after the list of what the action takes — where it read as
+  /// one more thing it takes.
   static ArgumentError _undeclared(
     PluginCore core,
     PluginAction action,
-    String key,
-  ) {
-    var ids = [for (var parameter in action.parameters) parameter.id];
-    var nearest = nearestName(key, ids);
-    return ArgumentError(
-      'no such parameter on ${core.id} ${action.id}'
-      '${nearest == null ? '.' : ' — did you mean `$nearest`?'} '
-      '${ids.isEmpty ? 'It takes none.' : 'It takes: ${ids.join(', ')}'}',
-      key,
-    );
-  }
+    List<String> keys,
+  ) => ArgumentError(
+    refuseUndeclared('${core.id} ${action.id}', 'parameter', keys, [
+      for (var parameter in action.parameters) parameter.id,
+    ]),
+  );
 
   static Object? _asBoolean(String name, Object? value) => switch (value) {
     bool() || null => value,
@@ -646,6 +650,38 @@ extension<T> on Iterable<T> {
     var it = iterator;
     return it.moveNext() ? it.current : null;
   }
+}
+
+/// The refusal for [undeclared] names given to [owner], which declares
+/// [declared]:
+///
+/// ```text
+/// flutterware.previews describe takes no parameter "axes" (did you mean
+/// `with-axes`?). It takes: entry, with-knobs, with-axes.
+/// ```
+///
+/// The rejected names come first and every one of them is named. A sentence
+/// that led with what the owner takes and put the offender in parentheses at
+/// the end read as a list with one more accepted name in it, and naming only
+/// the first of two typos sends the caller round again for the second.
+String refuseUndeclared(
+  String owner,
+  String noun,
+  List<String> undeclared,
+  List<String> declared,
+) {
+  var named = [
+    for (var key in undeclared)
+      switch (nearestName(key, declared)) {
+        null => '"$key"',
+        var nearest => '"$key" (did you mean `$nearest`?)',
+      },
+  ];
+  var list = named.length == 1
+      ? named.single
+      : '${named.take(named.length - 1).join(', ')} and ${named.last}';
+  return '$owner takes no $noun${named.length == 1 ? '' : 's'} $list. '
+      '${declared.isEmpty ? 'It takes none.' : 'It takes: ${declared.join(', ')}.'}';
 }
 
 /// The declared id a mistyped one most likely meant, or null rather than a
