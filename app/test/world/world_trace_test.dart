@@ -202,8 +202,8 @@ void main() {
     );
   });
 
-  test('says who a user is once, on the step that taught it, and never of a '
-      'user the script named', () {
+  test('says who a user is once, on the step that taught it, and of a user '
+      'the script named only when the world acted as them', () {
     step('Ben', 'ben.1', 1000, '"Sign in"');
     lab(1010, 'identify', {'user': 'u2', 'step': 'ben.1'});
     lab(1020, 'identify', {'user': 'u2', 'step': 'ben.1'});
@@ -211,10 +211,19 @@ void main() {
     lab(2010, 'identify', {'user': 'u2', 'step': 'ben.2'});
     step('Cleo', 'cleo.1', 3000, '"Orders"');
     lab(3010, 'identify', {'user': 'u1', 'step': 'cleo.1'});
+    trace.addActionStep(
+      'world.1',
+      'Cleo reorders',
+      since.add(const Duration(seconds: 4)),
+    );
+    lab(4010, 'identify', {'user': 'u1', 'step': 'world.1'});
+    lab(4020, 'identify', {'user': 'u1', 'step': 'world.1'});
     expect(traced(), {
       'ben.1 tap "Sign in"': ['+10 ms  lab  knows Ben as u2'],
       'ben.2 tap "Menu"': <String>[],
       'cleo.1 tap "Orders"': <String>[],
+      // The step is the world's: only this line says whom it acted as.
+      'world.1 action "Cleo reorders"': ['+10 ms  lab  knows Cleo as u1'],
     });
   });
 

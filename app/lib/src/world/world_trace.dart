@@ -1412,9 +1412,14 @@ class WorldTrace {
         return TraceBeat(at, by('job ${_jobName(payload)}'), node: node);
       case 'identify':
         // Every request says who it is; only the first says something new,
-        // and only of a user the script did not name.
+        // and only of a user the script did not name — except under the
+        // world's own action, whose step names nobody: there it says, once a
+        // step, whom the action acted as.
         var user = '${payload['user']}';
-        if (_declared.contains(user) || _identifiedBefore(event)) return null;
+        var acted = _steps[event.step]?.person == worldActionsOwner;
+        if ((_declared.contains(user) && !acted) || _identifiedBefore(event)) {
+          return null;
+        }
         return TraceBeat(
           at,
           by('knows ${personOf(user) ?? 'someone'} as $user'),
@@ -1494,14 +1499,19 @@ class WorldTrace {
         '$key ${value is String ? foldSql(value) : value}',
   ].take(3).join(' · ');
 
-  /// Whether a step before [event]'s already identified its user.
-  bool _identifiedBefore(_ServerEvent event) => _server.any(
-    (other) =>
-        other.step != null &&
-        other.channel == 'identify' &&
-        other.payload['user'] == event.payload['user'] &&
-        other.time.isBefore(event.time),
-  );
+  /// Whether a step before [event]'s already identified its user — or, for
+  /// the world's own action, the same step did.
+  bool _identifiedBefore(_ServerEvent event) {
+    var acted = _steps[event.step]?.person == worldActionsOwner;
+    return _server.any(
+      (other) =>
+          other.step != null &&
+          (!acted || other.step == event.step) &&
+          other.channel == 'identify' &&
+          other.payload['user'] == event.payload['user'] &&
+          other.time.isBefore(event.time),
+    );
+  }
 
   /// A UUID by its first eight digits, as a commit is by its hash's: enough
   /// to tell the records of one world apart, and a line stays a line.
@@ -1690,22 +1700,15 @@ class WorldTracer {
   /// quarter second apart.
   static const attachAttempts = 40;
 
-  /// Starts hearing [person]'s app.
+  /// Starts hearing [person]'s app, which says it opens [links]. Who they
+  /// are is [WorldTrace.addPerson]'s, from when the script declared them:
+  /// a person with no app is never followed.
   Future<void> follow(
     String person,
     RunHandle handle, {
-    String? userId,
-    String? phone,
-    String? email,
     DeclaredLinks? links,
   }) async {
-    trace.addPerson(
-      person,
-      userId: userId,
-      phone: phone,
-      email: email,
-      links: links,
-    );
+    if (links != null) trace.addPerson(person, links: links);
     // The guest's process answers before its app does: the channels are
     // registered once the app's `main` has run, which a fast attach beats.
     RunAttachment? client;
