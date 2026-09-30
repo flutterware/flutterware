@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
+import 'package:flutterware/src/scenarios/run_args.dart';
 import 'package:flutterware/src/scenarios/run_listener.dart';
 
 /// The two verbs for a cause that is not a finger.
@@ -83,6 +84,47 @@ void main() {
       expect(shape(), ['pumpWidget', 'act']);
       expect(captures.last.failure, contains('no payload'));
     });
+  });
+
+  group('act that is not a shot', () {
+    // What `scenarios shots` and the store export run with.
+    setUp(
+      () =>
+          scenarioRunArgs = const ScenarioRunArgs(pixels: ScenarioPixels.named),
+    );
+    scenario('is still a step, labelled by what it did', (s) async {
+      var backend = ValueNotifier('Empty');
+      await s.pumpWidget(_Board(backend));
+      await s.act('The backend is seeded', shot: false, tags: ['store'], () {
+        backend.value = 'Seeded';
+      });
+      expect(s.visibleTexts(), contains('Seeded'));
+    });
+    tearDown(() {
+      scenarioRunArgs = null;
+      // No name, which is all `scenarios shots` and the store export read:
+      // a walk's seeding stays in the flow and out of the exported screens,
+      // and they do not pay for its picture either.
+      expect(shape(), ['pumpWidget', 'act']);
+      expect(captures.last.name, isNull);
+      expect(captures.last.tags, isEmpty);
+      expect(captures.last.format, 'none');
+      // The sentence rides as the target, so the flow still says why the
+      // screen changed.
+      expect(captures.last.verb, 'act');
+      expect(captures.last.target, '"The backend is seeded"');
+      expect(captures.last.texts, contains('Seeded'));
+    });
+  });
+
+  group('act that is not a shot, under manual shots', () {
+    scenario('captures nothing, like any unnamed verb', shots: Shots.manual, (
+      s,
+    ) async {
+      await s.pumpWidget(_Board(ValueNotifier('Empty')), shot: Shot('Board'));
+      await s.act('The backend is seeded', shot: false, () {});
+    });
+    tearDown(() => expect(shape(), ['Board']));
   });
 
   group('runAsync that lands something on screen', () {
