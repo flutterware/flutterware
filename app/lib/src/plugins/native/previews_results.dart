@@ -484,6 +484,7 @@ class CatalogRenderError {
     required this.exception,
     this.library,
     this.context,
+    this.location,
     this.count = 1,
   });
 
@@ -495,6 +496,15 @@ class CatalogRenderError {
 
   /// What the framework was doing: `during layout`, `while painting`.
   final String? context;
+
+  /// Where it was thrown — `package:app/src/theme.dart:42:7`, or a file
+  /// relative to the worktree — preferring the project's own code over a
+  /// dependency's. What points past the entry when the fault is in the theme
+  /// or the wrapper around it.
+  ///
+  /// Absent when the error came with no stack, which is most layout errors,
+  /// and from a guest that predates carrying one.
+  final String? location;
 
   /// How many times this exact error was reported. An error thrown from
   /// `paint` fires once per frame.

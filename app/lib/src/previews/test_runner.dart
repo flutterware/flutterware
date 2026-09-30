@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:path/path.dart' as p;
 
+// ignore: implementation_imports
+import 'package:flutterware/src/inspect/error.dart';
+
 import '../embedder/build_directory.dart';
 import '../embedder/tester_host.dart';
 import 'catalog_entry.dart';
@@ -112,12 +115,34 @@ String pendingWorkOf(Map<String, Object?> pending) {
   return waitingOn.isEmpty ? 'work it announced' : waitingOn.join(', ');
 }
 
+/// [errors] with the harness's [failure] counted among them.
+///
+/// A test fails *because* the framework reported something, so a failing entry
+/// usually carries both — the error, and the runner's restatement of it — and
+/// listing the pair reports one overflow twice under two spellings. The
+/// failure joins only when [errors] are silent: a timer that outlived the
+/// audit clock, a wrapper that threw before anything was pumped, an error that
+/// landed after the tree was torn down.
+///
+/// [frames] are where the failure was thrown, as `InspectError.frames` holds
+/// them — empty from a harness that predates them.
+List<InspectError> withFailure(
+  List<InspectError> errors, {
+  String? failure,
+  List<String> frames = const [],
+}) => [
+  if (errors.isEmpty)
+    if (failure != null) InspectError(exception: failure, frames: frames),
+  ...errors,
+];
+
 /// What one entry said when the harness rendered it.
 class PreviewAuditRow {
   const PreviewAuditRow({
     required this.id,
     this.compileError,
     this.failure,
+    this.failureFrames = const [],
     this.errors = const [],
     this.pending = const {},
   });
@@ -129,6 +154,10 @@ class PreviewAuditRow {
   ) => PreviewAuditRow(
     id: id,
     failure: reported['failure'] as String?,
+    failureFrames: [
+      for (var frame in reported['failureFrames'] as List? ?? const [])
+        '$frame',
+    ],
     errors: [
       for (var error in (reported['errors'] as List? ?? const []))
         if (error case Map fields) fields.cast<String, Object?>(),
@@ -144,9 +173,13 @@ class PreviewAuditRow {
   /// Set when the compiler refused it, in which case nothing rendered.
   final String? compileError;
 
-  /// Set when it did not render at all — the builder threw outright, the test
-  /// timed out. A different kind of broken from an entry that rendered badly.
+  /// Set when the entry's test did not come out clean — the builder threw
+  /// outright, a timer outlived the audit clock, or the framework reported
+  /// something and the runner restated it.
   final String? failure;
+
+  /// Where [failure] was thrown, as `InspectError.frames` holds them.
+  final List<String> failureFrames;
 
   /// What the framework reported while it built and painted, as
   /// `InspectErrors.toJson` wrote it.
@@ -171,6 +204,14 @@ class PreviewAuditRow {
     for (var error in errors)
       if (error['network'] != true) error,
   ];
+
+  /// What the audit lists for this row: [indicting], and [failure] when they
+  /// do not already say it — see [withFailure].
+  List<InspectError> get findings => withFailure(
+    [for (var error in indicting) InspectError.fromJson(error)],
+    failure: failure,
+    frames: failureFrames,
+  );
 
   bool get ok =>
       compileError == null &&
@@ -493,6 +534,13 @@ class PreviewTestRunner {
   /// knows it and will not answer this request, an entry the compiler
   /// quarantined, and an entry that did not render.
   ///
+  /// **An entry that rendered and then failed is not one that did not
+  /// render.** The reply comes back with its `failure` still on it, for the
+  /// caller to count among the errors. Refusing it threw a good picture away
+  /// over an error that arrived after the frame — a font package that starts
+  /// a download from a text style getter and rethrows when `flutter_test`
+  /// answers it with 400 — and said "did not render" of an entry that had.
+  ///
   /// [sync] as [capture] means it: right for a caller answering a question
   /// about the code as it is now, wrong for one rendering behind a pointer.
   Future<Map<String, Object?>> render({
@@ -520,13 +568,32 @@ class PreviewTestRunner {
     var entries = (response['entries'] as Map?)?.cast<String, Object?>();
     if (entries?[entryId] case Map row) {
       var reported = row.cast<String, Object?>();
-      if (reported['failure'] case String failure) {
+      if (reported['failure'] case String failure
+          when !_drew(request, reported)) {
         throw StateError('$entryId did not render:\n$failure');
       }
       return reported;
     }
     throw StateError('the harness returned nothing for $entryId');
   });
+
+  /// Whether [reported] got as far as the screen [request] asked about: the
+  /// picture, when one was asked for, and otherwise the settled screen the
+  /// viewport is read off — which the harness only reports once the entry has
+  /// pumped and settled. A harness that predates the viewport reports none,
+  /// and is refused exactly as it always was.
+  ///
+  /// A walk never counts. Its frames are on their way to a clip, and a clip
+  /// has nowhere to carry the complaint beside it.
+  static bool _drew(
+    Map<String, Object?> request,
+    Map<String, Object?> reported,
+  ) {
+    if (request['walk'] != null) return false;
+    return request['output'] != null
+        ? reported['image'] != null
+        : reported['viewport'] != null;
+  }
 
   /// A live harness, dropping whatever will not compile until one exists.
   ///

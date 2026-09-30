@@ -2352,7 +2352,7 @@ shell: String?   # Which shell declared [axes].
 
 #### `screenshot` — Screenshot
 
-Render one entry to a PNG. **This is how you look at a Flutter widget.** Whenever the question is how something *looks* — a corner, a glyph, a border, two candidate designs side by side, a state that is three clicks deep in the running app — this answers it in one call: the real widget, the real fonts, the real theme, at any device in the table and at that device pixel ratio, so a detail worth a pixel comes back worth several. The alternatives people reach for instead are worse and quietly so: a widget test rendering to an image has no font loaded and draws every glyph as a filled box, and a screenshot of the whole app shrinks the thing you are asking about to a smudge. A widget that is not an entry yet becomes one in a few lines — a top-level function returning it, marked `@Preview` — and then it is here for good.
+Render one entry to a PNG. **This is how you look at a Flutter widget.** Whenever the question is how something *looks* — a corner, a glyph, a border, two candidate designs side by side, a state that is three clicks deep in the running app — this answers it in one call: the real widget, the real fonts, the real theme, at any device in the table and at that device pixel ratio, so a detail worth a pixel comes back worth several. The alternatives people reach for instead are worse and quietly so: a widget test rendering to an image has no font loaded and draws every glyph as a filled box, and a screenshot of the whole app shrinks the thing you are asking about to a smudge. A widget that is not an entry yet becomes one in a few lines — a top-level function returning it, marked `@Preview` — and then it is here for good. An entry that reports errors while it renders still gets its picture: the errors come back beside it in `meta.errors`, each with where it was thrown, and only an entry that drew nothing is refused.
 
 ```sh
 fw run previews screenshot --entry=<choice> [--output=…] [--knobs=…] [--device=…] [--orientation=…] [--keyboard=…] [--width=…] [--height=…] [--axes=…] [--debug=…] [--node=…] [--steps=…] [--full=…] [--page=…] [--annotate=…] [--opaque=…] [--engine=…]
@@ -2407,6 +2407,7 @@ errors: List<CatalogRenderError>
   exception: String
   library: String?   # `widgets library`, `rendering library` — which tells a layout overflow from a failed image load without reading the message.
   context: String?   # What the framework was doing: `during layout`, `while painting`.
+  location: String?   # Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project's own code over a dependency's.
   count: int   # How many times this exact error was reported.
 lens: String   # The lens the unset flags came from — `act`, `look`, `design` or `raw`.
 screen: Screen?   # What rendered: the things that carry words or respond to touch, nested under the layout's branch points, with their boxes and their state.
@@ -2514,6 +2515,7 @@ entries: List<CatalogAuditEntry>   # Only the ones with something to say.
     exception: String
     library: String?   # `widgets library`, `rendering library` — which tells a layout overflow from a failed image load without reading the message.
     context: String?   # What the framework was doing: `during layout`, `while painting`.
+    location: String?   # Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project's own code over a dependency's.
     count: int   # How many times this exact error was reported.
   stillWaitingOn: String?   # What the entry had announced and not finished when the audit stopped waiting — a tracked load by its label, image decodes, asset reads — or absent when everything landed.
 unreachable: List<CatalogAuditFailure>   # Packages that could not be audited at all, which is not the same as a package whose entries are fine.

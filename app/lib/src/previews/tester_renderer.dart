@@ -361,8 +361,23 @@ class TesterRenderer extends CatalogRenderer {
         if (request.wantLogs) 'logs': true,
       },
     );
+    var reported = InspectErrors.fromJson(reply);
     return _Reply(
-      errors: InspectErrors.fromJson(reply),
+      // The failure too, which the runner hands back rather than refusing
+      // when a frame came with it: a picture and a complaint are two answers,
+      // and a caller told `ok` about an entry whose test failed has been told
+      // the one thing that is not true.
+      errors: InspectErrors(
+        entryId: reported.entryId,
+        errors: withFailure(
+          reported.errors,
+          failure: reply['failure'] as String?,
+          frames: [
+            for (var frame in reply['failureFrames'] as List? ?? const [])
+              '$frame',
+          ],
+        ),
+      ),
       stagedOn: switch (reply['viewport']) {
         Map json => StagedViewport.fromJson(json.cast<String, Object?>()),
         _ => null,

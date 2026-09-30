@@ -346,6 +346,7 @@ abstract class CatalogRenderer {
       grown: observed.grown,
       drawnAt: observed.drawnAt,
       pages: observed.pages,
+      errors: observed.errors.errors,
     );
   }
 }
@@ -476,6 +477,7 @@ class CatalogCapture {
     this.grown,
     this.drawnAt,
     this.pages = const [],
+    this.errors = const [],
   });
 
   final File file;
@@ -497,4 +499,10 @@ class CatalogCapture {
   /// What the entry reported *after* the values were applied — so a clamped or
   /// ignored value is visible rather than assumed.
   final List<KnobDescriptor> knobs;
+
+  /// What the build complained about while it drew [file]. A picture of an
+  /// entry that reported something is still a picture — often of the very
+  /// thing that is wrong — so it is handed over with the complaint beside it
+  /// rather than in place of it.
+  final List<InspectError> errors;
 }

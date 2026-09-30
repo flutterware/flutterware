@@ -87,6 +87,41 @@ void main() {
     expect(landed.toJson().containsKey('stillWaitingOn'), isFalse);
   });
 
+  group('what the row lists', () {
+    test('the failure, when the errors are silent about it', () {
+      // A wrapper that threw before anything was pumped: nothing reached
+      // the error buffer, and the failure is the whole of the record.
+      var row = PreviewAuditRow.fromHarness('demo/a.dart#A.new', {
+        'errors': <Object?>[],
+        'failure': 'Bad state: the theme was not configured',
+        'failureFrames': ['package:app/src/theme.dart:42:7'],
+      });
+      expect(row.findings.single.exception, contains('theme'));
+      expect(row.findings.single.frames, ['package:app/src/theme.dart:42:7']);
+    });
+
+    test('not beside an error that already says it', () {
+      var row = PreviewAuditRow.fromHarness('demo/a.dart#A.new', {
+        'errors': [
+          {
+            'exception': 'A RenderFlex overflowed by 7.8 pixels.',
+            'library': 'rendering library',
+          },
+        ],
+        'failure': 'A RenderFlex overflowed by 7.8 pixels.',
+      });
+      expect(row.findings.single.library, 'rendering library');
+    });
+
+    test('from a harness that carries no frames, none', () {
+      var row = PreviewAuditRow.fromHarness('demo/a.dart#A.new', {
+        'errors': <Object?>[],
+        'failure': 'timed out',
+      });
+      expect(row.findings.single.frames, isEmpty);
+    });
+  });
+
   test('a failure or compile error is never excused by the mark', () {
     expect(const PreviewAuditRow(id: 'a', failure: 'timed out').ok, isFalse);
     expect(const PreviewAuditRow(id: 'a', compileError: 'nope').ok, isFalse);

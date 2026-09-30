@@ -541,6 +541,12 @@ final resultShapes = <String, ResultShape>{
               'doc': 'What the framework was doing: `during layout`, `while painting`.',
             },
             <String, Object?>{
+              'name': 'location',
+              'type': 'String',
+              'optional': true,
+              'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
+            },
+            <String, Object?>{
               'name': 'count',
               'type': 'int',
               'doc': 'How many times this exact error was reported.',
@@ -625,6 +631,12 @@ final resultShapes = <String, ResultShape>{
                     'type': 'String',
                     'optional': true,
                     'doc': 'What the framework was doing: `during layout`, `while painting`.',
+                  },
+                  <String, Object?>{
+                    'name': 'location',
+                    'type': 'String',
+                    'optional': true,
+                    'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
                   },
                   <String, Object?>{
                     'name': 'count',
@@ -1045,6 +1057,12 @@ final resultShapes = <String, ResultShape>{
               'type': 'String',
               'optional': true,
               'doc': 'What the framework was doing: `during layout`, `while painting`.',
+            },
+            <String, Object?>{
+              'name': 'location',
+              'type': 'String',
+              'optional': true,
+              'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
             },
             <String, Object?>{
               'name': 'count',
@@ -1585,6 +1603,12 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
         'doc':
             'What the framework was doing: `during layout`, `while painting`.',
+      },
+      <String, Object?>{
+        'name': 'location',
+        'type': 'String',
+        'optional': true,
+        'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
       },
       <String, Object?>{
         'name': 'count',
