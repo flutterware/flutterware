@@ -73,10 +73,15 @@ Each one acts, waits for the screen to settle, and captures.
 |---|---|
 | `pumpWidget(widget)` | mounts the app |
 | `tap(target)` | taps |
+| `doubleTap(target)` | taps twice, close enough to be one gesture |
 | `longPress(target)` | presses and holds |
 | `enterText(target, text)` | types into a field |
 | `drag(target, offset)` | drags by an offset |
 | `scrollTo(target)` | scrolls until the target is on screen, then stops |
+| `hover(target)` / `unhover()` | parks the mouse over it and holds — tooltips, hover states |
+| `secondaryTap(target)` | right-clicks — a context menu |
+| `scroll(target, offset)` | turns the mouse wheel over it — scrolls *that* pane |
+| `key('meta+k')` | presses a key or a chord — shortcuts, `escape`, `tab` |
 | `back()` | the Android back button — pops the route |
 | `wait(duration)` | moves the fake clock past a timer |
 | `screen(name)` | captures without acting |
@@ -115,6 +120,31 @@ has not built yet matches nothing — that is what `scrollTo` is for.
 `s.tester` is the real `WidgetTester` if you need something the verbs do not
 have. Frames it draws are counted and reported on the next step, so a flow with
 a gap in it says so rather than quietly missing a screen.
+
+### The mouse and the keyboard
+
+`hover`, `secondaryTap` and `scroll` move one mouse, and it stays where it was
+put, as a real one does: a `tap` after a `hover` still finds the control
+hovered, and `unhover()` takes the mouse away. `hover` holds for 600ms of the
+fake clock (`hold:` to change it), because what a hover starts is usually a
+timer — `Tooltip.waitDuration` — and a tooltip is then in the step's picture
+and its texts like any other widget. Every scenario, and every branch of a
+`split`, starts with no mouse on the screen.
+
+`scroll`'s offset is a wheel's, not a finger's: a positive `dy` moves *down*
+the list, where `drag` needs a negative one. The wheel reaches the pane under
+the mouse, so on a page with several lists it scrolls the one you name.
+
+`doubleTap` puts 80ms of the fake clock between its taps (`gap:`), because a
+double-tap recognizer ignores a second tap that arrives sooner than 40ms.
+
+`key` is for shortcuts and navigation, never for typing — a character reaches
+a field through text input, not through a key event, so `enterText` is the
+verb that types. The last name in a chord fires and the ones before it are
+held: `meta+k`, `shift+tab`, `ctrl+s`. A keystroke goes to whatever holds
+focus, so one pressed while nothing does, and taken by nothing, fails the step
+rather than passing without having reached the app: `tap` something first, or
+give the widget the shortcut belongs to `autofocus: true`.
 
 ## Settling
 
