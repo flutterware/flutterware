@@ -952,6 +952,19 @@ class PreviewsCore extends PluginCore {
                 ActionOption(entry.id, label: entry.name),
             ],
           ),
+          ActionParameter(
+            'package',
+            'Package',
+            kind: ActionParameterKind.choice,
+            required: false,
+            description:
+                'Which declared package to look for the entry in; every one '
+                'when omitted',
+            options: [
+              for (var path in packages)
+                ActionOption(path, label: path == '.' ? 'root' : path),
+            ],
+          ),
           const ActionParameter(
             'output',
             'Output file',
@@ -1178,6 +1191,19 @@ class PreviewsCore extends PluginCore {
             kind: ActionParameterKind.choice,
             description: 'The id of the entry to inspect',
             optionsFrom: 'entries',
+          ),
+          ActionParameter(
+            'package',
+            'Package',
+            kind: ActionParameterKind.choice,
+            required: false,
+            description:
+                'Which declared package to look for the entry in; every one '
+                'when omitted',
+            options: [
+              for (var path in packages)
+                ActionOption(path, label: path == '.' ? 'root' : path),
+            ],
           ),
           ActionParameter(
             'lens',
@@ -2586,13 +2612,19 @@ class PreviewsCore extends PluginCore {
   /// puts the package in front when a run spans several — see [comparedIdIn].
   /// Both are matched exactly against what the scan found, so the second form
   /// is whatever a comparison wrote and nothing a guess could reach.
-  ({String package, String entryId}) _locate(String id) {
-    for (var path in packages) {
+  ///
+  /// [within] narrows the search to the packages a caller named.
+  ({String package, String entryId}) _locate(
+    String id, {
+    List<String>? within,
+  }) {
+    within ??= packages;
+    for (var path in within) {
       if (_scans[path]?.entries.any((e) => e.id == id) ?? false) {
         return (package: path, entryId: id);
       }
     }
-    for (var path in packages) {
+    for (var path in within) {
       for (var entry in _scans[path]?.entries ?? const <CatalogEntry>[]) {
         if (comparedIdIn(path, entry.id) == id) {
           return (package: path, entryId: entry.id);
@@ -2602,7 +2634,7 @@ class PreviewsCore extends PluginCore {
     // In the form a comparison would print, so the list says which package
     // each id is in rather than suggesting they all come from the first.
     var known = [
-      for (var path in packages)
+      for (var path in within)
         for (var entry in _scans[path]?.entries ?? const <CatalogEntry>[])
           packages.length > 1 ? comparedIdIn(path, entry.id) : entry.id,
     ];
@@ -2645,7 +2677,10 @@ class PreviewsCore extends PluginCore {
     // here.
     var want = _InspectRequest.of(arguments);
     if (_scans.isEmpty && _failures.isEmpty) await computeAll();
-    var (package: packagePath, :entryId) = _locate(want.entryId);
+    var (package: packagePath, :entryId) = _locate(
+      want.entryId,
+      within: _requestedPackages(arguments),
+    );
     // Read again, now that the package the entry belongs to is known and its
     // declared framing can be applied. The first pass is what makes a typo in a
     // flag cost nothing — it runs before the scan — and the package default
@@ -3157,7 +3192,10 @@ class PreviewsCore extends PluginCore {
 
     if (_scans.isEmpty && _failures.isEmpty) await computeAll();
 
-    var (package: packagePath, :entryId) = _locate(requested);
+    var (package: packagePath, :entryId) = _locate(
+      requested,
+      within: _requestedPackages(arguments),
+    );
     var packageRoot = p.join(host.worktree.path, packagePath);
     var entry = _scans[packagePath]!.entries.firstWhere((e) => e.id == entryId);
 

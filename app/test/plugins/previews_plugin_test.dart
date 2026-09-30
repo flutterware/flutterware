@@ -715,6 +715,67 @@ Widget field() => const Placeholder();
         ),
       );
     });
+
+    // `entries`, `check` and `audit` take a package, so a caller passed one to
+    // `screenshot` by analogy and was refused for it.
+    test(
+      'screenshot and inspect take a package, as the listing actions do',
+      () {
+        var subject = twoPackages();
+        for (var action in ['entries', 'check', 'screenshot', 'inspect']) {
+          var package = subject.report.actions
+              .firstWhere((a) => a.id == action)
+              .parameters
+              .firstWhere((p) => p.id == 'package');
+          expect(package.required, isFalse, reason: action);
+          expect(package.options.map((o) => o.value), [
+            'packages/gallery',
+            'packages/forms',
+          ], reason: action);
+        }
+      },
+    );
+
+    test('and look for the entry only there', () async {
+      for (var action in ['screenshot', 'inspect']) {
+        expect(
+          twoPackages().invoke(
+            action,
+            arguments: {
+              'entry': 'demo/field.dart#field',
+              'package': 'packages/gallery',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('no entry with that id'),
+                contains('packages/gallery/demo/card.dart#card'),
+                isNot(contains('field.dart')),
+              ),
+            ),
+          ),
+          reason: '$action found the entry in a package it was not given',
+        );
+      }
+    });
+
+    test('and refuse one the plugin does not declare', () async {
+      for (var action in ['screenshot', 'inspect']) {
+        expect(
+          twoPackages().invoke(
+            action,
+            arguments: {'entry': 'demo/field.dart#field', 'package': 'nope'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having((e) => e.name, 'name', 'package'),
+          ),
+          reason: action,
+        );
+      }
+    });
   });
 
   test('entries refuses a package the plugin does not declare', () async {
