@@ -610,6 +610,12 @@ a phone tree for the mobile folder and a window tree for the desktop one. The
 output directory is emptied first: what is in it afterwards is exactly this
 run.
 
+A scenario that fails keeps the shots it took before it broke, and the answer
+says why, per set: each entry in `failures` names the scenario, the first
+lines of its error, and the `run` command that reproduces it at that device
+and language — the run `shots` does is scratch, and deleted. `fw` exits 1, so
+a pipeline stops before it uploads half a set.
+
 ## Standalone captures
 
 No runner, no GUI — a bare `flutter test` writes the pictures itself:

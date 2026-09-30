@@ -222,13 +222,22 @@ class ScenarioRestartResult implements PluginResult {
   includeIfNull: false,
   createFactory: false,
 )
-class ScenarioShotsResult implements PluginResult {
+class ScenarioShotsResult implements PluginResult, ReportsFailure {
   ScenarioShotsResult({required this.packages, this.count = 0});
 
   final List<ScenarioShotsPackage> packages;
 
   /// How many images were written, over every package and assignment.
   final int count;
+
+  /// False when a package could not run or a scenario failed: the tree is
+  /// written either way, but it is missing whatever came after the failure,
+  /// and `fw run scenarios shots && upload` has to stop.
+  @override
+  bool get ok => packages.every(
+    (package) =>
+        package.error == null && package.sets.every((set) => set.failed == 0),
+  );
 
   @override
   Map<String, Object?> toJson() => _$ScenarioShotsResultToJson(this);
@@ -271,8 +280,8 @@ class ScenarioShotSet {
     required this.directory,
     this.axes = const {},
     this.images = const [],
-    this.failed = 0,
-  });
+    this.failures = const [],
+  }) : failed = failures.length;
 
   /// Relative to `ScenarioShotsPackage.output`, so the whole tree can be
   /// moved or uploaded as it stands.
@@ -289,7 +298,49 @@ class ScenarioShotSet {
   /// would be worse than one that reports the gap.
   final int failed;
 
+  /// Why, one entry per failed scenario — [failed] is their count.
+  ///
+  /// A count alone said a gap existed and nothing about it, and the run that
+  /// could have said more is scratch this action deletes: a scenario that
+  /// stalls spends its whole deadline at every point of the matrix, and all
+  /// that reached the reader was `failed: 1`.
+  final List<ScenarioShotFailure> failures;
+
   Map<String, Object?> toJson() => _$ScenarioShotSetToJson(this);
+}
+
+/// A scenario that came back red while its set was produced, in its own
+/// words. The set it sits in is the matrix point.
+@JsonSerializable(
+  explicitToJson: true,
+  includeIfNull: false,
+  createFactory: false,
+)
+class ScenarioShotFailure {
+  ScenarioShotFailure({
+    required this.file,
+    required this.scenario,
+    required this.error,
+    required this.rerun,
+  });
+
+  /// Package-relative, as `list` reports it.
+  final String file;
+
+  final String scenario;
+
+  /// The first lines of what the scenario failed with — the caught error, or
+  /// the failed step's message where there was none. Cut, and saying how
+  /// much was cut, because a framework error dump is dozens of lines and a
+  /// matrix repeats it at every point.
+  final String error;
+
+  /// The `run` that reproduces this failure at this point, with its steps
+  /// and the frame it broke on kept on disk — which this action's own run is
+  /// not.
+  final String rerun;
+
+  Map<String, Object?> toJson() => _$ScenarioShotFailureToJson(this);
 }
 
 /// `read` — one archived step, answered.
