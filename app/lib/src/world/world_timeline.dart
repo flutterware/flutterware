@@ -398,6 +398,7 @@ class Timeline {
       'open' => 'opens $target',
       'start' => 'starts $target',
       'action' => 'runs $target',
+      'reload' => 'reloads $target',
       _ => step.did,
     }.trim();
   }

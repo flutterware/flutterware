@@ -158,6 +158,12 @@ The answer, and the world's log, split the time between the script's code,
 its `onReassemble` callbacks and the apps:
 `Reloaded in 0.86 s: the script in 0.38 s, its onReassemble in 0.03 s, Shop in 0.45 s`.
 
+Each reload is also a moment in the trace, a step of the world's own —
+`reload.2`, a pill on the timeline's World column — which the answer names.
+What happened after it ran the new code, but for work already running when
+it came: a job, a request, finishing on the old code as it lets go. The
+moment says which side of it a line is on.
+
 From the command line, the world lives as long as the command does:
 
 ```shell
@@ -240,7 +246,11 @@ terminal.
 Every tap on a person's app, yours or an agent's, is a **step**, named after
 its person: `leo.2`. So is the app starting, `leo.0`, which takes what the
 app sends before anyone touches it — its config, the user it resumes, its
-sync streams. The world follows each step through the system:
+sync streams — for ten seconds or until the first tap. A request the app
+sends from another isolate carries no step, since the world stamps the
+app's own; `leo.0` takes it all the same when the server identified Leo
+asking (`FlutterwareServer.identify`) in that time, and its line says it
+was joined by who and when. The world follows each step through the system:
 
 ```shell
 fw run worlds trace --person=Leo
@@ -340,7 +350,11 @@ An app that keeps its data in a synced database follows its records instead:
 with `sync: DatabaseSync.powersync` on its [Database watch](database_watch.md)
 adapter, a record written on one phone is traced to the others as it
 arrives, and each person's sync state shows in their focus and in
-`worlds status`.
+`worlds status`. A phone subscribing to a bucket, or letting one go, is a
+line of its own under that person's step just before it: `subscribed to
+profile["u2"]`. What was written to a bucket before, the phone receives
+after it — a record that arrives long after its write says `new to this
+phone`.
 
 ## Hand a message to a person
 

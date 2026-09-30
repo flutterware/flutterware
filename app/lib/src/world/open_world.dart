@@ -220,8 +220,11 @@ class OpenWorld {
     }
 
     ({Duration code, Duration reassemble}) took;
+    DateTime reloadedAt;
     try {
       took = await script.reload();
+      // From here the script runs the new code: where the moment goes.
+      reloadedAt = DateTime.now();
     } on WorldScriptReloadFailed catch (failure) {
       refuse(
         failure.reloaded
@@ -247,21 +250,21 @@ class OpenWorld {
         'The script reloaded, but an app did not compile.\n${error.message}',
       );
     }
+    String secs(Duration took) =>
+        '${(took.inMilliseconds / 1000).toStringAsFixed(2)} s';
+    var said =
+        'Reloaded in ${secs(watch.elapsed)}: the script in '
+        '${secs(took.code)}, its onReassemble in ${secs(took.reassemble)}'
+        '${apps.isEmpty ? '' : ', ${[for (var build in apps) build.label].join(', ')} in ${secs(appsWatch.elapsed)}'}';
     var reloaded = WorldReload(
       elapsed: watch.elapsed,
       script: took.code,
       reassemble: took.reassemble,
       appsTook: appsWatch.elapsed,
       apps: [for (var build in apps) build.label],
+      step: tracer?.trace.addReload(reloadedAt, note: said),
     );
-    String secs(Duration took) =>
-        '${(took.inMilliseconds / 1000).toStringAsFixed(2)} s';
-    _say(
-      'Reloaded in ${secs(reloaded.elapsed)}: the script in '
-      '${secs(reloaded.script)}, its onReassemble in '
-      '${secs(reloaded.reassemble)}'
-      '${apps.isEmpty ? '' : ', ${reloaded.apps.join(', ')} in ${secs(reloaded.appsTook)}'}',
-    );
+    _say(said);
     return reloaded;
   }
 
@@ -1143,7 +1146,12 @@ class WorldReload {
     this.script = Duration.zero,
     this.reassemble = Duration.zero,
     this.appsTook = Duration.zero,
+    this.step,
   });
+
+  /// Its moment in the trace, `reload.2`: what came after it ran the new
+  /// code, but for work already running.
+  final String? step;
 
   /// The whole of it: [script], [reassemble], then [appsTook].
   final Duration elapsed;

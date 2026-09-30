@@ -13,6 +13,14 @@ const worldStepKey = #fwStep;
 /// person — nobody's phone — but it steps like one.
 const worldActionsOwner = 'world';
 
+/// How long an app's start, `ana.0`, lasts while nobody touches the app:
+/// what it sends in that time is its start's.
+const worldStartWindow = Duration(seconds: 10);
+
+/// What a reload of a world is named by, as its own step: `reload.2` is the
+/// second since the world opened, and the world's own.
+const worldReloadPrefix = 'reload';
+
 /// The channel a world guest names its steps on: one event per gesture,
 /// `{step, verb, target}`.
 const worldStepsChannel = 'world/steps';

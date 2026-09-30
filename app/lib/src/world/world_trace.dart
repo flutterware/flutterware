@@ -38,11 +38,15 @@ class TraceStep {
   DateTime? at;
 
   /// `tap`, `longPress` or `drag`; `type` or `open` for a delivery;
-  /// `start` for the app starting, its `.0`; `action` for a world's own.
+  /// `start` for the app starting, its `.0`; `action` for a world's own;
+  /// `reload` for the world brought to the code on disk.
   String? verb;
 
   /// What it landed on, spelled as the drive targets are: `"Order"`.
   String? target;
+
+  /// What the world says of it beyond what it did: a reload's times.
+  String? note;
 
   /// What it did, in the journal's words: `tap "Order"`.
   String get did => '${verb ?? 'step'} ${target ?? ''}'.trim();
@@ -95,6 +99,10 @@ enum BeatKind {
 
   /// A synced record on a phone: written there, arrived, or confirmed.
   record,
+
+  /// A phone subscribing to a sync bucket, or letting one go: the records
+  /// written to it before arrive after it, however old.
+  subscription,
   log,
   error,
 
@@ -496,6 +504,7 @@ class WorldTrace {
   final _requests = <_Request>[];
   final _server = <_ServerEvent>[];
   final _records = <_Record>[];
+  final _subscriptions = <_Subscription>[];
   final _users = <String, String>{};
   final _declared = <String>{};
   final _phones = <String, String>{};
@@ -561,6 +570,25 @@ class WorldTrace {
     _changed.add(null);
   }
 
+  /// The world brought to the code on disk at [at], as a step of its own —
+  /// `reload.2` — which [note] says more of. A line after it ran the new
+  /// code, but for work already running when it came, which finishes on the
+  /// old: a moment in the trace says that where a mark on every line would
+  /// be wrong. Answers the step's name.
+  String addReload(DateTime at, {String? note}) {
+    _owners[worldReloadPrefix] = worldActionsOwner;
+    var id = '$worldReloadPrefix.${++_reloads}';
+    _stepOf(id, worldActionsOwner)
+      ..at = at
+      ..verb = 'reload'
+      ..target = 'the code'
+      ..note = note;
+    _changed.add(null);
+    return id;
+  }
+
+  var _reloads = 0;
+
   void addGuestEvent(String person, InspectorEvent event) {
     var payload = event.payload;
     switch (event.channel) {
@@ -588,6 +616,20 @@ class WorldTrace {
           }
         }
       case var channel when channel.endsWith('/records'):
+        if (payload['change'] case 'subscribed' || 'unsubscribed') {
+          if (payload['bucket'] case String bucket) {
+            _add(
+              _subscriptions,
+              _Subscription(
+                person,
+                event.time,
+                bucket,
+                subscribed: payload['change'] == 'subscribed',
+              ),
+            );
+          }
+          break;
+        }
         var key = payload['key'];
         var change = payload['change'];
         if (key is! String || change is! String || change == 'present') break;
@@ -1175,6 +1217,13 @@ class WorldTrace {
         loose.add(event);
       }
     }
+    // What an app sent from where the guest stamps nothing — another
+    // isolate's HTTP client, a sync engine's streams — its start takes, by
+    // who the server says asked and when.
+    var claimed = step.verb == 'start'
+        ? _startedBy(step)
+        : const <String, List<_ServerEvent>>{};
+    groups.addAll(claimed);
     var answered = <_ServerEvent>{};
     for (var request in _requests) {
       if (request.step != step.id) continue;
@@ -1218,8 +1267,16 @@ class WorldTrace {
         ),
       );
     }
-    for (var group in groups.values) {
-      if (_serverGroup(group) case var beat?) beats.add(beat);
+    for (var MapEntry(key: id, value: group) in groups.entries) {
+      var theirs = claimed.containsKey(id);
+      if (_serverGroup(
+            group,
+            person: theirs ? step.person : null,
+            how: theirs ? ', joined by who and when' : '',
+          )
+          case var beat?) {
+        beats.add(beat);
+      }
     }
     beats.addAll(
       _looseBeats([
@@ -1270,8 +1327,44 @@ class WorldTrace {
         received.add((beat, _writeOf(record)!));
       }
     }
+    for (var subscription in _subscriptions) {
+      if (_stepBy(subscription.person, subscription.at)?.id != step.id) {
+        continue;
+      }
+      var said = subscription.subscribed
+          ? 'subscribed to ${subscription.bucket}'
+          : 'let go of ${subscription.bucket}';
+      beats.add(
+        TraceBeat(
+          subscription.at,
+          '${subscription.person}  $said',
+          level: TraceLevel.system,
+          kind: BeatKind.subscription,
+          said: said,
+          data: {
+            'bucket': subscription.bucket,
+            'change': subscription.subscribed ? 'subscribed' : 'unsubscribed',
+          },
+          person: subscription.person,
+        ),
+      );
+    }
     return _beneathWrites(beats, received)
       ..sort((a, b) => a.at.compareTo(b.at));
+  }
+
+  /// [person]'s newest step at or before [at]: what a phone did on its own
+  /// after it — subscribing to a stream once signed in — is theirs.
+  TraceStep? _stepBy(String person, DateTime at) {
+    TraceStep? latest;
+    for (var step in _steps.values) {
+      var began = step.at;
+      if (step.person != person || began == null || began.isAfter(at)) {
+        continue;
+      }
+      if (latest == null || began.isAfter(latest.at!)) latest = step;
+    }
+    return latest;
   }
 
   /// [beats] in the order they happened; those at one time as they were.
@@ -1327,7 +1420,14 @@ class WorldTrace {
   /// `job` event heads it, or its first event does. Null for one headed by
   /// neither that did nothing worth a line: the server's side of a live
   /// connection opening, whose only news is a user it already knew.
-  TraceBeat? _serverGroup(List<_ServerEvent> group) {
+  ///
+  /// A [person] it is known to be from — an app's request no guest stamped
+  /// — is drawn as theirs, and [how] says how that is known.
+  TraceBeat? _serverGroup(
+    List<_ServerEvent> group, {
+    String? person,
+    String how = '',
+  }) {
     var first = group.first;
     var server = first.server;
     // When it started: its report comes at its end, less how long it took —
@@ -1345,7 +1445,7 @@ class WorldTrace {
         var ms = event.payload['ms'];
         return _grouped(
           began(event, ms is num ? ms : null),
-          server,
+          person == null ? server : '$person → $server',
           '${event.payload['method']} ${event.payload['path']}  '
           '${_answer(event.payload)}',
           group,
@@ -1353,6 +1453,8 @@ class WorldTrace {
           server: server,
           data: event.payload,
           event: event.id,
+          how: how,
+          person: person,
           node: _partNode(event),
         );
       }
@@ -1395,6 +1497,46 @@ class WorldTrace {
       node: _partNode(first),
     );
     return beat.children.isEmpty && beat.folded.isEmpty ? null : beat;
+  }
+
+  /// The requests and jobs no step claimed that [start] — an app's start,
+  /// `ana.0` — takes, by their request id: each one its server said was
+  /// [start]'s person asking (`identify`), begun while the start lasted —
+  /// [worldStartWindow], or until that person's first gesture. What the
+  /// guest stamps is in the app's own isolate; a sync engine's streams,
+  /// opened from another, reach the server with the person's token and no
+  /// step.
+  Map<String, List<_ServerEvent>> _startedBy(TraceStep start) {
+    var from = start.at;
+    if (from == null) return const {};
+    var until = from.add(worldStartWindow);
+    for (var other in _steps.values) {
+      var at = other.at;
+      if (other.person == start.person &&
+          at != null &&
+          at.isAfter(from) &&
+          at.isBefore(until)) {
+        until = at;
+      }
+    }
+    var stepless = <String, List<_ServerEvent>>{};
+    for (var event in _server) {
+      if (event.step != null) continue;
+      if (event.group case var group?) {
+        stepless.putIfAbsent(group, () => []).add(event);
+      }
+    }
+    return {
+      for (var MapEntry(key: group, value: events) in stepless.entries)
+        if (!events.first.time.isBefore(from) &&
+            events.first.time.isBefore(until) &&
+            events.any(
+              (event) =>
+                  event.channel == 'identify' &&
+                  _users['${event.payload['user']}'] == start.person,
+            ))
+          group: events,
+    };
   }
 
   /// What a job is called: its name, and the queue it came off.
@@ -1979,6 +2121,16 @@ class _ServerEvent {
   String get channel => event.channel;
   Map<String, Object?> get payload => event.payload;
   DateTime get time => event.time;
+}
+
+/// A phone subscribing to a sync bucket, or letting one go.
+class _Subscription {
+  _Subscription(this.person, this.at, this.bucket, {required this.subscribed});
+
+  final String person;
+  final DateTime at;
+  final String bucket;
+  final bool subscribed;
 }
 
 class _Record {

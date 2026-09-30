@@ -391,6 +391,24 @@ class _TimelineDetailState extends State<TimelineDetail> {
             ]),
           ],
         );
+      case BeatKind.subscription:
+        var bucket = '${data['bucket']}';
+        var subscribed = data['change'] == 'subscribed';
+        var under =
+            "The last step on $person's phone before it: ${causeOf(step)} "
+            '(${step.id}), which it is shown under.';
+        return (
+          subscribed
+              ? "$person's phone subscribed to $bucket."
+              : "$person's phone let go of $bucket.",
+          [if (subscribed) _heldFrom else _letGo, under],
+          [
+            _Block.fields('What the phone reported', [
+              ('bucket', bucket),
+              ('change', '${data['change']}'),
+            ]),
+          ],
+        );
       case BeatKind.job || BeatKind.statements:
         return (
           beat.kind == BeatKind.job
@@ -440,6 +458,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
         BeatKind.mail => 'mail',
         BeatKind.push => 'push',
         BeatKind.record => 'synced record',
+        BeatKind.subscription => 'subscription',
         _ => null,
       };
       if (noun != null) counts[noun] = (counts[noun] ?? 0) + 1;
@@ -450,6 +469,13 @@ class _TimelineDetailState extends State<TimelineDetail> {
             ? 'one $noun'
             : '$n ${noun == 'SMS' || noun == 'push' ? noun : '${noun}s'}',
     ];
+    if (step.verb == 'reload') {
+      return (
+        'The world was brought to the code on disk at $at (${step.id}).',
+        [?step.note, _afterReload],
+        const [],
+      );
+    }
     return (
       world
           ? 'The world ran its action ${step.target} at $at.'
@@ -464,6 +490,17 @@ class _TimelineDetailState extends State<TimelineDetail> {
       const [],
     );
   }
+
+  static const _heldFrom =
+      'From here it holds that bucket: what was written to it before, it '
+      'receives now — which is why a record can arrive long after its write.';
+
+  static const _letGo = 'It no longer receives what is written to that bucket.';
+
+  static const _afterReload =
+      'What happened after it ran the new code — the server the world hosts, '
+      "what its actions call, the people's apps — but for work already "
+      'running when it came, a job or a request, which finishes on the old.';
 
   static const _unlabelled =
       'It landed on nothing with a label near it, so the world names it by '
@@ -657,6 +694,7 @@ String causeOf(TraceStep step) {
   var target = step.target ?? '';
   return switch (step.verb) {
     'action' => "the world's action $target",
+    'reload' => "the world's ${step.id}",
     'tap' => "$person's tap on $target",
     'longPress' => "$person's long press on $target",
     'drag' => "$person's drag on $target",

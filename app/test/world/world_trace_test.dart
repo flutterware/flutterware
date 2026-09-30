@@ -1140,6 +1140,83 @@ void main() {
     });
   });
 
+  group('round five', () {
+    test("a reload is a moment of the world's own, numbered from the "
+        'opening', () {
+      step('Ben', 'ben.1', 1000, '"Order"');
+      var first = trace.addReload(
+        since.add(const Duration(seconds: 2)),
+        note: 'Reloaded in 0.19 s',
+      );
+      trace.addReload(since.add(const Duration(seconds: 3)));
+      expect(first, 'reload.1');
+      expect(traced().keys, [
+        'ben.1 tap "Order"',
+        'reload.1 reload the code',
+        'reload.2 reload the code',
+      ]);
+      expect(traced(person: worldActionsOwner).keys, [
+        'reload.1 reload the code',
+        'reload.2 reload the code',
+      ]);
+      expect(trace.step('reload.1')!.note, 'Reloaded in 0.19 s');
+    });
+
+    test("an app's start takes what the server says it asked with no step, "
+        'while the start lasts', () {
+      app('Cleo', 1000, worldStepsChannel, {
+        'step': 'cleo.0',
+        'verb': 'start',
+        'target': 'the app',
+      });
+      // A sync engine's stream, opened from another isolate: no step, but
+      // the server knows whose token it is.
+      Map<String, Object?> stream(String path) => {
+        'method': 'GET',
+        'path': path,
+        'status': 200,
+      };
+      lab(1500, 'identify', {'user': 'u1'}, 's1');
+      lab(1501, 'http', stream('/sync/stream'), 's1');
+      // Somebody else's.
+      lab(1600, 'identify', {'user': 'u9'}, 's2');
+      lab(1601, 'http', stream('/sync/other'), 's2');
+      // After Cleo's first tap: no longer the start's.
+      step('Cleo', 'cleo.1', 3000, '"Orders"');
+      lab(3500, 'identify', {'user': 'u1'}, 's3');
+      lab(3501, 'http', stream('/sync/later'), 's3');
+      expect(traced(person: 'Cleo'), {
+        'cleo.0 start the app': [
+          '+500 ms  Cleo → lab  GET /sync/stream  200, joined by who and when',
+        ],
+        'cleo.1 tap "Orders"': <String>[],
+      });
+      var beat = trace.steps(step: 'cleo.0').single.beats.single;
+      expect((beat.person, beat.kind), ('Cleo', BeatKind.call));
+    });
+
+    test("a phone's subscription is a line of the step just before it", () {
+      step('Ben', 'ben.1', 1000, '"Sign in"');
+      app('Ben', 1800, 'db:main/records', {
+        'change': 'subscribed',
+        'bucket': 'profile["u2"]',
+      });
+      app('Ben', 9000, 'db:main/records', {
+        'change': 'unsubscribed',
+        'bucket': 'profile["u2"]',
+      });
+      expect(traced()['ben.1 tap "Sign in"'], [
+        '+800 ms  Ben  subscribed to profile["u2"]',
+        '+8000 ms  Ben  let go of profile["u2"]',
+      ]);
+      var beat = trace.steps().single.beats.first;
+      expect(
+        (beat.kind, beat.level),
+        (BeatKind.subscription, TraceLevel.system),
+      );
+    });
+  });
+
   group('deliveries', () {
     test('a delivery is a step of its own, named for what it handed over', () {
       app('Ben', 1000, worldStepsChannel, {

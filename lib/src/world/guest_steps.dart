@@ -27,7 +27,7 @@ class WorldSteps {
   WorldSteps({
     required String person,
     this.window = const Duration(milliseconds: 1500),
-    this.startWindow = const Duration(seconds: 10),
+    this.startWindow = worldStartWindow,
     void Function(String channel, Map<String, Object?> payload)? report,
   }) : _prefix = worldStepPrefix(person),
        _report = report ?? _toChannels;
