@@ -46,6 +46,55 @@ void main() {
     });
   });
 
+  group('a .first waits like the target it narrows', () {
+    // flutter_test's `.first` over nothing throws `No element` rather than
+    // matching nothing, which made this wait crash on its first look.
+    scenario('and the step is the row that arrived', (s) async {
+      await s.pumpWidget(_Orders(load: _later('Order #1042')));
+      await s.tap(
+        'Orders',
+        settle: Settle.until(find.text('Order #1042').first),
+      );
+    });
+    tearDown(() {
+      expect(captures.last.failure, isNull);
+      expect(captures.last.texts, contains('Order #1042'));
+    });
+  });
+
+  group('an nth past the rows so far waits for the row', () {
+    scenario('rather than failing on the index', (s) async {
+      await s.pumpWidget(_Orders(load: _later('Order #1042')));
+      await s.tap(
+        'Orders',
+        settle: Settle.until(Target.nth(Target.containing('Order'), 1)),
+      );
+    });
+    tearDown(() {
+      expect(captures.last.failure, isNull);
+      expect(captures.last.texts, contains('Order #1042'));
+    });
+  });
+
+  group('a .last that never appears fails the step', () {
+    scenario('as a target that did not appear', (s) async {
+      await s.pumpWidget(_Orders(load: Completer<String>().future));
+      await expectLater(
+        () => s.tap(
+          'Orders',
+          settle: Settle.until(
+            find.text('Order #1042').last,
+            timeout: Duration(seconds: 3),
+          ),
+        ),
+        throwsA(isA<ScenarioNeverAppeared>()),
+      );
+    });
+    tearDown(() {
+      expect(captures.last.failure, contains('did not appear within 3s'));
+    });
+  });
+
   group('a target that never appears fails the step', () {
     scenario('with the screen it gave up on as the picture', (s) async {
       await s.pumpWidget(_Orders(load: Completer<String>().future));

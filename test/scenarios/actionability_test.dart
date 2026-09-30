@@ -59,6 +59,23 @@ void main() {
     );
   });
 
+  scenario('a .first that matches nothing is refused like any other miss', (
+    s,
+  ) async {
+    await s.pumpWidget(const _LazyListApp());
+
+    await expectLater(
+      () => s.tap(find.byType(Checkbox).first),
+      throwsA(
+        isA<ScenarioTargetError>().having(
+          (e) => '$e',
+          'message',
+          contains('nothing matches'),
+        ),
+      ),
+    );
+  });
+
   scenario('an unbuilt lazy-list item points at scrollTo', (s) async {
     await s.pumpWidget(const _LazyListApp());
 

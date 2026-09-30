@@ -300,7 +300,13 @@ class TargetResolver {
     }
     var finder = finderForTarget(target);
     var described = describeTarget(target);
-    var count = _countOf(finder);
+    // A positional finder's miss is counted rather than thrown (see
+    // [countMatches]) for two reasons: the raw error is the one refusal in
+    // this tool that would not say what to do next, and — being no
+    // [TargetError] — it would also escape the retry ladder every other
+    // refusal gets, so a `.first` or an `nth` on a screen mid-transition
+    // would fail hard where a plain text target is pumped through.
+    var count = countMatches(finder);
     if (count == null) throw _indexRefusal(target, described, verb);
     if (count == 0) {
       throw TargetError(
@@ -325,23 +331,6 @@ class TargetResolver {
     return finder;
   }
 
-  /// How many widgets [finder] matches, or null when it indexed past its end.
-  ///
-  /// `Finder.at(i)` is `candidates.elementAt(i)`, so an out-of-range `nth` is
-  /// a `RangeError` thrown out of the evaluate rather than a miss. Caught here
-  /// and turned into a [TargetError] for two reasons: the raw error is the one
-  /// refusal in this tool that does not say what to do next, and — being no
-  /// [TargetError] — it also escaped the retry ladder every other refusal
-  /// gets, so an `nth` on a screen mid-transition failed hard where a plain
-  /// text target would have been pumped through.
-  static int? _countOf(Finder finder) {
-    try {
-      return finder.evaluate().length;
-    } on RangeError {
-      return null;
-    }
-  }
-
   /// The refusal for an out-of-range index, with the count in it.
   ///
   /// Targets compose, so `nth(nth(…))` runs out at whichever level ran out
@@ -353,7 +342,7 @@ class TargetResolver {
       var parts = nthPartsOf(offender);
       if (parts == null) break;
       var inner = parts.target;
-      var count = _countOf(finderForTarget(inner));
+      var count = countMatches(finderForTarget(inner));
       // The inner target range-errored too, so the level that actually ran
       // out is further in; this one never got to index anything.
       if (count == null) {

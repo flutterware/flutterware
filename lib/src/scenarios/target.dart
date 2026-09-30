@@ -90,6 +90,34 @@ String describeTarget(dynamic target) => switch (target) {
 ({Object target, int index})? nthPartsOf(dynamic target) =>
     target is _Nth ? (target: target.target, index: target.index) : null;
 
+/// How many widgets [finder] matches, or null when an index in it ran past
+/// the end of what it indexes.
+///
+/// `evaluate().length` is not a count for flutter_test's positional finders.
+/// `.first` and `.last` are `candidates.first` and `.last` inside a `sync*`,
+/// so over nothing they throw `StateError: No element` out of the iteration
+/// rather than yielding nothing; `.at(i)` is `elementAt(i)`, a `RangeError`
+/// past the end. A `.first` over nothing is a finder that found nothing, and
+/// it counts 0 like any other miss — anything waiting for it keeps waiting,
+/// anything refusing it refuses with the miss. An index past the end is null
+/// instead, because the refusal it deserves is about the index and needs to
+/// know it was one.
+///
+/// Only the empty iterable's own `StateError` is a miss. A finder can throw
+/// one for a reason of its own — `find.bySemanticsLabel` with semantics off —
+/// and swallowing that would turn a misconfiguration into a wait that times
+/// out.
+int? countMatches(Finder finder) {
+  try {
+    return finder.evaluate().length;
+  } on RangeError {
+    return null;
+  } on StateError catch (error) {
+    if (error.message != 'No element') rethrow;
+    return 0;
+  }
+}
+
 /// The targets the plain vocabulary cannot express: the ones that need a
 /// property other than visible text, a scope, or an index.
 ///
