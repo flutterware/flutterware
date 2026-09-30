@@ -1614,7 +1614,7 @@ next: String   # The command that runs what was just written.
 The store/documentation lane: runs the scenarios and keeps only their **named** shots, at the pixel ratio each device really has, into `<output>/<language>/<device>/<scenario>/NN-name.png` — numbered within each scenario, so adding a shot renames nothing in any other. Everything a `run` leaves behind — the automatic steps, the widget trees — is dropped. A separate action because every default differs; `run` stays the debugging lane.
 
 ```sh
-fw run scenarios shots [--package=…] [--output=…] [--devices=…] [--languages=…] [--orientations=…] [--tag=…] [--file=…]
+fw run scenarios shots [--package=…] [--output=…] [--devices=…] [--languages=…] [--orientations=…] [--brightness=…] [--tag=…] [--file=…]
 ```
 
 Returns `ScenarioShotsResult`:
@@ -1647,6 +1647,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 | `devices` | string | no | — | A comma-separated list — one directory per device. Omitted runs each scenario on its folder profile's first device. |
 | `languages` | string | no | — | A comma-separated list — one directory per language, crossed with `devices` |
 | `orientations` | string | no | — | The third axis — `portrait,landscape`. Crossed with the other two. A turned device gets its own directory, `<language>/<device>-landscape/`, because the two ways up of one device are two sets of screenshots and sharing a directory would leave the second overwriting the first. Portrait writes no suffix, so a tree that never asked for landscape is the tree it was. A device that cannot turn contributes one point rather than two identical ones. |
+| `brightness` | choice | no | — | The platform brightness the app sees — `light,dark` for both, crossed with the other axes. Dark gets its own directory, `<language>/<device>-dark/`, after `-landscape` where both apply, for the reason a turned device does. Light writes no suffix and is what omitting this means, so a tree that never asked for dark is the tree it was. |
 | `tag` | string | no | — | Keep only shots carrying this tag — `Shot('Home', tags: ['store'])`. Omitted keeps every named shot, which is what a project that tags nothing wants. |
 | `file` | string | no | — | Only this scenario file, package-relative — as `list` reports it. A directory keeps everything under it, which is the unit the folder profiles are declared in. Several, comma-separated (or `--file` repeated), run in the order given in one process |
 
