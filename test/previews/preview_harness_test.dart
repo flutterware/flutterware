@@ -18,9 +18,12 @@ void main() {
   var decoded = false;
   var trackedDrawn = false;
   var clockAt = <String, DateTime>{};
+  var setUp = false;
+  var setUpBefore = <String, bool>{};
 
   Widget probe(String id) => Builder(
     builder: (context) {
+      setUpBefore[id] = setUp;
       size[id] = MediaQuery.of(context).size;
       clockAt[id] = clock.now();
       // A preview reading a knob with nothing hosting it answers the default
@@ -74,10 +77,20 @@ void main() {
       PreviewCanvas('demo', devices: [Devices.iphoneSe]),
       PreviewCanvas('demo/desktop', devices: [Devices.wideWindow]),
     ],
+    // Asynchronous on purpose: a setup is awaited, and one that was merely
+    // started would still be in flight when the first entry built.
+    setup: () async {
+      await Future<void>.delayed(Duration.zero);
+      setUp = true;
+    },
   );
 
   // Declared after the entries, so it runs after them: what the entries saw is
   // what these assert on.
+  test('the package setup has run before any entry builds', () {
+    expect(setUpBefore, {'phone': true, 'wide': true, 'plain': true});
+  });
+
   test('each entry is framed by the canvas its own path resolves to', () {
     // Longest prefix wins, which is the whole reason `canvasFor` is shared
     // rather than re-implemented per caller.

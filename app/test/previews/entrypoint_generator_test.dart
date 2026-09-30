@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutterware_app/src/previews/catalog_entry.dart';
 import 'package:flutterware_app/src/previews/entrypoint_generator.dart';
+import 'package:flutterware_app/src/previews/preview_setup.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -223,6 +224,53 @@ Widget avatarTileEmpty() => const Placeholder();
       source.indexOf('CatalogEntries.instance.registerExtensions'),
       lessThan(source.indexOf('runApp(')),
     );
+  });
+
+  group('a declared setup', () {
+    EntrypointGenerator withSetup(String path) => EntrypointGenerator(
+      outputDir: p.join(root.path, 'build', 'entrypoint'),
+      projectRoot: root.path,
+      setup: PreviewSetup(path),
+    );
+
+    test('is awaited once everything is registered, before runApp', () {
+      File(p.join(root.path, 'demo', 'setup.dart'))
+          .writeAsStringSync('Future<void> previewSetup() async {}');
+      var generator = withSetup('demo/setup.dart')..select(members);
+      var source = File(generator.entrypointPath).readAsStringSync();
+
+      expect(generatedStrings(source), contains('../../demo/setup.dart'));
+      expect(source, contains('await fw_setup.previewSetup();'));
+      // After the binding, which a setup registering a font needs, and after
+      // the extensions, so the host can talk to a guest whose setup is slow.
+      expect(
+        source.indexOf('await fw_setup.previewSetup()'),
+        greaterThan(source.indexOf('GuestLogs.instance.registerExtensions()')),
+      );
+      expect(
+        source.indexOf('await fw_setup.previewSetup()'),
+        lessThan(source.indexOf('runApp(const CatalogHost')),
+      );
+      expect(source, contains('GuestLogs.instance.install(() async {'));
+      parseGenerated(source);
+    });
+
+    test('that throws is shown in place of the catalog, never skipped', () {
+      var shown = withSetup('demo/setup.dart')..select(members);
+      var text = File(shown.entrypointPath).readAsStringSync();
+      expect(text, contains('FlutterError.reportError('));
+      expect(text, contains('ErrorWidget.withDetails('));
+      expect(
+        generatedStrings(text).join('\n'),
+        contains('previewSetup() in demo/setup.dart threw'),
+      );
+    });
+
+    test('none declared, the entrypoint is as it was', () {
+      generator.select(members);
+      expect(entrypoint(), isNot(contains('fw_setup')));
+      expect(entrypoint(), contains('GuestLogs.instance.install(() {'));
+    });
   });
 
   test('reports what to invalidate: the wrapper only on first visit', () {

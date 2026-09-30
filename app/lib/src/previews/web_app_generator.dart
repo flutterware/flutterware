@@ -8,6 +8,7 @@ import '../utils/source_code/escape_dart_string.dart';
 import 'catalog_entry.dart';
 import 'catalog_tree.dart';
 import 'catalog_wrapper.dart';
+import 'preview_setup.dart';
 
 /// Writes a standalone Flutter app that browses the whole catalog, for
 /// `flutter build web` to turn into a page.
@@ -39,6 +40,7 @@ class WebAppGenerator {
     required this.projectRoot,
     required this.title,
     this.clock,
+    this.setup,
   });
 
   /// Where the generated sources go. Cleared on each run, so it must not be a
@@ -56,6 +58,10 @@ class WebAppGenerator {
   /// guest is given, which is why it travels rather than being read here.
   final DateTime? clock;
 
+  /// The package's declared setup, awaited before the page is built — the
+  /// same hook the guest and the harness run. See `PreviewsPackage.setup`.
+  final PreviewSetup? setup;
+
   late final _wrappers = CatalogWrapperWriter(
     outputDir: outputDir,
     projectRoot: projectRoot,
@@ -67,6 +73,9 @@ class WebAppGenerator {
   ///
   /// Returns the entrypoint's path, which is what `flutter build web -t` takes.
   String generate(List<CatalogEntry> entries) {
+    // Before anything is cleared or written: a page importing a setup that is
+    // not there fails `flutter build web` inside generated code.
+    setup?.check(projectRoot);
     var dir = Directory(outputDir);
     // Cleared rather than merged into: an entry deleted since the last build
     // would otherwise keep its wrapper on disk, and a stale wrapper naming a
@@ -91,6 +100,13 @@ class WebAppGenerator {
     for (var i = 0; i < entries.length; i++) {
       imports.writeln("import 'entry_$i.dart' as fw$i;");
     }
+    var setup = this.setup;
+    if (setup != null) {
+      imports.writeln(
+        'import ${_literal(_wrappers.uriFor(p.join(projectRoot, setup.path)))} '
+        'as fw_setup;',
+      );
+    }
 
     // The same tree the panel draws, from the same function, so an entry sits
     // in the same place on the page as it does in the GUI. Building a second
@@ -113,8 +129,8 @@ $imports
 // page and a panel that disagree about what time it is are two pictures of
 // the same entry that do not match. Which is why it is the instant the host
 // worked out and passed down, not a constant read twice.
-void main() => withClock(Clock.fixed($clockLiteral), () {
-  runApp(
+void main() => withClock(Clock.fixed($clockLiteral), () ${setup == null ? '' : 'async '}{
+${setup == null ? '' : '  WidgetsFlutterBinding.ensureInitialized();\n${setup.statements}'}  runApp(
     UICatalog(
       title: ${_literal(title)},
       catalog: () => _catalog,

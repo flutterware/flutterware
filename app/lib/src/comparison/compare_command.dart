@@ -297,6 +297,10 @@ Future<CompareOutcome> _runComparison({
         previewAnnotations: core.previewAnnotationsFor(packageInWorktree),
         canvases: core.canvasesFor(packageInWorktree),
         projectClock: core.host.projectClock,
+        // Checked against the head here, where the head is known: the side
+        // forgives a checkout without the file, which is only right of a base.
+        setup: core.previewSetupFor(packageInWorktree)
+          ?..check(p.join(session.worktree.path, packageInWorktree)),
       ),
     );
     try {

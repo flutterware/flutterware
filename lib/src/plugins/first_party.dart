@@ -144,7 +144,33 @@ class PreviewsPackage extends PluginPackage {
     this.device,
     this.orientation,
     this.canvases = const [],
+    this.setup,
   });
+
+  /// A file whose `previewSetup()` runs once, before any preview in this
+  /// package builds — relative to the package, e.g. `'lib/preview_setup.dart'`.
+  ///
+  /// ```dart
+  /// // lib/preview_setup.dart
+  /// Future<void> previewSetup() async {
+  ///   GoogleFonts.config.allowRuntimeFetching = false;
+  /// }
+  /// ```
+  ///
+  /// The function is top-level, takes no arguments and returns `void` or a
+  /// `Future<void>`, which is awaited. It runs after the binding exists and
+  /// before the first entry is built, on every engine a preview renders on:
+  /// the panel's guest, the `flutter_tester` lane that `screenshot`, `audit`
+  /// and `compare` use, and the page `build-web` writes. Which makes it the
+  /// place for what an app does once in `main` and every entry would
+  /// otherwise need from its `wrapper:` — turning off a font package's
+  /// downloads, registering fonts, installing `HttpOverrides`.
+  ///
+  /// Declared rather than found: a file named here that does not exist, or
+  /// that declares no `previewSetup`, is reported and every render of the
+  /// package refused, because rendering without it would draw every entry
+  /// plausibly wrong.
+  final String? setup;
 
   /// What the previews under each subtree are framed as. See [PreviewCanvas].
   ///
@@ -221,6 +247,7 @@ class PreviewsPackage extends PluginPackage {
     if (device != null) 'device': device!.id,
     if (orientation != null) 'orientation': orientation!.name,
     if (canvases.isNotEmpty) 'canvases': [for (var c in canvases) c.toJson()],
+    if (setup != null) 'setup': setup,
   };
 
   /// The prefix this package names twice, or null when each is named once.

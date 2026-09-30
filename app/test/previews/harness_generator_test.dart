@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutterware/devices.dart';
 import 'package:flutterware_app/src/previews/catalog_entry.dart';
 import 'package:flutterware_app/src/previews/harness_generator.dart';
+import 'package:flutterware_app/src/previews/preview_setup.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -214,5 +215,65 @@ Widget ${entry.symbol}() => const Placeholder();
       isTrue,
       reason: "the subset's prune only reaches its own wrapper directory",
     );
+  });
+
+  group('a declared setup', () {
+    test('is imported, and handed to the table to run first', () {
+      File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync('name: shop\n');
+      File(p.join(root.path, 'lib', 'preview_setup.dart'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('Future<void> previewSetup() async {}');
+
+      writePreviewHarness(
+        root.path,
+        [members],
+        canvases: const [],
+        setup: const PreviewSetup('lib/preview_setup.dart'),
+      );
+
+      // By its `package:` URI, like anything under `lib/`: the same file
+      // reached relatively would be a second library with its own globals,
+      // and a setup that configured one copy would configure nothing.
+      expect(
+        generatedStrings(harness()),
+        contains('package:shop/preview_setup.dart'),
+      );
+      expect(harness(), contains('as fw_setup;'));
+      expect(harness(), contains('setup: fw_setup.previewSetup,'));
+    });
+
+    test('outside lib/ is imported from where the harness sits', () {
+      File(p.join(root.path, 'demo', 'setup.dart'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('void previewSetup() {}');
+
+      writePreviewHarness(
+        root.path,
+        [members],
+        canvases: const [],
+        setup: const PreviewSetup('demo/setup.dart'),
+      );
+
+      expect(generatedStrings(harness()), contains('../../demo/setup.dart'));
+    });
+
+    test('none declared, none mentioned', () {
+      writePreviewHarness(root.path, [members], canvases: const []);
+      expect(harness(), isNot(contains('fw_setup')));
+      expect(harness(), isNot(contains('setup:')));
+    });
+
+    test('that is not there is refused, and nothing is written', () {
+      expect(
+        () => writePreviewHarness(
+          root.path,
+          [members],
+          canvases: const [],
+          setup: const PreviewSetup('lib/preview_setup.dart'),
+        ),
+        throwsA(isA<PreviewSetupProblem>()),
+      );
+      expect(File(p.join(root.path, previewHarnessPath)).existsSync(), isFalse);
+    });
   });
 }

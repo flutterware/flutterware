@@ -96,6 +96,44 @@ Widget wrapInShop(Widget child) => PreviewShell(
 Outside the studio, in your app or in Flutter's previewer, every axis returns
 its default.
 
+### Set things up once for every preview
+
+Some of what an app needs happens once in `main` rather than in a widget:
+turning off a font package's downloads, registering fonts, installing
+`HttpOverrides`. Previews never run your `main`, so name a setup file on the
+package instead of repeating it in every `wrapper:`:
+
+```dart
+// tool/flutterware.dart
+PreviewsPackage(app, setup: 'lib/preview_setup.dart')
+```
+
+```dart
+// lib/preview_setup.dart
+import 'package:google_fonts/google_fonts.dart';
+
+Future<void> previewSetup() async {
+  // Previews render offline, and a test engine answers every download with an
+  // error. Use the fonts bundled under assets/ instead.
+  GoogleFonts.config.allowRuntimeFetching = false;
+}
+```
+
+`previewSetup()` takes no arguments and can be `async`. It runs once, after the
+Flutter binding exists and before the first preview builds, everywhere a
+preview renders: the studio's panel, `screenshot`, `inspect`, `audit`,
+`compare` and the page `build-web` writes. That is also the place for
+`HttpOverrides.global = …`, so previews that fetch get your fake answers. The
+same file is compiled into the `build-web` page, so if you use that, keep
+`dart:io` behind a conditional import.
+
+If the file is missing or doesn't declare `previewSetup`, the previews plugin
+reports it and refuses to render the package rather than render every preview
+without it. If `previewSetup()` throws, you get its error instead of the
+previews. The command line actions pick up an edit to the setup on their next
+run; the studio's panel runs it when it starts, so reopen the panel after
+changing it.
+
 ## Knobs
 
 A knob is a value you can change while looking at a preview. Ask for one while
