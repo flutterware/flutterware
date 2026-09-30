@@ -2969,6 +2969,7 @@ scriptMs: int?   # The script's code reloading in its VM.
 reassembleMs: int?   # Its `FlutterwareServer.onReassemble` callbacks rebuilding.
 appsMs: int?   # The [apps] reloading, side by side.
 apps: List<String>
+step: String?   # Its moment in the trace, `reload.2`, which `worlds trace --step` reads.
 ```
 
 | parameter | kind | required | default | |

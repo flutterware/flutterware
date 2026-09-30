@@ -336,6 +336,8 @@ void main() {
     script.writeAsStringSync(original.replaceAll('v1', 'v2'));
     var reload = await world.reload();
     expect(reload.apps, isEmpty);
+    // A moment in the trace, which says what came after it ran.
+    expect(reload.step, 'reload.1');
     expect(world.id, id);
     expect(await said('Greet'), 'hello, v2');
     // A router's handlers are closures made when it was built: served

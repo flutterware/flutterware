@@ -969,11 +969,24 @@ it moved (2026-09-30):
   its doc and the guide, with `Future` for work that must follow its
   caller — a webhook delivered once its sender has answered.
 
-Left for a decision: marking each event with the reload it ran after, so a
-line says which code ran it; letting `.0` take what an app's sync client
-sends from another isolate with no step — by the person the server
-identifies, or by the database adapter reporting its streams opening; and
-a subscription as a moment on the person's lane.
+What was left for a decision, decided and built the same day:
+
+- **A reload is a moment, not a mark on every line.** A line stamped with
+  the reload it came after would be wrong exactly where it matters: a job
+  running when the reload came reports after it and ran the old code. So
+  each reload is a step of the world's own, `reload.2`, a pill on the
+  timeline's World column, which `worlds reload` names; a line's side of it
+  is plain, and so is a job that began before it.
+- **`.0` takes what the server says its person asked**, with no step: a
+  request or job whose server identified the person, begun while the start
+  lasts — `worldStartWindow`, 10 s, or until their first gesture — is the
+  start's, and says it was joined by who and when. Not the database
+  adapter reporting its streams: that knows one sync engine, and this any
+  client in another isolate.
+- **A subscription is a line on the person's lane.** The database watch now
+  reports a bucket the phone starts holding, or lets go of, from
+  `ps_buckets`; it is a line of that person's step just before it, System
+  level, and explains the arrivals that follow it.
 
 What it does not do yet, each a known next step: the world's opening takes
 no step, because what its body starts — the server it hosts, a timer —

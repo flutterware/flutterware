@@ -174,6 +174,20 @@ void main() {
     expect(arrival.within?.said, 'wrote orders/o1 (insert)');
   });
 
+  test("a reload is the world's pill, and a subscription the phone's", () {
+    tap('Leo', 'leo.1', 1000, '"Sign in"');
+    app('Leo', 1200, 'db:main/records', {
+      'change': 'subscribed',
+      'bucket': 'profile["u2"]',
+    });
+    trace.addReload(since.add(const Duration(milliseconds: 1500)));
+    expect(rows(timeline(TraceLevel.system)), [
+      'Leo  taps "Sign in"',
+      'Leo  subscribed to profile["u2"]',
+      'world  reloads the code',
+    ]);
+  });
+
   test("the world's own request starts in its column, and a service that "
       'only sent a message is a column of its own', () {
     trace.addActionStep(

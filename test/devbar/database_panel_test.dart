@@ -187,6 +187,8 @@ void main() {
 
       expect(ringed('db:main/records').skip(1), [
         {'key': 'o2', 'table': 'orders', 'change': 'local put'},
+        // The phone subscribed: its records follow.
+        {'change': 'subscribed', 'bucket': 'profile["u1"]'},
         // The bucket it came in: why a record can arrive after a newer one.
         {
           'key': 'o2',

@@ -362,7 +362,8 @@ class DatabasePanelSource implements DevbarPanelSource {
               'Every record this app wrote locally, as it joins the upload '
               'queue, and every record a checkpoint brought in, with its '
               'operation — what joins a change on one device to its arrival '
-              'on another.',
+              'on another — and every bucket it subscribes to or lets go '
+              'of.',
           fields: const [
             FieldDescriptor('key', 'Record', primary: true),
             FieldDescriptor('table', 'Table'),
@@ -530,7 +531,19 @@ class DatabasePanelSource implements DevbarPanelSource {
       ))
         '${row['name']}',
     };
-    if (_held case var before?) _subscribed.addAll(held.difference(before));
+    if (_held case var before?) {
+      var added = held.difference(before);
+      _subscribed.addAll(added);
+      // The subscription itself, a moment of its own: what the phone asks
+      // the sync service for changed, and its records follow.
+      for (var bucket in added) {
+        panel.emit('records', {'change': 'subscribed', 'bucket': bucket});
+      }
+      for (var bucket in before.difference(held)) {
+        _subscribed.remove(bucket);
+        panel.emit('records', {'change': 'unsubscribed', 'bucket': bucket});
+      }
+    }
     _held = held;
     var first = !_recordsRead;
     _recordsRead = true;
