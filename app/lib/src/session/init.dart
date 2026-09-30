@@ -56,6 +56,7 @@ class ProjectInit {
   Future<int> run({bool quiet = false}) async {
     var scaffolded = _scaffoldConfig();
     var registered = _registerMcpServer();
+    var pinned = registered ? _pinnedSdkHint() : null;
 
     if (!quiet && (scaffolded || registered)) {
       out.writeln('Initialized $root');
@@ -69,9 +70,50 @@ class ProjectInit {
         if (await _isIgnoredByGit(p.join(root, mcpConfigFileName))) {
           out.writeln('    .gitignore hides it, so it stays on this machine');
         }
+        if (pinned != null) out.writeln('    $pinned');
       }
+    } else if (pinned != null) {
+      // The one line a quiet run says, and to stderr: it runs before every
+      // command, `fw mcp` and `--json` among them, whose stdout is not ours.
+      err.writeln('fw: $pinned');
     }
     return 0;
+  }
+
+  /// A line for a project that pins its SDK with a version manager, or null.
+  ///
+  /// The entry [_registerMcpServer] writes is plain `dart`, and stays that way
+  /// — see there. But `init` runs quietly before whatever command came first,
+  /// so the entry appears without anyone having read it, and a `dart` on
+  /// `PATH` older than the pin fails only later: at the client's handshake, in
+  /// a log nobody is watching. So the moment it is written, a project that
+  /// says it pins its SDK is told so once.
+  ///
+  /// Read from the pin files rather than by comparing the `dart` that launched
+  /// this with the one on `PATH`, which would be the sharper test. Finding that
+  /// one means resolving `dart` off `PATH`, which nothing here does — see
+  /// `test/ambient_sdk_test.dart` — and Flutter's `bin/dart` is a wrapper whose
+  /// path never equals the SDK binary it runs, so the comparison would fire
+  /// for everyone. A pin file this does not recognise costs only the line.
+  String? _pinnedSdkHint() {
+    for (var (name, command) in _pinFiles) {
+      String text;
+      try {
+        text = File(p.join(root, name)).readAsStringSync();
+      } on FileSystemException {
+        continue;
+      }
+      // `.tool-versions` and mise's files pin anything — node, java — and
+      // only a Flutter or Dart line is about the `dart` in question.
+      if (name != '.fvmrc' && !_sdkLine.hasMatch(text)) continue;
+      var fix = command == null
+          ? 'run it through your version manager'
+          : 'change it to `$command run flutterware mcp`';
+      return "$name pins this project's SDK, but the flutterware entry in "
+          '$mcpConfigFileName runs `dart` from PATH. If that is a different '
+          'SDK, $fix.';
+    }
+    return null;
   }
 
   /// Whether git already ignores [path].
@@ -112,9 +154,10 @@ class ProjectInit {
   ///
   /// A user whose `dart` is not the one this project wants edits the entry to
   /// say so — `fvm dart run flutterware mcp`, and so on. It is their file and
-  /// their choice; the one thing worth knowing before making it is that a
-  /// version manager which auto-installs an SDK may narrate that onto stdout,
-  /// which is where the protocol lives.
+  /// their choice, and a project with a pin file is told it may need making —
+  /// see [_pinnedSdkHint]. The one thing worth knowing before making it is
+  /// that a version manager which auto-installs an SDK may narrate that onto
+  /// stdout, which is where the protocol lives.
   ///
   /// Merges; never rewrites. This is the one file `init` touches that
   /// flutterware does not own — other servers live in it, it is normally
@@ -545,3 +588,18 @@ int? _memberValue(String source, int body, String key) {
   }
   return null;
 }
+
+/// The files a version manager pins a project's SDK in, each with the command
+/// that runs `dart` through it — null where the file is shared by several
+/// managers and naming one would be a guess.
+const _pinFiles = [
+  ('.fvmrc', 'fvm dart'),
+  ('.mise.toml', 'mise exec -- dart'),
+  ('mise.toml', 'mise exec -- dart'),
+  // asdf's, and mise reads it too.
+  ('.tool-versions', null),
+];
+
+/// A line pinning Flutter or Dart, in `.tool-versions` (`flutter 3.x`) or a
+/// mise file (`flutter = "3.x"`).
+final _sdkLine = RegExp(r'^\s*"?(flutter|dart)\b', multiLine: true);

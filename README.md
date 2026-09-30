@@ -118,8 +118,10 @@ dart run flutterware
 ```
 
 Flutterware runs on the Dart SDK you start it with (`fvm dart run flutterware`
-works too) and never installs one of its own. The first launch creates
-`tool/flutterware.dart`, where you pick your tools:
+works too) and never installs one of its own. The `.mcp.json` entry it writes
+runs plain `dart` from your `PATH`, so if a version manager picks your SDK, edit
+that entry to go through it (`fvm dart run flutterware mcp`). The first launch
+creates `tool/flutterware.dart`, where you pick your tools:
 
 ```dart
 import 'package:flutterware/plugins.dart';
