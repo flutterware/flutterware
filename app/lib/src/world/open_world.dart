@@ -23,6 +23,7 @@ import 'app_guest.dart';
 import 'declared_links.dart';
 import 'guest_launcher.dart';
 import 'guest_log.dart';
+import 'guest_platform.dart';
 import 'guest_process.dart';
 import 'platform/studio_platform.dart';
 import 'world_files.dart';
@@ -713,6 +714,13 @@ class OpenWorld {
     );
     var log = person.log = GuestLog(
       p.join(build.app.buildDir, 'logs', '$name.log'),
+    );
+    // Said once a plugin, the first time the app asks it: the call has
+    // already failed in the app, and the fix is the project's.
+    platform.platform.onUnanswered = (channel, method) => _say(
+      "$name's app called ${GuestPlatform.describe(channel, method)}, which "
+      'nothing answers in a world. Fake the plugin in the entry point, '
+      'behind a knob.',
     );
     var guest = person.guest = guests(name);
     platform.platform.send = guest.sendPlatform;

@@ -15,6 +15,7 @@ import '../ui/popover.dart' show PopoverAlign;
 import '../ui/stage.dart' show stageGroundColor;
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
+import 'guest_platform.dart';
 import 'mail_view.dart';
 import 'open_world.dart';
 import 'platform/studio_platform.dart';
@@ -141,6 +142,9 @@ class _PersonFocusState extends State<PersonFocus> {
           color: widget.color,
           sync: world.tracer?.syncOf(person.name),
         ),
+        if (person.platform?.platform.unanswered case var unanswered?
+            when person.running && unanswered.isNotEmpty)
+          _Unanswered(person: person.name, plugins: unanswered),
         InspectTabStrip(
           tabs: [
             InspectDockTab(
@@ -334,6 +338,60 @@ class _PersonHeaderState extends State<_PersonHeader> {
           : 'nothing to upload',
       if (client is String) 'client ${client.split('-').first}',
     ].join(' · ');
+  }
+}
+
+/// The plugins a person's app asked that nothing answers in a world, and
+/// what to do about it: each one a call that already failed in the app, and
+/// answering it the project's own job, not the studio's.
+class _Unanswered extends StatelessWidget {
+  const _Unanswered({required this.person, required this.plugins});
+
+  final String person;
+
+  /// Channel to the method it asked first, as [GuestPlatform.unanswered].
+  final Map<String, String?> plugins;
+
+  @override
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    var named = [
+      for (var MapEntry(key: channel, value: method) in plugins.entries)
+        GuestPlatform.describe(channel, method),
+    ];
+    var them = named.length == 1 ? 'it fails' : 'them fail';
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: FwSpacing.xl,
+        vertical: FwSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: colors.warning.withValues(alpha: 0.08),
+        border: Border.symmetric(horizontal: BorderSide(color: colors.warning)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.warning_amber_outlined,
+              size: FwIconSize.sm,
+              color: colors.amber,
+            ),
+          ),
+          const SizedBox(width: FwSpacing.sm),
+          Expanded(
+            child: SelectableText(
+              'Nothing answers ${named.join(', ')} in a world, so every '
+              "call $person's app makes to $them. Fake the plugin in the "
+              'entry point the world starts, behind a knob.',
+              style: context.type.caption.copyWith(color: colors.warningText),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

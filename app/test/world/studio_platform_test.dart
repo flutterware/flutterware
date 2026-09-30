@@ -289,6 +289,48 @@ void main() {
     expect(system.lifecycleState, 'hidden');
   });
 
+  test('a plugin nothing answers is kept once, with the method it asked, and '
+      "the framework's own channels are not", () async {
+    var told = <String>[];
+    platform.onUnanswered = (channel, method) => told.add('$channel $method');
+    Uint8List ask(String method) => _bytes(
+      const StandardMethodCodec().encodeMethodCall(MethodCall(method)),
+    );
+
+    expect(await platform.answer('com.example.scale', ask('connect')), isNull);
+    await platform.answer('com.example.scale', ask('weigh'));
+    await platform.answer('flutter/restoration', ask('get'));
+    // A Pigeon channel names its method; a basic message calls none.
+    const camera = 'dev.flutter.pigeon.camera_avfoundation.CameraApi.create';
+    await platform.answer(camera, Uint8List(0));
+    await platform.answer(
+      'com.example.events',
+      _bytes(const StandardMessageCodec().encodeMessage(['hello'])!),
+    );
+
+    expect(platform.unanswered, {
+      'com.example.scale': 'connect',
+      camera: null,
+      'com.example.events': null,
+    });
+    expect(told, [
+      'com.example.scale connect',
+      '$camera null',
+      'com.example.events null',
+    ]);
+    expect(
+      [
+        for (var MapEntry(:key, :value) in platform.unanswered.entries)
+          GuestPlatform.describe(key, value),
+      ],
+      [
+        'com.example.scale (connect)',
+        'camera_avfoundation: CameraApi.create',
+        'com.example.events',
+      ],
+    );
+  });
+
   test('the time zone is a zone name', () async {
     expect(
       await call('flutter_timezone', 'getLocalTimezone'),

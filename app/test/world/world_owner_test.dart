@@ -100,6 +100,7 @@ void main() {
           device: 'studio-ana',
           email: 'ana.k3f9x2@example.com',
           knobs: {'session': 'abc'},
+          unanswered: ['com.example.scale (connect)'],
         ),
       ],
       actions: [WorldActionEntry('Wave', description: 'Ana waves')],
