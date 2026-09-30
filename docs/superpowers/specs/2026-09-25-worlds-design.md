@@ -948,14 +948,14 @@ it moved (2026-09-30):
   after it is refused on its socket. Reload says so and points at Restart,
   which starts the script on a fresh compiler; the collision itself stays
   out of the tests, where machine load decides whether it happens.
-  Found on the way, and not pinned down: a script open for about 50
-  minutes answered every reload `Kernel service was not set up for
-  incremental compilation`, as a failed report rather than an error, and
-  only a restart cleared it. Not the resident compiler's idle shutdown: a
-  reload survives that, the VM compiling for itself (0.79 s against
-  0.17 s). A failed report is now a compile error only when the compiler
-  names a line; otherwise Reload says the VM would not, and points at
-  Restart.
+  Found on the way: a script open for about 50 minutes answered every
+  reload `Kernel service was not set up for incremental compilation`, as a
+  failed report rather than an error, and only a restart cleared it. We
+  ruled out the resident compiler's idle shutdown here, wrongly: the sixth
+  round showed it was exactly that, and the test that seemed to clear it
+  had most likely stopped another world's compiler. A failed report is now
+  a compile error only when the compiler names a line; otherwise Reload
+  says the VM would not.
 - **The reply splits the time**: `scriptMs`, `reassembleMs`, `appsMs`, and
   the log line the same.
 - **What a phone received sits beneath the write that sent it** — 17 of the
@@ -994,6 +994,64 @@ would step under it for ever after, so the sign-ups a script seeds are
 still nobody's; a gesture's name is its nearest label, so one of several
 identical buttons is named by position; a request that is not `dart:io`
 HTTP — gRPC, a platform HTTP client — carries no step.
+
+**A sixth round** (2026-09-30, on `901cc1b0`, through `fw` again, four
+worlds of two staff, an end user invited by SMS and a staff member with no
+account yet) found the fifth's asks holding: the reload's split matched the
+consumer's own probe, its parts adding to `ms` within 2 ms; all seven kinds
+of edit reached the running world; the upload step read better as a tree,
+53 lines with only its 12 hand-offs at the top and its 17 arrivals beneath
+their writes; and the start's claim was right in every one of 6 starts,
+two stream requests each, with nothing joined that should not have been.
+What it moved (2026-09-30):
+
+- **The refusal after a long idle was the script's compiler.** The resident
+  compiler stops itself after 30 minutes without a request, and deletes
+  its info file (`inactivityTimeout` in the SDK's
+  `resident_frontend_server.dart`); the script's VM, finding no file,
+  reloads through its own kernel service, which never compiled the script
+  and refuses. Reproduced in seconds by stopping the compiler under a
+  running script, and cleared by starting one at the same path. So Reload
+  now looks first: a file gone, or naming a port nothing listens on — a
+  compiler a collision took down — is replaced before the reload, and the
+  log and the answer's `note` say why. A compiler that goes down during a
+  reload is said to, and the next one brings it back.
+- **A script that exits during a reload is said to have.** Both collisions
+  the consumer staged killed the script — once their own reloader's
+  uncaught refusal, once the VM aborting on a kernel another reload was
+  writing — and Reload answered a raw `SocketException`: its retry
+  reconnected through the service file the dead script left. It now says
+  the script exited, with its code and the last line it said that was not
+  a stack frame.
+- **A reload is a line of the step it came during.** Seeing that a 30 s
+  job finished on the old code took adding times across two listings. A
+  step still going when a reload came has `reload.4  the code reloaded` in
+  its place, seen at every level, and a line that ran across it ends
+  `across reload.4`. The log line names its step.
+- **A subscription joins by key.** Three of the five subscription lines
+  had landed under the wrong step: two were buckets another person's write
+  gave the phone, which the tap just before had nothing to do with. A
+  bucket now sits beneath the write that brought it its first record, the
+  join that record's arrival already makes; only one nothing explains goes
+  to the person's step before it, and says `joined by time`.
+- **`identify` can carry the phone or address**, so a person declared by
+  those, whose account a step makes and whose app then only syncs, is known
+  by their id rather than as nobody.
+- **A write can say its level**: `'level': 'system'` on a record whose
+  status is what a pipeline decided at each hand-off, which the System
+  level dropped as writes. An arrival whose write a level hides says what
+  that write brought, where the Product level had three arrivals of one
+  record told apart by their op numbers alone.
+
+Left as approximations, deliberately: new to this phone stays read from the
+bucket list, where a bucket held empty from the start has no row until its
+first record, so that record reads as new; and a session that begins
+mid-world — a sign-up, a sign-in by a texted link — sends stepless stream
+requests the start's claim does not reach, and they join nothing. Theirs:
+an app whose database adapter follows no session opened after it started.
+Not looked into yet: a camera button that did nothing and reported nothing,
+where a plugin failing in Dart before it reaches a channel would be
+invisible to `unanswered`.
 
 ### The outbox, begun
 

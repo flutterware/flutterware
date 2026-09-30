@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutterware/server.dart';
 import 'package:flutterware/world.dart';
 
@@ -12,6 +14,13 @@ void main(List<String> args) => World.run(args, (w) async {
   w.action('Greet', (run) => run.progress(greeting()));
   w.action('Route', (run) => run.progress(reloaded('/health')));
   w.action('Route once', (run) => run.progress(once('/health')));
+  // Dies under a reload once the test says so, as a script does whose own
+  // reloader collides with the world's.
+  FlutterwareServer.onReassemble(() {
+    if (!File('build/leave_on_reload').existsSync()) return;
+    print('leaving on reload');
+    exit(3);
+  });
 });
 
 String greeting() => 'hello, v1';

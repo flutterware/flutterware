@@ -103,6 +103,11 @@ enum BeatKind {
   /// A phone subscribing to a sync bucket, or letting one go: the records
   /// written to it before arrive after it, however old.
   subscription,
+
+  /// The world brought to the code on disk while the step was going: what
+  /// was running then finishes on the old code. Its own step, `reload.2`,
+  /// is where a view draws it.
+  reload,
   log,
   error,
 
@@ -197,30 +202,35 @@ class TraceBeat {
       ? _copy(what: what.substring(server.length).trimLeft(), alone: what)
       : this;
 
-  TraceBeat _copy({String? what, String? alone, List<TraceBeat>? children}) =>
-      TraceBeat(
-        at,
-        what ?? this.what,
-        level: level,
-        kind: kind,
-        said: said,
-        server: server,
-        data: data,
-        event: event,
-        alone: alone,
-        person: person,
-        node: node,
-        line: line,
-        inbound: inbound,
-        folded: folded,
-        children: children ?? this.children,
-      );
+  TraceBeat _copy({
+    String? what,
+    String? alone,
+    String? said,
+    List<TraceBeat>? children,
+  }) => TraceBeat(
+    at,
+    what ?? this.what,
+    level: level,
+    kind: kind,
+    said: said ?? this.said,
+    server: server,
+    data: data,
+    event: event,
+    alone: alone,
+    person: person,
+    node: node,
+    line: line,
+    inbound: inbound,
+    folded: folded,
+    children: children ?? this.children,
+  );
 }
 
 /// [beats] as seen at [level]: a line finer than it is left out, and what
-/// happened within it rises into its place, in time with the rest. At
-/// [TraceLevel.product] the SMS a request sent is still seen, where the
-/// request is not, and names the server itself.
+/// happened within it rises into its place, in time with the rest, saying
+/// what it leaned on that line for. At [TraceLevel.product] the SMS a
+/// request sent is still seen, where the request is not, and names the
+/// server itself; a record's arrival says what its hidden write brought.
 List<TraceBeat> atLevel(List<TraceBeat> beats, TraceLevel level) => [
   for (var beat in _seenAt(beats, level))
     beat.alone == null ? beat : beat._copy(what: beat.alone),
@@ -236,7 +246,10 @@ List<TraceBeat> _seenAt(List<TraceBeat> beats, TraceLevel level) {
           children: _seenAt(beat.children, level),
         )
       else
-        ..._seenAt(beat.children, level),
+        for (var risen in _seenAt(beat.children, level))
+          risen.alone == null
+              ? risen
+              : risen._copy(what: risen.alone, alone: risen.alone),
   ];
   mergeSort(seen, compare: (a, b) => a.at.compareTo(b.at));
   return seen;
@@ -663,6 +676,19 @@ class WorldTrace {
         ? event.payload['from']
         : null;
     var server = from is String && from.isNotEmpty ? from : reporter;
+    // A user the server knows by the phone or address a person was declared
+    // with is them: an account a step made, whose own requests — a sync
+    // engine's — carry no step to say whose.
+    if (event.channel == 'identify' && event.payload['user'] is String) {
+      var phone = event.payload['phone'];
+      var email = event.payload['email'];
+      var person =
+          (phone is String ? _phones[phone] : null) ??
+          (email is String ? _emails[email.toLowerCase()] : null);
+      if (person != null) {
+        _users.putIfAbsent(event.payload['user']! as String, () => person);
+      }
+    }
     _summarize(server, event);
     String? step;
     if (event.payload['step'] case String id) {
@@ -1193,9 +1219,12 @@ class WorldTrace {
   String _written(Map<String, Object?> payload) => [
     '${payload['op']}',
     for (var MapEntry(:key, :value) in payload.entries)
-      if (!const {'table', 'key', 'op', 'step', 'layer'}.contains(key))
+      if (!_notWritten.contains(key))
         '$key ${value is String ? _users[value] ?? _short(value) : value}',
   ].join(' · ');
+
+  /// What a write event says of itself rather than of its record.
+  static const _notWritten = {'table', 'key', 'op', 'step', 'layer', 'level'};
 
   void _add<T>(List<T> list, T item) {
     list.add(item);
@@ -1300,9 +1329,15 @@ class WorldTrace {
           : confirmed
           ? '$name confirmed$op'
           : '$name arrived$op';
+      var write = local ? null : _writeOf(record);
       var beat = TraceBeat(
         record.at,
         '${record.person}  $said',
+        // Beneath its write it says no more than which record: the write
+        // says what it brought, until a level hides it.
+        alone: write == null
+            ? null
+            : '${record.person}  $said · ${_written(write.payload)}',
         // Arriving on someone else's phone is what the step was for; the
         // writer's own copy coming back is the engine at work.
         level: local || confirmed ? TraceLevel.wire : TraceLevel.product,
@@ -1321,36 +1356,125 @@ class WorldTrace {
         line: local ? null : '$name$op',
         inbound: !local,
       );
-      if (local) {
+      if (write == null) {
         beats.add(beat);
       } else {
-        received.add((beat, _writeOf(record)!));
+        received.add((beat, write));
       }
     }
+    // A bucket is the step's whose write brought it its first record — the
+    // join its records make, by key — and sits beneath that write. One no
+    // such write explains is the person's step just before it, and says so.
     for (var subscription in _subscriptions) {
-      if (_stepBy(subscription.person, subscription.at)?.id != step.id) {
+      var write = _subscribedBy(subscription);
+      var byTime = write?.step == null;
+      if (byTime
+          ? _stepBy(subscription.person, subscription.at)?.id != step.id
+          : write!.step != step.id) {
         continue;
       }
-      var said = subscription.subscribed
-          ? 'subscribed to ${subscription.bucket}'
-          : 'let go of ${subscription.bucket}';
-      beats.add(
-        TraceBeat(
-          subscription.at,
-          '${subscription.person}  $said',
-          level: TraceLevel.system,
-          kind: BeatKind.subscription,
-          said: said,
-          data: {
-            'bucket': subscription.bucket,
-            'change': subscription.subscribed ? 'subscribed' : 'unsubscribed',
-          },
-          person: subscription.person,
-        ),
+      var said =
+          '${subscription.subscribed ? 'subscribed to' : 'let go of'} '
+          '${subscription.bucket}${byTime ? ', joined by time' : ''}';
+      var beat = TraceBeat(
+        subscription.at,
+        '${subscription.person}  $said',
+        level: TraceLevel.system,
+        kind: BeatKind.subscription,
+        said: said,
+        data: {
+          'bucket': subscription.bucket,
+          'change': subscription.subscribed ? 'subscribed' : 'unsubscribed',
+          if (byTime) 'byTime': true,
+        },
+        person: subscription.person,
+      );
+      if (byTime) {
+        beats.add(beat);
+      } else {
+        received.add((beat, write!));
+      }
+    }
+    return _withReloads(
+      step,
+      _beneathWrites(beats, received)..sort((a, b) => a.at.compareTo(b.at)),
+    );
+  }
+
+  /// The write that gave [subscription]'s bucket its first record on the
+  /// phone — the record the watch read with the bucket — when one did.
+  _ServerEvent? _subscribedBy(_Subscription subscription) {
+    if (!subscription.subscribed) return null;
+    _Record? first;
+    for (var record in _records) {
+      if (record.person != subscription.person ||
+          record.bucket != subscription.bucket ||
+          record.change.startsWith('local ') ||
+          record.at.isBefore(subscription.at) ||
+          record.at.difference(subscription.at) > _sameRead) {
+        continue;
+      }
+      if (first == null || record.at.isBefore(first.at)) first = record;
+    }
+    return first == null ? null : _writeOf(first);
+  }
+
+  /// How far apart the watch reports what it read at once.
+  static const _sameRead = Duration(seconds: 2);
+
+  /// [beats] with each reload that came while [step] was going — after it,
+  /// before the last of what it caused ended — as a line in its place, and
+  /// each line that was running when it came saying so: `done in 30.1 s,
+  /// across reload.4`. What ran across a reload began on the old code.
+  List<TraceBeat> _withReloads(TraceStep step, List<TraceBeat> beats) {
+    var began = step.at;
+    if (began == null || beats.isEmpty || step.verb == 'reload') return beats;
+    DateTime endOf(TraceBeat beat) => switch (beat.data['ms']) {
+      num ms => beat.at.add(Duration(microseconds: (ms * 1000).round())),
+      _ => beat.at,
+    };
+    var ended = began;
+    for (var beat in everyBeat(beats)) {
+      if (endOf(beat).isAfter(ended)) ended = endOf(beat);
+    }
+    var reloads = [
+      for (var reload in _steps.values)
+        if (reload.verb == 'reload' &&
+            reload.at != null &&
+            reload.at!.isAfter(began) &&
+            !reload.at!.isAfter(ended))
+          reload,
+    ];
+    if (reloads.isEmpty) return beats;
+    TraceBeat across(TraceBeat beat) {
+      var children = [for (var child in beat.children) across(child)];
+      var spanned = [
+        for (var reload in reloads)
+          if (reload.at!.isAfter(beat.at) && reload.at!.isBefore(endOf(beat)))
+            reload.id,
+      ];
+      var mark = spanned.isEmpty ? '' : ', across ${spanned.join(', ')}';
+      return beat._copy(
+        what: '${beat.what}$mark',
+        alone: beat.alone == null ? null : '${beat.alone}$mark',
+        said: '${beat.said}$mark',
+        children: children,
       );
     }
-    return _beneathWrites(beats, received)
-      ..sort((a, b) => a.at.compareTo(b.at));
+
+    return _byTime([
+      for (var beat in beats) across(beat),
+      for (var reload in reloads)
+        TraceBeat(
+          reload.at!,
+          '${reload.id}  the code reloaded',
+          // A moment of the whole world's, seen at every level.
+          level: TraceLevel.product,
+          kind: BeatKind.reload,
+          said: 'the code reloaded',
+          data: {'step': reload.id, 'note': ?reload.note},
+        ),
+    ]);
   }
 
   /// [person]'s newest step at or before [at]: what a phone did on its own
@@ -1712,7 +1836,7 @@ class WorldTrace {
       var updated = TraceBeat(
         event.time,
         '${event.server}  $said',
-        level: TraceLevel.wire,
+        level: _levelOf(run.last.payload),
         kind: BeatKind.write,
         said: said,
         server: event.server,
@@ -1725,6 +1849,11 @@ class WorldTrace {
     return beats;
   }
 
+  /// The level a write says it is seen at — `level: system` for a row whose
+  /// status is what a pipeline decided at each hand-off — or the wire's.
+  static TraceLevel _levelOf(Map<String, Object?> write) =>
+      TraceLevel.values.asNameMap()[write['level']] ?? TraceLevel.wire;
+
   static bool _isUpdate(_ServerEvent event) =>
       event.channel == 'write' && event.payload['op'] == 'update';
 
@@ -1734,9 +1863,7 @@ class WorldTrace {
     var values = <String, List<String>>{};
     for (var write in writes) {
       for (var MapEntry(:key, :value) in write.payload.entries) {
-        if (const {'table', 'key', 'op', 'step', 'layer'}.contains(key)) {
-          continue;
-        }
+        if (_notWritten.contains(key)) continue;
         var said =
             '${value is String ? _users[value] ?? _short(value) : value}';
         var seen = values.putIfAbsent(key, () => []);
@@ -1906,7 +2033,7 @@ class WorldTrace {
         return by(
           _writeLine(payload),
           kind: BeatKind.write,
-          level: TraceLevel.wire,
+          level: _levelOf(payload),
           node: system?.tableNode('${payload['table']}'),
         );
       case 'sms':

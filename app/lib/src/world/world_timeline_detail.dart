@@ -307,7 +307,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
           [
             _Block.fields(
               run ? 'Where it ended' : 'The row',
-              _fields(data, leave: const {'step', 'layer'}),
+              _fields(data, leave: const {'step', 'layer', 'level'}),
             ),
             if (run)
               _Block.code('Each write', beat.folded.join('\n'))
@@ -394,9 +394,12 @@ class _TimelineDetailState extends State<TimelineDetail> {
       case BeatKind.subscription:
         var bucket = '${data['bucket']}';
         var subscribed = data['change'] == 'subscribed';
-        var under =
-            "The last step on $person's phone before it: ${causeOf(step)} "
-            '(${step.id}), which it is shown under.';
+        var under = data['byTime'] == true
+            ? 'Nothing says what caused it, so it is shown under the last '
+                  "step on $person's phone before it: ${causeOf(step)} "
+                  '(${step.id}).'
+            : 'Its first record came with a write of ${causeOf(step)} '
+                  '(${step.id}), which it is shown under.';
         return (
           subscribed
               ? "$person's phone subscribed to $bucket."
@@ -425,6 +428,12 @@ class _TimelineDetailState extends State<TimelineDetail> {
             if (beat.kind == BeatKind.job)
               _Block.fields('The job', _fields(data, leave: const {'step'})),
           ],
+        );
+      case BeatKind.reload:
+        return (
+          'The world reloaded the code (${data['step']}).',
+          ['What was running then finished on the old code.'],
+          const [],
         );
       case BeatKind.log || BeatKind.error || BeatKind.other:
         return (

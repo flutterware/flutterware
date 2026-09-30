@@ -7155,6 +7155,12 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
         'doc': 'Its moment in the trace, `reload.2`, which `worlds trace --step` reads.',
       },
+      <String, Object?>{
+        'name': 'note',
+        'type': 'String',
+        'optional': true,
+        'doc': 'What it had to do first, and why: a fresh compiler for the script, when its own had stopped.',
+      },
     ],
   }),
   'WorldShowResult': ResultShape.fromJson(<String, Object?>{

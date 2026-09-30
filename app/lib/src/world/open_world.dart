@@ -219,7 +219,7 @@ class OpenWorld {
       throw WorldRefusal(why);
     }
 
-    ({Duration code, Duration reassemble}) took;
+    ({Duration code, Duration reassemble, String? compiler}) took;
     DateTime reloadedAt;
     try {
       took = await script.reload();
@@ -227,7 +227,12 @@ class OpenWorld {
       reloadedAt = DateTime.now();
     } on WorldScriptReloadFailed catch (failure) {
       refuse(
-        failure.reloaded
+        failure.exited != null
+            ? '${failure.message}\nNothing was reloaded, and what it hosted '
+                  'went with it. Two reloads at once — a hot reloader of your '
+                  'own inside the script, say — can take it down. Restart '
+                  'starts it again.'
+            : failure.reloaded
             ? 'The script reloaded, but a reassemble callback failed; what '
                   'it was rebuilding serves as it was.\n${failure.message}'
             : failure.refused
@@ -252,20 +257,29 @@ class OpenWorld {
     }
     String secs(Duration took) =>
         '${(took.inMilliseconds / 1000).toStringAsFixed(2)} s';
-    var said =
-        'Reloaded in ${secs(watch.elapsed)}: the script in '
-        '${secs(took.code)}, its onReassemble in ${secs(took.reassemble)}'
+    var elapsed = watch.elapsed;
+    var parts =
+        'the script in ${secs(took.code)}, its onReassemble in '
+        '${secs(took.reassemble)}'
         '${apps.isEmpty ? '' : ', ${[for (var build in apps) build.label].join(', ')} in ${secs(appsWatch.elapsed)}'}';
-    var reloaded = WorldReload(
-      elapsed: watch.elapsed,
+    var step = tracer?.trace.addReload(
+      reloadedAt,
+      note: 'Reloaded in ${secs(elapsed)}: $parts',
+    );
+    if (took.compiler case var compiler?) _say('$compiler.');
+    _say(
+      'Reloaded in ${secs(elapsed)}${step == null ? '' : ' ($step)'}: '
+      '$parts',
+    );
+    return WorldReload(
+      elapsed: elapsed,
       script: took.code,
       reassemble: took.reassemble,
       appsTook: appsWatch.elapsed,
       apps: [for (var build in apps) build.label],
-      step: tracer?.trace.addReload(reloadedAt, note: said),
+      step: step,
+      note: took.compiler,
     );
-    _say(said);
-    return reloaded;
   }
 
   /// Runs [action] and answers when it ends, or after [wait] with it still
@@ -1147,11 +1161,15 @@ class WorldReload {
     this.reassemble = Duration.zero,
     this.appsTook = Duration.zero,
     this.step,
+    this.note,
   });
 
   /// Its moment in the trace, `reload.2`: what came after it ran the new
   /// code, but for work already running.
   final String? step;
+
+  /// What it had to do first, and why: a fresh compiler, for one.
+  final String? note;
 
   /// The whole of it: [script], [reassemble], then [appsTook].
   final Duration elapsed;

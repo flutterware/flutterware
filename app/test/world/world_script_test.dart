@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware_app/src/world/world_script.dart';
+import 'package:path/path.dart' as p;
 import 'package:vm_service/vm_service.dart';
 
 void main() {
@@ -60,7 +63,7 @@ void main() {
     expect(calls(), 1);
   });
 
-  test('a compiler that is gone is said at once, with the way out', () {
+  test('a compiler that went down is said at once, with the way out', () {
     var (reload, calls) = vm([
       RPCError.withDetails(
         'reloadSources',
@@ -79,12 +82,34 @@ void main() {
             .having(
               (f) => f.message,
               'message',
-              allOf(contains('compiler is gone'), contains('Restart')),
+              allOf(contains('compiler went down'), contains('Reload again')),
             ),
       ),
     );
     expect(calls(), 1);
   });
+
+  test('a compiler that died is replaced at the same path, and one that '
+      'answers is left alone', () async {
+    var compiler = WorldCompiler(
+      p.join(Platform.environment['FLUTTER_ROOT']!, 'bin', 'dart'),
+    );
+    addTearDown(compiler.shutdown);
+    // What a compiler that died leaves: its file, naming a port nobody
+    // listens on.
+    var gone = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    var port = gone.port;
+    await gone.close();
+    File(compiler.infoFile)
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync('address:127.0.0.1 sdkHash:0 port:$port ');
+
+    expect(await compiler.revive(), contains('had died'));
+    var info = File(compiler.infoFile).readAsStringSync();
+    expect(info, isNot(contains('port:$port ')));
+    expect(await compiler.revive(), isNull);
+    expect(File(compiler.infoFile).readAsStringSync(), info);
+  }, timeout: const Timeout(Duration(minutes: 1)));
 
   test('still refused once it has waited long enough, saying why', () async {
     var (reload, _) = vm(List.filled(1000, reloading));
