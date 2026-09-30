@@ -119,6 +119,28 @@ void main() {
       core.dispose();
     });
 
+    /// Loading never probes and only the studio polls, so on a worktree
+    /// nothing has probed `fw status` and the MCP server answered
+    /// `State: unknown / Checked: never` indefinitely, with no way forward in
+    /// the answer.
+    test('a reading nobody has taken says how to take one', () async {
+      var core = coreWith(localEnvConfig());
+      await core.computeAll();
+      expect(ran, isEmpty);
+      var text = core.report.view.toText();
+      expect(text, contains('State: unknown'));
+      expect(text, contains('`fw run dev_stack status` runs the probe'));
+
+      responses['stack doctor'] = ProcessResult(0, 0, 'All checks passed.', '');
+      await core.invoke('status');
+      expect(
+        core.report.view.toText(),
+        isNot(contains('fw run dev_stack status')),
+        reason: 'once there is a reading, the hint is noise',
+      );
+      core.dispose();
+    });
+
     test('reads back what a previous probe cached', () async {
       var first = coreWith(localEnvConfig());
       responses['stack doctor'] = ProcessResult(0, 0, 'All checks passed.', '');

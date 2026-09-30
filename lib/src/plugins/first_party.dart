@@ -1351,6 +1351,12 @@ class DevStack extends Plugin {
   /// stack does not come up twice a minute — and only the shell knows about
   /// window focus and which panel is on screen. So the shell scales this rather
   /// than replacing it, and a stack that is nowhere on screen is not polled.
+  ///
+  /// Only the studio polls. `fw` and the MCP server never do: they report the
+  /// reading the last probe left in the shared cache, from whichever process
+  /// ran it, and on a worktree nothing has probed yet that reading is
+  /// `unknown`. The `status` action is what goes and looks, and every surface
+  /// reads its answer afterwards.
   final Duration poll;
 
   /// How long to wait for `start`, `stop` or a [StackCommand] before giving up
