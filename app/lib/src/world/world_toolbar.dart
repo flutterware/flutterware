@@ -14,9 +14,14 @@ import '../ui/theme.dart';
 import 'open_world.dart';
 import 'world_person.dart' show PersonDot;
 
+/// How the open world is looked at: everyone's apps side by side, or what
+/// happened in it, in order.
+enum WorldView { phones, timeline }
+
 /// The open world's one toolbar: on the left what can be done to it — its
 /// knobs, each a restart with a new value, then its actions, run in the world
-/// as it is — and on the right who is in view: everyone, or one person.
+/// as it is — and on the right how it is looked at, and who is in view:
+/// everyone, or one person.
 class WorldToolbar extends StatelessWidget {
   const WorldToolbar({
     super.key,
@@ -25,6 +30,8 @@ class WorldToolbar extends StatelessWidget {
     required this.focus,
     required this.colorOf,
     required this.onFocus,
+    required this.view,
+    required this.onView,
   });
 
   final OpenWorld world;
@@ -36,6 +43,8 @@ class WorldToolbar extends StatelessWidget {
   final String? focus;
   final Color Function(String person) colorOf;
   final ValueChanged<String?> onFocus;
+  final WorldView view;
+  final ValueChanged<WorldView> onView;
 
   static const height = 44.0;
 
@@ -90,7 +99,35 @@ class WorldToolbar extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          var used = _widthOf(context, knobs, world.actions.keys);
+          var views = [
+            FwSegment(
+              WorldView.phones,
+              'Phones',
+              leading: Icon(
+                Icons.devices_other,
+                size: FwIconSize.sm,
+                color: colors.ink2,
+              ),
+              tooltip: "Everyone's apps, side by side",
+            ),
+            FwSegment(
+              WorldView.timeline,
+              'Timeline',
+              leading: Icon(
+                Icons.view_timeline_outlined,
+                size: FwIconSize.sm,
+                color: colors.ink2,
+              ),
+              tooltip: 'What happened in the world, in order',
+            ),
+          ];
+          var used =
+              _widthOf(context, knobs, world.actions.keys) +
+              FwSegmented.trayInset +
+              views
+                  .map((view) => FwSegmented.widthOf(context, view))
+                  .fold(0.0, (a, b) => a + b) +
+              FwSpacing.lg;
           return Row(
             children: [
               for (var (i, control) in left.indexed) ...[
@@ -98,7 +135,13 @@ class WorldToolbar extends StatelessWidget {
                 control,
               ],
               const Spacer(),
-              if (world.people.isNotEmpty)
+              FwSegmented<WorldView>(
+                segments: views,
+                selected: view,
+                onChanged: onView,
+              ),
+              if (world.people.isNotEmpty) ...[
+                const SizedBox(width: FwSpacing.lg),
                 _PeopleSwitch(
                   people: world.people.keys.toList(),
                   focus: focus,
@@ -106,6 +149,7 @@ class WorldToolbar extends StatelessWidget {
                   onFocus: onFocus,
                   room: constraints.maxWidth - used - FwSpacing.xxl,
                 ),
+              ],
             ],
           );
         },

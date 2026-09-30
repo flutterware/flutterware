@@ -9,6 +9,7 @@ import '../../run/entrypoints.dart';
 import '../../world/open_world.dart';
 import '../../world/world_files.dart';
 import '../../world/world_owner.dart';
+import '../../world/world_trace.dart' show TraceLevel;
 import '../plugin_core.dart';
 import '../plugin_host.dart';
 import 'run_core.dart' show runPluginId;
@@ -208,6 +209,25 @@ class WorldsCore extends PluginCore {
               'request or a job ran, its writes to a table in a layer, each '
               "of a record's updates in a row. Without it a line says how "
               'many.',
+        ),
+        ActionParameter(
+          'level',
+          'Level',
+          kind: ActionParameterKind.choice,
+          required: false,
+          defaultValue: 'wire',
+          description:
+              'How far into the system to go. `product`: what people did '
+              'and what reached someone else — messages sent outside, '
+              "updates and records arriving on another person's app. "
+              '`system` adds the calls and jobs; `wire`, the writes, '
+              'statements and sync. What a hidden line caused still shows, '
+              'in its place',
+          options: [
+            ActionOption('product', label: 'Product'),
+            ActionOption('system', label: 'System'),
+            ActionOption('wire', label: 'Wire'),
+          ],
         ),
         _worldParameter,
       ],
@@ -729,6 +749,14 @@ class WorldsCore extends PluginCore {
     return WorldTraceResult.of(
       traced,
       statements: arguments['statements'] == true,
+      level: switch (arguments['level']) {
+        String named =>
+          TraceLevel.values.asNameMap()[named] ??
+              (throw WorldRefusal(
+                'There is no level $named: product, system or wire.',
+              )),
+        _ => TraceLevel.wire,
+      },
       note: traced.isEmpty
           ? 'No step yet: a step is a tap on one of the apps, by a person or '
                 'through `flutterware_act`.'

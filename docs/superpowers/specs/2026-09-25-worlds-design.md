@@ -885,6 +885,22 @@ Link path prefixes a project could declare were left: an adapter naming its
 touches it — nine calls a phone in the consumer's app, config to sync
 streams — joins it by window, for 10 s or until the first gesture.
 
+**Each line has a level** (2026-09-30): the *Layers* above, given to the
+trace ahead of a timeline that shows one at a time. **Product** is a
+message sent outside, an update the server pushed to anyone but the person
+who acted, a record arriving on another person's phone. **System** adds the
+calls, the jobs, an update back to whoever acted, an error, and a channel
+the trace has no words for. **Wire** adds the writes, the statements, which
+user a request is, a record written locally or confirmed to the phone that
+wrote it, and a server's log lines. A line hidden at a level lets what
+happened within it rise into its place, naming its server: at Product,
+`lab → Leo by SMS` stands where the call that sent it does not.
+`worlds trace` takes `level`, Wire by default. On the lab's *Pickup order*,
+twelve steps hold 9 lines at Product, 28 at System and 34 at Wire. A group of
+server events headed by no request or job, with nothing to say — the
+server's side of a live connection opening, whose only news was a user it
+already knew — is no longer a bare `lab` line.
+
 What it does not do yet, each a known next step: the world's opening takes
 no step, because what its body starts — the server it hosts, a timer —
 would step under it for ever after, so the sign-ups a script seeds are
@@ -1142,6 +1158,32 @@ triggered.
      the app with what it opened, and keeps the platform's controls under
      `⋯`. The world log is the first tab of the dock Previews, Scenarios and
      Run share.
+   - **The timeline comes back as a view of its own** (2026-09-30; mockups
+     on the canvas *Worlds timeline view*, redrawn from two recordings of
+     the lab). Not beside the phones — A2's column was what made that
+     screen hard to read — but a *Phones · Timeline* switch in the toolbar,
+     the timeline taking the stage's room: a sequence diagram with a column
+     for each person and each part of the system, time running down, a
+     pill for what someone did and an arrow for what reached someone, in
+     the colour of whoever caused it. Product, System and Wire are the
+     trace's levels (*Traces, as built*); a column's name, or a person in
+     the toolbar, shows only what touches it; a broadcast is one arrow with
+     a dot on each person it reached on the way; three rows alike on one
+     step fold into one; a pause is marked. The columns come from every
+     level, so switching level never moves one. Built from what the trace
+     already held: each line now says its kind, its server and its words
+     apart from who it passed between (`TraceBeat.kind`, `server`, `said`).
+     A row opens in place onto its data, its step lit and the rest faded
+     (built the same day): a call's request and response are read from the
+     app that sent it — its VM's HTTP profile, as Run's Network tab reads
+     it, matched by method, path and time and confirmed by the `x-fw-step`
+     header — with authorization, cookie and token values cut to their
+     first characters; a write shows its fields and the statements its
+     request ran; a message its code and links, a mail WebKit's picture of
+     it; the world's own request says only the server's side exists. Each
+     line of the trace keeps what it was reported with (`TraceBeat.data`,
+     `event`). Screens after a step are left out until the timeline in use
+     asks for them.
    - Not yet: focus, credentials, pending questions; contents pulled from a
      server rather than heard.
 3. **Server panels** over `FlutterwareServer.handle`, and **reload of the

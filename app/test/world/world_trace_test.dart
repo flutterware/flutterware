@@ -38,9 +38,13 @@ void main() {
     {'step': id, 'verb': 'tap', 'target': target},
   );
 
-  Map<String, List<String>> traced({String? person}) => {
+  Map<String, List<String>> traced({
+    String? person,
+    TraceLevel level = TraceLevel.wire,
+  }) => {
     for (var step in WorldTraceResult.of(
       trace.steps(person: person, limit: 20),
+      level: level,
     ).steps)
       '${step.step} ${step.did}': step.then,
   };
@@ -163,6 +167,33 @@ void main() {
     });
     expect(traced()['ben.1 tap "Refresh"'], [
       '+300 ms  Ben → api.example.com:443  GET /feed, joined by time',
+    ]);
+  });
+
+  test("the server's side of a live connection is left out when all it "
+      'heard was a user it knew', () {
+    step('Ben', 'ben.1', 1000, '"Sign in"');
+    for (var (ms, path) in [(1001, '/me'), (1004, '/live')]) {
+      app('Ben', ms, worldRequestsChannel, {
+        'step': 'ben.1',
+        'method': 'GET',
+        'url': 'localhost:5040$path',
+        'how': 'zone',
+      });
+    }
+    lab(1002, 'identify', {'user': 'u2', 'step': 'ben.1'}, 'r1');
+    lab(1003, 'http', {
+      'method': 'GET',
+      'path': '/me',
+      'status': 200,
+      'step': 'ben.1',
+    }, 'r1');
+    // The upgrade, which never reports its `http`.
+    lab(1005, 'identify', {'user': 'u2', 'step': 'ben.1'}, 'r2');
+    expect(traced()['ben.1 tap "Sign in"'], [
+      '+1 ms  Ben → lab  GET /me  200',
+      '  +2 ms  knows Ben as u2',
+      '+4 ms  Ben → lab  GET /live',
     ]);
   });
 
@@ -984,6 +1015,125 @@ void main() {
         '  +260 ms  → Cleo by push  Mia — Your upload is ready',
         '+1000 ms  lab  2 statements, 2.0 ms',
         '+8000 ms  lab  1 statement, 2.0 ms',
+      ]);
+    });
+  });
+
+  group('levels', () {
+    test('each line is seen at its level and finer ones, and what a hidden '
+        'line caused rises into its place, naming the server', () {
+      step('Ben', 'ben.1', 1000, '"Order"');
+      app('Ben', 1004, worldRequestsChannel, {
+        'step': 'ben.1',
+        'method': 'POST',
+        'url': 'localhost:5040/orders',
+        'how': 'zone',
+      });
+      lab(1005, 'identify', {'user': 'u2', 'step': 'ben.1'}, 'r1');
+      lab(1006, 'write', {
+        'table': 'orders',
+        'key': 'o5',
+        'op': 'insert',
+        'step': 'ben.1',
+      }, 'r1');
+      for (var (ms, user) in [(1007, 'u1'), (1008, 'u2')]) {
+        lab(ms, 'reach', {
+          'user': user,
+          'what': 'order o5 · placed',
+          'step': 'ben.1',
+        }, 'r1');
+      }
+      lab(1009, 'sms', {
+        'to': '+447700900001',
+        'body': 'Your order is placed',
+        'step': 'ben.1',
+      }, 'r1');
+      lab(1010, 'http', {
+        'method': 'POST',
+        'path': '/orders',
+        'status': 201,
+        'ms': 4,
+        'step': 'ben.1',
+      }, 'r1');
+      app('Ben', 1020, 'db:main/records', {
+        'key': 'o5',
+        'table': 'orders',
+        'change': 'local insert',
+      });
+      for (var (ms, person, op) in [(1040, 'Cleo', 16), (1270, 'Ben', 15)]) {
+        app(person, ms, 'db:main/records', {
+          'key': 'o5',
+          'table': 'orders',
+          'change': 'synced',
+          'op': op,
+        });
+      }
+
+      const order = 'ben.1 tap "Order"';
+      expect(traced()[order], [
+        '+4 ms  Ben → lab  POST /orders  201 in 4.0 ms',
+        '  +5 ms  knows Ben as u2',
+        '  +6 ms  wrote orders/o5 (insert)',
+        '  +7 ms  → Cleo  order o5 · placed',
+        '  +8 ms  → Ben  order o5 · placed',
+        '  +9 ms  → Ben by SMS  Your order is placed',
+        '+20 ms  Ben  wrote orders/o5 locally',
+        '+40 ms  Cleo  orders/o5 arrived (op 16)',
+        '+270 ms  Ben  orders/o5 confirmed (op 15)',
+      ]);
+      // The call, and the update back to Ben's own app, which asked.
+      expect(traced(level: TraceLevel.system)[order], [
+        '+4 ms  Ben → lab  POST /orders  201 in 4.0 ms',
+        '  +7 ms  → Cleo  order o5 · placed',
+        '  +8 ms  → Ben  order o5 · placed',
+        '  +9 ms  → Ben by SMS  Your order is placed',
+        '+40 ms  Cleo  orders/o5 arrived (op 16)',
+      ]);
+      // What reached somebody: the call is gone, and what it sent says
+      // which server sent it.
+      expect(traced(level: TraceLevel.product)[order], [
+        '+7 ms  lab → Cleo  order o5 · placed',
+        '+9 ms  lab → Ben by SMS  Your order is placed',
+        '+40 ms  Cleo  orders/o5 arrived (op 16)',
+      ]);
+    });
+
+    test("a job is the system's, what it wrote and logged the wire's", () {
+      trace.addActionStep(
+        'world.1',
+        'Upload',
+        since.add(const Duration(seconds: 1)),
+      );
+      Map<String, Object?> by(Map<String, Object?> payload) => {
+        ...payload,
+        'step': 'world.1',
+      };
+      lab(1100, 'job', by({'name': 'thumbnail'}), 'job-1');
+      lab(
+        1150,
+        'write',
+        by({'table': 'uploads', 'key': 'u1', 'op': 'update', 'status': 'ok'}),
+        'job-1',
+      );
+      lab(1260, 'push', by({'to': 'u1', 'title': 'Upload ready'}), 'job-1');
+      lab(1300, 'job', by({'name': 'thumbnail', 'ms': 200.0}), 'job-1');
+      lab(2000, 'log', by({'message': 'swept 2 leases'}));
+
+      Map<String, List<String>> at(TraceLevel level) =>
+          traced(person: worldActionsOwner, level: level);
+      const upload = 'world.1 action "Upload"';
+      expect(at(TraceLevel.wire)[upload], [
+        '+100 ms  lab  job thumbnail, done in 200 ms',
+        '  +150 ms  wrote uploads/u1 (update · status ok)',
+        '  +260 ms  → Cleo by push  Upload ready',
+        '+1000 ms  lab  swept 2 leases',
+      ]);
+      expect(at(TraceLevel.system)[upload], [
+        '+100 ms  lab  job thumbnail, done in 200 ms',
+        '  +260 ms  → Cleo by push  Upload ready',
+      ]);
+      expect(at(TraceLevel.product)[upload], [
+        '+260 ms  lab → Cleo by push  Upload ready',
       ]);
     });
   });

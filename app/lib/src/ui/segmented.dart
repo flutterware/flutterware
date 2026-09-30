@@ -5,13 +5,23 @@ import 'theme.dart';
 
 /// One option of an [FwSegmented].
 class FwSegment<T> {
-  const FwSegment(this.value, this.label, {this.leading, this.tooltip});
+  const FwSegment(
+    this.value,
+    this.label, {
+    this.leading,
+    this.count,
+    this.tooltip,
+  });
 
   final T value;
   final String label;
 
   /// Before the label: a dot, a small icon.
   final Widget? leading;
+
+  /// After the label, muted: how many of something choosing it shows —
+  /// *Product 9 · System 28*.
+  final int? count;
   final String? tooltip;
 }
 
@@ -47,7 +57,11 @@ class FwSegmented<T> extends StatelessWidget {
   /// How wide [segment] is drawn, for a caller deciding how many fit.
   static double widthOf(BuildContext context, FwSegment<Object?> segment) {
     var painter = TextPainter(
-      text: TextSpan(text: segment.label, style: _style(context, true)),
+      text: TextSpan(
+        text: segment.label,
+        style: _style(context, true),
+        children: [?_countOf(context, segment)],
+      ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout();
@@ -61,6 +75,15 @@ class FwSegmented<T> extends StatelessWidget {
 
   /// The tray around the segments, without them.
   static const trayInset = 2 * (_inset + 1);
+
+  static TextSpan? _countOf(BuildContext context, FwSegment<Object?> segment) =>
+      switch (segment.count) {
+        var count? => TextSpan(
+          text: ' $count',
+          style: context.type.bodySmall.copyWith(color: context.colors.mut),
+        ),
+        null => null,
+      };
 
   static TextStyle _style(BuildContext context, bool chosen) =>
       context.type.bodySmall.copyWith(
@@ -121,7 +144,14 @@ class FwSegmented<T> extends StatelessWidget {
             leading,
             const SizedBox(width: FwSpacing.sm),
           ],
-          Text(segment.label, style: _style(context, chosen), maxLines: 1),
+          Text.rich(
+            TextSpan(
+              text: segment.label,
+              style: _style(context, chosen),
+              children: [?_countOf(context, segment)],
+            ),
+            maxLines: 1,
+          ),
         ],
       ),
     );
