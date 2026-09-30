@@ -656,6 +656,14 @@ class OpenWorld {
   /// then would not be waited for.
   Future<void> _declare(Person spec) async {
     var previous = people[spec.name];
+    // Everyone the script names, app or not: what the world does as a
+    // headless person reaches the servers under their user id alone.
+    tracer?.trace.addPerson(
+      spec.name,
+      userId: spec.userId,
+      phone: spec.phone,
+      email: spec.email,
+    );
     var app = spec.app;
     if (app == null) {
       people[spec.name] = WorldPerson(spec)..phase = PersonPhase.headless;
@@ -747,16 +755,7 @@ class OpenWorld {
     );
     build.people.add(person);
     person.phase = PersonPhase.running;
-    unawaited(
-      tracer?.follow(
-        name,
-        person.handle!,
-        userId: person.spec.userId,
-        phone: person.spec.phone,
-        email: person.spec.email,
-        links: build.links,
-      ),
-    );
+    unawaited(tracer?.follow(name, person.handle!, links: build.links));
   }
 
   /// The entry point [app] names, and its knobs as its `main` takes them.

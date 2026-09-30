@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 // ignore: implementation_imports
+import 'package:flutterware/src/server/attach_session.dart';
+// ignore: implementation_imports
 import 'package:flutterware/src/ui_catalog/knob.dart';
+import 'package:flutterware_app/src/plugins/native/worlds_results.dart';
 import 'package:flutterware_app/src/run/entrypoint_knobs.dart';
 import 'package:flutterware_app/src/utils/parameter_knobs.dart';
 import 'package:flutterware_app/src/utils/run_dir.dart';
@@ -231,6 +234,73 @@ void main() {
       Directory(flutterwareRunDir()).listSync().map((e) => p.basename(e.path)),
       isNot(contains(startsWith('world-compiler-$pid-'))),
     );
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('knows its people without an app by their user id, phone and address, '
+      'and knows the new ones after a restart', () async {
+    var world = OpenWorld(
+      file: const WorldFile(
+        package: 'app',
+        path: 'test/world/fixtures/headless_world.dart',
+        name: 'Headless',
+      ),
+      worktree: p.dirname(Directory.current.path),
+      flutterSdkRoot: Platform.environment['FLUTTER_ROOT']!,
+      appRoot: Directory.current.path,
+      entrypoints: const [],
+      guests: (_) => throw StateError('nobody here has an app'),
+      runDir: () => emptyRunDir,
+    );
+    addTearDown(world.close);
+    var sent = 0;
+    void lab(String channel, Map<String, Object?> payload) =>
+        world.tracer!.trace.addServerEvent(
+          'lab',
+          InspectorEvent(
+            channel: channel,
+            id: sent++,
+            time: DateTime.now(),
+            payload: payload,
+            isReplay: false,
+          ),
+        );
+    List<String> traced(String step) =>
+        WorldTraceResult.of(world.tracer!.trace.steps(step: step))
+            .steps
+            .single
+            .then;
+
+    await world.open();
+    expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+    expect(world.people['Ana']!.phase, PersonPhase.headless);
+
+    // What the world does as Ana is Ana's, by the name the script gave.
+    var wave = await world.invoke('Wave');
+    lab('identify', {'user': 'u1', 'step': wave.step});
+    lab('write', {
+      'table': 'orders',
+      'key': 'o1',
+      'op': 'insert',
+      'customer': 'u1',
+      'step': wave.step,
+    });
+    expect(traced(wave.step), [
+      matches(r'^\+\d+ ms  lab  knows Ana as u1$'),
+      matches(r'^\+\d+ ms  lab  wrote orders/o1 \(insert · customer Ana\)$'),
+    ]);
+    lab('mail', {'to': 'ana.${world.id}@example.com', 'subject': 'Receipt'});
+    expect(world.tracer!.trace.outbox().single.person, 'Ana');
+
+    await world.restart({'mood': 'busy'});
+    expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+    expect(world.people['Leo']!.phase, PersonPhase.headless);
+    lab('sms', {'to': '+447700900001', 'body': 'Your code is 4821'});
+    lab('mail', {'to': 'ana.${world.id}@example.com', 'subject': 'Receipt'});
+    expect(
+      [for (var message in world.tracer!.trace.outbox()) message.person],
+      ['Ana', 'Leo'],
+    );
+    expect(world.tracer!.trace.personOfUser('u1'), 'Ana');
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('reloads its script with the same people: what an action calls runs '
