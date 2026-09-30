@@ -566,13 +566,9 @@ Future<void> _runScenario(
       stage: scenarioRunArgs?.stage ?? const BareStage(),
       edit: edit,
       // What the cursor will be drawn as. A phone is touched and a window is
-      // pointed at, and the stage already knows which this is.
-      touch: switch (assignment?.orientedDevice?.platform) {
-        DevicePlatform.macos ||
-        DevicePlatform.windows ||
-        DevicePlatform.linux => false,
-        _ => true,
-      },
+      // pointed at — the same rule the verbs press by, so the arrow that
+      // hovers is the mouse that clicks.
+      touch: !pointsWithMouse(assignment?.device),
     ),
   };
   _countFrames(tester);
@@ -1294,6 +1290,11 @@ class ScenarioTester {
   /// `IconData`, a `Type`, or a [Target] for the rest (a semantics label, a
   /// tooltip, a scope, an index).
   ///
+  /// With the pointer of the device the scenario is staged on: a click of
+  /// the scenario's mouse on a desktop — which stays where it clicked, so the
+  /// control is hovered in the picture that follows — and a finger everywhere
+  /// else. The same holds for every verb that presses.
+  ///
   /// `dynamic` is a deliberate exception to the house no-dynamic preference:
   /// `tap('NEXT')` / `tap(Icons.add)` / `tap(Keys.next)` read too well to give
   /// up, and the auto-write generator emits exactly the string form.
@@ -1309,7 +1310,7 @@ class ScenarioTester {
       var finder = await _resolve(target, 'tap');
       var at = _aimFor(target, finder);
       await _approach('tap');
-      await tester.tapAt(at);
+      await _pressAt(at, over: describeTarget(target));
     },
     verb: 'tap',
     target: describeTarget(target),
@@ -1343,7 +1344,7 @@ class ScenarioTester {
     () async {
       _aimAtPoint(at);
       await _approach('tapAt');
-      await tester.tapAt(at);
+      await _pressAt(at);
     },
     verb: 'tapAt',
     target: '${at.dx.round()},${at.dy.round()}',
@@ -1356,7 +1357,11 @@ class ScenarioTester {
       var finder = await _resolve(target, 'longPress');
       var at = _aimFor(target, finder);
       await _approach('longPress');
-      await tester.longPressAt(at);
+      if (_pointsWithMouse) {
+        await _mouse.longPress(at, over: describeTarget(target));
+      } else {
+        await tester.longPressAt(at);
+      }
     },
     verb: 'longPress',
     target: describeTarget(target),
@@ -1420,6 +1425,12 @@ class ScenarioTester {
   /// expressible. Measured on a 200-row list: `Offset(0, -300)` bare lands at
   /// exactly 300, over a second it carries to ~324, and over 300ms — the same
   /// distance at three times the speed — it flies past 450.
+  ///
+  /// On a desktop device the drag is the mouse's, as every press there is,
+  /// and a mouse drag does not move a list — not on a desktop, and so not
+  /// here: Flutter's default scroll behavior leaves the mouse out of the
+  /// devices that drag one. [scroll] turns the wheel, and [scrollTo] walks a
+  /// list wherever the scenario is staged.
   Future<void> drag(
     dynamic target,
     Offset by, {
@@ -1433,13 +1444,7 @@ class ScenarioTester {
       var finder = await _resolve(target, 'drag');
       var at = _aimFor(target, finder, by: by);
       await _approach('drag');
-      if (_film case var film?) {
-        await film.dragBy(tester, by, over: duration);
-      } else if (duration == null) {
-        await tester.dragFrom(at, by);
-      } else {
-        await tester.timedDragFrom(at, by, duration);
-      }
+      await _dragFrom(at, by, duration);
     },
     verb: 'drag',
     target: describeTarget(target),
@@ -1476,13 +1481,7 @@ class ScenarioTester {
       // where every finder verb would have refused.
       _aimAtPoint(from, by: by);
       await _approach('dragFrom');
-      if (_film case var film?) {
-        await film.dragBy(tester, by, over: duration);
-      } else if (duration == null) {
-        await tester.dragFrom(from, by);
-      } else {
-        await tester.timedDragFrom(from, by, duration);
-      }
+      await _dragFrom(from, by, duration);
     },
     verb: 'dragFrom',
     target: '${from.dx.round()},${from.dy.round()}',
@@ -1569,9 +1568,9 @@ class ScenarioTester {
       var finder = await _resolve(target, 'doubleTap');
       var at = _aimFor(target, finder);
       await _approach('doubleTap');
-      await tester.tapAt(at);
+      await _pressAt(at, over: describeTarget(target));
       await _elapse(gap ?? _doubleTapGap);
-      await tester.tapAt(at);
+      await _pressAt(at, over: describeTarget(target));
     },
     verb: 'doubleTap',
     target: describeTarget(target),
@@ -1707,6 +1706,48 @@ class ScenarioTester {
 
   /// The scenario's mouse — one for the whole test; see [ScenarioMouse].
   ScenarioMouse get _mouse => ScenarioMouse.of(tester);
+
+  /// Whether this scenario's pointer is the mouse: a desktop is pointed at
+  /// and everything else is touched. See [pointsWithMouse].
+  ///
+  /// Read off the device rather than chosen per verb, because what an app
+  /// shows depends on it. A text field tapped by a finger raises selection
+  /// handles a click never does, a tooltip waits for a long press where a
+  /// mouse only has to arrive, and a control stays hovered under a mouse that
+  /// clicked it — so a desktop app pressed by a finger is photographed in a
+  /// layout its users never see.
+  bool get _pointsWithMouse => pointsWithMouse(assignment?.device);
+
+  /// One press and release where the verb aimed — a click on a desktop, a
+  /// tap everywhere else.
+  ///
+  /// The click leaves the mouse where it clicked, as a real one does, so the
+  /// control is hovered in the picture that follows; [over] names it for an
+  /// [unhover].
+  Future<void> _pressAt(Offset at, {String? over}) =>
+      _pointsWithMouse ? _mouse.click(at, over: over) : tester.tapAt(at);
+
+  /// [drag] and [dragFrom]'s gesture, once the verb has aimed it: the film's
+  /// frame-by-frame drag when there is one, and otherwise the pointer's own,
+  /// spread over [duration] when the verb named one.
+  ///
+  /// On a desktop that pointer is the mouse, which does not scroll a list:
+  /// Flutter's default scroll behavior leaves the mouse out of the devices
+  /// that drag one, as on the desktop itself. The wheel does —
+  /// [scroll] — and [scrollTo] still walks a list wherever it is staged.
+  Future<void> _dragFrom(Offset from, Offset by, Duration? duration) async {
+    if (_film case var film?) {
+      await film.dragBy(tester, by, over: duration);
+    } else if (_pointsWithMouse) {
+      await (duration == null
+          ? _mouse.drag(from, by)
+          : _mouse.timedDrag(from, by, duration));
+    } else if (duration == null) {
+      await tester.dragFrom(from, by);
+    } else {
+      await tester.timedDragFrom(from, by, duration);
+    }
+  }
 
   /// Moves the fake clock by [duration] *inside* a verb, a frame at a time,
   /// handing every frame to whatever is recording.

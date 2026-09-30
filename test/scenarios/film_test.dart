@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware/reel.dart';
@@ -306,6 +307,61 @@ void main() {
             sample,
       ];
       expect(down, isEmpty, reason: 'a hover is the arrival, not a click');
+    });
+  });
+
+  // What the pads below saw, read after the film is written: the kind and the
+  // device of every press, and the device of every hover.
+  var pressed = <(PointerDeviceKind, int)>{};
+  var hoveredBy = <int>{};
+
+  group('a filmed click on a desktop', () {
+    film(
+      (directory) => FilmSettings(
+        directory: directory,
+        scale: 1,
+        open: const Duration(milliseconds: 100),
+        travel: const Duration(milliseconds: 100),
+        press: const Duration(milliseconds: 100),
+        dwell: const Duration(milliseconds: 100),
+        close: const Duration(milliseconds: 100),
+      ),
+      on: const ScenarioAssignment(device: Devices.window),
+    );
+
+    scenario('is the mouse that flew there', (s) async {
+      var downs = <(PointerDeviceKind, int)>{};
+      var hovers = <int>{};
+      Widget pad(String label) => MouseRegion(
+        onEnter: (event) => hovers.add(event.device),
+        child: Listener(
+          onPointerDown: (event) => downs.add((event.kind, event.device)),
+          child: SizedBox(height: 120, child: Center(child: Text(label))),
+        ),
+      );
+      await s.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [pad('Press'), pad('Pull')],
+            ),
+          ),
+        ),
+      );
+      await s.tap('Press');
+      await s.drag('Pull', const Offset(0, 40));
+      pressed = downs;
+      hoveredBy = hovers;
+    });
+
+    tearDown(() {
+      // One mouse for the whole film: the arrow the travel hovered with is the
+      // pointer that pressed — never a finger arriving under an arrow.
+      expect(pressed.map((p) => p.$1).toSet(), {PointerDeviceKind.mouse});
+      expect(hoveredBy, hasLength(1));
+      expect(pressed.map((p) => p.$2).toSet(), hoveredBy);
+      expect(_timeline(directory)['pointer'], 'mouse');
     });
   });
 

@@ -138,6 +138,16 @@ the mouse, so on a page with several lists it scrolls the one you name.
 `doubleTap` puts 80ms of the fake clock between its taps (`gap:`), because a
 double-tap recognizer ignores a second tap that arrives sooner than 40ms.
 
+**A desktop is pointed at.** On a desktop device — every `Devices.*Window` —
+`tap`, `tapAt`, `doubleTap`, `longPress` and `drag` press with that same
+mouse, and it stays where it clicked, so the control is hovered in the next
+picture as it would be on the desktop. Everywhere else, a run staged on no
+device included, they are a finger. Widgets that adapt to the pointer — a text
+field's selection handles, a tooltip's trigger, a slider's value label — show
+the layout their users see. One consequence to know: a mouse drag does not
+scroll a list, on the desktop or here, so reach for `scroll` or `scrollTo`
+there.
+
 `key` is for shortcuts and navigation, never for typing — a character reaches
 a field through text input, not through a key event, so `enterText` is the
 verb that types. The last name in a chord fires and the ones before it are

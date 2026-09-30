@@ -384,7 +384,9 @@ class ScenarioFilm implements ScenarioFrameSink {
   Future<void> dragBy(WidgetTester tester, Offset by, {Duration? over}) async {
     if (_pointer == null) return;
     _mark('drag', verb: 'drag');
-    await _swipe(tester, by, over: over);
+    // The verb's own pointer: on a desktop the drag is the mouse the travel
+    // hovered with, not a finger that appears for it.
+    await _swipe(tester, by, over: over, mouse: !touch);
     _mark('act', verb: 'drag');
   }
 
@@ -445,7 +447,16 @@ class ScenarioFilm implements ScenarioFrameSink {
   /// and a plain drag holds still first, reporting the same position for long
   /// enough that the velocity tracker estimates zero and the list stops where
   /// the suite's own drag stopped it.
-  Future<void> _swipe(WidgetTester tester, Offset by, {Duration? over}) async {
+  ///
+  /// [mouse] drags with the scenario's mouse rather than a finger, as a
+  /// `drag` does on a desktop. A `scrollTo` never does: it walks a list with
+  /// a finger wherever it is staged, because a mouse drag does not move one.
+  Future<void> _swipe(
+    WidgetTester tester,
+    Offset by, {
+    Duration? over,
+    bool mouse = false,
+  }) async {
     var start = _pointer;
     if (start == null) return;
     var length = over ?? settings.drag;
@@ -455,14 +466,23 @@ class ScenarioFilm implements ScenarioFrameSink {
     );
     _down = true;
     _pressedAt ??= _frames;
-    var gesture = await tester.startGesture(start);
+    Future<void> Function(Offset to) move;
+    Future<void> Function() lift;
+    if (mouse) {
+      var pointer = ScenarioMouse.of(tester);
+      await pointer.down(start);
+      (move, lift) = (pointer.moveTo, pointer.up);
+    } else {
+      var finger = await tester.startGesture(start);
+      (move, lift) = (finger.moveTo, finger.up);
+    }
     try {
       for (var i = 1; i <= frames; i++) {
         // Eased like a reach, for the same reason: a finger starts and stops.
         var t = i / frames;
         var e = t * t * t * (10 - 15 * t + 6 * t * t);
         _pointer = start + by * e;
-        await gesture.moveTo(_pointer!);
+        await move(_pointer!);
         beforePump?.call();
         await tester.pump(interval);
         capture(tester);
@@ -474,7 +494,7 @@ class ScenarioFilm implements ScenarioFrameSink {
           // reporting, and it is those samples that bring the estimate down.
           // Pumping without them leaves the tracker holding the last velocity
           // it saw and the list flies on.
-          await gesture.moveTo(_pointer!);
+          await move(_pointer!);
           beforePump?.call();
           await tester.pump(interval);
           capture(tester);
@@ -482,7 +502,7 @@ class ScenarioFilm implements ScenarioFrameSink {
         }
       }
     } finally {
-      await gesture.up();
+      await lift();
       _down = false;
     }
   }
