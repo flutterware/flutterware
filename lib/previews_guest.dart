@@ -25,7 +25,8 @@ export 'src/ui_catalog/catalog_keyboard.dart'
 export 'src/ui_catalog/keyboard.dart' show KeyboardState;
 export 'src/ui_catalog/fake_keyboard.dart'
     show FakeKeyboard, FakeKeyboardPainter;
-export 'src/ui_catalog/knob.dart' show KnobDescriptor, KnobKind, KnobReport;
+export 'src/ui_catalog/knob.dart'
+    show KnobDescriptor, KnobKind, KnobReport, PickerStyle;
 export 'src/ui_catalog/axis.dart' show AxisReport;
 export 'src/inspect/error.dart' show InspectError, InspectErrors;
 export 'src/inspect/guest_errors.dart' show GuestErrors;

@@ -33,6 +33,7 @@ import 'catalog_params.dart';
 import 'catalog_devices.dart';
 import 'catalog_entry.dart';
 import 'catalog_session.dart';
+import 'knob_picker.dart';
 import 'preview_popover.dart';
 import 'preview_sheet.dart';
 import 'staged_device.dart';
@@ -1177,24 +1178,10 @@ class _Knob extends StatelessWidget {
           onChanged: (v) => _choose(context, v),
         );
       case KnobKind.picker:
-        return Popover<String?>(
-          selected: _value as String?,
-          onSelected: (v) => _choose(context, v),
-          groups: [
-            (
-              heading: null,
-              items: [
-                for (var option in knob.options)
-                  (value: option, label: option, detail: ''),
-              ],
-            ),
-          ],
-          child: _Field(
-            child: Text(
-              (_value ?? '—').toString(),
-              style: context.type.caption.copyWith(color: context.colors.ink),
-            ),
-          ),
+        return KnobPicker(
+          knob: knob,
+          value: _value as String?,
+          onChanged: (v) => _choose(context, v),
         );
       case KnobKind.integer || KnobKind.number:
         if (knob.min case var min?) {
@@ -1329,31 +1316,6 @@ class _Toggle extends StatelessWidget {
   }
 }
 
-/// The box every knob control sits in, so a field, a picker and a number all
-/// line up.
-class _Field extends StatelessWidget {
-  const _Field({required this.child, this.width});
-
-  final Widget child;
-  final double? width;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: 24,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: FwSpacing.sm),
-      decoration: BoxDecoration(
-        color: context.colors.bg,
-        border: Border.all(color: context.colors.line),
-        borderRadius: BorderRadius.circular(context.radii.radiusSmall),
-      ),
-      child: child,
-    );
-  }
-}
-
 /// A text knob, applied as you stop typing rather than as you type.
 ///
 /// Every keystroke would be a round trip to the guest and a rebuild of the
@@ -1403,7 +1365,7 @@ class _StringFieldState extends State<_StringField> {
 
   @override
   Widget build(BuildContext context) {
-    return _Field(
+    return KnobBox(
       width: 140,
       child: TextField(
         controller: _controller,
@@ -1472,7 +1434,7 @@ class _NumberFieldState extends State<_NumberField> {
 
   @override
   Widget build(BuildContext context) {
-    return _Field(
+    return KnobBox(
       width: 80,
       child: TextField(
         controller: _controller,
@@ -1781,28 +1743,11 @@ class _Axis extends StatelessWidget {
         if (axis.kind == KnobKind.boolean)
           _Toggle(value: value == true, onChanged: (v) => _choose(context, v))
         else
-          Popover<String?>(
-            selected: value as String?,
-            onSelected: (v) => _choose(context, v),
-            groups: [
-              (
-                heading: null,
-                items: [
-                  for (var option in axis.options)
-                    (
-                      value: option,
-                      label: option,
-                      detail: option == axis.defaultValue ? 'default' : '',
-                    ),
-                ],
-              ),
-            ],
-            child: _Field(
-              child: Text(
-                (value ?? '—').toString(),
-                style: context.type.caption.copyWith(color: context.colors.ink),
-              ),
-            ),
+          KnobPicker(
+            knob: axis,
+            value: value as String?,
+            onChanged: (v) => _choose(context, v),
+            markDefault: true,
           ),
       ],
     );

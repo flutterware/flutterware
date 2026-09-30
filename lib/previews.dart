@@ -24,3 +24,5 @@ export 'src/ui_catalog/axes.dart' show PreviewShell, PreviewAxes;
 // `KnobDescriptor` carries.
 export 'src/ui_catalog/knobs.dart' show Knobs;
 export 'src/ui_catalog/ui_catalog.dart' show KnobsExtension;
+// How a picker is drawn, knob or axis: `style: PickerStyle.segmented`.
+export 'src/ui_catalog/knob.dart' show PickerStyle;

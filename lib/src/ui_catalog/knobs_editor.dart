@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'knob.dart';
 import 'knobs.dart';
+import 'toolbar.dart';
 
 class KnobsEditor extends StatelessWidget {
   final EditableKnobs knobs;
@@ -183,6 +185,18 @@ class _PickerEditor<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (drawsSegments(knob.style, knob.options.length)) {
+      return ToolbarSegmented<Object?>(
+        value: knob.requiredValue,
+        items: {
+          for (var v in knob.options.entries)
+            v.value: pickerOptionWidget(knob, v.key, v.value),
+        },
+        onChanged: (v) {
+          knob.value = v;
+        },
+      );
+    }
     return DropdownButton(
       value: knob.requiredValue,
       items: [

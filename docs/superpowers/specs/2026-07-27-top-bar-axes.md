@@ -99,9 +99,21 @@ options explicitly, so:
 `flag(String name, bool defaultValue)` is the toggle. A `bool` is a closed set
 of two, which is all an axis needs to be.
 
-Not carried yet, deliberately: `swatch`, `icon` and `PickerStyle`. All three are
-presentation, all three would need new fields on `KnobDescriptor`, and the top
-bar renders one way today. Adding them is additive when it is wanted.
+Not carried yet, deliberately: `swatch` and `icon`. Both are presentation, both
+would need new fields on `KnobDescriptor`, and adding them is additive when it
+is wanted.
+
+`PickerStyle` was wanted first, and is carried: `picker(…, style:
+PickerStyle.segmented)` on an axis and on a knob alike, as `style` on the
+descriptor. A catalog that switched between light and dark with a two-option
+segmented control had nothing to write once the old top bar went, and a switch
+flipped back and forth while looking is exactly what a menu makes two clicks.
+The descriptor writes `style` only when it is not `dropdown`, so a guest that
+predates it and a picker that never asked read the same, and a host reads a
+style it does not know as `dropdown`. Past five options a segmented picker is
+drawn as a dropdown anyway — the bar is one row, and the renderer decides that
+through one function, `drawsSegments`, so the studio and a catalog page cannot
+disagree.
 
 ### What runtime declaration costs
 
