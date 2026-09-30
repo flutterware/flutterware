@@ -176,15 +176,17 @@ void main() {
 
   test("a reload is the world's pill, and a subscription the phone's", () {
     tap('Leo', 'leo.1', 1000, '"Sign in"');
-    app('Leo', 1200, 'db:main/records', {
+    app('Leo', 1800, 'db:main/records', {
       'change': 'subscribed',
       'bucket': 'profile["u2"]',
     });
     trace.addReload(since.add(const Duration(milliseconds: 1500)));
+    // The reload is a line of Leo's step too, which was still going: drawn
+    // once, as the world's.
     expect(rows(timeline(TraceLevel.system)), [
       'Leo  taps "Sign in"',
-      'Leo  subscribed to profile["u2"]',
       'world  reloads the code',
+      'Leo  subscribed to profile["u2"], joined by time',
     ]);
   });
 

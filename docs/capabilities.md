@@ -2975,6 +2975,7 @@ reassembleMs: int?   # Its `FlutterwareServer.onReassemble` callbacks rebuilding
 appsMs: int?   # The [apps] reloading, side by side.
 apps: List<String>
 step: String?   # Its moment in the trace, `reload.2`, which `worlds trace --step` reads.
+note: String?   # What it had to do first, and why: a fresh compiler for the script, when its own had stopped.
 ```
 
 | parameter | kind | required | default | |

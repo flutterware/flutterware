@@ -27,10 +27,24 @@ class WorldScriptProcess {
     this._socket,
     this.messages,
     this._serviceInfo,
-  );
+    this._compiler,
+    this._said,
+  ) {
+    process.exitCode.then((code) => _exited = code).ignore();
+  }
 
   final Process process;
   final Socket _socket;
+
+  /// What it reloads through, brought back by [reload] when it has gone.
+  final WorldCompiler? _compiler;
+
+  /// Its exit code, once it has exited.
+  int? _exited;
+
+  /// The last thing it said that was not a stack frame: what an exit is
+  /// quoted with.
+  final _LastSaid _said;
 
   /// Where the script's VM says how to reach its service — what [reload]
   /// speaks to.
@@ -84,6 +98,7 @@ class WorldScriptProcess {
       await server.close();
       rethrow;
     }
+    var said = _LastSaid();
     for (var stream in [process.stdout, process.stderr]) {
       stream
           .transform(utf8.decoder)
@@ -91,7 +106,10 @@ class WorldScriptProcess {
           .map(withoutToolNoise)
           .where((line) => line != null)
           .cast<String>()
-          .listen(onOutput ?? (_) {});
+          .listen((line) {
+            said.add(line);
+            onOutput?.call(line);
+          });
     }
     // Refused before it connects — a compile error, a missing dependency —
     // the script exits, and what it printed is the reason. Kept by the script
@@ -113,7 +131,14 @@ class WorldScriptProcess {
         .transform(const LineSplitter())
         .map(decodeWorldMessage)
         .asBroadcastStream();
-    var script = WorldScriptProcess._(process, socket, messages, serviceInfo);
+    var script = WorldScriptProcess._(
+      process,
+      socket,
+      messages,
+      serviceInfo,
+      compiler,
+      said,
+    );
     script.send(WorldMessage.open, {'knobs': knobs});
     return script;
   }
@@ -135,7 +160,8 @@ class WorldScriptProcess {
   /// router and middleware again from the new code.
   ///
   /// Answers how long the code took to reload, and how long the reassemble
-  /// callbacks then took to rebuild on it.
+  /// callbacks then took to rebuild on it — and, when its compiler had gone
+  /// and a fresh one was started for it, why ([WorldCompiler.revive]).
   ///
   /// Throws a [WorldScriptReloadFailed] with the compiler's words when the
   /// source does not compile, and the script runs on as it was; with the
@@ -145,11 +171,41 @@ class WorldScriptProcess {
   /// A reload the VM will not run — the script already reloading, from a
   /// hot reloader of the project's own running inside it, or its compiler
   /// tripping over that reload's — waits and goes after it, for up to
-  /// [busyFor].
-  Future<({Duration code, Duration reassemble})> reload({
+  /// [busyFor]. A script that exits meanwhile is said to have, with its exit
+  /// code and the last thing it said: all a reload is left with otherwise is
+  /// a connection refused by a VM that is not there.
+  Future<({Duration code, Duration reassemble, String? compiler})> reload({
     Duration busyFor = const Duration(seconds: 10),
   }) async {
     var watch = Stopwatch()..start();
+    try {
+      // First: without its compiler, the VM refuses every reload.
+      var revived = await _compiler?.revive();
+      var took = await _reload(watch, busyFor);
+      return (code: took.code, reassemble: took.reassemble, compiler: revived);
+    } on Object catch (error) {
+      // The source is the source, whatever became of the script since; any
+      // other failure may be the VM going, its connection with it.
+      if (error case WorldScriptReloadFailed(
+        exited: null,
+        refused: false,
+        reloaded: false,
+      )) {
+        rethrow;
+      }
+      if (error is! WorldScriptReloadFailed || error.exited == null) {
+        if (await _exitedWithin(const Duration(seconds: 1)) case var code?) {
+          throw _exitFailure(code);
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<({Duration code, Duration reassemble})> _reload(
+    Stopwatch watch,
+    Duration busyFor,
+  ) async {
     var isolates =
         (await (await _live()).getVM()).isolates ?? const <IsolateRef>[];
     // One reload per isolate group: the isolates of a group share code.
@@ -210,6 +266,8 @@ class WorldScriptProcess {
   }
 
   Future<VmService> _connect() async {
+    // The file a script that died leaves names a port nothing listens on.
+    if (_exited case var code?) throw _exitFailure(code);
     var info = File(_serviceInfo);
     for (var waited = 0; !info.existsSync(); waited++) {
       if (waited == 100) {
@@ -226,6 +284,20 @@ class WorldScriptProcess {
       '${uri.replace(scheme: 'ws', path: '${uri.path}ws')}',
     );
   }
+
+  Future<int?> _exitedWithin(Duration wait) async =>
+      _exited ??
+      await process.exitCode
+          .then<int?>((code) => code)
+          .timeout(wait, onTimeout: () => null);
+
+  WorldScriptReloadFailed _exitFailure(int code) => WorldScriptReloadFailed(
+    [
+      'The world script exited ($code) during the reload.',
+      if (_said.line case var line?) 'It last said: $line',
+    ].join(' '),
+    exited: code,
+  );
 
   /// Asks the script to close — its `onClose` callbacks run — and waits for
   /// it to go, killing it if it has not after [timeout].
@@ -269,14 +341,14 @@ Future<T> reloadWhenFree<T>(
       if (_compilerError.hasMatch(said)) {
         throw WorldScriptReloadFailed(error.details ?? error.message);
       }
-      // Nothing to wait for: the compiler the script reloads through is not
-      // coming back, and a restart starts the script on a fresh one.
+      // Nothing to wait for: the compiler the script reloads through went
+      // down under this reload, and only the next one starts a fresh one.
       if (_compilerGone.hasMatch(said)) {
         throw WorldScriptReloadFailed(
-          "The script's compiler is gone, so nothing can reload it: two "
-          'reloads compiling at once — a hot reloader of your own inside '
-          'the script, say — can take it down. Restart the world for a '
-          'fresh one.\n$said',
+          "The script's compiler went down during this reload: two reloads "
+          'compiling at once — a hot reloader of your own inside the script, '
+          'say — can take it down. Reload again, and a fresh one compiles '
+          'it.\n$said',
           refused: true,
         );
       }
@@ -313,9 +385,13 @@ class WorldScriptReloadFailed implements Exception {
     this.message, {
     this.reloaded = false,
     this.refused = false,
+    this.exited,
   });
 
   final String message;
+
+  /// The script's exit code, when it exited during the reload.
+  final int? exited;
 
   /// Whether the code reloaded and a handler then failed to build again,
   /// rather than the code not compiling.
@@ -337,6 +413,24 @@ class WorldScriptExited implements Exception {
 
   @override
   String toString() => 'The world script exited ($exitCode) before it started.';
+}
+
+/// The last line a script said that was not a stack frame: of an uncaught
+/// error, the error rather than its bottom frame.
+class _LastSaid {
+  String? line;
+
+  void add(String said) {
+    var trimmed = said.trim();
+    if (trimmed.isEmpty ||
+        _frame.hasMatch(trimmed) ||
+        trimmed == '<asynchronous suspension>') {
+      return;
+    }
+    line = trimmed;
+  }
+
+  static final _frame = RegExp(r'^#\d+\s');
 }
 
 /// [line] without what `dart run` says about itself, or null when that was
@@ -386,6 +480,62 @@ class WorldCompiler {
 
   /// Stops the compiler, if one started.
   Future<void> shutdown() => _shutdown(dart, infoFile);
+
+  /// Starts a fresh compiler at [infoFile] when the one there has gone, and
+  /// says why it had to; null when the one there answers.
+  ///
+  /// A script's VM reloads through whichever compiler the file names, and
+  /// with none there it refuses every reload — `Kernel service was not set
+  /// up for incremental compilation when started` — until something starts
+  /// one at that path. A compiler goes two ways: it stops itself after
+  /// 30 minutes without a request and deletes the file, or it dies — two
+  /// reloads compiling at once can do that — and leaves the file naming a
+  /// port nothing listens on.
+  Future<String?> revive() async {
+    var file = File(infoFile);
+    String why;
+    if (!file.existsSync()) {
+      why =
+          "The script's compiler had stopped, as it does after 30 minutes "
+          'without a reload';
+    } else if (await _answers(file.readAsStringSync())) {
+      return null;
+    } else {
+      why = "The script's compiler had died";
+      try {
+        file.deleteSync();
+      } on FileSystemException {
+        // Gone meanwhile; starting one is all that is left to do.
+      }
+    }
+    var started = await Process.run(dart, [
+      'compilation-server',
+      'start',
+      '--resident-compiler-info-file=$infoFile',
+    ]);
+    return started.exitCode == 0 && file.existsSync()
+        ? '$why; a fresh one compiled this reload'
+        : '$why, and a fresh one did not start: ${started.stderr}'.trim();
+  }
+
+  /// Whether the compiler [info] names takes a connection:
+  /// `address:127.0.0.1 sdkHash:… port:65447`.
+  static Future<bool> _answers(String info) async {
+    var address = RegExp(r'address:(\S+)').firstMatch(info)?[1];
+    var port = int.tryParse(RegExp(r'port:(\d+)').firstMatch(info)?[1] ?? '');
+    if (address == null || port == null) return false;
+    try {
+      var socket = await Socket.connect(
+        address,
+        port,
+        timeout: const Duration(seconds: 1),
+      );
+      socket.destroy();
+      return true;
+    } on SocketException {
+      return false;
+    }
+  }
 
   /// Stops the compilers of processes that ended without closing their world
   /// — killed, or crashed. Housekeeping: nothing fails over it.
