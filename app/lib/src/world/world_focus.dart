@@ -413,66 +413,11 @@ class _PlatformMenuState extends State<_PlatformMenu> {
     );
   }
 
-  Future<void> _openLink() async {
-    var platform = widget.platform;
-    var link = TextEditingController();
-    String? said;
-    await showDialog<void>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) {
-          void open() {
-            if (platform.links.open(link.text.trim())) {
-              Navigator.of(context).pop();
-            } else {
-              setDialog(
-                () => said =
-                    "${widget.person}'s app is not listening for links: it "
-                    'registers no handler with app_links, or has not '
-                    'started it yet.',
-              );
-            }
-          }
-
-          return AlertDialog(
-            title: Text("Open a link in ${widget.person}'s app"),
-            content: SizedBox(
-              width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Delivered where the OS would deliver it: to the app’s '
-                    'link handler.',
-                    style: context.type.bodyMuted,
-                  ),
-                  const SizedBox(height: FwSpacing.md),
-                  TextField(
-                    controller: link,
-                    autofocus: true,
-                    onSubmitted: (_) => open(),
-                  ),
-                  if (said case var said?) ...[
-                    const SizedBox(height: FwSpacing.sm),
-                    Text(said, style: context.type.bodyMuted),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              TextButton(onPressed: open, child: const Text('Open')),
-            ],
-          );
-        },
-      ),
-    );
-    link.dispose();
-  }
+  Future<void> _openLink() => showDialog<void>(
+    context: context,
+    builder: (context) =>
+        _OpenLink(person: widget.person, platform: widget.platform),
+  );
 
   Future<void> _notifications() => showDialog<void>(
     context: context,
@@ -577,5 +522,81 @@ class ColumnBack extends StatelessWidget {
         ),
       ),
     ),
+  );
+}
+
+/// Asks for a link and hands it to [person]'s app where the OS would.
+///
+/// Its own widget so the field's controller lives exactly as long as the
+/// dialog: `showDialog` returns when the route is popped, and the dialog
+/// goes on drawing the field through its closing animation — a controller
+/// disposed on return was read after its disposal, and took the studio's
+/// whole overlay down with it.
+class _OpenLink extends StatefulWidget {
+  const _OpenLink({required this.person, required this.platform});
+
+  final String person;
+  final StudioPlatform platform;
+
+  @override
+  State<_OpenLink> createState() => _OpenLinkState();
+}
+
+class _OpenLinkState extends State<_OpenLink> {
+  final _link = TextEditingController();
+  String? _said;
+
+  @override
+  void dispose() {
+    _link.dispose();
+    super.dispose();
+  }
+
+  void _open() {
+    if (widget.platform.links.open(_link.text.trim())) {
+      Navigator.of(context).pop();
+    } else {
+      setState(
+        () => _said =
+            "${widget.person}'s app is not listening for links: it registers "
+            'no handler with app_links, or has not started it yet.',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text("Open a link in ${widget.person}'s app"),
+    content: SizedBox(
+      width: 420,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Delivered where the OS would deliver it: to the app’s link '
+            'handler.',
+            style: context.type.bodyMuted,
+          ),
+          const SizedBox(height: FwSpacing.md),
+          TextField(
+            controller: _link,
+            autofocus: true,
+            onSubmitted: (_) => _open(),
+          ),
+          if (_said case var said?) ...[
+            const SizedBox(height: FwSpacing.sm),
+            Text(said, style: context.type.bodyMuted),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      TextButton(onPressed: _open, child: const Text('Open')),
+    ],
   );
 }
