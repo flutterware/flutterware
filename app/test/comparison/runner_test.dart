@@ -90,6 +90,30 @@ void main() {
           cache: cache,
         );
 
+    // A package's preview setup runs before every entry and is imported by
+    // none, so an edit to it moves no entry's own closure — and without this
+    // every entry would be called unchanged, and served its base picture.
+    test('a shared source that differs renders every entry', () async {
+      side.declared['*'] = ['demo/card.dart#card', 'demo/list.dart#list'];
+      side.sharedSources = ['lib/preview_setup.dart'];
+
+      var plan = await runnerFor(
+        base: checkout('base', {
+          'demo/card.dart': 'same',
+          'demo/list.dart': 'same',
+          'lib/preview_setup.dart': 'fonts off',
+        }),
+        head: checkout('head', {
+          'demo/card.dart': 'same',
+          'demo/list.dart': 'same',
+          'lib/preview_setup.dart': 'fonts on',
+        }),
+      ).plan();
+
+      expect(plan.toRender, hasLength(2));
+      expect(plan.because, {'lib/preview_setup.dart differs': 2});
+    });
+
     test('it counts what has to be rendered, and renders nothing', () async {
       side.declared['*'] = ['demo/card.dart#card', 'demo/list.dart#list'];
 
@@ -798,6 +822,9 @@ class _FakeSide implements ComparisonSide {
     var file = hash < 0 ? entryId : entryId.substring(0, hash);
     return p.normalize(p.join(packagePath, file));
   }
+
+  @override
+  List<String> sharedSources = const [];
 
   /// Checkout path → entry ids, or `'*'` for both sides.
   final declared = <String, List<String>>{};

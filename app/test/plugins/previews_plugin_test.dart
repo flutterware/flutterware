@@ -30,6 +30,7 @@ void main() {
   PreviewsCore catalog({
     String? directory,
     List<String>? previewAnnotations,
+    String? setup,
     List<String> packages = const ['.'],
     String flutterSdkRoot = '/tmp/flutter',
   }) {
@@ -53,6 +54,7 @@ void main() {
                 'path': path,
                 'directory': ?directory,
                 'previewAnnotations': ?previewAnnotations,
+                'setup': ?setup,
               },
           ],
         },
@@ -495,6 +497,24 @@ Widget b() => const Placeholder();
 
     expect(subject.report.status.tone, Tone.error);
     expect(subject.report.toText(), contains('same id'));
+  });
+
+  // Declared, so never skipped: a render without the setup would draw every
+  // entry plausibly wrong. The sidebar says so before anything is asked for.
+  test('a declared setup that cannot run is reported until it can', () async {
+    var subject = catalog(setup: 'lib/preview_setup.dart')..track('.');
+    await scanned(subject);
+
+    expect(subject.report.status.tone, Tone.error);
+    expect(subject.report.status.message, 'preview setup cannot run');
+    expect(subject.report.toText(), contains('does not exist'));
+    expect(subject.previewSetupFor('.')?.path, 'lib/preview_setup.dart');
+
+    write('lib/preview_setup.dart', 'Future<void> previewSetup() async {}');
+    await subject.rescan('.');
+
+    expect(subject.report.status, Status.none);
+    expect(subject.report.toText(), isNot(contains('does not exist')));
   });
 
   test('entries lists everything, with ids and addresses', () async {

@@ -2173,6 +2173,7 @@ void main() => Flutterware.configure((fw) {
           previewAnnotations: ['Preview', 'Tablet'],  // your own subclass, listed with the default
           device: Devices.iphone16,       // a canvas with no prefix
           canvases: canvases,             // or per subtree
+          setup: 'lib/preview_setup.dart',  // its previewSetup() runs before any entry builds
         ),
       ]));
     });
@@ -2181,6 +2182,14 @@ void main() => Flutterware.configure((fw) {
 One declaration per package: a package's path is its identity in the report, in
 `fw:///` addresses and in the compiler daemon's address, so a second declaration
 of one package is refused rather than merged.
+
+`setup:` names a file declaring a top-level `Future<void> previewSetup()`,
+awaited once on every engine after the binding exists and before the first
+entry builds — the place for what an app does once in `main` and every entry
+would otherwise need from its `wrapper:`: turning a font package's downloads
+off (`GoogleFonts.config.allowRuntimeFetching = false`), registering fonts,
+`HttpOverrides.global`. A file that is missing or declares no `previewSetup` is
+refused, never skipped.
 
 #### Authoring: rendering the whole catalog
 

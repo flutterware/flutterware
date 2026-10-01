@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../session/job.dart';
 import '../utils/base_href.dart';
 import 'catalog_entry.dart';
+import 'preview_setup.dart';
 import 'web_app_generator.dart';
 
 /// Builds the catalog as a browsable web page.
@@ -26,6 +27,7 @@ class WebCatalogBuilder {
     required this.packageRoot,
     required this.title,
     this.clock,
+    this.setup,
   });
 
   final String flutterExecutable;
@@ -38,6 +40,10 @@ class WebCatalogBuilder {
   /// What `clock.now()` reads on the built page, or null for
   /// `pinnedClockOrigin` — the project's own `fw.clock(...)`.
   final DateTime? clock;
+
+  /// The package's declared setup, run by the page before it builds. See
+  /// `PreviewsPackage.setup`.
+  final PreviewSetup? setup;
 
   /// Where the generated app is written. Under `build/`, because it is build
   /// output: regenerated every time and never worth committing.
@@ -74,6 +80,7 @@ class WebCatalogBuilder {
       projectRoot: packageRoot,
       title: title,
       clock: clock,
+      setup: setup,
     ).generate(entries);
 
     var outputDir = output == null

@@ -50,6 +50,15 @@ abstract interface class ComparisonSide {
   /// change at all.
   String fileOf(String entryId);
 
+  /// Sources every entry's pixels depend on besides its own imports, relative
+  /// to a checkout root — a package's preview setup, which each render runs
+  /// before any entry and no entry imports.
+  ///
+  /// Folded into every entry's closure. Left out, an edit to the setup would
+  /// change no entry's closure, so the skip rule would call every entry
+  /// unchanged and the cache would serve the base's pictures as the head's.
+  List<String> get sharedSources;
+
   /// Renders [entryIds] and hands each frame over as it lands.
   ///
   /// Streamed for the reason `HeadlessCatalog.captureAll` streams: a frame is
@@ -470,6 +479,7 @@ class ComparisonRunner {
         packageConfig: packageConfig,
         memoDirectory: cache.memo.directory,
         sdkKey: sdk,
+        sharedSources: side.sharedSources,
       ).decide,
     );
 
@@ -845,6 +855,7 @@ class _PlanInputs {
     required this.packageConfig,
     required this.memoDirectory,
     required this.sdkKey,
+    this.sharedSources = const [],
   });
 
   /// The entries both sides declare — the only ones a skip rule applies to.
@@ -870,6 +881,9 @@ class _PlanInputs {
   final String? packageConfig;
   final String memoDirectory;
   final String sdkKey;
+
+  /// See [ComparisonSide.sharedSources].
+  final List<String> sharedSources;
 
   ({
     List<String> skipped,
@@ -910,7 +924,7 @@ class _PlanInputs {
     var keys = <String, ({String base, String head})>{};
     for (var id in oneSided) {
       var file = files[id]!;
-      var lock = locks.forPackages(headGraph.packagesOf(file));
+      var lock = locks.forPackages(_packagesOf(headGraph, file));
       keys[id] = (
         base: _keyFor(id, baseGraph, baseRoot, file, pixels, lock, digests),
         head: _keyFor(id, headGraph, headRoot, file, pixels, lock, digests),
@@ -918,12 +932,12 @@ class _PlanInputs {
     }
     for (var id in ids) {
       var file = files[id]!;
-      memo.remember(id, headGraph.closureOf(file));
+      memo.remember(id, _closureOf(headGraph, file));
 
       // Which dependencies this entry could possibly be changed by. Taken
       // from the head graph, like the closure above it and for the same
       // reason.
-      var lock = locks.forPackages(headGraph.packagesOf(file));
+      var lock = locks.forPackages(_packagesOf(headGraph, file));
       var decision = SkipDecision.of(
         entryId: id,
         memo: memo,
@@ -953,6 +967,17 @@ class _PlanInputs {
     );
   }
 
+  /// [file]'s closure with every shared source's folded in.
+  List<String> _closureOf(ImportGraph graph, String file) => {
+    ...graph.closureOf(file),
+    for (var shared in sharedSources) ...graph.closureOf(shared),
+  }.toList()..sort();
+
+  Set<String> _packagesOf(ImportGraph graph, String file) => {
+    ...graph.packagesOf(file),
+    for (var shared in sharedSources) ...graph.packagesOf(shared),
+  };
+
   ImportGraph _graphFor(String checkout) => ImportGraph.read(
     root: checkout,
     packageConfig: p.join(
@@ -976,7 +1001,7 @@ class _PlanInputs {
     kind: 'preview',
     entryId: id,
     closure: SourceClosure.of(
-      graph.closureOf(file),
+      _closureOf(graph, file),
       root: root,
       digests: digests,
     ).merge(pixels.inRoot(root)).merge(lock.inRoot(root)).fingerprint,

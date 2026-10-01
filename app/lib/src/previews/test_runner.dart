@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
@@ -11,6 +12,7 @@ import 'catalog_entry.dart';
 import 'compile_blame.dart';
 import 'devices.dart';
 import 'harness_generator.dart';
+import 'preview_setup.dart';
 
 /// What the harness is generated from, read fresh on every sync.
 ///
@@ -32,9 +34,14 @@ class PreviewProgram extends TesterProgram {
     required this.packageRoot,
     required this.read,
     required this.lane,
+    this.setup,
   });
 
   final String packageRoot;
+
+  /// The package's declared setup, run by the harness before any entry
+  /// builds. See `PreviewsPackage.setup`.
+  final PreviewSetup? setup;
 
   /// Where the generated harness goes — the host's own lane, so an isolated
   /// runner never renumbers or prunes the warm one's wrappers.
@@ -75,7 +82,18 @@ class PreviewProgram extends TesterProgram {
       // change has to restart the guest for the same reason an entry change
       // does: `main` has already run and no reload re-runs it.
       'canvases:${jsonEncode([for (var c in catalog.canvases) c.toJson()])}',
+      // And the setup file itself, for the same reason: it runs once, from
+      // `main`, and a reload of an edited one would leave the old setup in
+      // force behind a harness that looks up to date.
+      if (setup case var declared?) 'setup:${_stamp(declared)}',
     ]..sort();
+  }
+
+  String _stamp(PreviewSetup setup) {
+    var file = File(p.join(packageRoot, setup.path));
+    return file.existsSync()
+        ? '${setup.path}@${file.lastModifiedSync().microsecondsSinceEpoch}'
+        : '${setup.path}@missing';
   }
 
   /// Generates from the catalog [sources] just read.
@@ -91,6 +109,7 @@ class PreviewProgram extends TesterProgram {
       _servable(catalog),
       canvases: catalog.canvases,
       directory: buildDirectory,
+      setup: setup,
     );
   }
 
@@ -295,10 +314,12 @@ class PreviewTestRunner {
     String buildDirectory = TesterHost.defaultBuildDirectory,
     bool followEdits = true,
     void Function(String line)? onLog,
+    PreviewSetup? setup,
   }) : this._(
          PreviewProgram(
            packageRoot: packageRoot,
            read: read,
+           setup: setup,
            lane: BuildLane(
              packageRoot,
              preferred: buildDirectory,

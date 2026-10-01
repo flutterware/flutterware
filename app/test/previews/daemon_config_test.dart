@@ -137,6 +137,13 @@ void main() {
           emitProbe: true,
         ),
         'daemonRevision': configFor().withDaemonRevision('123'),
+        'setup': DaemonConfig.forPackage(
+          appToolDirectory: appTool,
+          packageRoot: package,
+          flutterSdkRoot: '/flutter',
+          roots: const ['demo'],
+          setup: 'lib/preview_setup.dart',
+        ),
       };
       variants.forEach((field, config) {
         expect(
@@ -147,6 +154,13 @@ void main() {
               'change where it listens.',
         );
       });
+    });
+
+    test('a package that declares no setup keeps the address it had', () {
+      // Left out of the JSON when null, rather than written as `null`: every
+      // daemon already running for a package without one would otherwise be
+      // orphaned by an upgrade, and its warm kernel with it.
+      expect(configFor().toJson().containsKey('setup'), isFalse);
     });
 
     test('a new daemon revision keeps the kernel it can start from', () {
@@ -201,6 +215,14 @@ void main() {
           flutterSdkRoot: '/flutter',
           roots: const ['demo'],
           emitProbe: true,
+        ),
+        // Imported by the entrypoint, so it is compiled into the kernel.
+        'setup': DaemonConfig.forPackage(
+          appToolDirectory: appTool,
+          packageRoot: package,
+          flutterSdkRoot: '/flutter',
+          roots: const ['demo'],
+          setup: 'lib/preview_setup.dart',
         ),
       };
       variants.forEach((field, config) {

@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import '../utils/source_code/escape_dart_string.dart';
 import 'catalog_entry.dart';
 import 'catalog_wrapper.dart';
+import 'preview_setup.dart';
 
 /// Writes the guest's entrypoint: one wrapper file per entry ever visited, plus
 /// an accumulating `main.dart` that selects the active one.
@@ -30,6 +31,7 @@ class EntrypointGenerator {
     required this.projectRoot,
     this.emitProbe = false,
     this.clock,
+    this.setup,
   });
 
   /// Where generated sources are written. Must not be a directory anything
@@ -48,6 +50,13 @@ class EntrypointGenerator {
   /// [pinnedClockOrigin] — the project's own `fw.clock(...)`, so a preview and
   /// a scenario of the same project show the same date.
   final DateTime? clock;
+
+  /// The package's declared setup, awaited in `main` once everything the host
+  /// talks to is registered and before `runApp`. See `PreviewsPackage.setup`.
+  ///
+  /// Checked by whoever builds this — the daemon, before its first compile —
+  /// so the import below is never of a file that is not there.
+  final PreviewSetup? setup;
 
   /// The wrapper files themselves, written the same way the web build writes
   /// them — see [CatalogWrapperWriter] for why that sharing is structural.
@@ -166,6 +175,13 @@ class EntrypointGenerator {
     // `DateTime(y, m, d, h, min)` literal silently drops both.
     var clockLiteral =
         'DateTime.parse(${escapeDartString((clock ?? pinnedClockOrigin).toIso8601String())})';
+    var setup = this.setup;
+    if (setup != null) {
+      imports.writeln(
+        'import ${escapeDartString(_wrappers.uriFor(p.join(projectRoot, setup.path)))} '
+        'as fw_setup;',
+      );
+    }
 
     return '''
 // GENERATED — do not edit.
@@ -213,7 +229,7 @@ const _fileEntryId = ${escapeDartString(active.id)};
 // demo reads the clock from `build`, which runs in whatever zone the binding
 // captured. A preview showing today's date would otherwise differ from
 // yesterday's screenshot of itself.
-void main() => withClock(Clock.fixed($clockLiteral), () => GuestLogs.instance.install(() {
+void main() => withClock(Clock.fixed($clockLiteral), () => GuestLogs.instance.install(() ${setup == null ? '' : 'async '}{
   WidgetsFlutterBinding.ensureInitialized();
   // Before anything can be typed, keys have to arrive at all: the framework
   // parks every one of them waiting for a legacy platform message this guest
@@ -272,7 +288,7 @@ void main() => withClock(Clock.fixed($clockLiteral), () => GuestLogs.instance.in
   // else: the GUI could not show it, `fw` could not return it, and an agent
   // driving a demo could not read the first thing a developer reaches for.
   GuestLogs.instance.registerExtensions();
-  runApp(const CatalogHost(fileEntryId: _fileEntryId, entryOf: _entry));
+${setup?.statements ?? ''}  runApp(const CatalogHost(fileEntryId: _fileEntryId, entryOf: _entry));
 ${emitProbe ? _probe : ''}}));
 ''';
   }

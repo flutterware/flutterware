@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutterware_app/src/previews/catalog_entry.dart';
+import 'package:flutterware_app/src/previews/preview_setup.dart';
 import 'package:flutterware_app/src/previews/web_app_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -182,5 +183,52 @@ Widget settingsWide() => const Placeholder();
     // Carried from the demo file, with the relative URI rewritten to resolve
     // from the generated directory rather than from the demo's own.
     expect(wrapper, contains("import 'package:material_ui/material_ui.dart';"));
+  });
+
+  group('a declared setup', () {
+    WebAppGenerator withSetup(String path) => WebAppGenerator(
+      outputDir: p.join(root.path, 'build', 'web_src'),
+      projectRoot: root.path,
+      title: 'Example',
+      setup: PreviewSetup(path),
+    );
+
+    test('runs on the page as the guest runs it, before anything builds', () {
+      File(p.join(root.path, 'demo', 'setup.dart'))
+          .writeAsStringSync('void previewSetup() {}');
+      var page = withSetup('demo/setup.dart');
+      page.generate([settings]);
+      var source = File(page.entrypointPath).readAsStringSync();
+
+      expect(generatedStrings(source), contains('../../demo/setup.dart'));
+      // The page has no `ensureInitialized` of its own — `runApp` was its
+      // first touch of the binding — and a setup registering a font needs one.
+      expect(
+        source.indexOf('WidgetsFlutterBinding.ensureInitialized()'),
+        lessThan(source.indexOf('await fw_setup.previewSetup()')),
+      );
+      expect(
+        source.indexOf('await fw_setup.previewSetup()'),
+        lessThan(source.indexOf('UICatalog(')),
+      );
+      expect(source, contains('ErrorWidget.withDetails('));
+      parseGenerated(source);
+    });
+
+    test('that is not there is refused before anything is cleared', () {
+      Directory(p.join(root.path, 'build', 'web_src'))
+          .createSync(recursive: true);
+      var kept = File(p.join(root.path, 'build', 'web_src', 'main.dart'))
+        ..writeAsStringSync('// the last good build');
+      expect(
+        () => withSetup('lib/preview_setup.dart').generate([settings]),
+        throwsA(isA<PreviewSetupProblem>()),
+      );
+      expect(kept.readAsStringSync(), '// the last good build');
+    });
+
+    test('none declared, none mentioned', () {
+      expect(generate([settings]), isNot(contains('fw_setup')));
+    });
   });
 }

@@ -33,6 +33,7 @@ import '../../previews/discovery.dart';
 import '../../previews/error_location.dart';
 import '../../previews/inspect_client.dart';
 import '../../previews/live_session.dart';
+import '../../previews/preview_setup.dart';
 import '../../previews/protocol.dart';
 import '../../previews/catalog_render.dart';
 import '../../previews/tester_renderer.dart';
@@ -285,6 +286,12 @@ class PreviewsCore extends PluginCore {
   final _failures = <String, String>{};
   final _scanning = <String>{};
 
+  /// Why a package's declared setup cannot run, per package, as of its last
+  /// scan. Every render of such a package is refused — by the generators,
+  /// which will not write a program importing it — so the status says so
+  /// before anybody asks for one.
+  final _setupProblems = <String, String>{};
+
   /// How many looks a package has had, so an overlapping pair can be ordered —
   /// see [_scan].
   final _scanTokens = <String, int>{};
@@ -422,6 +429,7 @@ class PreviewsCore extends PluginCore {
             entries: _scans[packagePath]?.entries ?? const [],
             canvases: canvasesFor(packagePath),
           ),
+          setup: previewSetupFor(packagePath),
           // The cold compile is the long pole and the only thing worth
           // reading during one — but a *log line* is not what a row can say,
           // so the host's narration is read back as a phase and everything
@@ -541,6 +549,15 @@ class PreviewsCore extends PluginCore {
         // "already scanned", and `build-web` keeps refusing with the stale
         // message while holding a perfectly good entry list.
         _failures.remove(path);
+        // Beside the scan, and as often: the setup file is written and fixed
+        // like any other source, and a problem outliving its fix is the
+        // stale badge above all over again.
+        switch (previewSetupFor(path)?.problemIn(root)) {
+          case var problem?:
+            _setupProblems[path] = problem;
+          case null:
+            _setupProblems.remove(path);
+        }
       }
     } catch (e) {
       if (_scanTokens[path] != token) {
@@ -695,6 +712,21 @@ class PreviewsCore extends PluginCore {
       }
     }
     return defaultPreviewAnnotations;
+  }
+
+  /// The setup [path] declares — see `PreviewsPackage.setup` — or null.
+  ///
+  /// Read here and nowhere else, like [previewAnnotationsFor]: the panel's
+  /// session puts it in the daemon address, and a second reading of the
+  /// config is a second daemon.
+  PreviewSetup? previewSetupFor(String path) {
+    for (var config in host.packageConfigs) {
+      if (config['path'] != path) continue;
+      if (config['setup'] case String declared when declared.isNotEmpty) {
+        return PreviewSetup(declared);
+      }
+    }
+    return null;
   }
 
   /// What the scan says about [path], before anything is compiled.
@@ -1741,6 +1773,9 @@ class PreviewsCore extends PluginCore {
         '$broken ${broken == 1 ? 'package' : 'packages'} failed discovery',
       );
     }
+    if (_setupProblems.isNotEmpty) {
+      return const Status.error('preview setup cannot run');
+    }
     // Names the directory rather than the fact. "no entries" sent a reader
     // looking for a setting; "no entries in demo/" *is* the setting.
     if (entries.isEmpty) {
@@ -1776,6 +1811,9 @@ class PreviewsCore extends PluginCore {
     var scan = _scans[path];
     if (scan == null) return Status.none;
     if (!scan.ok) return const Status.error('discovery failed');
+    if (_setupProblems.containsKey(path)) {
+      return const Status.error('preview setup cannot run');
+    }
     return switch (setupFor(path)) {
       // A directory that is not there is a typo in `directory:` far more often
       // than it is an intention, so it is worth a different word from "empty".
@@ -1839,6 +1877,8 @@ class PreviewsCore extends PluginCore {
       }
 
       var children = <ViewNode>[
+        if (_setupProblems[path] case var problem?)
+          ViewText(problem, tone: Tone.error),
         ViewItems([
           for (var entry in scan.entries.take(_projectedEntries))
             ViewItem(
@@ -2130,6 +2170,7 @@ class PreviewsCore extends PluginCore {
       // *of*, and "Previews" on a repo with three of them says nothing.
       title: packagePath == '.' ? host.worktree.name : packagePath,
       clock: host.projectClock,
+      setup: previewSetupFor(packagePath),
     );
     WebCatalogBuild built;
     try {
@@ -3188,6 +3229,7 @@ class PreviewsCore extends PluginCore {
       roots: [rootFor(packagePath)],
       previewAnnotations: previewAnnotationsFor(packagePath),
       clock: host.projectClock,
+      setup: previewSetupFor(packagePath)?.path,
     ),
   );
 

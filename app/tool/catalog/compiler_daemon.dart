@@ -9,6 +9,7 @@ import 'package:flutterware_app/src/previews/daemon_address.dart';
 import 'package:flutterware_app/src/previews/discovery.dart';
 import 'package:flutterware_app/src/previews/protocol.dart';
 import 'package:flutterware_app/src/previews/entrypoint_generator.dart';
+import 'package:flutterware_app/src/previews/preview_setup.dart';
 import 'package:flutterware_app/src/embedder/embedder_build.dart';
 import 'package:flutterware_app/src/embedder/flutter_cache.dart';
 import 'package:flutterware_app/src/embedder/resident_compiler.dart';
@@ -564,11 +565,19 @@ class _Daemon {
     _loadQuarantine();
     mark('quarantine');
 
+    // Checked before the first compile rather than left to it: an import of a
+    // file that is not there fails inside generated code, blames no entry, and
+    // reads as the daemon's own bug.
+    var setup = switch (config.setup) {
+      var path? => PreviewSetup(path)..check(config.projectRoot),
+      null => null,
+    };
     _generator = EntrypointGenerator(
       outputDir: p.join(_buildDir, 'entrypoint'),
       projectRoot: config.projectRoot,
       emitProbe: config.emitProbe,
       clock: config.clock,
+      setup: setup,
     );
     _generator.registerAll(_entries);
     _makeActive(_entries.first);

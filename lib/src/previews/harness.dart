@@ -163,15 +163,21 @@ class PreviewEntry {
 ///   measuring unstyled text in *approximate* Roboto — real bytes under the
 ///   platform-default family names, which is near enough for an overflow
 ///   verdict to mean something and not near enough for a pixel-exact one.
+///
+/// [setup] is the package's declared `previewSetup` — see
+/// `PreviewsPackage.setup` — run once in either lane, after the binding exists
+/// and before any entry builds.
 void runPreviewHarness(
   List<PreviewEntry> entries, {
   List<PreviewCanvas> canvases = const [],
+  FutureOr<void> Function()? setup,
 }) {
   if (Declarer.current != null) {
     // The driven lane loads fonts before it declares anything; this one has
     // nowhere earlier to do it. A scenario folder has a
     // `flutter_test_config.dart` to hang that on and a generated preview
-    // harness has no folder of its own, so the declaration carries it.
+    // harness has no folder of its own, so the declaration carries it — and
+    // the project's own setup, for the same reason.
     //
     // Without this the catalog is measured in the fallback font, which is wrong
     // in the one way nothing catches: it still renders, and reports the
@@ -185,6 +191,7 @@ void runPreviewHarness(
     setUpAll(() async {
       await loadScenarioFonts();
       await loadDefaultScenarioFonts();
+      await setup?.call();
     });
     _declare(entries, canvases, collect: null);
     return;
@@ -195,7 +202,7 @@ void runPreviewHarness(
   // harness dying because one preview failed is the one outcome this may never
   // have.
   unawaited(
-    runZonedGuarded(() => _serve(entries, canvases), (error, stack) {
+    runZonedGuarded(() => _serve(entries, canvases, setup), (error, stack) {
       stderr.writeln('[previews] uncaught: $error\n$stack');
     }),
   );
@@ -205,17 +212,35 @@ void runPreviewHarness(
 Future<void> _serve(
   List<PreviewEntry> entries,
   List<PreviewCanvas> canvases,
+  FutureOr<void> Function()? setup,
 ) async {
   // The binding first, because everything below reaches for it — loading a font
   // needs the messenger `rootBundle` goes through, and that is the binding's.
   TestWidgetsFlutterBinding.ensureInitialized();
   var fonts = await loadScenarioFonts();
+  // A setup that threw is not skipped: every entry would render without what
+  // it installs, and plausibly — a fallback font, a network call answered
+  // with 400. So the harness still comes up, and refuses every request with
+  // the reason instead.
+  String? setupFailed;
+  try {
+    await setup?.call();
+  } catch (error, stack) {
+    setupFailed =
+        "the package's previewSetup() threw, so nothing is rendered "
+        'without it:\n$error\n$stack';
+  }
 
   developer.registerExtension('ext.flutterware.previews.audit', (
     _,
     args,
   ) async {
     try {
+      if (setupFailed != null) {
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode({'error': setupFailed}),
+        );
+      }
       var only = args['entries']
           ?.split(',')
           .where((id) => id.isNotEmpty)
@@ -273,6 +298,11 @@ Future<void> _serve(
     args,
   ) async {
     try {
+      if (setupFailed != null) {
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode({'error': setupFailed}),
+        );
+      }
       var request = jsonDecode(args['request'] ?? '{}') as Map<String, Object?>;
       // What is left unanswerable is refused by name rather than dropped. A
       // demo's `print` is the one: a test-zone print rides `live.onMessage`

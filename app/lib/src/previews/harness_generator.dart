@@ -9,6 +9,7 @@ import '../utils/source_code/escape_dart_string.dart';
 import 'catalog_entry.dart';
 import 'catalog_wrapper.dart';
 import 'devices.dart';
+import 'preview_setup.dart';
 
 /// Where the generated preview harness lives, relative to the package.
 const previewHarnessPath = 'build/flutterware/previews_harness.dart';
@@ -32,10 +33,17 @@ const previewWrapperDir = 'build/flutterware/previews_harness';
 /// an id becomes the `Device` the test surface is staged from. An id this build
 /// has no device for drops out, exactly as `PreviewCanvas.fromJson` drops it —
 /// a canvas with fewer devices, never a harness that will not compile.
+///
+/// [setupImport] is how the harness imports the package's declared setup
+/// file, already resolved from where the harness sits; the table is then
+/// handed its `previewSetup` to run before any entry builds. Emitted only when
+/// one is declared, so a project that declares none compiles against any
+/// `package:flutterware` it did before.
 String generatePreviewHarness(
   List<CatalogEntry> entries, {
   required List<PreviewCanvas> canvases,
   String harnessPath = previewHarnessPath,
+  String? setupImport,
 }) {
   var sorted = _sorted(entries);
   var buffer = StringBuffer()
@@ -55,6 +63,9 @@ String generatePreviewHarness(
     ..writeln("import 'package:flutter/widget_previews.dart';")
     ..writeln("import 'package:flutterware/flutter_test.dart';")
     ..writeln();
+  if (setupImport != null) {
+    buffer.writeln('import ${escapeDartString(setupImport)} as fw_setup;');
+  }
   for (var (index, _) in sorted.indexed) {
     buffer.writeln(
       "import '${p.basename(previewWrapperDir)}/entry_$index.dart' as fw$index;",
@@ -84,7 +95,11 @@ String generatePreviewHarness(
   }
   buffer
     ..writeln('  ],')
-    ..writeln('  canvases: _canvases,')
+    ..writeln('  canvases: _canvases,');
+  if (setupImport != null) {
+    buffer.writeln('  setup: fw_setup.$previewSetupFunction,');
+  }
+  buffer
     ..writeln(');')
     ..writeln()
     ..writeln('final _canvases = <PreviewCanvas>[');
@@ -117,12 +132,18 @@ String generatePreviewHarness(
 /// for a subset renumbers — and prunes — another harness's wrappers if the two
 /// share a directory. That is exactly what a comparison rendering the panel's
 /// own worktree would do to the warm audit runner.
+///
+/// [setup] is checked before anything is written: a harness importing a file
+/// that is not there fails its compile in generated code, which names no
+/// entry and reads as flutterware's own bug.
 String writePreviewHarness(
   String packageRoot,
   List<CatalogEntry> entries, {
   required List<PreviewCanvas> canvases,
   String directory = 'build/flutterware',
+  PreviewSetup? setup,
 }) {
+  setup?.check(packageRoot);
   var sorted = _sorted(entries);
   var wrapperDir = Directory(
     p.join(packageRoot, directory, p.basename(previewWrapperDir)),
@@ -154,7 +175,20 @@ String writePreviewHarness(
   var path = p.join(packageRoot, directory, p.basename(previewHarnessPath));
   _writeIfDifferent(
     path,
-    generatePreviewHarness(sorted, canvases: canvases, harnessPath: relative),
+    generatePreviewHarness(
+      sorted,
+      canvases: canvases,
+      harnessPath: relative,
+      // From the harness's own directory, which is where the wrapper writer
+      // resolves relative URIs from when it is pointed there.
+      setupImport: switch (setup) {
+        var declared? => CatalogWrapperWriter(
+          outputDir: p.join(packageRoot, directory),
+          projectRoot: packageRoot,
+        ).uriFor(p.join(packageRoot, declared.path)),
+        null => null,
+      },
+    ),
   );
   return path;
 }
