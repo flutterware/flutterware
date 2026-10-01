@@ -1002,8 +1002,9 @@ class ScenariosCore extends PluginCore {
               required: false,
               description:
                   '`declared` runs every point the folder profiles declare — '
-                  'the union of their devices, languages and orientations, '
-                  'crossed exactly as explicit lists are. What CI wants '
+                  "each folder's devices, languages and orientations, "
+                  'crossed exactly as explicit lists are, and each point runs '
+                  'only the files whose folder declares it. What CI wants '
                   'instead of restating the declaration in `devices=` and '
                   'watching the two drift. Instead of the axis lists, not '
                   'beside them.',
@@ -3670,38 +3671,46 @@ class ScenariosCore extends PluginCore {
     // reports it. One request, one origin — the first package to come back
     // settles it.
     DateTime? ranAtClock;
-    var assignmentsFor = <String, List<ScenarioAxes>>{};
+    // Each point with the files it runs: the request's own `file` everywhere
+    // but under `matrix=declared`, where a point runs only the files whose
+    // folder declares it.
+    var assignmentsFor = <String, List<({ScenarioAxes axes, String? file})>>{};
     for (var path in paths) {
       if (matrix == null) {
-        assignmentsFor[path] = assignments;
+        assignmentsFor[path] = [
+          for (var assignment in assignments) (axes: assignment, file: file),
+        ];
         continue;
       }
       // The declared matrix, read from the harness's own listing — the same
       // probe that fills the panel's pickers, and the run is about to pay
-      // for the compiled harness anyway. The union across the package's
-      // folders, crossed exactly as explicit lists are: CI stops restating
-      // in `devices=` what `flutter_test_config.dart` already says, so
-      // adding a device to the declaration adds it to CI.
+      // for the compiled harness anyway. CI stops restating in `devices=`
+      // what `flutter_test_config.dart` already says, so adding a device to
+      // the declaration adds it to CI.
       _setBusy(path, const Status.info('reading the declared matrix…'));
       try {
-        var declaredDevices = <String>{};
-        var declaredOrientations = <String>{};
-        var declaredLanguages = <String>{};
-        for (var listing in await _runnerFor(path).list()) {
-          declaredDevices.addAll(listing.devices);
-          declaredOrientations.addAll(listing.orientations);
-          declaredLanguages.addAll(listing.languages);
-        }
-        assignmentsFor[path] = cross(
-          declaredDevices.toList(),
-          declaredOrientations.toList(),
-          declaredLanguages.toList(),
+        var declared = _declaredPoints(
+          await _runnerFor(path).list(),
+          cross,
+          file: file,
+          scenario: scenario,
+          tag: tag,
         );
+        // Nothing the request selects: one plain point, so the run below
+        // reports the miss the way any run that selects nothing does.
+        assignmentsFor[path] = declared.isNotEmpty
+            ? declared
+            : [
+                for (var assignment in assignments)
+                  (axes: assignment, file: file),
+              ];
       } catch (_) {
         // A harness that cannot even list will not run either; one point is
         // enough for the run below to fail with the real error, in the
         // per-package shape everything downstream knows.
-        assignmentsFor[path] = assignments;
+        assignmentsFor[path] = [
+          for (var assignment in assignments) (axes: assignment, file: file),
+        ];
       } finally {
         _setBusy(path, null);
       }
@@ -3729,7 +3738,7 @@ class ScenariosCore extends PluginCore {
       // This run replaces whatever the last one had to say about drift,
       // including having had nothing to say.
       _lastDrift.remove(path);
-      for (var assignment in pathAssignments) {
+      for (var (axes: assignment, file: files) in pathAssignments) {
         // One directory per point of the matrix. Without it the second
         // assignment overwrites the first — same file, same scenario, same
         // step names — and only the last language survives on disk.
@@ -3748,7 +3757,7 @@ class ScenariosCore extends PluginCore {
         // From zero for this point: the count is how far *this* pass has
         // got, and one that carried the previous point's over would start the
         // second language at 46 of 46.
-        _startCounting(path, file: file, scenario: scenario);
+        _startCounting(path, file: files, scenario: scenario);
         // One process per point, seconds each — so which point is running is
         // the news a sidebar shows and MCP forwards. The matrix count only
         // when there is a matrix: "1 of 1" is noise.
@@ -3763,7 +3772,7 @@ class ScenariosCore extends PluginCore {
         try {
           var report = await _runnerFor(path).run(
             outDir: outDir,
-            file: file,
+            file: files,
             scenario: scenario,
             tag: tag,
             axes: assignment,
@@ -3806,9 +3815,9 @@ class ScenariosCore extends PluginCore {
           // from disk just now, so a fresh scan is the honest list to offer
           // back. Per selector when several were given: a typo in the second
           // file must not run green on the strength of the first.
-          var missed = file == null
+          var missed = files == null
               ? null
-              : fileSelectors(file)
+              : fileSelectors(files)
                     .where(
                       (one) => !described.scenarios.any(
                         (ran) => selectsFile(one, ran.file),
@@ -3825,7 +3834,7 @@ class ScenariosCore extends PluginCore {
                 axes: fannedOut ? assignment.toParams() : null,
                 error: await _selectorMiss(
                   path,
-                  file: missed ?? file,
+                  file: missed ?? files,
                   scenario: scenario,
                   tag: tag,
                 ),
@@ -4628,6 +4637,70 @@ class ScenariosCore extends PluginCore {
       return const [null];
     }
     return requested.isEmpty ? [fallback] : requested;
+  }
+
+  /// The points `matrix=declared` runs, each with the files that run at it —
+  /// comma-joined, as a `file` selector — or nothing when the request's
+  /// `file`, `scenario` and `tag` select no listed scenario at all.
+  ///
+  /// Per file, never per package. A device is declared by a folder, and a
+  /// folder is the unit a profile governs, so each file's own profile is
+  /// crossed on its own — exactly as explicit lists are — and a point two
+  /// folders share runs both folders' files in one pass. A folder with no
+  /// profile declares nothing, so its files share the one point that names
+  /// no device, and run as a plain run would frame them. The union this
+  /// replaced crossed every folder's devices with every file — a named device
+  /// overrides the folder's own choice for every file it runs — so a suite
+  /// with four folder profiles ran each folder on the others' devices too,
+  /// paying for points nobody declared and photographing screens on devices
+  /// they were never laid out for.
+  ///
+  /// Files run in the order the request's selectors name them, then in the
+  /// order the harness declared them — the order a run over the same
+  /// selectors takes without a matrix.
+  static List<({ScenarioAxes axes, String? file})> _declaredPoints(
+    List<ScenarioListing> listings,
+    List<ScenarioAxes> Function(
+      List<String> devices,
+      List<String> orientations,
+      List<String> languages,
+    )
+    cross, {
+    String? file,
+    String? scenario,
+    String? tag,
+  }) {
+    var selectors = file == null ? null : fileSelectors(file);
+    var filesAt = <ScenarioAxes, Set<String>>{};
+    for (var listing in listings) {
+      if (selectors != null &&
+          !selectors.any((one) => selectsFile(one, listing.file))) {
+        continue;
+      }
+      // The harness's own rules for the other two filters — the exact leaf
+      // name, a declared tag — so a point is never run for a file the run
+      // would then find nothing in.
+      if (scenario != null && listing.name != scenario) continue;
+      if (tag != null && !listing.tags.contains(tag)) continue;
+      for (var point in cross(
+        listing.devices,
+        listing.orientations,
+        listing.languages,
+      )) {
+        filesAt.putIfAbsent(point, () => {}).add(listing.file);
+      }
+    }
+    Iterable<String> ordered(Set<String> files) => selectors == null
+        ? files
+        : {
+            for (var one in selectors)
+              for (var each in files)
+                if (selectsFile(one, each)) each,
+          };
+    return [
+      for (var MapEntry(key: axes, value: files) in filesAt.entries)
+        (axes: axes, file: ordered(files).join(',')),
+    ];
   }
 
   static final _localePattern = RegExp(

@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/plugins.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/log_client.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/selector.dart';
 import 'package:flutterware_app/src/context.dart';
 import 'package:flutterware_app/src/plugins/native/scenarios_core.dart';
 import 'package:flutterware_app/src/plugins/native/scenarios_results.dart';
@@ -612,6 +614,147 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
       expect(result.packages.map((run) => '${run.axes}').toSet(), hasLength(4));
     });
 
+    // A device is declared by a folder. The union crossed every folder's
+    // devices with every file, and a named device overrides the folder's own
+    // choice — so each folder also ran on the others' devices.
+    test('each point runs only the files whose folder declares it', () async {
+      writeScenarios('mobile/a_test.dart', ['A']);
+      writeScenarios('desktop/b_test.dart', ['B']);
+      var runner = _FakeRunner()
+        ..listings = [
+          ScenarioListing(
+            file: 'test/scenarios/mobile/a_test.dart',
+            name: 'A',
+            profile: 'phones',
+            devices: ['iphone-se', 'android-tall'],
+            languages: ['en', 'fr'],
+          ),
+          ScenarioListing(
+            file: 'test/scenarios/desktop/b_test.dart',
+            name: 'B',
+            profile: 'desktop',
+            devices: ['window'],
+            languages: ['en'],
+          ),
+        ];
+      var subject = core(runner);
+
+      var result =
+          (await subject.invoke('run', arguments: {'matrix': 'declared'}))!
+              as ScenarioRunResult;
+
+      expect(runner.filesByPoint, {
+        'iphone-se/en': 'a_test',
+        'iphone-se/fr': 'a_test',
+        'android-tall/en': 'a_test',
+        'android-tall/fr': 'a_test',
+        'window/en': 'b_test',
+      });
+      expect(result.packages, hasLength(5));
+      expect(result.packages.every((run) => run.error == null), isTrue);
+    });
+
+    test('a point two folders declare runs both in one pass', () async {
+      writeScenarios('shop/a_test.dart', ['A']);
+      writeScenarios('account/b_test.dart', ['B']);
+      writeScenarios('tablet/c_test.dart', ['C']);
+      var runner = _FakeRunner()
+        ..listings = [
+          ScenarioListing(
+            file: 'test/scenarios/shop/a_test.dart',
+            name: 'A',
+            devices: ['iphone-se'],
+          ),
+          ScenarioListing(
+            file: 'test/scenarios/account/b_test.dart',
+            name: 'B',
+            devices: ['iphone-se'],
+          ),
+          ScenarioListing(
+            file: 'test/scenarios/tablet/c_test.dart',
+            name: 'C',
+            devices: ['ipad'],
+          ),
+        ];
+      var subject = core(runner);
+
+      await subject.invoke('run', arguments: {'matrix': 'declared'});
+
+      expect(runner.filesByPoint, {
+        'iphone-se/null': 'a_test,b_test',
+        'ipad/null': 'c_test',
+      });
+    });
+
+    test('a folder with no profile runs once, at no device', () async {
+      writeScenarios('mobile/a_test.dart', ['A']);
+      writeScenarios('b_test.dart', ['B']);
+      var runner = _FakeRunner()
+        ..listings = [
+          ScenarioListing(
+            file: 'test/scenarios/mobile/a_test.dart',
+            name: 'A',
+            devices: ['iphone-se', 'android-tall'],
+          ),
+          ScenarioListing(file: 'test/scenarios/b_test.dart', name: 'B'),
+        ];
+      var subject = core(runner);
+
+      await subject.invoke('run', arguments: {'matrix': 'declared'});
+
+      expect(runner.filesByPoint, {
+        'iphone-se/null': 'a_test',
+        'android-tall/null': 'a_test',
+        'null/null': 'b_test',
+      });
+    });
+
+    test('the request’s own filters narrow the points too', () async {
+      writeScenarios('mobile/a_test.dart', ['A']);
+      writeScenarios('mobile/c_test.dart', ['C']);
+      writeScenarios('desktop/b_test.dart', ['B']);
+      var runner = _FakeRunner()
+        ..listings = [
+          ScenarioListing(
+            file: 'test/scenarios/mobile/a_test.dart',
+            name: 'A',
+            devices: ['iphone-se'],
+          ),
+          ScenarioListing(
+            file: 'test/scenarios/mobile/c_test.dart',
+            name: 'C',
+            devices: ['iphone-se'],
+          ),
+          ScenarioListing(
+            file: 'test/scenarios/desktop/b_test.dart',
+            name: 'B',
+            devices: ['window'],
+            tags: ['store'],
+          ),
+        ];
+      var subject = core(runner);
+
+      // In the order the selectors name them, and no point for a folder the
+      // request left out.
+      await subject.invoke(
+        'run',
+        arguments: {
+          'matrix': 'declared',
+          'file': 'test/scenarios/mobile/c_test.dart,test/scenarios/mobile/',
+        },
+      );
+      expect(runner.filesByPoint, {'iphone-se/null': 'c_test,a_test'});
+
+      // Only the folders holding a tagged scenario have points to run.
+      runner.axesSeen.clear();
+      runner.filesSeen.clear();
+      await subject.invoke(
+        'run',
+        arguments: {'matrix': 'declared', 'tag': 'store'},
+      );
+      expect(runner.filesByPoint, {'window/null': 'b_test'});
+    });
+
     test('a declaration with one point stays one quiet run', () async {
       writeScenarios('a_test.dart', ['A']);
       var runner = _FakeRunner()
@@ -729,6 +872,18 @@ class _FakeRunner extends ScenarioRunner {
   /// The axes every `run` call arrived with, in order.
   final axesSeen = <ScenarioAxes>[];
 
+  /// The `file` selector every `run` call arrived with, in order.
+  final filesSeen = <String?>[];
+
+  /// Which files ran at which point, as `device/language → a_test,b_test`.
+  Map<String, String> get filesByPoint => {
+    for (var (i, axes) in axesSeen.indexed)
+      '${axes.device}/${axes.language}': [
+        for (var one in fileSelectors(filesSeen[i] ?? ''))
+          p.basenameWithoutExtension(one),
+      ].join(','),
+  };
+
   /// The output directory every `run` call arrived with, in order.
   final outDirsSeen = <String>[];
 
@@ -762,13 +917,16 @@ class _FakeRunner extends ScenarioRunner {
   }) async {
     axesSeen.add(axes);
     outDirsSeen.add(outDir);
+    filesSeen.add(file);
     if (failure case var failure?) throw StateError(failure);
     if (!matches) return {'ms': 1, 'scenarios': <Object?>[]};
     return {
       'ms': 5,
       'scenarios': [
         {
-          'file': file ?? 'test/scenarios/a_test.dart',
+          'file': file == null
+              ? 'test/scenarios/a_test.dart'
+              : fileSelectors(file).first,
           'name': scenario ?? 'A',
           'ok': ok,
           'ms': 3,
@@ -796,6 +954,9 @@ class _FakeRunner extends ScenarioRunner {
           ],
           if (translations != null) 'translations': translations,
         },
+        // Every other file the selector names ran something too.
+        for (var other in fileSelectors(file ?? '').skip(1))
+          {'file': other, 'name': 'A', 'ok': true, 'ms': 1, 'steps': []},
         for (var n = 1; n <= alsoGreen; n++)
           {
             'file': 'test/scenarios/b_test.dart',

@@ -480,9 +480,18 @@ do the same for a CI job that would rather set an environment block.
 
 Under the runner, don't restate the lists at all: `fw run scenarios run
 matrix=declared` reads the folder profiles and runs every point they declare
-— the union of their devices, languages and orientations, crossed the same
-way explicit lists are. Adding a device to the declaration then adds it to
-CI, instead of silently not.
+— each folder's devices, languages and orientations, crossed the same way
+explicit lists are. A point runs only the files whose folder declares it, so
+the phone folder runs on its phones and the desktop folder on its windows,
+never on each other's; a point two folders both declare runs both in one
+pass, and a folder with no profile runs once, as a run naming no device
+would. `file=`, `scenario=` and `tag=` narrow it as they narrow any run.
+Adding a device to the declaration then adds it to CI, instead of silently
+not.
+
+Explicit `devices=` and `languages=` lists are different: they name the
+devices for the whole run, every file on every one of them, whatever the
+folders declare.
 
 Inside a body, `s.assignment` reports what this pass is running as, so an
 expectation can adapt to the screen it is on.
