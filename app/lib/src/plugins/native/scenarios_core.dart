@@ -3020,7 +3020,7 @@ class ScenariosCore extends PluginCore {
       // PNG codec is ~250ms an image, and doing it inline freezes the window
       // for as long as the whole set takes. See `flattenPngFile`.
       var flatten = <(String, String)>[];
-      var failures = <String, int>{};
+      var failures = <String, List<ScenarioShotFailure>>{};
       var axesOf = <String, Map<String, String>>{};
       try {
         for (var assignment in assignments) {
@@ -3065,7 +3065,16 @@ class ScenariosCore extends PluginCore {
               ..createSync(recursive: true);
             var kept = images.putIfAbsent(key, () => []);
             if (!outcome.ok) {
-              failures[key] = (failures[key] ?? 0) + 1;
+              failures
+                  .putIfAbsent(key, () => [])
+                  .add(
+                    ScenarioShotFailure(
+                      file: outcome.file,
+                      scenario: outcome.name,
+                      error: _firstLines(_failureOf(outcome)),
+                      rerun: _rerun(path, outcome, assignment),
+                    ),
+                  );
             }
             for (var step in outcome.steps) {
               // Named shots only, and only the tag asked for: an automatic
@@ -3105,7 +3114,7 @@ class ScenariosCore extends PluginCore {
                   directory: key,
                   axes: axesOf[key] ?? const {},
                   images: images[key]!,
-                  failed: failures[key] ?? 0,
+                  failures: failures[key] ?? const [],
                 ),
             ],
           ),
@@ -3122,6 +3131,31 @@ class ScenariosCore extends PluginCore {
     }
     return ScenarioShotsResult(packages: results, count: total);
   }
+
+  /// [text] cut to its first [max] lines, saying how many it left out.
+  static String _firstLines(String text, {int max = 12}) {
+    var lines = text.trimRight().split('\n');
+    if (lines.length <= max) return lines.join('\n');
+    return [
+      ...lines.take(max),
+      '… ${lines.length - max} more lines',
+    ].join('\n');
+  }
+
+  /// The `run` that reproduces [outcome] at [assignment]'s point: the device
+  /// it actually ran as, which a folder profile may have chosen rather than
+  /// the request.
+  static String _rerun(
+    String path,
+    ScenarioRunOutcome outcome,
+    ScenarioAxes assignment,
+  ) => [
+    'fw run scenarios run --package=$path --file=${outcome.file}',
+    '--scenario="${outcome.name}"',
+    if (outcome.device case var device?) '--device=$device',
+    if (assignment.isLandscape) '--orientation=landscape',
+    if (assignment.language case var language?) '--language=$language',
+  ].join(' ');
 
   /// `01-order-placed.png` from `Order placed` — a name that sorts, survives
   /// every filesystem, and still reads as what it shows.
@@ -4253,29 +4287,33 @@ class ScenariosCore extends PluginCore {
     );
   }
 
-  /// Whichever scenario of a film run came back red, in its own words.
+  /// Whichever scenario of a film run came back red, in its own words — see
+  /// [_failureOf].
+  String? _filmFailure(Map<String, Object?> report) {
+    for (var scenario in (report['scenarios'] as List?) ?? const []) {
+      var outcome = ScenarioRunOutcome.fromJson(
+        (scenario as Map).cast<String, Object?>(),
+      );
+      if (outcome.ok || outcome.skipped) continue;
+      return _failureOf(outcome);
+    }
+    return report['error'] as String?;
+  }
+
+  /// Why [outcome] came back red, in its own words.
   ///
   /// The caught errors first: a refusal a verb threw — a `split` a film was
   /// not told which way to take — lands there with its whole message, which is
   /// the one thing worth handing back. A failed step's `failure` says the same
   /// sentence where the step got far enough to be captured.
-  String? _filmFailure(Map<String, Object?> report) {
-    for (var scenario in (report['scenarios'] as List?) ?? const []) {
-      var record = (scenario as Map).cast<String, Object?>();
-      if (record['ok'] == true || record['skipped'] == true) continue;
-      for (var error in (record['errors'] as List?) ?? const []) {
-        if ((error as Map)['error'] case String said when said.isNotEmpty) {
-          return said;
-        }
-      }
-      for (var step in (record['steps'] as List?) ?? const []) {
-        if ((step as Map)['failure'] case String said when said.isNotEmpty) {
-          return said;
-        }
-      }
-      return 'it failed without saying why';
+  static String _failureOf(ScenarioRunOutcome outcome) {
+    for (var error in outcome.errors) {
+      if (error.error.isNotEmpty) return error.error;
     }
-    return report['error'] as String?;
+    for (var step in outcome.steps) {
+      if (step.failure case var said? when said.isNotEmpty) return said;
+    }
+    return 'it failed without saying why';
   }
 
   static double? _positive(Object? raw, String name) {

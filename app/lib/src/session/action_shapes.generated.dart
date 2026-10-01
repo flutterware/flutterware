@@ -6237,6 +6237,27 @@ final resultShapes = <String, ResultShape>{
       },
     ],
   }),
+  'ScenarioShotFailure': ResultShape.fromJson(<String, Object?>{
+    'type': 'ScenarioShotFailure',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'file',
+        'type': 'String',
+        'doc': 'Package-relative, as `list` reports it.',
+      },
+      <String, Object?>{'name': 'scenario', 'type': 'String'},
+      <String, Object?>{
+        'name': 'error',
+        'type': 'String',
+        'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+      },
+      <String, Object?>{
+        'name': 'rerun',
+        'type': 'String',
+        'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+      },
+    ],
+  }),
   'ScenarioShotSet': ResultShape.fromJson(<String, Object?>{
     'type': 'ScenarioShotSet',
     'fields': <Object?>[
@@ -6255,6 +6276,32 @@ final resultShapes = <String, ResultShape>{
         'name': 'failed',
         'type': 'int',
         'doc': 'Scenarios that failed while producing this set.',
+      },
+      <String, Object?>{
+        'name': 'failures',
+        'type': 'List<ScenarioShotFailure>',
+        'doc': 'Why, one entry per failed scenario — [failed] is their count.',
+        'shape': <String, Object?>{
+          'type': 'ScenarioShotFailure',
+          'fields': <Object?>[
+            <String, Object?>{
+              'name': 'file',
+              'type': 'String',
+              'doc': 'Package-relative, as `list` reports it.',
+            },
+            <String, Object?>{'name': 'scenario', 'type': 'String'},
+            <String, Object?>{
+              'name': 'error',
+              'type': 'String',
+              'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+            },
+            <String, Object?>{
+              'name': 'rerun',
+              'type': 'String',
+              'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+            },
+          ],
+        },
       },
     ],
   }),
@@ -6288,6 +6335,32 @@ final resultShapes = <String, ResultShape>{
               'name': 'failed',
               'type': 'int',
               'doc': 'Scenarios that failed while producing this set.',
+            },
+            <String, Object?>{
+              'name': 'failures',
+              'type': 'List<ScenarioShotFailure>',
+              'doc': 'Why, one entry per failed scenario — [failed] is their count.',
+              'shape': <String, Object?>{
+                'type': 'ScenarioShotFailure',
+                'fields': <Object?>[
+                  <String, Object?>{
+                    'name': 'file',
+                    'type': 'String',
+                    'doc': 'Package-relative, as `list` reports it.',
+                  },
+                  <String, Object?>{'name': 'scenario', 'type': 'String'},
+                  <String, Object?>{
+                    'name': 'error',
+                    'type': 'String',
+                    'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+                  },
+                  <String, Object?>{
+                    'name': 'rerun',
+                    'type': 'String',
+                    'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+                  },
+                ],
+              },
             },
           ],
         },
@@ -6341,6 +6414,32 @@ final resultShapes = <String, ResultShape>{
                     'type': 'int',
                     'doc': 'Scenarios that failed while producing this set.',
                   },
+                  <String, Object?>{
+                    'name': 'failures',
+                    'type': 'List<ScenarioShotFailure>',
+                    'doc': 'Why, one entry per failed scenario — [failed] is their count.',
+                    'shape': <String, Object?>{
+                      'type': 'ScenarioShotFailure',
+                      'fields': <Object?>[
+                        <String, Object?>{
+                          'name': 'file',
+                          'type': 'String',
+                          'doc': 'Package-relative, as `list` reports it.',
+                        },
+                        <String, Object?>{'name': 'scenario', 'type': 'String'},
+                        <String, Object?>{
+                          'name': 'error',
+                          'type': 'String',
+                          'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+                        },
+                        <String, Object?>{
+                          'name': 'rerun',
+                          'type': 'String',
+                          'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+                        },
+                      ],
+                    },
+                  },
                 ],
               },
             },
@@ -6359,7 +6458,9 @@ final resultShapes = <String, ResultShape>{
         'doc':
             'How many images were written, over every package and assignment.',
       },
+      <String, Object?>{'name': 'ok', 'type': 'bool'},
     ],
+    'gates': true,
   }),
   'ScenarioWebExportResult': ResultShape.fromJson(<String, Object?>{
     'type': 'ScenarioWebExportResult',

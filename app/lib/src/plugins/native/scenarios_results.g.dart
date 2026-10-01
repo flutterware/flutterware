@@ -62,6 +62,7 @@ Map<String, dynamic> _$ScenarioShotsResultToJson(
 ) => <String, dynamic>{
   'packages': instance.packages.map((e) => e.toJson()).toList(),
   'count': instance.count,
+  'ok': instance.ok,
 };
 
 Map<String, dynamic> _$ScenarioShotsPackageToJson(
@@ -79,7 +80,17 @@ Map<String, dynamic> _$ScenarioShotSetToJson(ScenarioShotSet instance) =>
       'axes': instance.axes,
       'images': instance.images,
       'failed': instance.failed,
+      'failures': instance.failures.map((e) => e.toJson()).toList(),
     };
+
+Map<String, dynamic> _$ScenarioShotFailureToJson(
+  ScenarioShotFailure instance,
+) => <String, dynamic>{
+  'file': instance.file,
+  'scenario': instance.scenario,
+  'error': instance.error,
+  'rerun': instance.rerun,
+};
 
 Map<String, dynamic> _$ScenarioReadResultToJson(ScenarioReadResult instance) =>
     <String, dynamic>{

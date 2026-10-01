@@ -1628,9 +1628,17 @@ packages: List<ScenarioShotsPackage>
     axes: Map<String, String>
     images: List<String>   # File names, in the order they were captured — which is the order they were numbered with.
     failed: int   # Scenarios that failed while producing this set.
+    failures: List<ScenarioShotFailure>   # Why, one entry per failed scenario — [failed] is their count.
+      file: String   # Package-relative, as `list` reports it.
+      scenario: String
+      error: String   # The first lines of what the scenario failed with — the caught error, or the failed step's message where there was none.
+      rerun: String   # The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action's own run is not.
   error: String?   # Set when the package could not be run at all.
 count: int   # How many images were written, over every package and assignment.
+ok: bool
 ```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
 
 | parameter | kind | required | default | |
 |---|---|---|---|---|

@@ -452,6 +452,7 @@ void main() {
       // from a folder profile the host never saw.
       expect(runner.seenNative, everyElement(isTrue));
 
+      expect(result.ok, isTrue);
       expect(result.count, 4);
       expect(
         [for (var set in result.packages.single.sets) set.directory],
@@ -492,6 +493,52 @@ void main() {
       );
     },
   );
+
+  test('shots says why a scenario failed, at the point it failed', () async {
+    // A count was all that reached the reader, and the run that knew more is
+    // scratch the action deletes — so a stall spent its deadline at every
+    // point of the matrix and the answer said `failed: 1`.
+    var diagnosis = [
+      'the scenario made no progress for 30s',
+      for (var i = 1; i < 20; i++) 'detail $i',
+    ].join('\n');
+    var runner = _FakeRunner()
+      ..writeShots = true
+      ..shotFailure = diagnosis;
+    var subject = core(runner: runner);
+    var result =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'package': '.',
+                'output': p.join(root.path, 'store'),
+                'devices': 'iphone-16',
+                'languages': 'en,fr',
+              },
+            ))!
+            as ScenarioShotsResult;
+
+    // Red, so `fw` exits 1 and a pipeline stops before it uploads half a set.
+    expect(result.ok, isFalse);
+    var sets = result.packages.single.sets;
+    expect([for (var set in sets) set.failed], [1, 1]);
+    var failure = sets.last.failures.single;
+    expect(failure.file, 'test/scenarios/a_test.dart');
+    expect(failure.scenario, 'A');
+    // The first lines, and a count of the rest rather than all of them.
+    expect(failure.error, startsWith('the scenario made no progress for 30s'));
+    expect(failure.error.split('\n'), hasLength(13));
+    expect(failure.error, endsWith('… 8 more lines'));
+    // The point it failed at, as a run that keeps its steps on disk.
+    expect(
+      failure.rerun,
+      'fw run scenarios run --package=. --file=test/scenarios/a_test.dart '
+      '--scenario="A" --device=iphone-16 --language=fr',
+    );
+    expect(sets.last.toJson()['failures'], hasLength(1));
+    // What it captured before it broke is still written.
+    expect(sets.last.images, isNotEmpty);
+  });
 
   test('`file` takes the list its listing says it repeats', () async {
     // Declared repeatable, so an agent sent a list — and a bare `as String?`
@@ -689,6 +736,10 @@ class _FakeRunner extends ScenarioRunner {
   /// through.
   var writeShots = false;
 
+  /// When set, the shot run's scenario comes back red with this error, its
+  /// shots up to the failure still on disk.
+  String? shotFailure;
+
   /// What the harness resolved the device to, echoed the way the real one
   /// does: the request's device, or the fallback the host offered.
   String? resolvedDevice;
@@ -809,8 +860,12 @@ class _FakeRunner extends ScenarioRunner {
           'file': file ?? 'test/scenarios/a_test.dart',
           'name': scenario ?? 'A',
           'device': resolvedDevice,
-          'ok': true,
+          'ok': shotFailure == null,
           'ms': 3,
+          if (shotFailure case var error?)
+            'errors': [
+              {'error': error},
+            ],
           'steps': [
             step(0, 'Welcome', ['store']),
             step(1, null, const []),
