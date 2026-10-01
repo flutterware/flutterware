@@ -1342,6 +1342,99 @@ void main() {
     }, timeout: const Timeout(Duration(minutes: 4)));
   }
 
+  // The app's own axes, end to end: declared by folders, listed, defaulted,
+  // named by a request, narrowed per folder, and refused where a request asks
+  // for something no folder declares.
+  test(
+    'app axes run per folder, at the value named or the folder default',
+    () async {
+      var flutterRoot = Platform.environment['FLUTTER_ROOT']!;
+      var repoRoot = Directory.current.parent.path;
+      var outDir = Directory.systemTemp.createTempSync('scenario_axes').path;
+      var directory = 'test/scenarios_axes';
+      var dir = Directory(p.join(repoRoot, directory));
+      void write(String path, String source) => (File(
+        p.join(dir.path, path),
+      )..createSync(recursive: true)).writeAsStringSync(source);
+      write('flutter_test_config.dart', _axesConfigSource("['coffee', 'tea']"));
+      write('brand_test.dart', _brandSource);
+      write('solo/flutter_test_config.dart', _axesConfigSource("['coffee']"));
+      write('solo/solo_test.dart', _brandSource);
+      write('plain/flutter_test_config.dart', _axesConfigSource(null));
+      write('plain/plain_test.dart', _noBrandSource);
+
+      var runner = ScenarioRunner(
+        packageRoot: repoRoot,
+        directory: directory,
+        flutterSdkRoot: flutterRoot,
+      );
+      Future<Map<String, Map<String, dynamic>>> run(ScenarioAxes axes) async {
+        var report = await runner.run(outDir: outDir, axes: axes);
+        return {
+          for (var outcome
+              in (report['scenarios']! as List).cast<Map<String, dynamic>>())
+            p.basename(outcome['file'] as String): outcome,
+        };
+      }
+
+      try {
+        var listed = {
+          for (var listing in await runner.list())
+            p.basename(listing.file): listing.axes,
+        };
+        expect(listed, {
+          'brand_test.dart': {
+            'brand': ['coffee', 'tea'],
+          },
+          'solo_test.dart': {
+            'brand': ['coffee'],
+          },
+          'plain_test.dart': <String, List<String>>{},
+        });
+
+        // Nothing named: each folder at its first value, and said.
+        var plain = await run(const ScenarioAxes());
+        expect(plain['brand_test.dart']!['ok'], isTrue);
+        expect(plain['brand_test.dart']!['axes'], {'brand': 'coffee'});
+        expect(plain['plain_test.dart']!['ok'], isTrue);
+        expect(plain['plain_test.dart']!.containsKey('axes'), isFalse);
+
+        // Named: where it is declared, and refused for the folder that
+        // declares the axis without the value — not run at its default.
+        var tea = await run(const ScenarioAxes(appAxes: {'brand': 'tea'}));
+        expect(tea['brand_test.dart']!['ok'], isTrue);
+        expect(tea['brand_test.dart']!['axes'], {'brand': 'tea'});
+        expect(tea['plain_test.dart']!['ok'], isTrue);
+        expect(tea['solo_test.dart']!['ok'], isFalse);
+        expect(
+          '${tea['solo_test.dart']!['errors']}',
+          allOf(contains('brand=tea'), contains('coffee')),
+        );
+
+        // A name or a value no folder declares runs nothing at all.
+        await expectLater(
+          run(const ScenarioAxes(appAxes: {'brnd': 'tea'})),
+          throwsA(
+            isA<ActionRefusal>().having(
+              (r) => r.message,
+              'message',
+              allOf(contains('`brnd`'), contains('`brand` (coffee, tea)')),
+            ),
+          ),
+        );
+        await expectLater(
+          run(const ScenarioAxes(appAxes: {'brand': 'juice'})),
+          throwsA(isA<ActionRefusal>()),
+        );
+      } finally {
+        await runner.dispose();
+        dir.deleteSync(recursive: true);
+        Directory(outDir).deleteSync(recursive: true);
+      }
+    },
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
+
   test('the entrypoint file is left alone when its content is right', () {
     var root = Directory.systemTemp.createTempSync('scenario_entrypoint');
     try {
@@ -1499,6 +1592,50 @@ void main() {
       const MaterialApp(home: Scaffold(body: Text('$label'))),
     );
     await s.screen('shot');
+  });
+}
+''';
+
+/// A folder whose profile declares [brands] as its `brand` axis, or no axes at
+/// all when null.
+String _axesConfigSource(String? brands) =>
+    '''
+import 'dart:async';
+
+import 'package:flutterware/flutter_test.dart';
+
+const profile = ScenarioProfile(
+  'axes',
+  ${brands == null ? '' : "axes: {'brand': $brands},"}
+);
+
+Future<void> testExecutable(FutureOr<void> Function() testMain) =>
+    runScenarios(testMain, profile: profile);
+''';
+
+/// A scenario that builds its app for the brand it is running in.
+const _brandSource = '''
+import 'package:material_ui/material_ui.dart';
+import 'package:flutterware/flutter_test.dart';
+
+void main() {
+  scenario('Brand', (s) async {
+    await s.pumpWidget(MaterialApp(home: Scaffold(body: Text(s.axis('brand')))));
+    expect(find.text(s.axis('brand')), findsOneWidget);
+  });
+}
+''';
+
+/// A scenario in a folder that declares no axis, reading one anyway.
+const _noBrandSource = '''
+import 'package:material_ui/material_ui.dart';
+import 'package:flutterware/flutter_test.dart';
+
+void main() {
+  scenario('Plain', (s) async {
+    expect(s.assignment?.axes ?? const {}, isEmpty);
+    expect(() => s.axis('brand'), throwsArgumentError);
+    await s.pumpWidget(const MaterialApp(home: Scaffold(body: Text('plain'))));
   });
 }
 ''';

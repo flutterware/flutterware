@@ -583,6 +583,65 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
     });
   });
 
+  group('app axes', () {
+    test('one value per axis is one point, recorded on the run', () async {
+      writeScenarios('a_test.dart', ['A']);
+      var runner = _FakeRunner();
+
+      var result =
+          (await core(
+                runner,
+              ).invoke('run', arguments: {'axes': 'brand=tea,contrast=high'}))!
+              as ScenarioRunResult;
+
+      expect(runner.axesSeen.single.appAxes, {
+        'brand': 'tea',
+        'contrast': 'high',
+      });
+      expect(result.packages.single.axes, isNull, reason: 'nothing fanned out');
+      expect(result.axes, {'axis.brand': 'tea', 'axis.contrast': 'high'});
+    });
+
+    test('several values cross the other lists, a directory each', () async {
+      writeScenarios('a_test.dart', ['A']);
+      var runner = _FakeRunner();
+
+      var result =
+          (await core(runner).invoke(
+                'run',
+                arguments: {
+                  'languages': 'en,fr',
+                  // As MCP sends a repeatable parameter: a list.
+                  'axes': ['brand=coffee', 'tea'],
+                },
+              ))!
+              as ScenarioRunResult;
+
+      expect(
+        [for (var axes in runner.axesSeen) axisSlug(axes)],
+        ['en-coffee', 'en-tea', 'fr-coffee', 'fr-tea'],
+      );
+      expect(
+        [for (var run in result.packages) p.basename(run.output)],
+        ['en-coffee', 'en-tea', 'fr-coffee', 'fr-tea'],
+      );
+    });
+
+    test('a value no axis is named before is refused, saying how', () async {
+      writeScenarios('a_test.dart', ['A']);
+      await expectLater(
+        core(_FakeRunner()).invoke('run', arguments: {'axes': 'tea'}),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            contains('brand=coffee,tea'),
+          ),
+        ),
+      );
+    });
+  });
+
   group('matrix=declared', () {
     test('runs every point the declaration offers', () async {
       writeScenarios('a_test.dart', ['A']);
@@ -788,6 +847,92 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
         ),
         throwsArgumentError,
       );
+      await expectLater(
+        subject.invoke(
+          'run',
+          arguments: {'matrix': 'declared', 'axes': 'brand=tea'},
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('crosses the app axes a folder declares, and only there', () async {
+      writeScenarios('brands/a_test.dart', ['A']);
+      writeScenarios('plain/b_test.dart', ['B']);
+      var runner = _FakeRunner()
+        ..listings = [
+          ScenarioListing(
+            file: 'test/scenarios/brands/a_test.dart',
+            name: 'A',
+            devices: ['iphone-se'],
+            axes: {
+              'brand': ['coffee', 'tea'],
+            },
+          ),
+          ScenarioListing(
+            file: 'test/scenarios/plain/b_test.dart',
+            name: 'B',
+            devices: ['iphone-se'],
+          ),
+        ];
+      var subject = core(runner);
+
+      var result =
+          (await subject.invoke('run', arguments: {'matrix': 'declared'}))!
+              as ScenarioRunResult;
+
+      expect(
+        {
+          for (var (i, axes) in runner.axesSeen.indexed)
+            axisSlug(axes): runner.filesSeen[i],
+        },
+        {
+          'iphone-se-coffee': 'test/scenarios/brands/a_test.dart',
+          'iphone-se-tea': 'test/scenarios/brands/a_test.dart',
+          // The folder that declares no axis is a point of its own: nothing
+          // in it reads `brand`, so running it twice would be one picture
+          // taken twice.
+          'iphone-se': 'test/scenarios/plain/b_test.dart',
+        },
+      );
+      expect(
+        [for (var run in result.packages) run.axes?['axis.brand']],
+        ['coffee', 'tea', null],
+      );
+    });
+
+    test('refuses two points that would share a directory', () async {
+      writeScenarios('brands/a_test.dart', ['A']);
+      writeScenarios('themes/b_test.dart', ['B']);
+      var runner = _FakeRunner()
+        ..listings = [
+          ScenarioListing(
+            file: 'test/scenarios/brands/a_test.dart',
+            name: 'A',
+            axes: {
+              'brand': ['night', 'day'],
+            },
+          ),
+          ScenarioListing(
+            file: 'test/scenarios/themes/b_test.dart',
+            name: 'B',
+            axes: {
+              'theme': ['night'],
+            },
+          ),
+        ];
+
+      await expectLater(
+        core(runner).invoke('run', arguments: {'matrix': 'declared'}),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            allOf(contains('`night`'), contains('axis.brand')),
+          ),
+        ),
+      );
+      expect(runner.axesSeen, isEmpty, reason: 'refused before anything ran');
     });
 
     test('any other value is refused with the vocabulary', () async {
