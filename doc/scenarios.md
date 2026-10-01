@@ -169,7 +169,9 @@ await s.act(
 ```
 
 It pumps until the target is on screen, then settles the way the default does.
-The target is anything a verb takes. The `timeout` is ten seconds by default,
+The target is anything a verb takes, and a positional one waits like the rest:
+`find.text('Order #1042').first` over nothing, or a `Target.nth` past the
+rows so far, is simply not there yet. The `timeout` is ten seconds by default,
 on the lane's own clock. A target that never appears fails the step, and the
 step's picture is the screen at the moment the wait gave up.
 
