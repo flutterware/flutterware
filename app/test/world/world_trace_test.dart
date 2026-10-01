@@ -1302,6 +1302,48 @@ void main() {
       expect(traced(person: 'Ben')['ben.1 tap "Home"'], isEmpty);
     });
 
+    test("a bucket's first record is its first operation, not the first the "
+        'watch reported', () {
+      step('Ben', 'ben.1', 500, '"Home"');
+      trace.addActionStep(
+        'world.1',
+        'Share',
+        since.add(const Duration(seconds: 1)),
+      );
+      lab(1100, 'write', {
+        'table': 'notes',
+        'key': 'n1',
+        'op': 'insert',
+        'step': 'world.1',
+      });
+      app('Ben', 1300, 'db:main/records', {
+        'change': 'subscribed',
+        'bucket': 'note["n1"]',
+      });
+      // One read, one moment, in table order: a side row no server reports,
+      // then the note itself, the bucket's first operation.
+      for (var (table, key, op) in [
+        ('note_access', 'n1_u2', 9),
+        ('notes', 'n1', 7),
+      ]) {
+        app('Ben', 1301, 'db:main/records', {
+          'key': key,
+          'table': table,
+          'change': 'synced',
+          'op': op,
+          'bucket': 'note["n1"]',
+        });
+      }
+      expect(
+        traced(person: worldActionsOwner)['world.1 action "Share"'],
+        contains('  +300 ms  Ben  subscribed to note["n1"]'),
+      );
+      expect(
+        traced(person: 'Ben')['ben.1 tap "Home"'],
+        isNot(contains(contains('subscribed'))),
+      );
+    });
+
     test('a write that says its level is seen there, and the level is not '
         'what it wrote', () {
       trace.addActionStep(

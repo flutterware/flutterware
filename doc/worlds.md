@@ -300,7 +300,11 @@ something down a connection, such as a WebSocket frame. Give `identify` the
 phone or address the account was made with when the server has them —
 `identify(user.id, phone: user.phone)` — and a person the world declared by
 those is known by the id too: someone invited by SMS, whose account a step
-makes and whose app then only syncs, is theirs rather than nobody's.
+makes and whose app then only syncs, is theirs rather than nobody's. An
+identity provider's token rarely carries either, so the adapter may have to
+look them up by the token's subject: once an id is enough, and run the
+lookup where your SQL adapter does not report it, or it shows among the
+statements of whichever request it happens to run in.
 
 **Work handed off keeps its step when you carry it.** A zone ends where its
 request does, so a job queued for later, or an upload whose storage calls

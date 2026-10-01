@@ -1402,21 +1402,37 @@ class WorldTrace {
   }
 
   /// The write that gave [subscription]'s bucket its first record on the
-  /// phone — the record the watch read with the bucket — when one did.
+  /// phone — of the records the watch read with the bucket, the first by
+  /// operation whose write a server reported — when one did.
+  ///
+  /// By operation, not by when each was heard: the watch reports a read's
+  /// records at one moment, in table order, and the bucket's first record —
+  /// the one a step wrote — may be the last of them, after side rows no
+  /// server reports.
   _ServerEvent? _subscribedBy(_Subscription subscription) {
     if (!subscription.subscribed) return null;
-    _Record? first;
-    for (var record in _records) {
-      if (record.person != subscription.person ||
-          record.bucket != subscription.bucket ||
-          record.change.startsWith('local ') ||
-          record.at.isBefore(subscription.at) ||
-          record.at.difference(subscription.at) > _sameRead) {
-        continue;
-      }
-      if (first == null || record.at.isBefore(first.at)) first = record;
+    var read = [
+      for (var record in _records)
+        if (record.person == subscription.person &&
+            record.bucket == subscription.bucket &&
+            !record.change.startsWith('local ') &&
+            !record.at.isBefore(subscription.at) &&
+            record.at.difference(subscription.at) <= _sameRead)
+          record,
+    ];
+    mergeSort(
+      read,
+      compare: (a, b) => switch ((a.op, b.op)) {
+        (var x?, var y?) when x != y => x.compareTo(y),
+        (_?, null) => -1,
+        (null, _?) => 1,
+        _ => a.at.compareTo(b.at),
+      },
+    );
+    for (var record in read) {
+      if (_writeOf(record) case var write?) return write;
     }
-    return first == null ? null : _writeOf(first);
+    return null;
   }
 
   /// How far apart the watch reports what it read at once.

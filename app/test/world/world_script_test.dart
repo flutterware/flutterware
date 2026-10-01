@@ -111,6 +111,47 @@ void main() {
     expect(File(compiler.infoFile).readAsStringSync(), info);
   }, timeout: const Timeout(Duration(minutes: 1)));
 
+  test("a script's last words are its error, not the stack after it", () {
+    String? last(List<String> lines) {
+      var said = LastSaid();
+      lines.forEach(said.add);
+      return said.line;
+    }
+
+    expect(
+      last([
+        'Unhandled exception:',
+        'reloadSources: (-32603) Internal error',
+        'Bad state: No element',
+        '#0      _reload (file:///tool/reloader.dart:12:5)',
+        '<asynchronous suspension>',
+        '#1      main (file:///tool/world.dart:40:3)',
+      ]),
+      'Bad state: No element',
+    );
+    // The VM aborting: its reason, then the native stack it dumps.
+    const aborted =
+        '../../runtime/vm/kernel_loader.cc: 352: error: Invalid kernel '
+        'binary: Indicated size is invalid.';
+    const frame =
+        '  pc 0x0000000104a8b3c8 fp 0x000000016f9a6f30 '
+        'dart::KernelLoader::FindModifiedLibraries+0x1c4';
+    expect(
+      last([
+        aborted,
+        'version=3.13.0 (beta) on "macos_arm64"',
+        'pid=4242, thread=259, isolate_group=main(0x1), isolate=main(0x2)',
+        'os=macos, arch=arm64, comp=no, sim=no',
+        'isolate_instructions=1000, vm_instructions=2000',
+        'fp=16f000, sp=16e000, pc=104000',
+        frame,
+        '-- End of DumpStackTrace',
+      ]),
+      aborted,
+    );
+    expect(last(['#0 main (file:///a.dart:1:1)']), isNull);
+  });
+
   test('still refused once it has waited long enough, saying why', () async {
     var (reload, _) = vm(List.filled(1000, reloading));
     await expectLater(
