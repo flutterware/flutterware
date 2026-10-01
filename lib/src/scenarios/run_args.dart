@@ -13,7 +13,7 @@ export 'pixels.dart';
 import 'profile.dart';
 
 /// One run's axis assignment — device geometry, locale, text scale,
-/// brightness — as the substrate applies it.
+/// brightness, the app's own axes — as the substrate applies it.
 ///
 /// Every field is optional and null means "the test default": a scenario run
 /// with no axes is byte-identical to what a bare `flutter test` produces.
@@ -140,10 +140,48 @@ class ScenarioRunArgs {
         device: device,
         orientation: orientation,
         language: assignment?.language,
+        axes: assignment?.axes ?? const {},
       ),
       expandTranslations: expandTranslations,
     );
   }
+
+  /// These args with the app axes of the scenario's folder in place of the
+  /// ones the request named — everything else kept.
+  ///
+  /// What the harness applies to every file: the request names a value for
+  /// some axes, the folder's profile declares which axes there are, and only
+  /// the two together say what a scenario in that folder is running as. A
+  /// value the folder has no axis for is dropped here rather than carried —
+  /// its scenarios cannot read it, and a picture labelled with it would claim
+  /// a difference that was never made.
+  ScenarioRunArgs withAppAxes(Map<String, String> axes) => ScenarioRunArgs(
+    size: size,
+    pixelRatio: pixelRatio,
+    padding: padding,
+    platform: platform,
+    locale: locale,
+    textScale: textScale,
+    brightness: brightness,
+    accessibility: accessibility,
+    captureScale: captureScale,
+    captureRaw: captureRaw,
+    captureNative: captureNative,
+    pixels: pixels,
+    record: record,
+    film: film,
+    reel: reel,
+    stage: stage,
+    clockOrigin: clockOrigin,
+    network: network,
+    assignment: ScenarioAssignment(
+      device: assignment?.device,
+      orientation: assignment?.orientation,
+      language: assignment?.language,
+      axes: axes,
+    ),
+    expandTranslations: expandTranslations,
+  );
 
   static EdgeInsets _paddingOf(Device device) => EdgeInsets.fromLTRB(
     device.insetLeft,

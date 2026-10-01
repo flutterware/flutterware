@@ -438,6 +438,14 @@ class ScenarioRunOutcome {
       skipped: json['skipped'] == true,
       skipReason: json['skipReason'] as String?,
       device: json['device'] as String?,
+      // Absent from a harness that predates app axes, and from a folder that
+      // declares none — both of which ran without any.
+      axes: switch (json['axes']) {
+        Map raw => {
+          for (var MapEntry(:key, :value) in raw.entries) '$key': '$value',
+        },
+        _ => const {},
+      },
       ms: _int(json['ms'], 0),
       steps: steps,
       // Absent on the harness's own record, where the steps are all present
@@ -472,6 +480,7 @@ class ScenarioRunOutcome {
     this.skipped = false,
     this.skipReason,
     this.device,
+    this.axes = const {},
     this.ms = 0,
     this.steps = const [],
     this.stepCount = 0,
@@ -502,6 +511,12 @@ class ScenarioRunOutcome {
   /// `flutter_test_config.dart` declares — so two scenarios of the same run
   /// can differ here.
   final String? device;
+
+  /// The app axes it ran under — `ScenarioProfile.axes`, each the value the
+  /// run named or the folder's first. Said for the same reason [device] is:
+  /// the folder fills in what the run left out, and two scenarios of the same
+  /// run can differ here. Empty where the folder declares none.
+  final Map<String, String> axes;
 
   final int ms;
 
@@ -603,6 +618,7 @@ class ScenarioRunOutcome {
     skipped: skipped,
     skipReason: skipReason,
     device: device,
+    axes: axes,
     ms: ms,
     steps: keep,
     stepCount: stepCount,
@@ -639,6 +655,7 @@ class ScenarioRunOutcome {
         skipped: skipped,
         skipReason: skipReason,
         device: device,
+        axes: axes,
         ms: ms,
         steps: keep,
         stepCount: stepCount,
@@ -669,6 +686,7 @@ class ScenarioRunOutcome {
     if (skipped) 'skipped': skipped,
     if (skipReason != null) 'skipReason': skipReason,
     if (device != null) 'device': device,
+    if (axes.isNotEmpty) 'axes': axes,
     'ms': ms,
     'steps': steps,
     'stepCount': stepCount,
