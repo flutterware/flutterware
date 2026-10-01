@@ -40,7 +40,16 @@ abstract class PreviewAxes {
   /// Only the labels cross the wire — see [KnobDescriptor.options] — so the
   /// values behind them may be of any type at all, and the labels are whatever
   /// reads well rather than whatever an identifier happened to be called.
-  T picker<T>(String name, Map<String, T> options, T defaultValue);
+  ///
+  /// [style] is how the top bar draws it. A segmented control suits a switch
+  /// you flip back and forth while looking — Light and Dark — because both
+  /// options stay on the bar and a flip is one click rather than two.
+  T picker<T>(
+    String name,
+    Map<String, T> options,
+    T defaultValue, {
+    PickerStyle style = PickerStyle.dropdown,
+  });
 
   /// A switch. A `bool` is a closed set of two, which is all an axis needs.
   bool flag(String name, bool defaultValue);
@@ -102,7 +111,12 @@ class CatalogAxes implements PreviewAxes {
   }
 
   @override
-  T picker<T>(String name, Map<String, T> options, T defaultValue) {
+  T picker<T>(
+    String name,
+    Map<String, T> options,
+    T defaultValue, {
+    PickerStyle style = PickerStyle.dropdown,
+  }) {
     assert(
       options.containsValue(defaultValue),
       'The default for axis "$name" is not one of its options, so the top bar '
@@ -118,6 +132,7 @@ class CatalogAxes implements PreviewAxes {
       options: options.keys.toList(),
       value: _labelOf(options, value),
       defaultValue: _labelOf(options, defaultValue),
+      style: style,
     );
     return value;
   }

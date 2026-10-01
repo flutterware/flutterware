@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'axes.dart';
 import 'knob.dart';
+import 'toolbar.dart';
 
 /// The shell's axes, as controls, in the catalog's own toolbar.
 ///
@@ -62,7 +63,11 @@ class _AxesControlsState extends State<AxesControls> {
     if (axes.length != _axes.length) return false;
     for (var (index, axis) in axes.indexed) {
       var mine = _axes[index];
-      if (axis.name != mine.name || axis.value != mine.value) return false;
+      if (axis.name != mine.name ||
+          axis.value != mine.value ||
+          axis.style != mine.style) {
+        return false;
+      }
     }
     return true;
   }
@@ -110,6 +115,13 @@ class _AxesControlsState extends State<AxesControls> {
         ),
       ],
     ),
+    KnobKind.picker when drawsSegments(axis.style, axis.options.length) =>
+      ToolbarSegmented<String?>(
+        title: Text(axis.name),
+        value: axis.value as String?,
+        items: {for (var option in axis.options) option: Text(option)},
+        onChanged: (value) => _select(axis.name, value),
+      ),
     // Everything else is a picker. An axis is a closed set by definition —
     // `PreviewAxes` offers exactly `picker` and `flag` — so there is no third
     // control to write and no free-text case to get wrong.

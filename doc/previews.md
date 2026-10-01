@@ -114,6 +114,21 @@ too, so `Widget shopConfirmation({String name = 'Ada'})` declares the same one.
 Outside the studio a knob returns the default written at the call site, so it's
 safe to leave in code that ships.
 
+A picker is a dropdown. For a switch you flip back and forth while looking,
+such as light and dark, ask for segments instead and every option stays on
+screen:
+
+```dart
+var brightness = context.knobs.picker('theme', {
+  'Light': Brightness.light,
+  'Dark': Brightness.dark,
+}, Brightness.light, style: PickerStyle.segmented);
+```
+
+`axes.picker` takes the same `style:`, for a switch in the toolbar. Up to five
+options are drawn as segments; a picker with more is drawn as a dropdown
+anyway, so a long list never pushes the rest of the toolbar out of sight.
+
 ## In the studio
 
 Pick a preview in the list and it renders on the canvas's default device. The

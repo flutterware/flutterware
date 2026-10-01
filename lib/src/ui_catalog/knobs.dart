@@ -3,6 +3,8 @@ import 'dart:core';
 
 import 'package:flutter/widgets.dart';
 
+import 'knob.dart';
+
 /// The controls an entry declares by asking for them while it builds.
 ///
 /// A knob is a read with a default, not a declaration. Nothing registers
@@ -51,12 +53,18 @@ class Knobs {
     return defaultValue;
   }
 
+  /// A choice between named options, label to value.
+  ///
+  /// [swatch] and [icon] put a colour dot or a glyph before each label on a
+  /// catalog page. [style] is how the picker is drawn: a segmented control
+  /// puts every option on show, for a choice like Light and Dark.
   T picker<T>(
     String name,
     Map<String, T> values,
     T defaultValue, {
     Color Function(T value)? swatch,
     IconData Function(T value)? icon,
+    PickerStyle style = PickerStyle.dropdown,
   }) {
     return defaultValue;
   }
@@ -216,12 +224,14 @@ class EditableKnobs implements Knobs {
     T defaultValue, {
     Color Function(T value)? swatch,
     IconData Function(T value)? icon,
+    PickerStyle style = PickerStyle.dropdown,
   }) {
     var knob = _addKnob(name, () => PickerKnob<T>(options: options))
       ..defaultValue = defaultValue
       ..options = options
       ..swatch = swatch
-      ..icon = icon;
+      ..icon = icon
+      ..style = style;
 
     return knob.requiredValue;
   }
@@ -302,9 +312,14 @@ class PickerKnob<T> extends Knob<T> {
   Map<String, T> options;
   Color Function(T value)? swatch;
   IconData Function(T value)? icon;
+  PickerStyle style;
 
-  PickerKnob({required this.options, this.swatch, this.icon})
-    : super(options.values.first);
+  PickerKnob({
+    required this.options,
+    this.swatch,
+    this.icon,
+    this.style = PickerStyle.dropdown,
+  }) : super(options.values.first);
 
   // Resolved here, inside the class, so the call runs with the reified [T] —
   // calling [swatch]/[icon] through the raw `PickerKnob` type would fail
