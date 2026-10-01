@@ -555,6 +555,63 @@ void main() {
     },
   );
 
+  test('shots crosses brightness, and dark gets its own directory', () async {
+    var runner = _FakeRunner()..writeShots = true;
+    var subject = core(runner: runner);
+    var output = p.join(root.path, 'store');
+    var result =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'package': '.',
+                'output': output,
+                'devices': 'iphone-16',
+                'orientations': 'portrait,landscape',
+                'brightness': ['light', 'dark'],
+                'languages': 'en',
+              },
+            ))!
+            as ScenarioShotsResult;
+
+    expect(
+      [for (var axes in runner.seenAxes) axes.brightness],
+      ['light', 'dark', 'light', 'dark'],
+    );
+    // Each point runs into scratch of its own: two sharing one would leave
+    // the second's pictures where the first's were still to be copied from.
+    expect(runner.seenOutDirs.toSet(), hasLength(4));
+    var sets = result.packages.single.sets;
+    // After `-landscape`, and nothing for light, as portrait writes nothing.
+    expect(
+      [for (var set in sets) set.directory],
+      [
+        p.join('en', 'iphone-16'),
+        p.join('en', 'iphone-16-dark'),
+        p.join('en', 'iphone-16-landscape'),
+        p.join('en', 'iphone-16-landscape-dark'),
+      ],
+    );
+    expect(sets[1].axes, {
+      'language': 'en',
+      'device': 'iphone-16',
+      'brightness': 'dark',
+    });
+    expect(sets.first.axes.containsKey('brightness'), isFalse);
+    expect(
+      File(p.join(output, 'en', 'iphone-16-dark', 'a', '01-welcome.png'))
+          .existsSync(),
+      isTrue,
+    );
+
+    await expectLater(
+      subject.invoke(
+        'shots',
+        arguments: {'package': '.', 'output': output, 'brightness': 'dim'},
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('shots says why a scenario failed, at the point it failed', () async {
     // A count was all that reached the reader, and the run that knew more is
     // scratch the action deletes — so a stall spent its deadline at every
@@ -575,6 +632,7 @@ void main() {
                 'output': p.join(root.path, 'store'),
                 'devices': 'iphone-16',
                 'languages': 'en,fr',
+                'brightness': 'dark',
               },
             ))!
             as ScenarioShotsResult;
@@ -594,7 +652,7 @@ void main() {
     expect(
       failure.rerun,
       'fw run scenarios run --package=. --file=test/scenarios/a_test.dart '
-      '--scenario="A" --device=iphone-16 --language=fr',
+      '--scenario="A" --device=iphone-16 --language=fr --brightness=dark',
     );
     expect(sets.last.toJson()['failures'], hasLength(1));
     // What it captured before it broke is still written.

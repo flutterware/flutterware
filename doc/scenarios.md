@@ -627,6 +627,12 @@ a phone tree for the mobile folder and a window tree for the desktop one. The
 output directory is emptied first: what is in it afterwards is exactly this
 run.
 
+`--orientations=portrait,landscape` and `--brightness=light,dark` cross with
+the devices and languages. A turned or dark point gets its own directory
+beside the device's — `iphone-16-landscape/`, `iphone-16-dark/`,
+`iphone-16-landscape-dark/` — while portrait and light, the defaults, add
+nothing.
+
 A scenario that fails keeps the shots it took before it broke, and the answer
 says why, per set: each entry in `failures` names the scenario, the first
 lines of its error, and the `run` command that reproduces it at that device

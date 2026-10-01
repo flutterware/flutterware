@@ -1947,6 +1947,21 @@ class ScenariosCore extends PluginCore {
                   'contributes one point rather than two identical ones.',
             ),
             const ActionParameter(
+              'brightness',
+              'Brightness',
+              repeatable: true,
+              kind: ActionParameterKind.choice,
+              required: false,
+              description:
+                  'The platform brightness the app sees — `light,dark` for '
+                  'both, crossed with the other axes. Dark gets its own '
+                  'directory, `<language>/<device>-dark/`, after `-landscape` '
+                  'where both apply, for the reason a turned device does. '
+                  'Light writes no suffix and is what omitting this means, so '
+                  'a tree that never asked for dark is the tree it was.',
+              options: [ActionOption('light'), ActionOption('dark')],
+            ),
+            const ActionParameter(
               'tag',
               'Shot tag',
               kind: ActionParameterKind.string,
@@ -2981,15 +2996,27 @@ class ScenariosCore extends PluginCore {
       }
     }
     var orientations = _orientationList(arguments['orientations']);
+    var brightnesses = _axisList(arguments['brightness'], 'brightness');
+    for (var brightness in brightnesses) {
+      if (brightness != 'light' && brightness != 'dark') {
+        throw ArgumentError.value(
+          brightness,
+          'brightness',
+          'accepted: light, dark',
+        );
+      }
+    }
     var assignments = <ScenarioAxes>[
       for (var device in devices.isEmpty ? [null] : devices)
         for (var orientation in _orientationsFor(device, orientations, null))
-          for (var language in languages.isEmpty ? [null] : languages)
-            ScenarioAxes(
-              device: device,
-              orientation: orientation,
-              language: language,
-            ),
+          for (var brightness in brightnesses.isEmpty ? [null] : brightnesses)
+            for (var language in languages.isEmpty ? [null] : languages)
+              ScenarioAxes(
+                device: device,
+                orientation: orientation,
+                language: language,
+                brightness: brightness,
+              ),
     ];
 
     var results = <ScenarioShotsPackage>[];
@@ -3028,8 +3055,16 @@ class ScenariosCore extends PluginCore {
       var numbered = <String, int>{};
       try {
         for (var assignment in assignments) {
+          // `axisSlug` leaves brightness out — `run` never fans it out — so
+          // the dark half of a pair says so here, or it would run into the
+          // light half's scratch and overwrite the pictures still to be
+          // copied out of it.
+          var point = p.join(
+            scratch,
+            '${axisSlug(assignment)}${_darkSuffix(assignment)}',
+          );
           var report = await _runnerFor(path).run(
-            outDir: p.join(scratch, axisSlug(assignment)),
+            outDir: point,
             file: file,
             axes: assignment,
             unspecifiedDevice: defaultScenarioDeviceId,
@@ -3041,12 +3076,7 @@ class ScenariosCore extends PluginCore {
             // deleted with the scratch directory.
             pixels: ScenarioPixels.named,
           );
-          var described = _describeRun(
-            path,
-            p.join(scratch, axisSlug(assignment)),
-            report,
-            axes: assignment,
-          );
+          var described = _describeRun(path, point, report, axes: assignment);
           // Every outcome is placed in its set before any shot is named: a
           // scenario's directory depends on the others beside it — see
           // [_scenarioDirectories].
@@ -3054,20 +3084,22 @@ class ScenariosCore extends PluginCore {
           for (var outcome in described.scenarios) {
             var language = assignment.language ?? 'default';
             var device = outcome.device ?? fitDeviceId;
-            // The orientation joins the device in the directory name, not
-            // beside it: without it the two ways up of one device share a key
-            // and the second run overwrites the first. Portrait adds nothing,
-            // so a store tree that never asked for landscape is the tree it
-            // was before.
+            // The orientation and the brightness join the device in the
+            // directory name, not beside it: without them the two ways up of
+            // one device share a key and the second run overwrites the first.
+            // Portrait and light add nothing, so a store tree that never asked
+            // for either is the tree it was before.
             var key = p.join(
               language,
-              assignment.isLandscape ? '$device-landscape' : device,
+              '${assignment.isLandscape ? '$device-landscape' : device}'
+              '${_darkSuffix(assignment)}',
             );
             axesOf[key] = {
               'language': ?assignment.language,
               'device': device,
               if (assignment.isLandscape)
                 'orientation': ScreenOrientation.landscape.name,
+              if (_darkSuffix(assignment).isNotEmpty) 'brightness': 'dark',
             };
             sets.putIfAbsent(key, () => []).add(outcome);
             if (!outcome.ok) {
@@ -3180,7 +3212,13 @@ class ScenariosCore extends PluginCore {
     if (outcome.device case var device?) '--device=$device',
     if (assignment.isLandscape) '--orientation=landscape',
     if (assignment.language case var language?) '--language=$language',
+    if (_darkSuffix(assignment).isNotEmpty) '--brightness=dark',
   ].join(' ');
+
+  /// `-dark` for a dark point of the shots matrix, and nothing for light —
+  /// the default, which writes nothing, as portrait does.
+  static String _darkSuffix(ScenarioAxes assignment) =>
+      assignment.brightness == 'dark' ? '-dark' : '';
 
   /// The directory each of [outcomes] writes its shots into, inside their
   /// set: the scenario's name, slugged — `Checkout` → `checkout/`.
