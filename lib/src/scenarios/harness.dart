@@ -27,6 +27,7 @@ import '../inspect/guest_inspect.dart';
 import '../real_work/tracker.dart';
 import 'async_watchdog.dart';
 import '../app_events/events.dart';
+import 'fake_timers.dart';
 import 'film.dart';
 import 'fonts.dart';
 import 'live_binding.dart';
@@ -1899,6 +1900,7 @@ String _captureTimeout(
     pendingImages: PaintingBinding.instance.imageCache.pendingImageCount,
     previousScenario: previous,
     eventsOnFailedStep: events.isNotEmpty,
+    timers: pendingScenarioTimers,
   );
   ScenarioScreenRead? screen;
   var texts = const <String>[];

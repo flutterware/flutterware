@@ -24,6 +24,14 @@ var scenarioRunAsyncStallBudget = const Duration(seconds: 8);
 /// timer or clear the outer one's finding.
 var _depth = 0;
 
+/// Whether a watched `runAsync` is open — which is every one under the
+/// harness, and `s.runAsync` and `s.setup` under a bare `flutter test`.
+///
+/// While one is, nothing may move the fake clock: the real work it is waiting
+/// for runs only once the fake zone stops being flushed, and a pump flushes
+/// it.
+bool get runAsyncOpen => _depth > 0;
+
 /// Runs [open] — a `runAsync` — with a real-time watchdog on it.
 ///
 /// A `runAsync` that never returns is the one failure mode of fake time that

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware/src/scenarios/run_args.dart';
@@ -86,6 +88,157 @@ void main() {
     });
   });
 
+  group('act awaiting the fake clock', () {
+    scenario('moves the clock until the body completes', (s) async {
+      var backend = ValueNotifier('Empty');
+      await s.pumpWidget(_Board(backend));
+      var before = s.tester.binding.clock.now();
+      var id = await s.act('The backend answers after its latency', () async {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        backend.value = 'Order #412';
+        return 412;
+      }, settle: Settle.none);
+      expect(id, 412);
+      expect(s.visibleTexts(), contains('Order #412'));
+      expect(
+        s.tester.binding.clock.now().difference(before),
+        const Duration(seconds: 2),
+      );
+    });
+    tearDown(() {
+      expect(shape(), ['pumpWidget', 'The backend answers after its latency']);
+      expect(captures.last.failure, isNull);
+    });
+  });
+
+  group('act whose body calls a verb once the clock fired', () {
+    // The timer's callback completes the body's future on its own stack,
+    // inside the pump that fired it: resumed there, the tap would have been
+    // a pump inside a pump.
+    scenario('runs the verb where a verb may run', (s) async {
+      var backend = ValueNotifier('Empty');
+      await s.pumpWidget(_Board(backend, action: 'Confirm'));
+      // Started by the app before the act, outside the body's own zone.
+      var poll = Completer<void>();
+      Timer(const Duration(milliseconds: 700), poll.complete);
+      await s.act('The poll answers, and the user confirms', () async {
+        await poll.future;
+        backend.value = 'Polled';
+        await s.tap('Confirm');
+      });
+      expect(s.visibleTexts(), contains('Confirmed'));
+    });
+    tearDown(() {
+      expect(shape(), [
+        'pumpWidget',
+        'tap',
+        'The poll answers, and the user confirms',
+      ]);
+      expect(captures.last.failure, isNull);
+    });
+  });
+
+  group('act whose body pumps the moment its delay is over', () {
+    // No await between the timer and the pump: the body resumes on the
+    // timer's own stack, and only a callback held until the clock stopped
+    // keeps that out of the act's pump.
+    scenario('pumps outside the act’s own pump', (s) async {
+      var backend = ValueNotifier('Empty');
+      await s.pumpWidget(_Board(backend, action: 'Confirm'));
+      await s.act('The code arrives, and is confirmed', () async {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        backend.value = 'Code 1234';
+        await s.tester.pump();
+        await s.tap('Confirm');
+      });
+      expect(s.visibleTexts(), contains('Confirmed'));
+    });
+    tearDown(() => expect(captures.last.failure, isNull));
+  });
+
+  group('act awaiting an animation it started', () {
+    scenario('pumps the frames the animation needs', (s) async {
+      var key = GlobalKey<_FadeState>();
+      await s.pumpWidget(_Fade(key: key));
+      await s.act('The banner fades in', () async {
+        await key.currentState!.controller.forward();
+        await s.tap('Dismiss');
+      });
+      expect(key.currentState!.controller.value, 1);
+      expect(key.currentState!.dismissed, isTrue);
+    });
+    tearDown(() => expect(captures.last.failure, isNull));
+  });
+
+  group('act whose body needs no time', () {
+    scenario('moves none, whatever the clock holds', (s) async {
+      var backend = ValueNotifier('Empty');
+      await s.pumpWidget(_Board(backend));
+      // A clock with something on it, so only the body decides.
+      var ticking = Timer.periodic(const Duration(seconds: 1), (_) {});
+      var before = s.tester.binding.clock.now();
+      await s.act('The cache answers at once', () async {
+        await Future<void>.value();
+        backend.value = 'Cached';
+      }, settle: Settle.none);
+      expect(s.tester.binding.clock.now(), before);
+      expect(s.visibleTexts(), contains('Cached'));
+      ticking.cancel();
+    });
+  });
+
+  group('act with real work inside its body', () {
+    scenario('waits for it rather than pumping under it', (s) async {
+      var backend = ValueNotifier('Empty');
+      await s.pumpWidget(_Board(backend));
+      var ticking = Timer.periodic(const Duration(seconds: 1), (_) {});
+      await s.act('A file is read', () async {
+        var rows = await s.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          return 3;
+        });
+        backend.value = '$rows rows';
+      });
+      expect(s.visibleTexts(), contains('3 rows'));
+      ticking.cancel();
+    });
+  });
+
+  group('act still waiting when its timeout is spent', () {
+    scenario('fails the step with what the clock still held', (s) async {
+      await s.pumpWidget(_Board(ValueNotifier('Empty')));
+      await expectLater(
+        s.act(
+          'The nightly sync',
+          () => Future<void>.delayed(const Duration(seconds: 30)),
+        ),
+        throwsA(isA<ScenarioStillWaiting>()),
+      );
+      // The body's timer is still the test's to fire.
+      await s.tester.pump(const Duration(seconds: 30));
+    });
+    tearDown(() {
+      var failure = captures.last.failure!;
+      expect(failure, contains('"The nightly sync" was still waiting'));
+      expect(failure, contains('after 10s of fake time'));
+      expect(failure, contains('a 30s timer from'));
+      expect(failure, contains('act_test.dart'));
+      expect(failure, contains('s.act(…, timeout: …)'));
+    });
+  });
+
+  group('act given longer', () {
+    scenario('waits that long', (s) async {
+      await s.pumpWidget(_Board(ValueNotifier('Empty')));
+      await s.act(
+        'The nightly sync',
+        () => Future<void>.delayed(const Duration(seconds: 30)),
+        timeout: const Duration(minutes: 1),
+      );
+    });
+    tearDown(() => expect(captures.last.failure, isNull));
+  });
+
   group('act that is not a shot', () {
     // What `scenarios shots` and the store export run with.
     setUp(
@@ -159,16 +312,62 @@ void main() {
 }
 
 class _Board extends StatelessWidget {
-  const _Board(this.line);
+  const _Board(this.line, {this.action});
 
   final ValueNotifier<String> line;
+
+  /// A button that writes `Confirmed` on the board, when given a label.
+  final String? action;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     home: Scaffold(
       body: ValueListenableBuilder(
         valueListenable: line,
-        builder: (context, value, _) => Center(child: Text(value)),
+        builder: (context, value, _) => Column(
+          children: [
+            Text(value),
+            if (action case var label?)
+              TextButton(
+                onPressed: () => line.value = 'Confirmed',
+                child: Text(label),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _Fade extends StatefulWidget {
+  const _Fade({super.key});
+
+  @override
+  State<_Fade> createState() => _FadeState();
+}
+
+class _FadeState extends State<_Fade> with SingleTickerProviderStateMixin {
+  late final controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 600),
+  );
+  var dismissed = false;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Scaffold(
+      body: FadeTransition(
+        opacity: controller,
+        child: TextButton(
+          onPressed: () => setState(() => dismissed = true),
+          child: const Text('Dismiss'),
+        ),
       ),
     ),
   );

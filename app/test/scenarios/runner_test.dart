@@ -1191,6 +1191,62 @@ void main() {
     timeout: const Timeout(Duration(minutes: 4)),
   );
 
+  // An empty fake-zone queue used to be read as "no pump would complete it",
+  // which is false for a body awaiting a timer: a pump is exactly what would.
+  // Two bodies, one of each, so each sentence is checked against the case
+  // that is not its own.
+  test(
+    'a stalled scenario says whether the fake clock could have finished it',
+    () async {
+      var flutterRoot = Platform.environment['FLUTTER_ROOT']!;
+      var repoRoot = Directory.current.parent.path;
+      Future<String> stall(String name, String source) async {
+        var outDir = Directory.systemTemp.createTempSync('scenario_$name').path;
+        var dir = Directory(p.join(repoRoot, 'test', 'scenarios_$name'))
+          ..createSync(recursive: true);
+        File(p.join(dir.path, '${name}_test.dart')).writeAsStringSync(source);
+        var runner = ScenarioRunner(
+          packageRoot: repoRoot,
+          directory: 'test/scenarios_$name',
+          flutterSdkRoot: flutterRoot,
+        );
+        try {
+          var report = await runner.run(outDir: outDir);
+          var outcome = (report['scenarios']! as List).single as Map;
+          expect(outcome['ok'], isFalse);
+          return '${((outcome['errors']! as List).first as Map)['error']}';
+        } finally {
+          await runner.dispose();
+          dir.deleteSync(recursive: true);
+          Directory(outDir).deleteSync(recursive: true);
+        }
+      }
+
+      var clock = await stall('clock', _awaitsTheClockSource);
+      expect(clock, contains('made no progress for 2s'));
+      expect(clock, contains('between verbs: `s.pumpWidget SizedBox`'));
+      // Named by the line that started it, which is the one to change.
+      expect(
+        clock,
+        contains(
+          'the fake clock still holds a 5s timer from `main.<anonymous '
+          'closure> (test/scenarios_clock/clock_test.dart:10)`',
+        ),
+      );
+      expect(clock, contains('Await it inside `s.act(…)`'));
+      expect(clock, isNot(contains('no pump would complete')));
+
+      // Nothing on the clock: the act does not spin on it, the deadline
+      // fires on schedule, and the old sentence is the true one.
+      var stuck = await stall('stuck', _stuckActSource);
+      expect(stuck, contains('made no progress for 2s'));
+      expect(stuck, contains('inside `s.act`'));
+      expect(stuck, contains('Nothing is queued in the fake zone'));
+      expect(stuck, isNot(contains('fake clock still holds')));
+    },
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
+
   // A scenario's timeout is how long it may go without progress. As a
   // wall-clock budget it failed a split that passes in five seconds on a
   // quiet machine once three comparison jobs shared the host.
@@ -1804,6 +1860,42 @@ void main() {
   scenario('After the hang', (s) async {
     await s.pumpWidget(const SizedBox.shrink());
   });
+}
+''';
+
+/// A body that awaits a fake timer between verbs, where nothing pumps.
+const _awaitsTheClockSource = r'''
+import 'package:flutter/widgets.dart';
+import 'package:flutterware/flutter_test.dart';
+
+void main() {
+  scenario(
+    'Awaits the clock between verbs',
+    timeout: const Timeout(Duration(seconds: 2)),
+    (s) async {
+      await s.pumpWidget(const SizedBox.shrink());
+      await Future<void>.delayed(const Duration(seconds: 5));
+    },
+  );
+}
+''';
+
+/// An act whose body waits on something nothing will ever complete.
+const _stuckActSource = r'''
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutterware/flutter_test.dart';
+
+void main() {
+  scenario(
+    'An act nothing will finish',
+    timeout: const Timeout(Duration(seconds: 2)),
+    (s) async {
+      await s.pumpWidget(const SizedBox.shrink());
+      await s.act('The answer that never comes', () => Completer<void>().future);
+    },
+  );
 }
 ''';
 

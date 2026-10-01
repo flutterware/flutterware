@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/real_work/tracker.dart';
+import 'package:flutterware/src/scenarios/fake_timers.dart';
 import 'package:flutterware/src/scenarios/progress.dart';
 import 'package:flutterware/src/scenarios/stall.dart';
 
@@ -62,6 +63,85 @@ void main() {
     expect(message, contains('Nothing is queued in the fake zone'));
     expect(message, contains('`Splash` ran before this one'));
     expect(message, contains('--file=<earlier>,<this>'));
+  });
+
+  // An empty queue used to be read as "no pump would complete it" whatever
+  // the clock held — false for a body awaiting a debounce, which a pump is
+  // precisely what completes.
+  test('an empty queue beside pending timers says the clock would finish '
+      'it', () {
+    var message = stallDiagnosis(
+      deadline: const Duration(seconds: 30),
+      microtasks: 0,
+      lastVerb: ScenarioVerbInFlight('tap', '"Search"', StackTrace.empty),
+      timers: [_timer(const Duration(milliseconds: 300), from: _debounce)],
+    );
+    expect(message, contains('between verbs: `s.tap "Search"`'));
+    expect(
+      message,
+      contains(
+        'the fake clock still holds a 300ms timer from '
+        '`SearchBox._debounce (package:app/search.dart:41)`',
+      ),
+    );
+    expect(message, contains('Await it inside `s.act(…)`'));
+    expect(message, contains('`s.wait(…)`'));
+    expect(message, isNot(contains('no pump would complete')));
+  });
+
+  test('queued microtasks outrank the clock', () {
+    var message = stallDiagnosis(
+      deadline: const Duration(seconds: 30),
+      microtasks: 2,
+      inFlight: ScenarioVerbInFlight('tap', '"Search"', StackTrace.empty),
+      timers: [_timer(const Duration(milliseconds: 300), from: _debounce)],
+    );
+    expect(message, contains('2 microtasks are queued'));
+    expect(message, isNot(contains('fake clock')));
+  });
+
+  test('timers are named three at a time and the rest counted', () {
+    expect(
+      describeTimers([
+        _timer(const Duration(seconds: 1)),
+        _timer(const Duration(milliseconds: 300), from: _debounce),
+        _timer(const Duration(seconds: 5), periodic: true),
+        _timer(const Duration(minutes: 1)),
+      ]),
+      'a 1s timer, '
+      'a 300ms timer from `SearchBox._debounce (package:app/search.dart:41)`, '
+      'a periodic 5s timer and 1 more',
+    );
+    expect(describeTimers([_timer(const Duration(seconds: 2))]), 'a 2s timer');
+  });
+
+  test('an act out of time names what the clock still held', () {
+    var message = stillWaitingMessage(
+      'The search debounce fires',
+      const Duration(seconds: 10),
+      const Duration(milliseconds: 100),
+      [_timer(const Duration(seconds: 30), from: _debounce)],
+    );
+    expect(
+      message,
+      startsWith(
+        '`s.act` "The search debounce fires" was still waiting for its body '
+        'after 10s of fake time',
+      ),
+    );
+    expect(message, contains('a 30s timer from `SearchBox._debounce'));
+    expect(message, contains('`s.act(…, timeout: …)`'));
+
+    // Nothing on the clock is not a question of time, and is not told to
+    // take longer.
+    var frames = stillWaitingMessage(
+      'The search debounce fires',
+      const Duration(seconds: 10),
+      const Duration(milliseconds: 100),
+      const [],
+    );
+    expect(frames, contains('it is not fake time the body is waiting on'));
+    expect(frames, isNot(contains('timeout:')));
   });
 
   test("the runAsync watchdog's finding is quoted whole and nothing added", () {
@@ -168,4 +248,56 @@ void main() {
     resetStallFacts();
     expect(pendingSends, isEmpty);
   });
+
+  // Under the test binding's fake clock, which is where scenarios keep them.
+  testWidgets('a timer is pending until it fires, and forgotten per '
+      'scenario', (tester) async {
+    await recordingTimers(() async {
+      Timer(const Duration(seconds: 1), () {});
+      Timer.periodic(const Duration(seconds: 5), (timer) {
+        if (timer.tick == 2) timer.cancel();
+      });
+    });
+    expect(pendingScenarioTimers, hasLength(2));
+    await tester.binding.delayed(const Duration(seconds: 1));
+    expect(pendingScenarioTimers.single.periodic, isTrue);
+    await tester.binding.delayed(const Duration(seconds: 10));
+    expect(pendingScenarioTimers, isEmpty);
+
+    await recordingTimers(() async {
+      Timer(const Duration(seconds: 1), () {});
+    });
+    resetStallFacts();
+    expect(pendingScenarioTimers, isEmpty);
+    await tester.binding.delayed(const Duration(seconds: 1));
+  });
+
+  testWidgets('a timer the clock fires while deferring runs once it stops', (
+    tester,
+  ) async {
+    var fired = <String>[];
+    await recordingTimers(() async {
+      Timer(const Duration(seconds: 1), () => fired.add('timer'));
+    });
+    await deferringTimers(() async {
+      await tester.binding.delayed(const Duration(seconds: 2));
+      fired.add('clock stopped');
+    });
+    expect(fired, ['clock stopped', 'timer']);
+  });
 }
+
+final _debounce = StackTrace.fromString(
+  '#0      SearchBox._debounce (package:app/search.dart:41:5)\n',
+);
+
+ScenarioTimer _timer(
+  Duration duration, {
+  bool periodic = false,
+  StackTrace? from,
+}) => ScenarioTimer(
+  Timer(Duration.zero, () {})..cancel(),
+  duration,
+  periodic: periodic,
+  at: from,
+);
