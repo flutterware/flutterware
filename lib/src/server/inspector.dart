@@ -209,7 +209,9 @@ class FlutterwareServer {
   /// [details] is for the heavy parts — headers, bodies — held server-side
   /// in a byte-capped store and fetched only when an attacher asks
   /// (`meta/detail`, spec decision 11). The event itself stays small, so the
-  /// hot path and the ring never carry a body.
+  /// hot path and the ring never carry a body. The details are not free,
+  /// though: they are JSON-encoded as the event is reported, whether or not
+  /// anyone ever asks — only their delivery waits.
   static void event(
     String channel,
     Map<String, Object?> payload, {
