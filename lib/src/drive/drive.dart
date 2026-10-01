@@ -339,6 +339,9 @@ class Drive {
     Duration? settle,
   }) async {
     var watch = Stopwatch()..start();
+    // Guarded for the same reason as the scenario verb's: the walk evaluates
+    // it on every step, and a `.first` over a row not built yet throws.
+    var finder = emptyWhenAbsent(finderForTarget(target));
     var scrollable = within == null
         ? find.byType(Scrollable)
         : find.descendant(
@@ -348,7 +351,7 @@ class Drive {
           );
     if (scrollable.evaluate().isEmpty) {
       var refusal = refusalWhenNothingScrolls(
-        finderForTarget(target),
+        finder,
         describeTarget(target),
         within,
         _resolver.messages,
@@ -365,7 +368,6 @@ class Drive {
         elapsed: watch.elapsed,
       );
     }
-    var finder = finderForTarget(target);
     // Built but behind the viewport: the walk only drags one way, so jump —
     // same reasoning, same helper as the scenario verb. The recheck waits
     // for a frame first, since the reveal is only geometry after layout.

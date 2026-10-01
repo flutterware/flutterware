@@ -32,6 +32,72 @@ void main() {
     expect(find.text('Item 0'), findsOneWidget);
   });
 
+  // `.first` and `.last` over nothing throw `No element` rather than match
+  // nothing, and the walk evaluates its finder on every step — so a row
+  // addressed that way crashed on the first look instead of being walked to.
+  for (var (name, positional) in [
+    ('.first', (Finder rows) => rows.first),
+    ('.last', (Finder rows) => rows.last),
+  ]) {
+    scenario('scrollTo walks to a row not built yet, addressed with $name', (
+      s,
+    ) async {
+      await s.pumpWidget(const _LazyListApp());
+      expect(find.text('Row 40', skipOffstage: false), findsNothing);
+
+      await s.scrollTo(positional(find.text('Row 40')));
+
+      expect(find.text('Row 40'), findsOneWidget);
+    });
+  }
+
+  scenario('scrollTo says so when a .first never turns up', (s) async {
+    await s.pumpWidget(const _LazyListApp());
+
+    await expectLater(
+      () => s.scrollTo(find.text('Row 500').first, maxScrolls: 3),
+      throwsA(
+        isA<ScenarioTargetError>().having(
+          (e) => '$e',
+          'message',
+          contains('scrolled 3 times'),
+        ),
+      ),
+    );
+  });
+
+  scenario('scrollTo refuses a .first over nothing when nothing scrolls', (
+    s,
+  ) async {
+    await s.pumpWidget(const _StaticApp());
+
+    await expectLater(
+      () => s.scrollTo(find.text('anywhere').first),
+      throwsA(
+        isA<ScenarioTargetError>().having(
+          (e) => '$e',
+          'message',
+          contains('nothing on screen scrolls'),
+        ),
+      ),
+    );
+  });
+
+  scenario("scrollTo does not take a finder's own StateError for a miss", (
+    s,
+  ) async {
+    await s.pumpWidget(const _LazyListApp());
+
+    await expectLater(
+      () => s.scrollTo(
+        find.byElementPredicate((_) => throw StateError('not a miss')).first,
+      ),
+      throwsA(
+        isA<StateError>().having((e) => e.message, 'message', 'not a miss'),
+      ),
+    );
+  });
+
   // Reported by a consumer suite: a horizontal filter row taps the last pill,
   // then asks for the first — which the viewport has scrolled past. The walk
   // only drags toward the end, so it could never come back; a target still in
@@ -412,6 +478,22 @@ class _ListApp extends StatelessWidget {
           for (var i = 0; i < 60; i++)
             SizedBox(height: 80, child: Text('Item $i')),
         ],
+      ),
+    ),
+  );
+}
+
+/// A list that builds a row only as the walk nears it: a target far down is
+/// not in the tree at all, onstage or off.
+class _LazyListApp extends StatelessWidget {
+  const _LazyListApp();
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Scaffold(
+      body: ListView.builder(
+        itemCount: 100,
+        itemBuilder: (_, i) => SizedBox(height: 80, child: Text('Row $i')),
       ),
     ),
   );

@@ -94,27 +94,66 @@ String describeTarget(dynamic target) => switch (target) {
 /// the end of what it indexes.
 ///
 /// `evaluate().length` is not a count for flutter_test's positional finders.
-/// `.first` and `.last` are `candidates.first` and `.last` inside a `sync*`,
-/// so over nothing they throw `StateError: No element` out of the iteration
-/// rather than yielding nothing; `.at(i)` is `elementAt(i)`, a `RangeError`
-/// past the end. A `.first` over nothing is a finder that found nothing, and
-/// it counts 0 like any other miss — anything waiting for it keeps waiting,
-/// anything refusing it refuses with the miss. An index past the end is null
-/// instead, because the refusal it deserves is about the index and needs to
-/// know it was one.
+/// A `.first` or `.last` over nothing throws rather than yielding nothing
+/// (see [emptyWhenAbsent]), and it counts 0 here like any other miss —
+/// anything waiting for it keeps waiting, anything refusing it refuses with
+/// the miss. `.at(i)` is `elementAt(i)`, a `RangeError` past the end, and
+/// that is null instead, because the refusal it deserves is about the index
+/// and needs to know it was one.
+int? countMatches(Finder finder) {
+  try {
+    return emptyWhenAbsent(finder).evaluate().length;
+  } on RangeError {
+    return null;
+  }
+}
+
+/// [finder], except that a `.first` or `.last` over nothing matches nothing.
+///
+/// flutter_test's `.first` and `.last` are `candidates.first` and `.last`
+/// inside a `sync*`, so over nothing they throw `StateError: No element` out
+/// of whatever iterates them rather than yielding nothing. A count can catch
+/// that where it is taken; a finder handed to code that is not ours cannot.
+/// `scrollUntilVisible` evaluates its finder on every step of the walk, so
+/// `scrollTo(find.text('Row 40').first)` threw on its first look instead of
+/// walking until the row was built. The guard has to travel with the finder.
 ///
 /// Only the empty iterable's own `StateError` is a miss. A finder can throw
 /// one for a reason of its own — `find.bySemanticsLabel` with semantics off —
 /// and swallowing that would turn a misconfiguration into a wait that times
-/// out.
-int? countMatches(Finder finder) {
-  try {
-    return finder.evaluate().length;
-  } on RangeError {
-    return null;
-  } on StateError catch (error) {
-    if (error.message != 'No element') rethrow;
-    return 0;
+/// out. An `.at(i)` past the end is left to the caller, as [countMatches]
+/// leaves it: what it deserves is decided by knowing it was an index.
+Finder emptyWhenAbsent(Finder finder) => _EmptyWhenAbsent(finder);
+
+class _EmptyWhenAbsent extends Finder {
+  _EmptyWhenAbsent(this._inner) : super(skipOffstage: _inner.skipOffstage);
+
+  final Finder _inner;
+
+  @override
+  String describeMatch(Plurality plurality) => _inner.describeMatch(plurality);
+
+  @override
+  String get description => describeMatch(Plurality.many);
+
+  // Both halves: a `Target.within` over a `.first` evaluates it while
+  // gathering candidates, before anything is matched.
+  @override
+  Iterable<Element> get allCandidates => _orNothing(() => _inner.allCandidates);
+
+  // Materialised, because the throw comes out of the iteration and the
+  // caller's iteration is past any catch here.
+  @override
+  Iterable<Element> findInCandidates(Iterable<Element> candidates) =>
+      _orNothing(() => _inner.findInCandidates(candidates).toList());
+
+  static Iterable<Element> _orNothing(Iterable<Element> Function() search) {
+    try {
+      return search();
+    } on StateError catch (error) {
+      if (error.message != 'No element') rethrow;
+      return const [];
+    }
   }
 }
 

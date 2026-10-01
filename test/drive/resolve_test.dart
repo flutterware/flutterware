@@ -258,7 +258,13 @@ void main() {
       describeScreen: () => visibleTextsOf(tester).join(', '),
     );
 
-    for (var target in [find.text('Pay').first, find.text('Pay').last]) {
+    for (var target in [
+      find.text('Pay').first,
+      find.text('Pay').last,
+      // As a scope, which is evaluated while candidates are gathered rather
+      // than while they are matched.
+      Target.within(find.text('Pay').first, 'Buy'),
+    ]) {
       var error = await _refusal(() => resolver.resolve(target, 'tap'));
 
       expect(error.failure, TargetFailure.notFound);
