@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +12,7 @@ import 'aim.dart';
 import 'cues.dart';
 import 'film_settings.dart';
 import 'motion.dart';
+import 'mouse.dart';
 import 'reel.dart';
 import 'stage.dart';
 import 'take.dart';
@@ -221,7 +221,8 @@ class ScenarioFilm implements ScenarioFrameSink {
     await _hold(tester, settings.open);
   }
 
-  /// Flies the cursor to what the verb is about to act on, and presses.
+  /// Flies the cursor to what the verb is about to act on, and presses — once,
+  /// twice for a `doubleTap`, and not at all for a `hover` or a wheel `scroll`.
   ///
   /// Runs *between* the target resolving and the gesture firing, which is the
   /// only moment both facts are true: the box has been measured, and the app
@@ -255,20 +256,49 @@ class ScenarioFilm implements ScenarioFrameSink {
     // Arrived, not yet pressed. See [FilmSettings.aim].
     _mark('aim', verb: verb, target: target, aim: aim);
     await _hold(tester, settings.aim);
+    switch (verb) {
+      // Nothing goes down. A hover *is* the arrival, and a wheel turns under a
+      // resting hand — a press drawn here would be a click that never happened.
+      case 'hover' || 'scroll':
+        break;
+      // Two presses with the lift between them visible, or the film shows a
+      // tap: the pair is what makes it a double tap.
+      case 'doubleTap':
+        var half = settings.press * 0.5;
+        await _press(tester, half, verb: verb, target: target, aim: aim);
+        _down = false;
+        await _hold(tester, half);
+        await _press(tester, half, verb: verb, target: target, aim: aim);
+      // A held press is held. `tester.longPress` spends no fake time — it
+      // dispatches a down, a delay the fake clock swallows and an up — so
+      // without this the two verbs are the same picture, and which one it was
+      // is the whole difference between opening a menu and pressing a button.
+      case 'longPress' when settings.press < _longPress:
+        await _press(tester, _longPress, verb: verb, target: target, aim: aim);
+      case _:
+        await _press(
+          tester,
+          settings.press,
+          verb: verb,
+          target: target,
+          aim: aim,
+        );
+    }
+    _mark('act', verb: verb, target: target, aim: aim);
+  }
+
+  /// The pointer goes down where it is, and stays down for [length].
+  Future<void> _press(
+    WidgetTester tester,
+    Duration length, {
+    String? verb,
+    String? target,
+    ScenarioAim? aim,
+  }) async {
     _mark('press', verb: verb, target: target, aim: aim);
     _down = true;
     _pressedAt = _frames;
-    // A held press is held. `tester.longPress` spends no fake time — it
-    // dispatches a down, a delay the fake clock swallows and an up — so
-    // without this the two verbs are the same picture, and which one it was
-    // is the whole difference between opening a menu and pressing a button.
-    await _hold(
-      tester,
-      verb == 'longPress' && settings.press < _longPress
-          ? _longPress
-          : settings.press,
-    );
-    _mark('act', verb: verb, target: target, aim: aim);
+    await _hold(tester, length);
   }
 
   /// Names the stretch about to be filmed — the verb's own frames.
@@ -609,23 +639,12 @@ class ScenarioFilm implements ScenarioFrameSink {
   /// Moves a real mouse to [at], so the app under the cursor knows it is under
   /// the cursor.
   ///
-  /// One pointer for the whole film, added on the first move: a second
-  /// `addPointer` for the same device would be a second mouse, and the
-  /// framework tracks them by id.
-  Future<void> _hoverTo(WidgetTester tester, Offset at) async {
-    var mouse = _mouse ??= await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-    );
-    if (_mouseAdded) {
-      await mouse.moveTo(at);
-    } else {
-      _mouseAdded = true;
-      await mouse.addPointer(location: at);
-    }
-  }
-
-  TestGesture? _mouse;
-  var _mouseAdded = false;
+  /// The scenario's own mouse rather than one of the film's: the verbs that
+  /// are a mouse — `hover`, `secondaryTap`, `scroll` — move it too, and one
+  /// of the film's own would be a second mouse to the app. See
+  /// [ScenarioMouse].
+  Future<void> _hoverTo(WidgetTester tester, Offset at) =>
+      ScenarioMouse.of(tester).moveTo(at);
 
   /// How long a reach of [distance] takes.
   ///
