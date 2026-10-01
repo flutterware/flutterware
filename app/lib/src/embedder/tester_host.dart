@@ -248,7 +248,15 @@ class TesterHost {
 
   Future<void> _startOnce() async {
     try {
-      await _start();
+      try {
+        await _start();
+      } on TesterCompileException {
+        // A shared host compiles nothing; its leader's start retried already.
+        if (_leader != null || !_sourcesMoved()) rethrow;
+        _narrateMoved();
+        await _teardown();
+        await _start();
+      }
     } catch (_) {
       _starting = null;
       // Whatever the attempt did spawn before it threw goes with it, or the
@@ -734,6 +742,13 @@ class TesterHost {
     var compiled = await _compiler!.compile(_dirty.toList());
     if (compiled.errorCount > 0 || compiled.dillOutput == null) {
       await _compiler!.reject();
+      // The scan above said nothing moved, and the compile says otherwise: a
+      // restart scans again and rebuilds the entrypoint from what it finds.
+      if (_sourcesMoved()) {
+        _narrateMoved();
+        await restartGuest();
+        return;
+      }
       throw TesterCompileException(program.name, compiled.output);
     }
     _compiler!.accept();
@@ -781,10 +796,21 @@ class TesterHost {
     await _syncAssetBundle();
 
     var compiler = _compiler!;
-    _dirty.addAll(_invalidator!.sweep(compiler.sources));
-    // A launched guest reads a file, and a delta is not a program.
-    compiler.reset();
-    var compiled = await compiler.compile(_dirty.toList());
+    Future<FrontendServerResult> compileWhole() {
+      _dirty.addAll(_invalidator!.sweep(compiler.sources));
+      // A launched guest reads a file, and a delta is not a program.
+      compiler.reset();
+      return compiler.compile(_dirty.toList());
+    }
+
+    var compiled = await compileWhole();
+    if (!compiled.ok && _sourcesMoved()) {
+      await compiler.reject();
+      _narrateMoved();
+      _sources = program.sources();
+      program.writeEntrypoint(_sources);
+      compiled = await compileWhole();
+    }
     if (compiled.errorCount > 0 || compiled.dillOutput == null) {
       await compiler.reject();
       throw TesterCompileException(program.name, compiled.output);
@@ -795,6 +821,24 @@ class TesterHost {
 
     await _spawnGuest(compiled.dillOutput!);
   }
+
+  /// Whether the sources on disk are no longer the set the program was just
+  /// generated from — the one compile error that compiling again can fix.
+  ///
+  /// Every lane here scans, writes the entrypoint, then compiles, and a cold
+  /// compile is seconds long. A scenario file deleted in between — a rename
+  /// is one — leaves the entrypoint importing a file that is not there, and
+  /// the run that happened to be compiling failed on a program nobody wrote
+  /// any more. So a failed compile scans again, and a set that moved — files
+  /// gone, or new ones beside them — is built once more from the new scan.
+  /// Once: a set still moving after that, or an error that has nothing to do
+  /// with it, is the real error and reaches the caller.
+  bool _sourcesMoved() =>
+      !const ListEquality<String>().equals(program.sources(), _sources);
+
+  void _narrateMoved() => onLog?.call(
+    '[${program.name}] the sources changed while compiling — compiling again',
+  );
 
   Future<void> _stopGuest() async {
     await _events?.cancel();
