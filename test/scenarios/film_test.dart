@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware/reel.dart';
@@ -239,6 +240,172 @@ void main() {
     });
   });
 
+  // The mice the app saw during the filmed hover, read after the film is
+  // written.
+  var mice = <int>{};
+
+  group('a filmed hover', () {
+    film(
+      (directory) => FilmSettings(
+        directory: directory,
+        scale: 1,
+        open: const Duration(milliseconds: 100),
+        travel: const Duration(milliseconds: 100),
+        press: const Duration(milliseconds: 100),
+        dwell: const Duration(milliseconds: 100),
+        close: const Duration(milliseconds: 100),
+      ),
+      on: const ScenarioAssignment(device: Devices.window),
+    );
+
+    scenario('arrives and holds, and presses nothing', (s) async {
+      var seen = <int>{};
+      Widget spot(String label) => MouseRegion(
+        onEnter: (event) => seen.add(event.device),
+        child: TextButton(onPressed: () {}, child: Text(label)),
+      );
+      await s.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [spot('Open'), spot('Save')],
+              ),
+            ),
+          ),
+        ),
+      );
+      // The film's travel hovers on a desktop stage, and the hover verb parks
+      // a mouse: the two have to be the same one, or the app sees a second
+      // mouse arrive and a control stays hovered under the first.
+      await s.hover('Save');
+      await s.tap('Open');
+      mice = Set.of(seen);
+    });
+
+    tearDown(() {
+      expect(mice, hasLength(1), reason: 'one mouse, moved');
+      var timeline = _timeline(directory);
+      var beats = [
+        for (var beat in _beats(timeline))
+          if (beat['verb'] == 'hover') beat['kind'],
+      ];
+      expect(beats, containsAllInOrder(['travel', 'aim', 'act']));
+      expect(beats, isNot(contains('press')));
+      var hover = [
+        for (var beat in _beats(timeline))
+          if (beat['verb'] == 'hover') beat,
+      ];
+      var from = hover.first['frame']! as int;
+      var to = (hover.last['frame']! as int) + (hover.last['frames']! as int);
+      var down = [
+        for (var sample in timeline['samples']! as List)
+          if ((sample as Map)['frame']! as int >= from &&
+              sample['frame']! as int < to &&
+              sample['down'] == true)
+            sample,
+      ];
+      expect(down, isEmpty, reason: 'a hover is the arrival, not a click');
+    });
+  });
+
+  // What the pads below saw, read after the film is written: the kind and the
+  // device of every press, and the device of every hover.
+  var pressed = <(PointerDeviceKind, int)>{};
+  var hoveredBy = <int>{};
+
+  group('a filmed click on a desktop', () {
+    film(
+      (directory) => FilmSettings(
+        directory: directory,
+        scale: 1,
+        open: const Duration(milliseconds: 100),
+        travel: const Duration(milliseconds: 100),
+        press: const Duration(milliseconds: 100),
+        dwell: const Duration(milliseconds: 100),
+        close: const Duration(milliseconds: 100),
+      ),
+      on: const ScenarioAssignment(device: Devices.window),
+    );
+
+    scenario('is the mouse that flew there', (s) async {
+      var downs = <(PointerDeviceKind, int)>{};
+      var hovers = <int>{};
+      Widget pad(String label) => MouseRegion(
+        onEnter: (event) => hovers.add(event.device),
+        child: Listener(
+          onPointerDown: (event) => downs.add((event.kind, event.device)),
+          child: SizedBox(height: 120, child: Center(child: Text(label))),
+        ),
+      );
+      await s.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [pad('Press'), pad('Pull')],
+            ),
+          ),
+        ),
+      );
+      await s.tap('Press');
+      await s.drag('Pull', const Offset(0, 40));
+      pressed = downs;
+      hoveredBy = hovers;
+    });
+
+    tearDown(() {
+      // One mouse for the whole film: the arrow the travel hovered with is the
+      // pointer that pressed — never a finger arriving under an arrow.
+      expect(pressed.map((p) => p.$1).toSet(), {PointerDeviceKind.mouse});
+      expect(hoveredBy, hasLength(1));
+      expect(pressed.map((p) => p.$2).toSet(), hoveredBy);
+      expect(_timeline(directory)['pointer'], 'mouse');
+    });
+  });
+
+  group('a filmed double tap', () {
+    film(
+      (directory) => FilmSettings(
+        directory: directory,
+        scale: 1,
+        open: const Duration(milliseconds: 100),
+        travel: const Duration(milliseconds: 100),
+        press: const Duration(milliseconds: 200),
+        dwell: const Duration(milliseconds: 100),
+        close: const Duration(milliseconds: 100),
+      ),
+    );
+
+    scenario('is pressed twice, with the lift between them', (s) async {
+      await s.pumpWidget(const _App());
+      await s.doubleTap('Fade in');
+    });
+
+    tearDown(() {
+      var timeline = _timeline(directory);
+      var presses = [
+        for (var beat in _beats(timeline))
+          if (beat['kind'] == 'press') beat,
+      ];
+      expect(presses, hasLength(2));
+      expect(presses.every((p) => p['verb'] == 'doubleTap'), isTrue);
+      var first = presses.first['frame']! as int;
+      var second = presses.last['frame']! as int;
+      var between = [
+        for (var sample in timeline['samples']! as List)
+          if ((sample as Map)['frame']! as int >= first &&
+              sample['frame']! as int < second)
+            sample['down'] == true,
+      ];
+      // Down, then up before the second press: the pair is what makes it a
+      // double tap on film, where one long press would read as a tap.
+      expect(between.first, isTrue);
+      expect(between.last, isFalse);
+    });
+  });
+
   // What the drag carried, filled by the scenario below and read by the plain
   // widget test after it — the two halves of one comparison.
   var carried = <double>[];
@@ -393,6 +560,38 @@ void main() {
       // for the word gap.
       expect(typing['frames'], 35);
       expect(typing['target'], 'hello world');
+    });
+  });
+
+  group('filmed typing at a pace of its own', () {
+    film(
+      (directory) => FilmSettings(
+        directory: directory,
+        scale: 1,
+        open: const Duration(milliseconds: 100),
+        travel: const Duration(milliseconds: 100),
+        press: const Duration(milliseconds: 100),
+        dwell: const Duration(milliseconds: 100),
+        close: const Duration(milliseconds: 100),
+      ),
+    );
+
+    scenario("keeps the scenario's pace, not the film's", (s) async {
+      await s.pumpWidget(const _FormApp());
+      await s.enterText(
+        TextField,
+        'a b',
+        typing: const Duration(milliseconds: 200),
+      );
+    });
+
+    tearDown(() {
+      var typing = _beats(_timeline(directory))
+          .firstWhere((beat) => beat['kind'] == 'type');
+      // 200ms at 30fps is six frames a character, the space included: the
+      // pace is part of what the field does, so the film neither re-paces it
+      // to its own 95ms nor stretches the word gap.
+      expect(typing['frames'], 18);
     });
   });
 

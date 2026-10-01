@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +12,7 @@ import 'aim.dart';
 import 'cues.dart';
 import 'film_settings.dart';
 import 'motion.dart';
+import 'mouse.dart';
 import 'reel.dart';
 import 'stage.dart';
 import 'take.dart';
@@ -221,7 +221,8 @@ class ScenarioFilm implements ScenarioFrameSink {
     await _hold(tester, settings.open);
   }
 
-  /// Flies the cursor to what the verb is about to act on, and presses.
+  /// Flies the cursor to what the verb is about to act on, and presses — once,
+  /// twice for a `doubleTap`, and not at all for a `hover` or a wheel `scroll`.
   ///
   /// Runs *between* the target resolving and the gesture firing, which is the
   /// only moment both facts are true: the box has been measured, and the app
@@ -255,20 +256,49 @@ class ScenarioFilm implements ScenarioFrameSink {
     // Arrived, not yet pressed. See [FilmSettings.aim].
     _mark('aim', verb: verb, target: target, aim: aim);
     await _hold(tester, settings.aim);
+    switch (verb) {
+      // Nothing goes down. A hover *is* the arrival, and a wheel turns under a
+      // resting hand — a press drawn here would be a click that never happened.
+      case 'hover' || 'scroll':
+        break;
+      // Two presses with the lift between them visible, or the film shows a
+      // tap: the pair is what makes it a double tap.
+      case 'doubleTap':
+        var half = settings.press * 0.5;
+        await _press(tester, half, verb: verb, target: target, aim: aim);
+        _down = false;
+        await _hold(tester, half);
+        await _press(tester, half, verb: verb, target: target, aim: aim);
+      // A held press is held. `tester.longPress` spends no fake time — it
+      // dispatches a down, a delay the fake clock swallows and an up — so
+      // without this the two verbs are the same picture, and which one it was
+      // is the whole difference between opening a menu and pressing a button.
+      case 'longPress' when settings.press < _longPress:
+        await _press(tester, _longPress, verb: verb, target: target, aim: aim);
+      case _:
+        await _press(
+          tester,
+          settings.press,
+          verb: verb,
+          target: target,
+          aim: aim,
+        );
+    }
+    _mark('act', verb: verb, target: target, aim: aim);
+  }
+
+  /// The pointer goes down where it is, and stays down for [length].
+  Future<void> _press(
+    WidgetTester tester,
+    Duration length, {
+    String? verb,
+    String? target,
+    ScenarioAim? aim,
+  }) async {
     _mark('press', verb: verb, target: target, aim: aim);
     _down = true;
     _pressedAt = _frames;
-    // A held press is held. `tester.longPress` spends no fake time — it
-    // dispatches a down, a delay the fake clock swallows and an up — so
-    // without this the two verbs are the same picture, and which one it was
-    // is the whole difference between opening a menu and pressing a button.
-    await _hold(
-      tester,
-      verb == 'longPress' && settings.press < _longPress
-          ? _longPress
-          : settings.press,
-    );
-    _mark('act', verb: verb, target: target, aim: aim);
+    await _hold(tester, length);
   }
 
   /// Names the stretch about to be filmed — the verb's own frames.
@@ -314,6 +344,15 @@ class ScenarioFilm implements ScenarioFrameSink {
     /// coordinate it tapped ends up parked in the middle of the keyboard,
     /// about to press a key it never presses. It rides the field instead.
     Offset? Function()? follow,
+
+    /// What passes after each character when the scenario typed at a pace of
+    /// its own — `enterText(…, typing:)` — in place of the film's.
+    ///
+    /// The scenario's pace is not the film's to change: it is part of what
+    /// the field does, and a debounce that fired once per word under the
+    /// suite and once per character under the film would be a film of a
+    /// different app — one whose next assertion may not hold.
+    Future<void> Function()? pause,
   }) async {
     _down = false;
     // **Focus first, and let the keyboard arrive.** On a phone the field is
@@ -325,13 +364,17 @@ class ScenarioFilm implements ScenarioFrameSink {
     _mark('focus', verb: 'enterText');
     await _untilQuiet(tester, follow: follow);
     _mark('type', verb: 'enterText', target: text);
-    for (var i = 1; i <= text.length; i++) {
-      await set(text.substring(0, i));
+    for (var typed in typedPrefixes(text)) {
+      await set(typed);
+      if (pause != null) {
+        await pause();
+        continue;
+      }
       // A word gap. The cheapest unevenness there is, and unevenness is most
       // of what separates typing from a ticker.
       await _hold(
         tester,
-        text[i - 1] == ' ' ? settings.typing * 1.6 : settings.typing,
+        typed.endsWith(' ') ? settings.typing * 1.6 : settings.typing,
       );
     }
     // Whatever the field does about the text it now has belongs to the verb,
@@ -354,7 +397,9 @@ class ScenarioFilm implements ScenarioFrameSink {
   Future<void> dragBy(WidgetTester tester, Offset by, {Duration? over}) async {
     if (_pointer == null) return;
     _mark('drag', verb: 'drag');
-    await _swipe(tester, by, over: over);
+    // The verb's own pointer: on a desktop the drag is the mouse the travel
+    // hovered with, not a finger that appears for it.
+    await _swipe(tester, by, over: over, mouse: !touch);
     _mark('act', verb: 'drag');
   }
 
@@ -415,7 +460,16 @@ class ScenarioFilm implements ScenarioFrameSink {
   /// and a plain drag holds still first, reporting the same position for long
   /// enough that the velocity tracker estimates zero and the list stops where
   /// the suite's own drag stopped it.
-  Future<void> _swipe(WidgetTester tester, Offset by, {Duration? over}) async {
+  ///
+  /// [mouse] drags with the scenario's mouse rather than a finger, as a
+  /// `drag` does on a desktop. A `scrollTo` never does: it walks a list with
+  /// a finger wherever it is staged, because a mouse drag does not move one.
+  Future<void> _swipe(
+    WidgetTester tester,
+    Offset by, {
+    Duration? over,
+    bool mouse = false,
+  }) async {
     var start = _pointer;
     if (start == null) return;
     var length = over ?? settings.drag;
@@ -425,14 +479,23 @@ class ScenarioFilm implements ScenarioFrameSink {
     );
     _down = true;
     _pressedAt ??= _frames;
-    var gesture = await tester.startGesture(start);
+    Future<void> Function(Offset to) move;
+    Future<void> Function() lift;
+    if (mouse) {
+      var pointer = ScenarioMouse.of(tester);
+      await pointer.down(start);
+      (move, lift) = (pointer.moveTo, pointer.up);
+    } else {
+      var finger = await tester.startGesture(start);
+      (move, lift) = (finger.moveTo, finger.up);
+    }
     try {
       for (var i = 1; i <= frames; i++) {
         // Eased like a reach, for the same reason: a finger starts and stops.
         var t = i / frames;
         var e = t * t * t * (10 - 15 * t + 6 * t * t);
         _pointer = start + by * e;
-        await gesture.moveTo(_pointer!);
+        await move(_pointer!);
         beforePump?.call();
         await tester.pump(interval);
         capture(tester);
@@ -444,7 +507,7 @@ class ScenarioFilm implements ScenarioFrameSink {
           // reporting, and it is those samples that bring the estimate down.
           // Pumping without them leaves the tracker holding the last velocity
           // it saw and the list flies on.
-          await gesture.moveTo(_pointer!);
+          await move(_pointer!);
           beforePump?.call();
           await tester.pump(interval);
           capture(tester);
@@ -452,7 +515,7 @@ class ScenarioFilm implements ScenarioFrameSink {
         }
       }
     } finally {
-      await gesture.up();
+      await lift();
       _down = false;
     }
   }
@@ -609,23 +672,12 @@ class ScenarioFilm implements ScenarioFrameSink {
   /// Moves a real mouse to [at], so the app under the cursor knows it is under
   /// the cursor.
   ///
-  /// One pointer for the whole film, added on the first move: a second
-  /// `addPointer` for the same device would be a second mouse, and the
-  /// framework tracks them by id.
-  Future<void> _hoverTo(WidgetTester tester, Offset at) async {
-    var mouse = _mouse ??= await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-    );
-    if (_mouseAdded) {
-      await mouse.moveTo(at);
-    } else {
-      _mouseAdded = true;
-      await mouse.addPointer(location: at);
-    }
-  }
-
-  TestGesture? _mouse;
-  var _mouseAdded = false;
+  /// The scenario's own mouse rather than one of the film's: the verbs that
+  /// are a mouse — `hover`, `secondaryTap`, `scroll` — move it too, and one
+  /// of the film's own would be a second mouse to the app. See
+  /// [ScenarioMouse].
+  Future<void> _hoverTo(WidgetTester tester, Offset at) =>
+      ScenarioMouse.of(tester).moveTo(at);
 
   /// How long a reach of [distance] takes.
   ///
@@ -903,6 +955,20 @@ class _Banked {
 
   /// Seconds since the last press began, or null before the first one.
   final double? sincePress;
+}
+
+/// What a field holds after each keystroke of [text]: its first character,
+/// its first two, and so on to the whole of it.
+///
+/// A character is a grapheme — what one key types — so an emoji, or a letter
+/// written with a combining accent, goes in whole. Cutting by code units would
+/// hand the field half a surrogate pair on the way.
+Iterable<String> typedPrefixes(String text) sync* {
+  var typed = '';
+  for (var character in text.characters) {
+    typed += character;
+    yield typed;
+  }
 }
 
 /// The film this process is rendering, if any.

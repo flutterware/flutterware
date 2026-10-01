@@ -53,6 +53,8 @@ class CatalogRender {
     this.annotate = false,
     this.cropNode,
     this.motionT,
+    this.steps = const [],
+    this.full = false,
   });
 
   final String entryId;
@@ -93,14 +95,25 @@ class CatalogRender {
   /// Where to park the entry's motion, 0..1.
   final double? motionT;
 
+  /// Drive verbs to run before anything is read or photographed, each in
+  /// `act`'s wire spelling — every value a string.
+  final List<Map<String, String>> steps;
+
+  /// Grow the screen to what its lists hold, so one picture — and one
+  /// tree — has all of them; a picture taller than the screen it started as
+  /// is also cut into pages of that screen.
+  final bool full;
+
   /// Whether the tree has to be read, which is more often than the caller
   /// asked for it: a hit resolves ids against a tree, a crop needs a node's
   /// rect, and an annotation needs every node's.
   ///
   /// Worked out here rather than by each backend, because a backend that
   /// disagreed about this would answer a question nobody could see it had been
-  /// asked.
-  bool get needsTree => wantTree || at != null || framed;
+  /// asked. A full picture is cut into pages between the rows the tree
+  /// places.
+  bool get needsTree =>
+      wantTree || at != null || framed || (full && screenshot != null);
 
   /// Whether the picture has to be cut or drawn on after it is taken — which
   /// is what decides whether the shutter can *be* the settling frame.
@@ -123,6 +136,8 @@ class CatalogRender {
     bool? annotate,
     String? cropNode,
     double? motionT,
+    List<Map<String, String>>? steps,
+    bool? full,
   }) => CatalogRender(
     entryId: entryId ?? this.entryId,
     viewport: viewport ?? this.viewport,
@@ -138,6 +153,8 @@ class CatalogRender {
     annotate: annotate ?? this.annotate,
     cropNode: cropNode ?? this.cropNode,
     motionT: motionT ?? this.motionT,
+    steps: steps ?? this.steps,
+    full: full ?? this.full,
   );
 }
 
@@ -325,6 +342,11 @@ abstract class CatalogRenderer {
       // The render was asked for a screenshot, so it took one or threw.
       file: observed.screenshot!,
       knobs: observed.knobs?.knobs ?? const [],
+      scrolled: observed.revealed?.scrolled ?? 0,
+      grown: observed.grown,
+      drawnAt: observed.drawnAt,
+      pages: observed.pages,
+      errors: observed.errors.errors,
     );
   }
 }
@@ -350,6 +372,10 @@ class CatalogObservation {
     this.hits,
     this.screenshot,
     this.stagedOn,
+    this.revealed,
+    this.grown,
+    this.drawnAt,
+    this.pages = const [],
   });
 
   /// Always read, whatever was asked for. It is the answer to "is this one
@@ -387,15 +413,96 @@ class CatalogObservation {
   /// a way somebody has to already suspect. Null from a backend that does not
   /// report it.
   final StagedViewport? stagedOn;
+
+  /// Where the `--node` ended up once it was brought on screen, when a
+  /// backend did that. Null from one that does not, which crops the screen
+  /// as it lay.
+  final CatalogReveal? revealed;
+
+  /// How far the screen grew for `--full`. Null when it was not asked for.
+  final CatalogGrown? grown;
+
+  /// The pixel ratio [screenshot] was drawn at, when it is lower than the
+  /// screen's: a picture taller than the rasteriser's largest texture is
+  /// drawn smaller rather than cut short. Null when it is the screen's own.
+  final double? drawnAt;
+
+  /// [screenshot], a screen at a time, when it is taller than one. Empty
+  /// otherwise.
+  final List<File> pages;
+}
+
+/// What growing the screen to its content did, as the backend reported it.
+class CatalogGrown {
+  const CatalogGrown({
+    required this.from,
+    required this.to,
+    this.truncated = false,
+  });
+
+  /// The screen's height before and after, in logical pixels.
+  final double from;
+  final double to;
+
+  /// Whether a list still had more to show when the screen stopped growing.
+  final bool truncated;
+
+  Map<String, Object?> toJson() => {
+    'from': from.round(),
+    'to': to.round(),
+    if (truncated) 'truncated': true,
+  };
+}
+
+/// What bringing a `--node` on screen did, as the backend reported it.
+class CatalogReveal {
+  const CatalogReveal({required this.id, required this.scrolled});
+
+  /// The node in the tree *after* the scroll. What to crop and narrow to:
+  /// the selector the caller passed may be an id, and an id is a position a
+  /// scrolled list has since given to another row.
+  final String? id;
+
+  /// How far the lists moved, in logical pixels. Zero when it was already on
+  /// screen.
+  final double scrolled;
 }
 
 /// One picture, and what the build that produced it declared.
 class CatalogCapture {
-  CatalogCapture({required this.file, required this.knobs});
+  CatalogCapture({
+    required this.file,
+    required this.knobs,
+    this.scrolled = 0,
+    this.grown,
+    this.drawnAt,
+    this.pages = const [],
+    this.errors = const [],
+  });
 
   final File file;
+
+  /// How far `--full` grew the screen. Null when it was not asked for.
+  final CatalogGrown? grown;
+
+  /// The pixel ratio [file] was drawn at, when lower than the screen's.
+  final double? drawnAt;
+
+  /// [file], a screen at a time, when it is taller than one.
+  final List<File> pages;
+
+  /// How far the lists were scrolled to bring the `--node` on screen, in
+  /// logical pixels — said, because a picture that is not of the entry at
+  /// rest looks exactly like one that is.
+  final double scrolled;
 
   /// What the entry reported *after* the values were applied — so a clamped or
   /// ignored value is visible rather than assumed.
   final List<KnobDescriptor> knobs;
+
+  /// What the build complained about while it drew [file]. A picture of an
+  /// entry that reported something is still a picture — often of the very
+  /// thing that is wrong — so it is handed over with the complaint beside it
+  /// rather than in place of it.
+  final List<InspectError> errors;
 }

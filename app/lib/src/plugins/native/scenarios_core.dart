@@ -1880,7 +1880,9 @@ class ScenariosCore extends PluginCore {
               'The store/documentation lane: runs the scenarios and keeps '
               'only their **named** shots, at the pixel ratio each device '
               'really has, '
-              'into `<output>/<language>/<device>/NN-name.png`. Everything a '
+              'into `<output>/<language>/<device>/<scenario>/NN-name.png` — '
+              'numbered within each scenario, so adding a shot renames '
+              'nothing in any other. Everything a '
               '`run` leaves behind — the automatic steps, the widget trees — '
               'is dropped. A separate action because every default differs; '
               '`run` stays the debugging lane.',
@@ -1945,6 +1947,21 @@ class ScenariosCore extends PluginCore {
                   'contributes one point rather than two identical ones.',
             ),
             const ActionParameter(
+              'brightness',
+              'Brightness',
+              repeatable: true,
+              kind: ActionParameterKind.choice,
+              required: false,
+              description:
+                  'The platform brightness the app sees — `light,dark` for '
+                  'both, crossed with the other axes. Dark gets its own '
+                  'directory, `<language>/<device>-dark/`, after `-landscape` '
+                  'where both apply, for the reason a turned device does. '
+                  'Light writes no suffix and is what omitting this means, so '
+                  'a tree that never asked for dark is the tree it was.',
+              options: [ActionOption('light'), ActionOption('dark')],
+            ),
+            const ActionParameter(
               'tag',
               'Shot tag',
               kind: ActionParameterKind.string,
@@ -1961,8 +1978,11 @@ class ScenariosCore extends PluginCore {
               kind: ActionParameterKind.string,
               required: false,
               description:
-                  'Only this scenario file, package-relative — or a directory, '
-                  'for everything under it',
+                  'Only this scenario file, package-relative — as `list` '
+                  'reports it. A directory keeps everything under it, which '
+                  'is the unit the folder profiles are declared in. Several, '
+                  'comma-separated (or `--file` repeated), run in the order '
+                  'given in one process',
             ),
           ],
         ),
@@ -2398,9 +2418,8 @@ class ScenariosCore extends PluginCore {
     _PickedStep picked,
     Map<String, Object?> arguments,
   ) {
-    var channels = switch (arguments['channel']) {
-      String text when text.trim().isNotEmpty =>
-        text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet(),
+    var channels = switch (_axisList(arguments['channel'], 'channel')) {
+      var named when named.isNotEmpty => named.toSet(),
       _ => null,
     };
     var errorsOnly = ScreenRead.boolArgument(arguments['errors']);
@@ -2954,7 +2973,7 @@ class ScenariosCore extends PluginCore {
   /// else, and copying out of a live run directory would leave both.
   Future<ScenarioShotsResult> _shots(Map<String, Object?> arguments) async {
     var paths = _requested(arguments);
-    var file = arguments['file'] as String?;
+    var file = _fileArgument(arguments['file']);
     var tag = arguments['tag'] as String?;
     var devices = _axisList(arguments['devices'], 'devices');
     for (var id in devices) {
@@ -2977,15 +2996,27 @@ class ScenariosCore extends PluginCore {
       }
     }
     var orientations = _orientationList(arguments['orientations']);
+    var brightnesses = _axisList(arguments['brightness'], 'brightness');
+    for (var brightness in brightnesses) {
+      if (brightness != 'light' && brightness != 'dark') {
+        throw ArgumentError.value(
+          brightness,
+          'brightness',
+          'accepted: light, dark',
+        );
+      }
+    }
     var assignments = <ScenarioAxes>[
       for (var device in devices.isEmpty ? [null] : devices)
         for (var orientation in _orientationsFor(device, orientations, null))
-          for (var language in languages.isEmpty ? [null] : languages)
-            ScenarioAxes(
-              device: device,
-              orientation: orientation,
-              language: language,
-            ),
+          for (var brightness in brightnesses.isEmpty ? [null] : brightnesses)
+            for (var language in languages.isEmpty ? [null] : languages)
+              ScenarioAxes(
+                device: device,
+                orientation: orientation,
+                language: language,
+                brightness: brightness,
+              ),
     ];
 
     var results = <ScenarioShotsPackage>[];
@@ -3018,12 +3049,22 @@ class ScenariosCore extends PluginCore {
       // PNG codec is ~250ms an image, and doing it inline freezes the window
       // for as long as the whole set takes. See `flattenPngFile`.
       var flatten = <(String, String)>[];
-      var failures = <String, int>{};
+      var failures = <String, List<ScenarioShotFailure>>{};
       var axesOf = <String, Map<String, String>>{};
+      // Shots so far per scenario directory, which is what numbers them.
+      var numbered = <String, int>{};
       try {
         for (var assignment in assignments) {
+          // `axisSlug` leaves brightness out — `run` never fans it out — so
+          // the dark half of a pair says so here, or it would run into the
+          // light half's scratch and overwrite the pictures still to be
+          // copied out of it.
+          var point = p.join(
+            scratch,
+            '${axisSlug(assignment)}${_darkSuffix(assignment)}',
+          );
           var report = await _runnerFor(path).run(
-            outDir: p.join(scratch, axisSlug(assignment)),
+            outDir: point,
             file: file,
             axes: assignment,
             unspecifiedDevice: defaultScenarioDeviceId,
@@ -3035,60 +3076,87 @@ class ScenariosCore extends PluginCore {
             // deleted with the scratch directory.
             pixels: ScenarioPixels.named,
           );
-          var described = _describeRun(
-            path,
-            p.join(scratch, axisSlug(assignment)),
-            report,
-            axes: assignment,
-          );
+          var described = _describeRun(path, point, report, axes: assignment);
+          // Every outcome is placed in its set before any shot is named: a
+          // scenario's directory depends on the others beside it — see
+          // [_scenarioDirectories].
+          var sets = <String, List<ScenarioRunOutcome>>{};
           for (var outcome in described.scenarios) {
             var language = assignment.language ?? 'default';
             var device = outcome.device ?? fitDeviceId;
-            // The orientation joins the device in the directory name, not
-            // beside it: without it the two ways up of one device share a key
-            // and the second run overwrites the first. Portrait adds nothing,
-            // so a store tree that never asked for landscape is the tree it
-            // was before.
+            // The orientation and the brightness join the device in the
+            // directory name, not beside it: without them the two ways up of
+            // one device share a key and the second run overwrites the first.
+            // Portrait and light add nothing, so a store tree that never asked
+            // for either is the tree it was before.
             var key = p.join(
               language,
-              assignment.isLandscape ? '$device-landscape' : device,
+              '${assignment.isLandscape ? '$device-landscape' : device}'
+              '${_darkSuffix(assignment)}',
             );
             axesOf[key] = {
               'language': ?assignment.language,
               'device': device,
               if (assignment.isLandscape)
                 'orientation': ScreenOrientation.landscape.name,
+              if (_darkSuffix(assignment).isNotEmpty) 'brightness': 'dark',
             };
-            var into = Directory(p.join(output, key))
-              ..createSync(recursive: true);
-            var kept = images.putIfAbsent(key, () => []);
+            sets.putIfAbsent(key, () => []).add(outcome);
             if (!outcome.ok) {
-              failures[key] = (failures[key] ?? 0) + 1;
+              failures
+                  .putIfAbsent(key, () => [])
+                  .add(
+                    ScenarioShotFailure(
+                      file: outcome.file,
+                      scenario: outcome.name,
+                      error: _firstLines(_failureOf(outcome)),
+                      rerun: _rerun(path, outcome, assignment),
+                    ),
+                  );
             }
-            for (var step in outcome.steps) {
-              // Named shots only, and only the tag asked for: an automatic
-              // capture is a debugging artefact, not a screenshot somebody
-              // chose to show.
-              if (step.name == null) continue;
-              if (tag != null && !step.tags.contains(tag)) continue;
-              // A named step with no picture: the scenario emitted a document
-              // or a notification beat, which is a step in the flow and not a
-              // screenshot of anything.
-              if (step.image == null) continue;
-              var number = (kept.length + 1).toString().padLeft(2, '0');
-              var name = '$number-${_shotSlug(step.name!)}.png';
-              // `step.image` is relative to the worktree, which is what keeps
-              // a result portable; `step.root` is this machine's copy of it.
-              //
-              // Flattened rather than copied: a capture is RGBA whatever it
-              // holds, and neither store accepts a PNG with an alpha channel.
-              // See `flattenPng`.
-              flatten.add((
-                p.join(step.root, step.image!),
-                p.join(into.path, name),
-              ));
-              kept.add(name);
-              total++;
+          }
+          for (var MapEntry(:key, value: outcomes) in sets.entries) {
+            Directory(p.join(output, key)).createSync(recursive: true);
+            var kept = images.putIfAbsent(key, () => []);
+            var directories = _scenarioDirectories(outcomes);
+            for (var (index, outcome) in outcomes.indexed) {
+              var directory = p.join(key, directories[index]);
+              for (var step in outcome.steps) {
+                // Named shots only, and only the tag asked for: an automatic
+                // capture is a debugging artefact, not a screenshot somebody
+                // chose to show.
+                if (step.name == null) continue;
+                if (tag != null && !step.tags.contains(tag)) continue;
+                // A named step with no picture: the scenario emitted a
+                // document or a notification beat, which is a step in the
+                // flow and not a screenshot of anything.
+                if (step.image == null) continue;
+                // Counted within the scenario, never across the set: a
+                // number shared by the whole set moved every later file of
+                // every later scenario whenever one shot was added, and an
+                // export's diff touched all of it.
+                var number = numbered[directory] =
+                    (numbered[directory] ?? 0) + 1;
+                var name = p.join(
+                  directories[index],
+                  '${number.toString().padLeft(2, '0')}-'
+                  '${_shotSlug(step.name!)}.png',
+                );
+                Directory(p.join(output, directory)).createSync();
+                // `step.image` is relative to the worktree, which is what
+                // keeps a result portable; `step.root` is this machine's copy
+                // of it.
+                //
+                // Flattened rather than copied: a capture is RGBA whatever it
+                // holds, and neither store accepts a PNG with an alpha
+                // channel. See `flattenPng`.
+                flatten.add((
+                  p.join(step.root, step.image!),
+                  p.join(output, key, name),
+                ));
+                kept.add(name);
+                total++;
+              }
             }
           }
         }
@@ -3103,7 +3171,7 @@ class ScenariosCore extends PluginCore {
                   directory: key,
                   axes: axesOf[key] ?? const {},
                   images: images[key]!,
-                  failed: failures[key] ?? 0,
+                  failures: failures[key] ?? const [],
                 ),
             ],
           ),
@@ -3119,6 +3187,68 @@ class ScenariosCore extends PluginCore {
       }
     }
     return ScenarioShotsResult(packages: results, count: total);
+  }
+
+  /// [text] cut to its first [max] lines, saying how many it left out.
+  static String _firstLines(String text, {int max = 12}) {
+    var lines = text.trimRight().split('\n');
+    if (lines.length <= max) return lines.join('\n');
+    return [
+      ...lines.take(max),
+      '… ${lines.length - max} more lines',
+    ].join('\n');
+  }
+
+  /// The `run` that reproduces [outcome] at [assignment]'s point: the device
+  /// it actually ran as, which a folder profile may have chosen rather than
+  /// the request.
+  static String _rerun(
+    String path,
+    ScenarioRunOutcome outcome,
+    ScenarioAxes assignment,
+  ) => [
+    'fw run scenarios run --package=$path --file=${outcome.file}',
+    '--scenario="${outcome.name}"',
+    if (outcome.device case var device?) '--device=$device',
+    if (assignment.isLandscape) '--orientation=landscape',
+    if (assignment.language case var language?) '--language=$language',
+    if (_darkSuffix(assignment).isNotEmpty) '--brightness=dark',
+  ].join(' ');
+
+  /// `-dark` for a dark point of the shots matrix, and nothing for light —
+  /// the default, which writes nothing, as portrait does.
+  static String _darkSuffix(ScenarioAxes assignment) =>
+      assignment.brightness == 'dark' ? '-dark' : '';
+
+  /// The directory each of [outcomes] writes its shots into, inside their
+  /// set: the scenario's name, slugged — `Checkout` → `checkout/`.
+  ///
+  /// A name is unique per file, not per package, so two files can each have
+  /// a `Happy path`. Those — and only those — are told apart by their files,
+  /// `cart-happy-path/` and `checkout-happy-path/`: putting the file in
+  /// every directory would lengthen them all to settle a clash most suites
+  /// never have. Whatever still clashes shares a directory, and the
+  /// numbering, which is per directory, keeps it from overwriting.
+  static List<String> _scenarioDirectories(List<ScenarioRunOutcome> outcomes) {
+    String slug(String text) => switch (_shotSlug(text)) {
+      '' => 'scenario',
+      var slug => slug,
+    };
+    // `test/scenarios/cart_test.dart` → `cart`.
+    String stem(String file) => slug(
+      p.url.basenameWithoutExtension(file).replaceFirst(RegExp(r'_test$'), ''),
+    );
+    var filesOf = <String, Set<String>>{};
+    for (var outcome in outcomes) {
+      filesOf.putIfAbsent(slug(outcome.name), () => {}).add(outcome.file);
+    }
+    return [
+      for (var outcome in outcomes)
+        if (filesOf[slug(outcome.name)]!.length < 2)
+          slug(outcome.name)
+        else
+          '${stem(outcome.file)}-${slug(outcome.name)}',
+    ];
   }
 
   /// `01-order-placed.png` from `Order placed` — a name that sorts, survives
@@ -3335,7 +3465,7 @@ class ScenariosCore extends PluginCore {
     for (var path in paths) {
       track(path);
     }
-    var file = arguments['file'] as String?;
+    var file = _fileArgument(arguments['file']);
     var scenario = arguments['scenario'] as String?;
     if (scenario != null && file == null) {
       throw ArgumentError(
@@ -4092,11 +4222,18 @@ class ScenariosCore extends PluginCore {
       );
     }
     var path = paths.single;
-    var file = arguments['file'] as String?;
+    var file = _fileArgument(arguments['file']);
     if (file == null || file.isEmpty) {
       throw ArgumentError(
         '`file` names the scenario file to film — as `list` reports it. A '
         'film is one scenario, so there is no "all of them" here.',
+      );
+    }
+    if (fileSelectors(file).length > 1) {
+      throw ArgumentError.value(
+        file,
+        'file',
+        'names several files, and a film is one scenario. Name one',
       );
     }
     var scenario = switch (arguments['scenario']) {
@@ -4244,29 +4381,33 @@ class ScenariosCore extends PluginCore {
     );
   }
 
-  /// Whichever scenario of a film run came back red, in its own words.
+  /// Whichever scenario of a film run came back red, in its own words — see
+  /// [_failureOf].
+  String? _filmFailure(Map<String, Object?> report) {
+    for (var scenario in (report['scenarios'] as List?) ?? const []) {
+      var outcome = ScenarioRunOutcome.fromJson(
+        (scenario as Map).cast<String, Object?>(),
+      );
+      if (outcome.ok || outcome.skipped) continue;
+      return _failureOf(outcome);
+    }
+    return report['error'] as String?;
+  }
+
+  /// Why [outcome] came back red, in its own words.
   ///
   /// The caught errors first: a refusal a verb threw — a `split` a film was
   /// not told which way to take — lands there with its whole message, which is
   /// the one thing worth handing back. A failed step's `failure` says the same
   /// sentence where the step got far enough to be captured.
-  String? _filmFailure(Map<String, Object?> report) {
-    for (var scenario in (report['scenarios'] as List?) ?? const []) {
-      var record = (scenario as Map).cast<String, Object?>();
-      if (record['ok'] == true || record['skipped'] == true) continue;
-      for (var error in (record['errors'] as List?) ?? const []) {
-        if ((error as Map)['error'] case String said when said.isNotEmpty) {
-          return said;
-        }
-      }
-      for (var step in (record['steps'] as List?) ?? const []) {
-        if ((step as Map)['failure'] case String said when said.isNotEmpty) {
-          return said;
-        }
-      }
-      return 'it failed without saying why';
+  static String _failureOf(ScenarioRunOutcome outcome) {
+    for (var error in outcome.errors) {
+      if (error.error.isNotEmpty) return error.error;
     }
-    return report['error'] as String?;
+    for (var step in outcome.steps) {
+      if (step.failure case var said? when said.isNotEmpty) return said;
+    }
+    return 'it failed without saying why';
   }
 
   static double? _positive(Object? raw, String name) {
@@ -4397,7 +4538,6 @@ class ScenariosCore extends PluginCore {
     return [?selector, if (tag != null) 'tag "$tag"'].join(' with ');
   }
 
-  /// A comma-separated axis list, trimmed and emptied of blanks.
   /// The branches a film was told to take, outermost first.
   ///
   /// Never comma-split, unlike an axis list: a branch is a label an author
@@ -4410,9 +4550,17 @@ class ScenariosCore extends PluginCore {
     var other => throw ArgumentError.value(other, 'branch', 'a branch label'),
   };
 
+  /// A comma-separated axis list, trimmed and emptied of blanks — or the
+  /// same values already split, which is what a caller reading `repeatable`
+  /// sends.
   static List<String> _axisList(Object? raw, String name) {
     if (raw == null) return const [];
-    if (raw is List) return [for (var item in raw) '$item'.trim()];
+    if (raw is List) {
+      return [
+        for (var item in raw)
+          if ('$item'.trim().isNotEmpty) '$item'.trim(),
+      ];
+    }
     if (raw is! String) {
       throw ArgumentError.value(raw, name, 'a comma-separated list');
     }
@@ -4421,6 +4569,27 @@ class ScenariosCore extends PluginCore {
         if (part.trim().isNotEmpty) part.trim(),
     ];
   }
+
+  /// The `file` argument as the one comma-separated string the runner and
+  /// `fileSelectors` take, however it arrived.
+  ///
+  /// `file` is declared repeatable, and a caller that reads the listing takes
+  /// that to mean a list — which is what an agent sent over MCP, and what a
+  /// bare `as String?` answered with a cast error. The CLI never showed it:
+  /// a repeated `--file` reaches an action already comma-joined.
+  static String? _fileArgument(Object? raw) => switch (raw) {
+    null => null,
+    String one => one,
+    List list => switch (_axisList(list, 'file')) {
+      var files when files.isNotEmpty => files.join(','),
+      _ => null,
+    },
+    var other => throw ArgumentError.value(
+      other,
+      'file',
+      'a package-relative path, or several — as a list or comma-separated',
+    ),
+  };
 
   /// The orientation list a matrix asked for, checked. Empty stays empty — the
   /// caller decides what "nothing fanned out" falls back to.

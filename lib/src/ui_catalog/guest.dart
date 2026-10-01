@@ -167,6 +167,7 @@ class CatalogKnobs {
       options: p.options.keys.toList(),
       value: _labelOf(p, p.requiredValue),
       defaultValue: _labelOf(p, p.defaultValue),
+      style: p.style,
     ),
     // Dates and buttons are left out rather than described wrong.
     _ => null,

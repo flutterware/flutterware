@@ -297,9 +297,12 @@ class _Until extends Settle {
     // [_Budgeted]'s loop with a different question at the bottom: whether the
     // target is there yet, rather than whether the app asked for a frame. A
     // quiet tree is exactly what a screen waiting on a stream looks like.
+    // Counted rather than evaluated: `find.text(…).first` over nothing throws
+    // instead of matching nothing, and an `nth` past the end is a row that
+    // has not arrived yet — both are what this waits through.
     var interval = record?.interval ?? _frameInterval;
     var elapsed = Duration.zero;
-    while (finder.evaluate().isEmpty) {
+    while ((countMatches(finder) ?? 0) == 0) {
       if (elapsed >= timeout) {
         throw ScenarioNeverAppeared(
           '${describeTarget(target)} did not appear within '

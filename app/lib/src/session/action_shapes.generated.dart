@@ -541,6 +541,12 @@ final resultShapes = <String, ResultShape>{
               'doc': 'What the framework was doing: `during layout`, `while painting`.',
             },
             <String, Object?>{
+              'name': 'location',
+              'type': 'String',
+              'optional': true,
+              'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
+            },
+            <String, Object?>{
               'name': 'count',
               'type': 'int',
               'doc': 'How many times this exact error was reported.',
@@ -625,6 +631,12 @@ final resultShapes = <String, ResultShape>{
                     'type': 'String',
                     'optional': true,
                     'doc': 'What the framework was doing: `during layout`, `while painting`.',
+                  },
+                  <String, Object?>{
+                    'name': 'location',
+                    'type': 'String',
+                    'optional': true,
+                    'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
                   },
                   <String, Object?>{
                     'name': 'count',
@@ -1045,6 +1057,12 @@ final resultShapes = <String, ResultShape>{
               'type': 'String',
               'optional': true,
               'doc': 'What the framework was doing: `during layout`, `while painting`.',
+            },
+            <String, Object?>{
+              'name': 'location',
+              'type': 'String',
+              'optional': true,
+              'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
             },
             <String, Object?>{
               'name': 'count',
@@ -1585,6 +1603,12 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
         'doc':
             'What the framework was doing: `during layout`, `while painting`.',
+      },
+      <String, Object?>{
+        'name': 'location',
+        'type': 'String',
+        'optional': true,
+        'doc': 'Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project\'s own code over a dependency\'s.',
       },
       <String, Object?>{
         'name': 'count',
@@ -6213,6 +6237,27 @@ final resultShapes = <String, ResultShape>{
       },
     ],
   }),
+  'ScenarioShotFailure': ResultShape.fromJson(<String, Object?>{
+    'type': 'ScenarioShotFailure',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'file',
+        'type': 'String',
+        'doc': 'Package-relative, as `list` reports it.',
+      },
+      <String, Object?>{'name': 'scenario', 'type': 'String'},
+      <String, Object?>{
+        'name': 'error',
+        'type': 'String',
+        'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+      },
+      <String, Object?>{
+        'name': 'rerun',
+        'type': 'String',
+        'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+      },
+    ],
+  }),
   'ScenarioShotSet': ResultShape.fromJson(<String, Object?>{
     'type': 'ScenarioShotSet',
     'fields': <Object?>[
@@ -6225,12 +6270,38 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{
         'name': 'images',
         'type': 'List<String>',
-        'doc': 'File names, in the order they were captured — which is the order they were numbered with.',
+        'doc': 'Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.',
       },
       <String, Object?>{
         'name': 'failed',
         'type': 'int',
         'doc': 'Scenarios that failed while producing this set.',
+      },
+      <String, Object?>{
+        'name': 'failures',
+        'type': 'List<ScenarioShotFailure>',
+        'doc': 'Why, one entry per failed scenario — [failed] is their count.',
+        'shape': <String, Object?>{
+          'type': 'ScenarioShotFailure',
+          'fields': <Object?>[
+            <String, Object?>{
+              'name': 'file',
+              'type': 'String',
+              'doc': 'Package-relative, as `list` reports it.',
+            },
+            <String, Object?>{'name': 'scenario', 'type': 'String'},
+            <String, Object?>{
+              'name': 'error',
+              'type': 'String',
+              'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+            },
+            <String, Object?>{
+              'name': 'rerun',
+              'type': 'String',
+              'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+            },
+          ],
+        },
       },
     ],
   }),
@@ -6241,7 +6312,7 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{
         'name': 'output',
         'type': 'String',
-        'doc': 'The root of the tree — `<language>/<device>/` beneath it.',
+        'doc': 'The root of the tree — `<language>/<device>/<scenario>/` beneath it.',
       },
       <String, Object?>{
         'name': 'sets',
@@ -6258,12 +6329,38 @@ final resultShapes = <String, ResultShape>{
             <String, Object?>{
               'name': 'images',
               'type': 'List<String>',
-              'doc': 'File names, in the order they were captured — which is the order they were numbered with.',
+              'doc': 'Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.',
             },
             <String, Object?>{
               'name': 'failed',
               'type': 'int',
               'doc': 'Scenarios that failed while producing this set.',
+            },
+            <String, Object?>{
+              'name': 'failures',
+              'type': 'List<ScenarioShotFailure>',
+              'doc': 'Why, one entry per failed scenario — [failed] is their count.',
+              'shape': <String, Object?>{
+                'type': 'ScenarioShotFailure',
+                'fields': <Object?>[
+                  <String, Object?>{
+                    'name': 'file',
+                    'type': 'String',
+                    'doc': 'Package-relative, as `list` reports it.',
+                  },
+                  <String, Object?>{'name': 'scenario', 'type': 'String'},
+                  <String, Object?>{
+                    'name': 'error',
+                    'type': 'String',
+                    'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+                  },
+                  <String, Object?>{
+                    'name': 'rerun',
+                    'type': 'String',
+                    'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+                  },
+                ],
+              },
             },
           ],
         },
@@ -6289,8 +6386,7 @@ final resultShapes = <String, ResultShape>{
             <String, Object?>{
               'name': 'output',
               'type': 'String',
-              'doc':
-                  'The root of the tree — `<language>/<device>/` beneath it.',
+              'doc': 'The root of the tree — `<language>/<device>/<scenario>/` beneath it.',
             },
             <String, Object?>{
               'name': 'sets',
@@ -6310,12 +6406,38 @@ final resultShapes = <String, ResultShape>{
                   <String, Object?>{
                     'name': 'images',
                     'type': 'List<String>',
-                    'doc': 'File names, in the order they were captured — which is the order they were numbered with.',
+                    'doc': 'Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.',
                   },
                   <String, Object?>{
                     'name': 'failed',
                     'type': 'int',
                     'doc': 'Scenarios that failed while producing this set.',
+                  },
+                  <String, Object?>{
+                    'name': 'failures',
+                    'type': 'List<ScenarioShotFailure>',
+                    'doc': 'Why, one entry per failed scenario — [failed] is their count.',
+                    'shape': <String, Object?>{
+                      'type': 'ScenarioShotFailure',
+                      'fields': <Object?>[
+                        <String, Object?>{
+                          'name': 'file',
+                          'type': 'String',
+                          'doc': 'Package-relative, as `list` reports it.',
+                        },
+                        <String, Object?>{'name': 'scenario', 'type': 'String'},
+                        <String, Object?>{
+                          'name': 'error',
+                          'type': 'String',
+                          'doc': 'The first lines of what the scenario failed with — the caught error, or the failed step\'s message where there was none.',
+                        },
+                        <String, Object?>{
+                          'name': 'rerun',
+                          'type': 'String',
+                          'doc': 'The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action\'s own run is not.',
+                        },
+                      ],
+                    },
                   },
                 ],
               },
@@ -6335,7 +6457,9 @@ final resultShapes = <String, ResultShape>{
         'doc':
             'How many images were written, over every package and assignment.',
       },
+      <String, Object?>{'name': 'ok', 'type': 'bool'},
     ],
+    'gates': true,
   }),
   'ScenarioWebExportResult': ResultShape.fromJson(<String, Object?>{
     'type': 'ScenarioWebExportResult',
@@ -7154,6 +7278,12 @@ final resultShapes = <String, ResultShape>{
         'type': 'String',
         'optional': true,
         'doc': 'Its moment in the trace, `reload.2`, which `worlds trace --step` reads.',
+      },
+      <String, Object?>{
+        'name': 'note',
+        'type': 'String',
+        'optional': true,
+        'doc': 'What it had to do first, and why: a fresh compiler for the script, when its own had stopped.',
       },
     ],
   }),

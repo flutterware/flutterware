@@ -8,6 +8,7 @@ import 'package:flutterware_app/src/previews/catalog_session.dart';
 import 'package:flutterware_app/src/previews/catalog_view.dart';
 import 'package:flutterware_app/src/previews/protocol.dart';
 import 'package:flutterware_app/src/ui/aside.dart';
+import 'package:flutterware_app/src/ui/segmented.dart';
 
 /// What the panel does when a demo stops compiling.
 ///
@@ -904,6 +905,74 @@ void main() {
       await pump(tester, session);
 
       expect(find.text('12'), findsOneWidget);
+    });
+  });
+
+  group('a picker asked for as segments', () {
+    const theme = KnobDescriptor(
+      name: 'theme',
+      kind: KnobKind.picker,
+      value: 'Light',
+      defaultValue: 'Light',
+      options: ['Light', 'Dark'],
+      style: PickerStyle.segmented,
+    );
+
+    testWidgets('is drawn with every option on show, as a knob', (
+      tester,
+    ) async {
+      var session = sessionWithBroken(beta, 'boom')
+        ..knobs = KnobReport(entryId: beta.id, knobs: const [theme]);
+      await pump(tester, session, tab: InspectTab.controls);
+
+      expect(find.byType(FwSegmented<String>), findsOneWidget);
+      // On show without opening anything, which a menu cannot do.
+      expect(find.text('Dark'), findsOneWidget);
+
+      await tester.tap(find.text('Dark'));
+      await tester.pump();
+      expect(address.value.axes['knob.theme'], 'dark');
+    });
+
+    testWidgets('and as an axis in the top bar', (tester) async {
+      var session = sessionWithBroken(beta, 'boom')
+        ..axes = AxisReport(
+          entryId: 'demo/a.dart#a',
+          shellId: 'app',
+          axes: const [theme],
+        );
+      await pump(tester, session);
+
+      expect(find.byType(FwSegmented<String>), findsOneWidget);
+
+      await tester.tap(find.text('Dark'));
+      await tester.pump();
+      expect(address.value.axes['axis.theme'], 'dark');
+    });
+
+    testWidgets('is a menu anyway once it offers more than five', (
+      tester,
+    ) async {
+      // Past five a row of segments stops reading at a glance, and in the top
+      // bar it would push the capture button off the end.
+      var session = sessionWithBroken(beta, 'boom')
+        ..knobs = KnobReport(
+          entryId: beta.id,
+          knobs: const [
+            KnobDescriptor(
+              name: 'locale',
+              kind: KnobKind.picker,
+              value: 'en',
+              defaultValue: 'en',
+              options: ['en', 'fr', 'de', 'nl', 'es', 'it'],
+              style: PickerStyle.segmented,
+            ),
+          ],
+        );
+      await pump(tester, session, tab: InspectTab.controls);
+
+      expect(find.byType(FwSegmented<String>), findsNothing);
+      expect(find.text('fr'), findsNothing);
     });
   });
 

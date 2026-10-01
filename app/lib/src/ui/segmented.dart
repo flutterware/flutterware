@@ -38,6 +38,7 @@ class FwSegmented<T> extends StatelessWidget {
     required this.selected,
     required this.onChanged,
     this.trailing,
+    this.dense = false,
   });
 
   final List<FwSegment<T>> segments;
@@ -50,22 +51,34 @@ class FwSegmented<T> extends StatelessWidget {
   /// Inside the tray after the last segment: what did not fit, as a menu.
   final Widget? trailing;
 
+  /// 24 tall with the tray included, in caption type: for a row of 24pt
+  /// fields — the preview panel's knobs and its top bar — where the full size
+  /// reads as a second, larger kind of control.
+  final bool dense;
+
   static const _height = 24.0;
+  static const _denseHeight = _height - trayInset;
   static const _inset = 2.0;
   static const _padding = FwSpacing.lg;
+  static const _densePadding = FwSpacing.md;
 
   /// How wide [segment] is drawn, for a caller deciding how many fit.
-  static double widthOf(BuildContext context, FwSegment<Object?> segment) {
+  static double widthOf(
+    BuildContext context,
+    FwSegment<Object?> segment, {
+    bool dense = false,
+  }) {
     var painter = TextPainter(
       text: TextSpan(
         text: segment.label,
-        style: _style(context, true),
-        children: [?_countOf(context, segment)],
+        style: _style(context, true, dense),
+        children: [?_countOf(context, segment, dense)],
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout();
-    var width = painter.width + 2 * _padding + _inset;
+    var padding = dense ? _densePadding : _padding;
+    var width = painter.width + 2 * padding + _inset;
     painter.dispose();
     // Every leading thing this is given is a dot or a small icon.
     return segment.leading == null
@@ -76,17 +89,23 @@ class FwSegmented<T> extends StatelessWidget {
   /// The tray around the segments, without them.
   static const trayInset = 2 * (_inset + 1);
 
-  static TextSpan? _countOf(BuildContext context, FwSegment<Object?> segment) =>
-      switch (segment.count) {
-        var count? => TextSpan(
-          text: ' $count',
-          style: context.type.bodySmall.copyWith(color: context.colors.mut),
-        ),
-        null => null,
-      };
+  static TextSpan? _countOf(
+    BuildContext context,
+    FwSegment<Object?> segment,
+    bool dense,
+  ) => switch (segment.count) {
+    var count? => TextSpan(
+      text: ' $count',
+      style: _type(context, dense).copyWith(color: context.colors.mut),
+    ),
+    null => null,
+  };
 
-  static TextStyle _style(BuildContext context, bool chosen) =>
-      context.type.bodySmall.copyWith(
+  static TextStyle _type(BuildContext context, bool dense) =>
+      dense ? context.type.caption : context.type.bodySmall;
+
+  static TextStyle _style(BuildContext context, bool chosen, bool dense) =>
+      _type(context, dense).copyWith(
         color: chosen ? context.colors.ink : context.colors.ink2,
         fontWeight: chosen ? FontWeight.w600 : null,
       );
@@ -123,8 +142,10 @@ class FwSegmented<T> extends StatelessWidget {
     var chosen = segment.value == selected;
     Widget face = AnimatedContainer(
       duration: const Duration(milliseconds: 120),
-      height: _height,
-      padding: const EdgeInsets.symmetric(horizontal: _padding),
+      height: dense ? _denseHeight : _height,
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? _densePadding : _padding,
+      ),
       decoration: BoxDecoration(
         color: chosen ? colors.bg : null,
         borderRadius: BorderRadius.circular(radius),
@@ -147,8 +168,8 @@ class FwSegmented<T> extends StatelessWidget {
           Text.rich(
             TextSpan(
               text: segment.label,
-              style: _style(context, chosen),
-              children: [?_countOf(context, segment)],
+              style: _style(context, chosen, dense),
+              children: [?_countOf(context, segment, dense)],
             ),
             maxLines: 1,
           ),

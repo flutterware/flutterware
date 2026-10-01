@@ -96,6 +96,44 @@ Widget wrapInShop(Widget child) => PreviewShell(
 Outside the studio, in your app or in Flutter's previewer, every axis returns
 its default.
 
+### Set things up once for every preview
+
+Some of what an app needs happens once in `main` rather than in a widget:
+turning off a font package's downloads, registering fonts, installing
+`HttpOverrides`. Previews never run your `main`, so name a setup file on the
+package instead of repeating it in every `wrapper:`:
+
+```dart
+// tool/flutterware.dart
+PreviewsPackage(app, setup: 'lib/preview_setup.dart')
+```
+
+```dart
+// lib/preview_setup.dart
+import 'package:google_fonts/google_fonts.dart';
+
+Future<void> previewSetup() async {
+  // Previews render offline, and a test engine answers every download with an
+  // error. Use the fonts bundled under assets/ instead.
+  GoogleFonts.config.allowRuntimeFetching = false;
+}
+```
+
+`previewSetup()` takes no arguments and can be `async`. It runs once, after the
+Flutter binding exists and before the first preview builds, everywhere a
+preview renders: the studio's panel, `screenshot`, `inspect`, `audit`,
+`compare` and the page `build-web` writes. That is also the place for
+`HttpOverrides.global = …`, so previews that fetch get your fake answers. The
+same file is compiled into the `build-web` page, so if you use that, keep
+`dart:io` behind a conditional import.
+
+If the file is missing or doesn't declare `previewSetup`, the previews plugin
+reports it and refuses to render the package rather than render every preview
+without it. If `previewSetup()` throws, you get its error instead of the
+previews. The command line actions pick up an edit to the setup on their next
+run; the studio's panel runs it when it starts, so reopen the panel after
+changing it.
+
 ## Knobs
 
 A knob is a value you can change while looking at a preview. Ask for one while
@@ -113,6 +151,21 @@ It appears in the **Controls** tab. A preview's optional parameters become knobs
 too, so `Widget shopConfirmation({String name = 'Ada'})` declares the same one.
 Outside the studio a knob returns the default written at the call site, so it's
 safe to leave in code that ships.
+
+A picker is a dropdown. For a switch you flip back and forth while looking,
+such as light and dark, ask for segments instead and every option stays on
+screen:
+
+```dart
+var brightness = context.knobs.picker('theme', {
+  'Light': Brightness.light,
+  'Dark': Brightness.dark,
+}, Brightness.light, style: PickerStyle.segmented);
+```
+
+`axes.picker` takes the same `style:`, for a switch in the toolbar. Up to five
+options are drawn as segments; a picker with more is drawn as a dropdown
+anyway, so a long list never pushes the rest of the toolbar out of sight.
 
 ## In the studio
 
@@ -148,6 +201,14 @@ fw run previews build-web                                       # your previews 
 renders with the real fonts and theme, at the device's pixel ratio, and
 `--node=<name>` crops to one widget. Over MCP the same actions go through
 `flutterware_invoke`.
+
+A preview that draws and then reports an error, such as a font that fails to
+download, still gets its picture. `screenshot` prints the path as usual, says on
+stderr that the preview reported errors, and lists them under `meta.errors` in
+`--json`. `inspect` lists them too and answers `ok: false`. Each error says
+where it was thrown, preferring your own code over a dependency's, so a fault in
+a theme or a wrapper points there rather than at the preview. Only a preview
+that drew nothing is refused.
 
 A preview can also be the source of an image you publish, such as store
 artwork. On the plain rectangle (`--device=fit`, or a canvas with no devices),

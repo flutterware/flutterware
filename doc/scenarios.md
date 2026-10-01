@@ -73,10 +73,15 @@ Each one acts, waits for the screen to settle, and captures.
 |---|---|
 | `pumpWidget(widget)` | mounts the app |
 | `tap(target)` | taps |
+| `doubleTap(target)` | taps twice, close enough to be one gesture |
 | `longPress(target)` | presses and holds |
-| `enterText(target, text)` | types into a field |
+| `enterText(target, text)` | fills a field — or types it a key at a time, `typing:` |
 | `drag(target, offset)` | drags by an offset |
 | `scrollTo(target)` | scrolls until the target is on screen, then stops |
+| `hover(target)` / `unhover()` | parks the mouse over it and holds — tooltips, hover states |
+| `secondaryTap(target)` | right-clicks — a context menu |
+| `scroll(target, offset)` | turns the mouse wheel over it — scrolls *that* pane |
+| `key('meta+k')` | presses a key or a chord — shortcuts, `escape`, `tab` |
 | `back()` | the Android back button — pops the route |
 | `wait(duration)` | moves the fake clock past a timer |
 | `act(description, body)` | a cause that is not a finger — a push, a completer, a backend — named on the step |
@@ -116,6 +121,56 @@ has not built yet matches nothing — that is what `scrollTo` is for.
 `s.tester` is the real `WidgetTester` if you need something the verbs do not
 have. Frames it draws are counted and reported on the next step, so a flow with
 a gap in it says so rather than quietly missing a screen.
+
+### The mouse and the keyboard
+
+`hover`, `secondaryTap` and `scroll` move one mouse, and it stays where it was
+put, as a real one does: a `tap` after a `hover` still finds the control
+hovered, and `unhover()` takes the mouse away. `hover` holds for 600ms of the
+fake clock (`hold:` to change it), because what a hover starts is usually a
+timer — `Tooltip.waitDuration` — and a tooltip is then in the step's picture
+and its texts like any other widget. Every scenario, and every branch of a
+`split`, starts with no mouse on the screen.
+
+`scroll`'s offset is a wheel's, not a finger's: a positive `dy` moves *down*
+the list, where `drag` needs a negative one. The wheel reaches the pane under
+the mouse, so on a page with several lists it scrolls the one you name.
+
+`doubleTap` puts 80ms of the fake clock between its taps (`gap:`), because a
+double-tap recognizer ignores a second tap that arrives sooner than 40ms.
+
+**A desktop is pointed at.** On a desktop device — every `Devices.*Window` —
+`tap`, `tapAt`, `doubleTap`, `longPress` and `drag` press with that same
+mouse, and it stays where it clicked, so the control is hovered in the next
+picture as it would be on the desktop. Everywhere else, a run staged on no
+device included, they are a finger. Widgets that adapt to the pointer — a text
+field's selection handles, a tooltip's trigger, a slider's value label — show
+the layout their users see. One consequence to know: a mouse drag does not
+scroll a list, on the desktop or here, so reach for `scroll` or `scrollTo`
+there.
+
+`key` is for shortcuts and navigation, never for typing — a character reaches
+a field through text input, not through a key event, so `enterText` is the
+verb that types. The last name in a chord fires and the ones before it are
+held: `meta+k`, `shift+tab`, `ctrl+s`. A keystroke goes to whatever holds
+focus, so one pressed while nothing does, and taken by nothing, fails the step
+rather than passing without having reached the app: `tap` something first, or
+give the widget the shortcut belongs to `autofocus: true`.
+
+`enterText` puts the whole value in one edit, the way a paste arrives. A field
+that listens to its edits — a search that debounces its query, a code input
+that moves to the next box — needs them the way keystrokes arrive, and
+`typing:` types one character at a time with that much of the fake clock after
+each:
+
+```dart
+await s.enterText(Keys.search, 'flat white',
+    typing: const Duration(milliseconds: 100));
+await s.wait(const Duration(milliseconds: 300));   // the debounce's own wait
+```
+
+The step settles as usual afterwards, and a pending timer schedules no frame,
+so the debounce's own delay is yours to `wait` out.
 
 ## Settling
 
@@ -170,7 +225,9 @@ await s.act(
 ```
 
 It pumps until the target is on screen, then settles the way the default does.
-The target is anything a verb takes. The `timeout` is ten seconds by default,
+The target is anything a verb takes, and a positional one waits like the rest:
+`find.text('Order #1042').first` over nothing, or a `Target.nth` past the
+rows so far, is simply not there yet. The `timeout` is ten seconds by default,
 on the lane's own clock. A target that never appears fails the step, and the
 step's picture is the screen at the moment the wait gave up.
 
@@ -325,6 +382,14 @@ await s.tap(next, shot: Shot('Home', tags: ['store']));
 ```
 
 Tags are how the store lane picks its screenshots — see below.
+
+`s.act` names its step with its description, which makes every act a shot.
+`shot: false` keeps the step and drops the name: the flow still shows it, as
+`act "…"`, and `shots` and the store export leave it out.
+
+```dart
+await s.act('The backend is seeded', shot: false, () => backend.seed());
+```
 
 ## Splitting a flow
 
@@ -619,15 +684,36 @@ fw run scenarios shots --languages=en,fr --tag=store
 Keeps only the **named** shots, at each device's own pixel ratio, into
 
 ```
-<output>/<language>/<device>/01-welcome.png
-                             02-menu.png
-                             03-order-placed.png
+<output>/<language>/<device>/around-the-shop/01-welcome.png
+                                              02-menu.png
+                                              03-order-placed.png
+                             checkout/01-cart.png
 ```
+
+A directory per scenario, named after it, and the shots numbered in flow
+order within it. Adding a shot renumbers only the rest of its own scenario,
+so an export's diff is the screens that changed rather than every file after
+the first new one. Two files that each have a scenario of the same name get
+their file names in front — `cart-happy-path/`, `checkout-happy-path/`. The
+scenario name is the order: prefix names (`01 Login`) rather than files if
+the directories should sort a particular way.
 
 With no `--devices`, each folder's profile answers, so one invocation produces
 a phone tree for the mobile folder and a window tree for the desktop one. The
 output directory is emptied first: what is in it afterwards is exactly this
 run.
+
+`--orientations=portrait,landscape` and `--brightness=light,dark` cross with
+the devices and languages. A turned or dark point gets its own directory
+beside the device's — `iphone-16-landscape/`, `iphone-16-dark/`,
+`iphone-16-landscape-dark/` — while portrait and light, the defaults, add
+nothing.
+
+A scenario that fails keeps the shots it took before it broke, and the answer
+says why, per set: each entry in `failures` names the scenario, the first
+lines of its error, and the `run` command that reproduces it at that device
+and language — the run `shots` does is scratch, and deleted. `fw` exits 1, so
+a pipeline stops before it uploads half a set.
 
 ## Standalone captures
 

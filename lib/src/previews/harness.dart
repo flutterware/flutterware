@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:clock/clock.dart';
@@ -29,15 +30,21 @@ import '../clock.dart';
 import '../flutter_gpu_diagnosis.dart';
 import '../devices.dart';
 import '../ui_catalog/fake_keyboard.dart';
+import '../drive/drive.dart';
+import '../drive/guest_drive.dart' show runWireVerb;
+import '../drive/lane.dart';
+import '../drive/resolve.dart' show TargetError;
 import '../inspect/error.dart';
 import '../inspect/guest_errors.dart';
 import '../inspect/guest_inspect.dart';
+import '../inspect/reveal.dart';
 import '../scenarios/asset_bundle.dart';
 import '../scenarios/fonts.dart';
 import '../scenarios/real_work.dart';
 import '../scenarios/run_args.dart';
 import '../scenarios/settle.dart';
 import '../scene/core/stops.dart';
+import 'grow.dart';
 import 'playhead.dart';
 import '../scenarios/staging.dart';
 import '../ui_catalog/axes.dart';
@@ -65,6 +72,24 @@ const auditBudget = Duration(seconds: 5);
 /// every run, animations and all, and a diff wants reproducible pixels more
 /// than it wants the prettiest frame.
 const auditSettle = Settle.elapse(auditBudget);
+
+/// How much fake clock a step may take to go quiet — [Settle.standard]'s, the
+/// budget a scenario step has. Frames stop it early, so it costs a spinner
+/// fifty pumps and a quiet screen one.
+const stepSettle = Duration(seconds: 5);
+
+/// How tall `--full` may grow a screen, in screens of the one it started as.
+/// A list with no end stops here and says so.
+const fullScreens = 10;
+
+/// The longest side of a picture this lane draws, in pixels: the
+/// rasteriser's largest texture.
+///
+/// **Past it the picture is scaled down in silence.** Measured on a 3× phone
+/// grown to 7349pt for `--full`: asked for 1179×22047, the frame came back
+/// 876×16384, and every crop and page cut computed at 3× landed on the wrong
+/// rows. So [_capture] lowers the ratio itself and says which it used.
+const maxPictureSide = 16384;
 
 /// How long, in real time, an entry's settle waits for work the app handed to
 /// `RealWork.track` before the entry is photographed anyway.
@@ -138,15 +163,21 @@ class PreviewEntry {
 ///   measuring unstyled text in *approximate* Roboto — real bytes under the
 ///   platform-default family names, which is near enough for an overflow
 ///   verdict to mean something and not near enough for a pixel-exact one.
+///
+/// [setup] is the package's declared `previewSetup` — see
+/// `PreviewsPackage.setup` — run once in either lane, after the binding exists
+/// and before any entry builds.
 void runPreviewHarness(
   List<PreviewEntry> entries, {
   List<PreviewCanvas> canvases = const [],
+  FutureOr<void> Function()? setup,
 }) {
   if (Declarer.current != null) {
     // The driven lane loads fonts before it declares anything; this one has
     // nowhere earlier to do it. A scenario folder has a
     // `flutter_test_config.dart` to hang that on and a generated preview
-    // harness has no folder of its own, so the declaration carries it.
+    // harness has no folder of its own, so the declaration carries it — and
+    // the project's own setup, for the same reason.
     //
     // Without this the catalog is measured in the fallback font, which is wrong
     // in the one way nothing catches: it still renders, and reports the
@@ -160,6 +191,7 @@ void runPreviewHarness(
     setUpAll(() async {
       await loadScenarioFonts();
       await loadDefaultScenarioFonts();
+      await setup?.call();
     });
     _declare(entries, canvases, collect: null);
     return;
@@ -170,7 +202,7 @@ void runPreviewHarness(
   // harness dying because one preview failed is the one outcome this may never
   // have.
   unawaited(
-    runZonedGuarded(() => _serve(entries, canvases), (error, stack) {
+    runZonedGuarded(() => _serve(entries, canvases, setup), (error, stack) {
       stderr.writeln('[previews] uncaught: $error\n$stack');
     }),
   );
@@ -180,17 +212,35 @@ void runPreviewHarness(
 Future<void> _serve(
   List<PreviewEntry> entries,
   List<PreviewCanvas> canvases,
+  FutureOr<void> Function()? setup,
 ) async {
   // The binding first, because everything below reaches for it — loading a font
   // needs the messenger `rootBundle` goes through, and that is the binding's.
   TestWidgetsFlutterBinding.ensureInitialized();
   var fonts = await loadScenarioFonts();
+  // A setup that threw is not skipped: every entry would render without what
+  // it installs, and plausibly — a fallback font, a network call answered
+  // with 400. So the harness still comes up, and refuses every request with
+  // the reason instead.
+  String? setupFailed;
+  try {
+    await setup?.call();
+  } catch (error, stack) {
+    setupFailed =
+        "the package's previewSetup() threw, so nothing is rendered "
+        'without it:\n$error\n$stack';
+  }
 
   developer.registerExtension('ext.flutterware.previews.audit', (
     _,
     args,
   ) async {
     try {
+      if (setupFailed != null) {
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode({'error': setupFailed}),
+        );
+      }
       var only = args['entries']
           ?.split(',')
           .where((id) => id.isNotEmpty)
@@ -248,6 +298,11 @@ Future<void> _serve(
     args,
   ) async {
     try {
+      if (setupFailed != null) {
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode({'error': setupFailed}),
+        );
+      }
       var request = jsonDecode(args['request'] ?? '{}') as Map<String, Object?>;
       // What is left unanswerable is refused by name rather than dropped. A
       // demo's `print` is the one: a test-zone print rides `live.onMessage`
@@ -310,6 +365,25 @@ Future<void> _serve(
           Map json => StagedViewport.fromJson(json.cast<String, Object?>()),
           _ => null,
         },
+        reveal: switch (request['reveal']) {
+          String selector when selector.isNotEmpty => selector,
+          _ => null,
+        },
+        full: request['full'] == true,
+        // `act`'s own parameters, every value a string, exactly as the live
+        // extension receives them.
+        steps: switch (request['steps']) {
+          List steps => [
+            for (var step in steps)
+              if (step is Map)
+                {
+                  for (var MapEntry(:key, :value) in step.entries)
+                    if (value != null)
+                      '$key': value is String ? value : jsonEncode(value),
+                },
+          ],
+          _ => null,
+        },
         // Carried now though nothing here takes a picture yet, so that when
         // one does it is asked for in physical pixels rather than acquiring a
         // silent 1× default on the way — which is the whole of §4.2.
@@ -360,6 +434,9 @@ Future<Map<String, Object?>> _audit(
   /// What `clock.now()` reads while an entry builds, or null for
   /// [pinnedClockOrigin].
   DateTime? clock,
+  String? reveal,
+  List<Map<String, String>>? steps,
+  bool full = false,
 }) async {
   var wanted = [
     for (var entry in entries)
@@ -395,6 +472,9 @@ Future<Map<String, Object?>> _audit(
       walk: walk,
       motionT: motionT,
       clock: clock,
+      reveal: reveal,
+      steps: steps,
+      full: full,
     ),
   );
   // Flat by construction — one `testWidgets` per entry, no groups — so the
@@ -402,6 +482,17 @@ Future<Map<String, Object?>> _audit(
   var suite = Suite(declarer.build(), SuitePlatform(Runtime.vm));
 
   var failures = <String, String>{};
+  // Where each failure was thrown, as an error's `frames` say it. The failure
+  // is often the only record there is — a wrapper that throws before anything
+  // is pumped reports nothing to the error buffer — and a message with no
+  // place in it sends the reader to the entry when the fault is in its theme.
+  var failedAt = <String, List<String>>{};
+  void fail(PreviewEntry entry, String message, StackTrace? stack) {
+    if (failures.containsKey(entry.id)) return;
+    failures[entry.id] = auditFailureMessage(message);
+    failedAt[entry.id] = InspectError.framesOf(stack);
+  }
+
   var watch = Stopwatch()..start();
   for (var (index, test) in suite.group.entries.cast<backend.Test>().indexed) {
     var entry = wanted[index];
@@ -412,7 +503,7 @@ Future<Map<String, Object?>> _audit(
     // own bootstrap uses.
     var priorReporter = reportTestException;
     reportTestException = (details, _) =>
-        failures[entry.id] ??= auditFailureMessage(details.exceptionAsString());
+        fail(entry, details.exceptionAsString(), details.stack);
     var each = Stopwatch()..start();
     try {
       await live.run();
@@ -427,7 +518,7 @@ Future<Map<String, Object?>> _audit(
       stderr.writeln('[entry] ${each.elapsedMicroseconds} ${entry.id}');
     }
     for (var error in live.errors) {
-      failures[entry.id] ??= auditFailureMessage('${error.error}');
+      fail(entry, '${error.error}', error.stackTrace);
     }
   }
 
@@ -439,11 +530,13 @@ Future<Map<String, Object?>> _audit(
           ...?collected[entry.id]?.toJson(),
           ...?captured[entry.id],
           ...?declared[entry.id],
-          // Something went wrong that is not a framework error the build
-          // reported — the builder threw outright, a test timed out. Reported
-          // separately because it is a different kind of broken: the entry did
-          // not render at all rather than rendering badly.
+          // The entry's test failed — the builder threw outright, a timer
+          // outlived the clock, an error landed after the frame. Beside a
+          // frame it is one more complaint about a picture; with none it says
+          // the entry did not render at all, and the host tells the two apart.
           'failure': ?failures[entry.id],
+          if (failedAt[entry.id] case var frames? when frames.isNotEmpty)
+            'failureFrames': frames,
         },
     },
   };
@@ -549,6 +642,18 @@ Future<Map<String, Object?>> _render(
   /// What `clock.now()` reads while the entry builds, or null for
   /// [pinnedClockOrigin].
   DateTime? clock,
+
+  /// A `--node` selector to bring on screen before anything is read or
+  /// photographed. See [revealNode].
+  String? reveal,
+
+  /// Drive verbs to run before anything is read or photographed, in `act`'s
+  /// wire spelling. See [runWireVerb].
+  List<Map<String, String>>? steps,
+
+  /// Grow the screen to what its lists hold before anything is read or
+  /// photographed. See [growToContent].
+  bool full = false,
 }) async {
   var entry = entries.where((entry) => entry.id == entryId).toList();
   if (entry.isEmpty) {
@@ -576,6 +681,9 @@ Future<Map<String, Object?>> _render(
     walk: walk,
     motionT: motionT,
     clock: clock,
+    reveal: reveal,
+    steps: steps,
+    full: full,
     // The `tree.json` beside the frame is the catalog-wide lane's; here the
     // tree travels inline and writing a second copy would be 9ms for nothing.
     tree: false,
@@ -645,6 +753,9 @@ void _declare(
   /// What `clock.now()` reads while the entry builds, or null for
   /// [pinnedClockOrigin] — the project's own `fw.clock(...)`.
   DateTime? clock,
+  String? reveal,
+  List<Map<String, String>>? steps,
+  bool full = false,
 }) {
   for (var (index, entry) in entries.indexed) {
     testWidgets(entry.id, (tester) async {
@@ -725,6 +836,8 @@ void _declare(
         // the reason `reset()` is.
         var priorShadows = debugDisableShadows;
         debugDisableShadows = false;
+        // Outside the `try`, so the `finally` can take its mouse away.
+        Drive? driven;
         try {
           // The harness read the app's fonts through `rootBundle` at startup, and
           // that cached a future belonging to a zone this test is not in.
@@ -794,25 +907,28 @@ void _declare(
           // Only the last settle's answer is kept, because the picture is of the
           // screen that settle left.
           var pending = const <String, Object?>{};
-          Future<void> settle() async {
+          Future<bool> settleBy(Settle policy) async {
             var budget = RealWorkBudget(trackedWait: auditTrackedWait);
             // Only tracked work between the policy's frames. What else is
             // announced may be waiting for the clock those frames move — an
             // image provider that sleeps before it decodes — and is landed
             // below, once the clock has been spent.
-            var settled = await auditSettle.apply(
+            var settled = await policy.apply(
               tester,
               land: () => budget.land(tester, assets, untracked: false),
             );
             var result = await landRealWork(
               tester,
-              auditSettle,
+              policy,
               settled: settled,
               budget: budget,
               assets: assets,
             );
             pending = result.landed ? const {} : pendingRealWork(assets);
+            return result.settled;
           }
+
+          Future<void> settle() => settleBy(auditSettle);
 
           await settle();
 
@@ -830,6 +946,82 @@ void _declare(
           if (knobValues != null &&
               CatalogKnobs.instance.applyAll(knobValues)) {
             await settle();
+          }
+          // The drive verbs, on this test's clock: after the values, because a
+          // step acts on the entry as it was configured, and before the
+          // reveal, because a `--node` crops what the steps left.
+          //
+          // **Settled by frames, not by the audit's clock.** The audit spends
+          // five seconds on every settle so an entry waiting on a timer is
+          // judged after it fires; after a step that would dismiss the very
+          // thing the step opened — a `SnackBar` is gone at four.
+          var stepped = <Map<String, Object?>>[];
+          Map<String, Object?>? stepRefused;
+          if (steps != null && steps.isNotEmpty) {
+            driven = Drive.on(
+              TesterLane(
+                tester,
+                settle: (budget) => settleBy(Settle.upTo(budget)),
+              ),
+            )..settleBudget = stepSettle;
+            for (var (index, step) in steps.indexed) {
+              try {
+                stepped.add((await runWireVerb(driven, step)).toJson());
+              } on TargetError catch (error) {
+                stepRefused = {
+                  'index': index,
+                  'error': error.message,
+                  'failure': error.failure.name,
+                };
+                break;
+              } on ArgumentError catch (error) {
+                stepRefused = {'index': index, 'error': '${error.message}'};
+                break;
+              } on FormatException catch (error) {
+                stepRefused = {'index': index, 'error': error.message};
+                break;
+              }
+            }
+          }
+          // After the steps, which may have opened what is to be seen whole,
+          // and before the reveal, which then has nothing left to scroll.
+          // Settled the way a step is, by frames: the rows that came on
+          // screen are drawn with what they asked for, and whatever a step
+          // opened is still open.
+          Grown? grown;
+          if (full) {
+            var view = tester.view;
+            var ratio = view.devicePixelRatio;
+            var height = view.physicalSize.height / ratio;
+            grown = await growToContent(
+              () => CatalogGuest.demoRoot,
+              height: height,
+              resize: (height) async {
+                view.physicalSize = Size(
+                  view.physicalSize.width,
+                  (height * ratio).roundToDouble(),
+                );
+                await tester.pump();
+              },
+              settle: () => settleBy(Settle.upTo(stepSettle)),
+              maxHeight: height * fullScreens,
+            );
+          }
+          // After the values, which can change what is on the list, and before
+          // the tree and the picture, so both are of the screen with the node
+          // on it — the host crops to the id this reports, not to the one it
+          // asked with.
+          Reveal? revealed;
+          if (reveal != null) {
+            revealed = await revealNode(
+              GuestInspector(
+                rootOf: () => CatalogGuest.demoRoot,
+                entryIdOf: () => entry.id,
+              ),
+              reveal,
+              pump: () => tester.pump(),
+              settle: settle,
+            );
           }
           if (declared != null) {
             var view = tester.view;
@@ -849,6 +1041,14 @@ void _declare(
               // the set that survived is worth reporting.
               if (wantKnobs) 'knobs': CatalogKnobs.instance.describe().toJson(),
               if (wantAxes) 'axes': CatalogAxes.instance.describe().toJson(),
+              // Answered whenever it was asked, moved or not, so a reply
+              // without it is a harness that predates the argument rather
+              // than a node that was already on screen.
+              'reveal': ?revealed?.toJson(),
+              // The same rule: answered whenever asked, grown or not.
+              'grown': ?grown?.toJson(),
+              if (stepped.isNotEmpty) 'steps': stepped,
+              'stepRefused': ?stepRefused,
             };
             // **Inline, and the same walk the guest answers with.** A tree is
             // tens of kilobytes for one entry and the guest's own
@@ -919,6 +1119,13 @@ void _declare(
             captured?[entry.id] = {'pending': pending};
           }
         } finally {
+          // A mouse a step parked is the binding's, not the tree's, and this
+          // process renders the next entry on the same binding: left there, it
+          // would hover whatever that entry draws under the same point.
+          if (driven?.hovering != null) {
+            await driven!.unhover(hold: Duration.zero, settle: Duration.zero);
+          }
+          driven?.dispose();
           FlutterError.onError = previous;
           debugDisableShadows = priorShadows;
           // Inside the body, never a tearDown: the binding verifies its debug
@@ -1160,6 +1367,7 @@ Future<Map<String, Object?>> _capture(
   var treePath = p.join(directory.path, '$index.tree.json');
   var width = 0;
   var height = 0;
+  var drawnAt = pixelRatio;
   var bytes = 0;
   var toImageUs = 0;
   var bytesUs = 0;
@@ -1172,9 +1380,16 @@ Future<Map<String, Object?>> _capture(
     var view = tester.binding.renderViews.single;
     var layer = view.debugLayer! as OffsetLayer;
     var dpr = view.flutterView.devicePixelRatio;
+    // Lowered where it is said rather than past the texture where it is
+    // not — see [maxPictureSide]. Only a `--full` screen is ever this tall.
+    // A pixel short, so the rounding up of the size cannot cross it.
+    drawnAt = math.min(
+      pixelRatio,
+      (maxPictureSide - 1) / math.max(view.size.width, view.size.height),
+    );
     var image = await layer.toImage(
       Offset.zero & (view.size * dpr),
-      pixelRatio: pixelRatio / dpr,
+      pixelRatio: drawnAt / dpr,
     );
     toImageUs = watch.elapsedMicroseconds;
     watch.reset();
@@ -1229,6 +1444,9 @@ Future<Map<String, Object?>> _capture(
     'format': png ? 'png' : 'raw',
     'width': width,
     'height': height,
+    // Said only when it is not what was asked for, which is only when the
+    // picture would not fit a texture.
+    if (drawnAt != pixelRatio) 'pixelRatio': drawnAt,
     if (tree) 'tree': treePath,
   };
 }

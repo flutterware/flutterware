@@ -157,10 +157,12 @@ Future<void> main(List<String> args) async {
 /// Adapter: the shelf middleware. One `runZoned` is the whole correlation
 /// story — every query and log line emitted below it carries this request's id.
 ///
-/// Headers and small textual bodies go into the event's lazy `details`
-/// (spec decision 11): captured here, held server-side, fetched only when
-/// somebody opens the Request/Response tab. Redaction happens *here*, in
-/// code you own, before anything leaves your handler's reach.
+/// Headers and small textual bodies go into the event's `details` (spec
+/// decision 11). Only the delivery is on demand: the map is built here on
+/// every request and encoded as the event is reported, then held server-side
+/// until somebody opens the Request/Response tab — which is why bodies are
+/// capped. Redaction happens *here*, in code you own, before anything leaves
+/// your handler's reach.
 Middleware _inspect() {
   var nextRequestId = 1;
   return (inner) => (request) {

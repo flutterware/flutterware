@@ -102,8 +102,8 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// `registerTool` validates against it, and so does any client holding the
   /// schema. This adds the sentence that flag cannot: which declared key was
   /// probably meant, and what the tool takes. "Additional property
-  /// "parameters" is not allowed" says the call was wrong; `did you mean
-  /// "arguments"?` says what to send instead, which is the difference between
+  /// "parameters" is not allowed" says the call was wrong; "did you mean
+  /// `arguments`?" says what to send instead, which is the difference between
   /// a retry and a round-trip through `listTools`.
   ///
   /// So the unknown-key check runs first and everything else — types, required
@@ -129,7 +129,7 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
     });
   }
 
-  /// The refusal for a top-level key the tool does not declare, or null.
+  /// The refusal for the top-level keys the tool does not declare, or null.
   ///
   /// Only the outermost layer. `arguments` on `flutterware_invoke` is an open
   /// map by design — its keys are a plugin action's parameter ids, which this
@@ -137,14 +137,12 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   static String? _undeclaredArgument(Tool tool, Map<String, Object?>? given) {
     if (given == null || given.isEmpty) return null;
     var declared = (tool.inputSchema.properties ?? const {}).keys.toList();
-    for (var key in given.keys) {
-      if (declared.contains(key)) continue;
-      var nearest = nearestName(key, declared);
-      return '"$key" is not an argument of ${tool.name}'
-          '${nearest == null ? '.' : ' — did you mean "$nearest"?'} '
-          '${declared.isEmpty ? 'It takes none.' : 'It takes: ${declared.join(', ')}.'}';
-    }
-    return null;
+    var undeclared = [
+      for (var key in given.keys)
+        if (!declared.contains(key)) key,
+    ];
+    if (undeclared.isEmpty) return null;
+    return refuseUndeclared(tool.name, 'argument', undeclared, declared);
   }
 
   /// Every tool this server exposes, in the order it registers them.
@@ -1143,26 +1141,51 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// open is the difference between a working tool and a plausible one. The
   /// JSON travels alongside, so the address and the resolved axes are still
   /// there to ask for the same frame again.
+  ///
+  /// **A picture that names its `pages` is sent as those instead.** A model
+  /// is shown an image no taller than about two thousand pixels, so a
+  /// phone's whole list in one picture arrives about a hundred and fifty
+  /// pixels wide — sent, and unreadable. The pages are the same picture a
+  /// screen at a time, and the whole one is still at `path` for anything
+  /// that is not a model.
   static CallToolResult _jsonWithImage(
     Session session,
     Artifact? artifact,
     Map<String, Object?> summary,
   ) {
-    if (artifact != null && artifact.kind.startsWith('image/')) {
-      var file = File(p.join(session.root, artifact.path!));
-      if (file.existsSync()) {
-        return CallToolResult(
-          content: [
-            ImageContent(
-              data: base64Encode(file.readAsBytesSync()),
-              mimeType: artifact.kind,
-            ),
-            TextContent(text: _encode(summary)),
-          ],
-        );
-      }
+    var images = imagesOf(artifact, root: session.root);
+    if (images.isEmpty) return _json(summary);
+    return CallToolResult(
+      content: [
+        ...images,
+        TextContent(text: _encode(summary)),
+      ],
+    );
+  }
+
+  /// The images [artifact] is shown as, read from under [root]: its pages
+  /// when it names them, itself otherwise, and nothing when it is not a
+  /// picture or its files are gone.
+  @visibleForTesting
+  static List<ImageContent> imagesOf(
+    Artifact? artifact, {
+    required String root,
+  }) {
+    if (artifact == null || !artifact.kind.startsWith('image/')) {
+      return const [];
     }
-    return _json(summary);
+    var paths = switch (artifact.meta['pages']) {
+      List pages when pages.isNotEmpty => [for (var page in pages) '$page'],
+      _ => [?artifact.path],
+    };
+    return [
+      for (var path in paths)
+        if (File(p.join(root, path)) case var file when file.existsSync())
+          ImageContent(
+            data: base64Encode(file.readAsBytesSync()),
+            mimeType: artifact.kind,
+          ),
+    ];
   }
 
   /// Compact, unlike the CLI's `--json`.

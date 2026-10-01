@@ -391,6 +391,10 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
         previewAnnotations: core.previewAnnotationsFor(package),
         canvases: core.canvasesFor(package),
         projectClock: core.host.projectClock,
+        // Checked against the head here, where the head is known: the side
+        // forgives a checkout without the file, which is only right of a base.
+        setup: core.previewSetupFor(package)
+          ?..check(p.join(session.worktree.path, package)),
       ),
     );
   }

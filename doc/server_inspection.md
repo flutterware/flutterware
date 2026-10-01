@@ -170,12 +170,14 @@ hijack — the correlation zone is still yours at that point.
 
 The version in `example_server.dart` goes further and is the one to copy for
 the Request/Response tabs: it captures **redacted headers** and **capped
-textual bodies** into the event's lazy `details:` — held server-side, fetched
-only when someone opens the tab. The capture cut (decision 11): textual
-content types with a known length under 32 KB are buffered; streams and
-everything else are recorded as size only, because interposing on a stream is
-exactly the overhead this design refuses. Redaction lives in that snippet —
-in code you own — not in the library.
+textual bodies** into the event's `details:`. Only their delivery waits for
+someone to open the tab. The map is built on every request and JSON-encoded
+the moment the event is reported, then held server-side in a byte-capped
+store, so the capture is a cost each request pays. The capture cut (decision
+11) is what keeps it small: textual content types with a known length under
+32 KB are buffered; streams and everything else are recorded as size only,
+because interposing on a stream is exactly the overhead this design refuses.
+Redaction lives in that snippet — in code you own — not in the library.
 
 ## Logs: package:logging
 

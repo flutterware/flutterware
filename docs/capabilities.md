@@ -1611,10 +1611,10 @@ next: String   # The command that runs what was just written.
 
 #### `shots` — Store screenshots
 
-The store/documentation lane: runs the scenarios and keeps only their **named** shots, at the pixel ratio each device really has, into `<output>/<language>/<device>/NN-name.png`. Everything a `run` leaves behind — the automatic steps, the widget trees — is dropped. A separate action because every default differs; `run` stays the debugging lane.
+The store/documentation lane: runs the scenarios and keeps only their **named** shots, at the pixel ratio each device really has, into `<output>/<language>/<device>/<scenario>/NN-name.png` — numbered within each scenario, so adding a shot renames nothing in any other. Everything a `run` leaves behind — the automatic steps, the widget trees — is dropped. A separate action because every default differs; `run` stays the debugging lane.
 
 ```sh
-fw run scenarios shots [--package=…] [--output=…] [--devices=…] [--languages=…] [--orientations=…] [--tag=…] [--file=…]
+fw run scenarios shots [--package=…] [--output=…] [--devices=…] [--languages=…] [--orientations=…] [--brightness=…] [--tag=…] [--file=…]
 ```
 
 Returns `ScenarioShotsResult`:
@@ -1622,15 +1622,23 @@ Returns `ScenarioShotsResult`:
 ```
 packages: List<ScenarioShotsPackage>
   path: String
-  output: String   # The root of the tree — `<language>/<device>/` beneath it.
+  output: String   # The root of the tree — `<language>/<device>/<scenario>/` beneath it.
   sets: List<ScenarioShotSet>
     directory: String   # Relative to `ScenarioShotsPackage.output`, so the whole tree can be moved or uploaded as it stands.
     axes: Map<String, String>
-    images: List<String>   # File names, in the order they were captured — which is the order they were numbered with.
+    images: List<String>   # Paths relative to [directory] — `<scenario>/NN-name.png` — in the order they were captured.
     failed: int   # Scenarios that failed while producing this set.
+    failures: List<ScenarioShotFailure>   # Why, one entry per failed scenario — [failed] is their count.
+      file: String   # Package-relative, as `list` reports it.
+      scenario: String
+      error: String   # The first lines of what the scenario failed with — the caught error, or the failed step's message where there was none.
+      rerun: String   # The `run` that reproduces this failure at this point, with its steps and the frame it broke on kept on disk — which this action's own run is not.
   error: String?   # Set when the package could not be run at all.
 count: int   # How many images were written, over every package and assignment.
+ok: bool
 ```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
 
 | parameter | kind | required | default | |
 |---|---|---|---|---|
@@ -1639,8 +1647,9 @@ count: int   # How many images were written, over every package and assignment.
 | `devices` | string | no | — | A comma-separated list — one directory per device. Omitted runs each scenario on its folder profile's first device. |
 | `languages` | string | no | — | A comma-separated list — one directory per language, crossed with `devices` |
 | `orientations` | string | no | — | The third axis — `portrait,landscape`. Crossed with the other two. A turned device gets its own directory, `<language>/<device>-landscape/`, because the two ways up of one device are two sets of screenshots and sharing a directory would leave the second overwriting the first. Portrait writes no suffix, so a tree that never asked for landscape is the tree it was. A device that cannot turn contributes one point rather than two identical ones. |
+| `brightness` | choice | no | — | The platform brightness the app sees — `light,dark` for both, crossed with the other axes. Dark gets its own directory, `<language>/<device>-dark/`, after `-landscape` where both apply, for the reason a turned device does. Light writes no suffix and is what omitting this means, so a tree that never asked for dark is the tree it was. |
 | `tag` | string | no | — | Keep only shots carrying this tag — `Shot('Home', tags: ['store'])`. Omitted keeps every named shot, which is what a project that tags nothing wants. |
-| `file` | string | no | — | Only this scenario file, package-relative — or a directory, for everything under it |
+| `file` | string | no | — | Only this scenario file, package-relative — as `list` reports it. A directory keeps everything under it, which is the unit the folder profiles are declared in. Several, comma-separated (or `--file` repeated), run in the order given in one process |
 
 #### `restart` — Restart
 
@@ -2173,6 +2182,7 @@ void main() => Flutterware.configure((fw) {
           previewAnnotations: ['Preview', 'Tablet'],  // your own subclass, listed with the default
           device: Devices.iphone16,       // a canvas with no prefix
           canvases: canvases,             // or per subtree
+          setup: 'lib/preview_setup.dart',  // its previewSetup() runs before any entry builds
         ),
       ]));
     });
@@ -2181,6 +2191,14 @@ void main() => Flutterware.configure((fw) {
 One declaration per package: a package's path is its identity in the report, in
 `fw:///` addresses and in the compiler daemon's address, so a second declaration
 of one package is refused rather than merged.
+
+`setup:` names a file declaring a top-level `Future<void> previewSetup()`,
+awaited once on every engine after the binding exists and before the first
+entry builds — the place for what an app does once in `main` and every entry
+would otherwise need from its `wrapper:`: turning a font package's downloads
+off (`GoogleFonts.config.allowRuntimeFetching = false`), registering fonts,
+`HttpOverrides.global`. A file that is missing or declares no `previewSetup` is
+refused, never skipped.
 
 #### Authoring: rendering the whole catalog
 
@@ -2352,10 +2370,10 @@ shell: String?   # Which shell declared [axes].
 
 #### `screenshot` — Screenshot
 
-Render one entry to a PNG. **This is how you look at a Flutter widget.** Whenever the question is how something *looks* — a corner, a glyph, a border, two candidate designs side by side, a state that is three clicks deep in the running app — this answers it in one call: the real widget, the real fonts, the real theme, at any device in the table and at that device pixel ratio, so a detail worth a pixel comes back worth several. The alternatives people reach for instead are worse and quietly so: a widget test rendering to an image has no font loaded and draws every glyph as a filled box, and a screenshot of the whole app shrinks the thing you are asking about to a smudge. A widget that is not an entry yet becomes one in a few lines — a top-level function returning it, marked `@Preview` — and then it is here for good.
+Render one entry to a PNG. **This is how you look at a Flutter widget.** Whenever the question is how something *looks* — a corner, a glyph, a border, two candidate designs side by side, a state that is three clicks deep in the running app — this answers it in one call: the real widget, the real fonts, the real theme, at any device in the table and at that device pixel ratio, so a detail worth a pixel comes back worth several. The alternatives people reach for instead are worse and quietly so: a widget test rendering to an image has no font loaded and draws every glyph as a filled box, and a screenshot of the whole app shrinks the thing you are asking about to a smudge. A widget that is not an entry yet becomes one in a few lines — a top-level function returning it, marked `@Preview` — and then it is here for good. An entry that reports errors while it renders still gets its picture: the errors come back beside it in `meta.errors`, each with where it was thrown, and only an entry that drew nothing is refused.
 
 ```sh
-fw run previews screenshot --entry=<choice> [--output=…] [--knobs=…] [--device=…] [--orientation=…] [--keyboard=…] [--width=…] [--height=…] [--axes=…] [--debug=…] [--node=…] [--annotate=…] [--opaque=…] [--engine=…]
+fw run previews screenshot --entry=<choice> [--package=…] [--output=…] [--knobs=…] [--device=…] [--orientation=…] [--keyboard=…] [--width=…] [--height=…] [--axes=…] [--debug=…] [--node=…] [--steps=…] [--full=…] [--page=…] [--annotate=…] [--opaque=…] [--engine=…]
 ```
 
 Returns `Artifact`:
@@ -2371,6 +2389,7 @@ meta: Map<String, Object?>?   # Anything the producer wants the reader to know: 
 | parameter | kind | required | default | |
 |---|---|---|---|---|
 | `entry` | choice (from `entries`) | yes | — | The id of the entry to render |
+| `package` | choice | no | — | Which declared package to look for the entry in; every one when omitted |
 | `output` | string | no | — | Where to write the PNG; a build path when omitted |
 | `knobs` | string | no | — | Values to turn before this runs: `name=value,name=value`, or a JSON object. A knob is whatever the preview asked for while it built — a preview calling `context.knobs.string("label", "Hello")` declares one named `label` — so the names come from the preview itself and differ per entry. Read them with `describe --entry=<id> --with-knobs=true`. Each value is coerced to the kind the preview declared, and a picker takes one of its option labels; a name the entry does not declare is an error listing the ones it does. Recorded on the address, so two settings are two artifacts rather than one file written twice. |
 | `device` | choice | no | — | Render as a device: its screen, its pixel ratio and its safe areas, so the preview reads the phone from `MediaQuery` rather than a rectangle. Omitted takes the package's declared `device:`, and a plain rectangle when it declares none. The same value the GUI writes as `?device=`, so an address captured here reopens framed the way it was shot. |
@@ -2380,7 +2399,10 @@ meta: Map<String, Object?>?   # Anything the producer wants the reader to know: 
 | `height` | integer | no | — | Override the viewport, whatever it would otherwise have been — the package's declared `device:`, the one this call named, or the plain rectangle. This is how to ask for a size no device has; on a device it stretches the screen rather than dropping its ratio, its notch and its safe areas. |
 | `axes` | string | no | — | Values for the shell *around* the preview — theme, locale, flavour. Same syntax as knobs: `name=value,name=value` or a JSON object. The difference is who declares it and how long it lasts: a knob is asked for by the preview and travels with the entry, an axis is declared by the `PreviewShell` wrapping it and stays put as you move between entries. Read them with `describe --entry=<id> --with-axes=true`, which also names the shell; an entry whose wrapper is not a shell offers none. |
 | `debug` | string | no | — | The debug switches the framework itself registers, as `name=value,name=value`. These belong to neither the preview nor its shell but to the guest process, and the framework registers them whether anything asks or not — so unlike knobs and axes the set is fixed and listed in `--help`. `paint=true` draws the layout guides, `brightness=dark` moves `MediaQuery.platformBrightness` (dark mode without a shell axis for it), `banner=false` drops the DEBUG ribbon, `platform=iOS` changes what `defaultTargetPlatform` reports, `timeDilation=5` slows animations enough to photograph. Only what you name is set; the rest are left as they are. |
-| `node` | string | no | — | Photograph **one widget** instead of the whole viewport — name it: `node=SplitButton`, `node=Save`. Matched against every type, description and label on screen, the same way `find` matches, so no tree read is needed first and nothing has to be looked up. This is what to pass when the question is about a control rather than a screen: an entry laid out on a 900×700 canvas answers it with the thing you asked about in one corner and dead space everywhere else, which is a picture you then have to squint at. A tree id works too, for the case where the name is ambiguous — several matches are refused with their ids rather than guessed at, because cropping to the wrong one gives a picture that looks right. Cut out of the real frame rather than re-rendered alone, so the widget is still surrounded by what surrounds it. |
+| `node` | string | no | — | Photograph **one widget** instead of the whole viewport — name it: `node=SplitButton`, `node=Save`. Matched against every type, description and label on screen, the same way `find` matches, so no tree read is needed first and nothing has to be looked up. This is what to pass when the question is about a control rather than a screen: an entry laid out on a 900×700 canvas answers it with the thing you asked about in one corner and dead space everywhere else, which is a picture you then have to squint at. A tree id works too, for the case where the name is ambiguous — several matches are refused with their ids rather than guessed at, because cropping to the wrong one gives a picture that looks right; matches nested in one another — a row, its card and its text all carry its words — are one widget, the outermost. Cut out of the real frame rather than re-rendered alone, so the widget is still surrounded by what surrounds it. **Scrolled into view first**: a widget half off the screen, or a row far down a list that has not built it yet, is brought on screen before the picture, and `scrolled` in the reply says how far the lists moved. |
+| `steps` | string | no | — | Act on the preview before it is read or photographed — **the `flutterware_act` verbs**, as a list of the same objects: `[{"verb": "tap", "target": "Coffee"}, {"verb": "hover", "target": {"tooltip": "Add to cart"}}]` — a target is text, or the JSON object `act` takes, inline. tap, doubleTap, longPress, secondaryTap, hover, unhover, drag, scroll, scrollTo, enterText, key, back and wait, with the targets and parameters `act` takes, refused in the words it refuses them in. How to reach a state the entry does not open in — a menu, a tooltip, a row far down a list, a field filled in — with one call and no scenario. They run on the fake clock after the knobs, each settled until the screen is quiet, so the same steps give the same picture every time; a refused step refuses the call and names which one it was. Recorded on the address. Several pictures, or a flow worth keeping, is a scenario. |
+| `full` | boolean | no | false | Make the screen as tall as what its lists hold, so the answer has **every row** rather than the first screenful — for "what is in this list" and "does the bottom of this page survive". The screen grows rather than being scrolled and stitched, like a browser's full-page screenshot: one layout, nothing repeated at a seam, and the same bargain — anything sized from the screen's height grows with it, and what is pinned to the bottom, a navigation bar or a floating button, is drawn once, at the very bottom. A list in a box of its own height stays as it was, and a list with no end stops at ten screens: `grown` in the reply says how tall it got and `truncated` when a list had more. After the steps, so a state they reach is shown whole. For what the phone shows after a scroll instead, pass a `scroll` step. A picture taller than a screen comes back **a screen at a time**, cut between rows rather than through them, because an image that tall reaches a model too narrow to read: the whole picture is at `path`, and each page is beside it under `pages`. |
+| `page` | integer | no | — | With `full`, hand back only this page of the picture, counted from 1 — for looking again at one part of a long list without the rest. A `full` reply says how many there are. |
 | `annotate` | boolean | no | false | Draw a box and its node id over every widget, so a tree read and a picture of it can be laid side by side |
 | `opaque` | boolean | no | false | Write a 24-bit PNG, with no alpha channel. A render is RGBA even when nothing in it is see-through, and a store refuses that for artwork: Google Play's feature graphic, for one. A pixel that is see-through is laid over white. |
 | `engine` | choice | no | — | Which engine renders this. Both mount the same widgets on the same screen and a parity test holds them to it; what differs is the clock and the rasterizer. Omitted picks the harness, except where the call needs the guest — `--logs` does. The answer says which one drew it. |
@@ -2390,7 +2412,7 @@ meta: Map<String, Object?>?   # Anything the producer wants the reader to know: 
 One rendered build, and whatever you ask about it. With no flags it answers the two questions worth asking first: did it render without the framework complaining, and **what is on it** — the things that carry words or respond to touch, nested under the layout, with their boxes and their state. Everything heavier is one more flag on the same frame: `find` for where something is, `at` for what is under a point, `styles` for the type ramp, `tree` for all of it, `screenshot` for pixels. The same grammar the run plugin answers with on a live app and the scenarios plugin on a captured step, so a query is learned once.
 
 ```sh
-fw run previews inspect --entry=<choice> [--lens=…] [--screen=…] [--styles=…] [--tree=…] [--find=…] [--at=…] [--errors=…] [--logs=…] [--node=…] [--depth=…] [--screenshot=…] [--output=…] [--annotate=…] [--engine=…] [--device=…] [--orientation=…] [--keyboard=…] [--width=…] [--height=…] [--knobs=…] [--axes=…] [--debug=…] [--live=…]
+fw run previews inspect --entry=<choice> [--package=…] [--lens=…] [--screen=…] [--styles=…] [--tree=…] [--find=…] [--at=…] [--errors=…] [--logs=…] [--node=…] [--steps=…] [--full=…] [--depth=…] [--screenshot=…] [--output=…] [--annotate=…] [--engine=…] [--device=…] [--orientation=…] [--keyboard=…] [--width=…] [--height=…] [--knobs=…] [--axes=…] [--debug=…] [--live=…]
 ```
 
 Returns `CatalogInspectResult`:
@@ -2404,6 +2426,7 @@ errors: List<CatalogRenderError>
   exception: String
   library: String?   # `widgets library`, `rendering library` — which tells a layout overflow from a failed image load without reading the message.
   context: String?   # What the framework was doing: `during layout`, `while painting`.
+  location: String?   # Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project's own code over a dependency's.
   count: int   # How many times this exact error was reported.
 lens: String   # The lens the unset flags came from — `act`, `look`, `design` or `raw`.
 screen: Screen?   # What rendered: the things that carry words or respond to touch, nested under the layout's branch points, with their boxes and their state.
@@ -2461,6 +2484,7 @@ next: String?   # One line naming what else can be asked of this frame.
 | parameter | kind | required | default | |
 |---|---|---|---|---|
 | `entry` | choice (from `entries`) | yes | — | The id of the entry to inspect |
+| `package` | choice | no | — | Which declared package to look for the entry in; every one when omitted |
 | `lens` | choice | no | act | How much to hand back, as one word, instead of setting the flags one at a time. `act` is the screen alone; `look` adds a picture; `design` adds every distinct text style; `raw` adds the whole tree and costs about 20,000 tokens. The same four words run and scenarios take. A flag you set explicitly always beats the lens. |
 | `screen` | boolean | no | true | What rendered, as a nested list of the things that carry words or respond to touch — a few hundred tokens, and the handle for deciding what to dig into. On by default; `false` when you only want `ok` or a query. |
 | `styles` | boolean | no | false | Every distinct text size, weight and colour, most-used first with a sample of each. ~185 tokens for the whole type ramp, which settles most typography arguments — two greys that should be one, a scale with both 11.5 and 12.5 in it. |
@@ -2469,7 +2493,9 @@ next: String?   # One line naming what else can be asked of this frame.
 | `at` | string | no | — | Report the widgets under this point as `x,y`, outermost first — the chain, because the thing under a cursor is usually a Text and the thing you meant is the button around it. In the same coordinates a screenshot is taken in, so a point read off one lands here without a transform. The framework wrappers are dropped and the chain is capped at its innermost eight, which is where the answer always is. |
 | `errors` | boolean | no | true | Report build failures and layout overflows. On by default, and with no other flag it is the whole answer. `check` says whether an entry *compiles*, which is a different question. |
 | `logs` | boolean | no | false | Report what the preview printed while it built and painted. Attached to an open session this is everything it has printed since the person opened it, including whatever their clicking caused — output no fresh render can produce. |
-| `node` | string | no | — | Narrow `tree` to one widget and below, and crop `screenshot` to it — **name it**: `node=SplitButton`, `node=Save`, matched the way `find` matches, so nothing has to be looked up first. An id from an earlier read works too and is exact; ids come from tree shape, so one taken in another process still names this node. A name matching several widgets narrows to the outermost of them here, and is refused by `screenshot`, because too much tree is visible and the wrong crop is not. |
+| `node` | string | no | — | Narrow `tree` to one widget and below, and crop `screenshot` to it — **name it**: `node=SplitButton`, `node=Save`, matched the way `find` matches, so nothing has to be looked up first. An id from an earlier read works too and is exact; ids come from tree shape, so one taken in another process still names this node. A name matching several widgets narrows to the outermost of them here, and is refused by `screenshot`, because too much tree is visible and the wrong crop is not. Scrolled into view first, however far down a list it is, so everything this answers is of the scrolled screen — the `note` says when that happened. |
+| `steps` | string | no | — | Act on the preview before it is read or photographed — **the `flutterware_act` verbs**, as a list of the same objects: `[{"verb": "tap", "target": "Coffee"}, {"verb": "hover", "target": {"tooltip": "Add to cart"}}]` — a target is text, or the JSON object `act` takes, inline. tap, doubleTap, longPress, secondaryTap, hover, unhover, drag, scroll, scrollTo, enterText, key, back and wait, with the targets and parameters `act` takes, refused in the words it refuses them in. How to reach a state the entry does not open in — a menu, a tooltip, a row far down a list, a field filled in — with one call and no scenario. They run on the fake clock after the knobs, each settled until the screen is quiet, so the same steps give the same picture every time; a refused step refuses the call and names which one it was. Recorded on the address. Several pictures, or a flow worth keeping, is a scenario. |
+| `full` | boolean | no | false | Make the screen as tall as what its lists hold, so the answer has **every row** rather than the first screenful — for "what is in this list" and "does the bottom of this page survive". The screen grows rather than being scrolled and stitched, like a browser's full-page screenshot: one layout, nothing repeated at a seam, and the same bargain — anything sized from the screen's height grows with it, and what is pinned to the bottom, a navigation bar or a floating button, is drawn once, at the very bottom. A list in a box of its own height stays as it was, and a list with no end stops at ten screens: `grown` in the reply says how tall it got and `truncated` when a list had more. After the steps, so a state they reach is shown whole. For what the phone shows after a scroll instead, pass a `scroll` step. The `screen` then lists every row with its box, which is far cheaper than looking at them: reach for this before a `full` screenshot when the question is what a list holds. |
 | `depth` | integer | no | — | Stop `tree` this many levels below its root |
 | `screenshot` | boolean | no | false | Write a PNG of the same frame everything else is reported from, and hand back an artifact for it — the path, and the address recording everything that changed the pixels, so two settings are two artifacts rather than one file written twice. Give `output` to choose where. **Forces a fresh render**: a picture has to come from a frame this call composited, and an attached session only offers a VM service. |
 | `output` | string | no | — | Where to write the PNG; a build path derived from the address when omitted, the same as `screenshot` uses |
@@ -2509,6 +2535,7 @@ entries: List<CatalogAuditEntry>   # Only the ones with something to say.
     exception: String
     library: String?   # `widgets library`, `rendering library` — which tells a layout overflow from a failed image load without reading the message.
     context: String?   # What the framework was doing: `during layout`, `while painting`.
+    location: String?   # Where it was thrown — `package:app/src/theme.dart:42:7`, or a file relative to the worktree — preferring the project's own code over a dependency's.
     count: int   # How many times this exact error was reported.
   stillWaitingOn: String?   # What the entry had announced and not finished when the audit stopped waiting — a tracked load by its label, image decodes, asset reads — or absent when everything landed.
 unreachable: List<CatalogAuditFailure>   # Packages that could not be audited at all, which is not the same as a package whose entries are fine.
@@ -2970,6 +2997,7 @@ reassembleMs: int?   # Its `FlutterwareServer.onReassemble` callbacks rebuilding
 appsMs: int?   # The [apps] reloading, side by side.
 apps: List<String>
 step: String?   # Its moment in the trace, `reload.2`, which `worlds trace --step` reads.
+note: String?   # What it had to do first, and why: a fresh compiler for the script, when its own had stopped.
 ```
 
 | parameter | kind | required | default | |

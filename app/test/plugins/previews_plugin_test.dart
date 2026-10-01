@@ -30,6 +30,7 @@ void main() {
   PreviewsCore catalog({
     String? directory,
     List<String>? previewAnnotations,
+    String? setup,
     List<String> packages = const ['.'],
     String flutterSdkRoot = '/tmp/flutter',
   }) {
@@ -53,6 +54,7 @@ void main() {
                 'path': path,
                 'directory': ?directory,
                 'previewAnnotations': ?previewAnnotations,
+                'setup': ?setup,
               },
           ],
         },
@@ -196,6 +198,18 @@ Widget counter() => const Placeholder();
     // Names the directory, because "no entries" sends a reader looking for the
     // setting where this *is* the setting.
     expect(subject.report.status.message, 'no entries in nonexistent/');
+  });
+
+  test('a package scanned whole names no directory', () async {
+    // With no `directory:` the scan root is the package itself, and the same
+    // sentence came out as "no entries in /" — a filesystem root.
+    write('packages/empty/pubspec.yaml', 'name: empty\n');
+    var subject = catalog(packages: ['packages/empty'])
+      ..track('packages/empty');
+    await scanned(subject);
+
+    expect(subject.report.status.tone, Tone.warn);
+    expect(subject.report.status.message, 'no entries');
   });
 
   test('a directory that is not there reads differently from an empty one', () {
@@ -485,6 +499,24 @@ Widget b() => const Placeholder();
     expect(subject.report.toText(), contains('same id'));
   });
 
+  // Declared, so never skipped: a render without the setup would draw every
+  // entry plausibly wrong. The sidebar says so before anything is asked for.
+  test('a declared setup that cannot run is reported until it can', () async {
+    var subject = catalog(setup: 'lib/preview_setup.dart')..track('.');
+    await scanned(subject);
+
+    expect(subject.report.status.tone, Tone.error);
+    expect(subject.report.status.message, 'preview setup cannot run');
+    expect(subject.report.toText(), contains('does not exist'));
+    expect(subject.previewSetupFor('.')?.path, 'lib/preview_setup.dart');
+
+    write('lib/preview_setup.dart', 'Future<void> previewSetup() async {}');
+    await subject.rescan('.');
+
+    expect(subject.report.status, Status.none);
+    expect(subject.report.toText(), isNot(contains('does not exist')));
+  });
+
   test('entries lists everything, with ids and addresses', () async {
     var subject = catalog();
     // No track() first: the action loads what it needs, which is the whole
@@ -714,6 +746,67 @@ Widget field() => const Placeholder();
           ),
         ),
       );
+    });
+
+    // `entries`, `check` and `audit` take a package, so a caller passed one to
+    // `screenshot` by analogy and was refused for it.
+    test(
+      'screenshot and inspect take a package, as the listing actions do',
+      () {
+        var subject = twoPackages();
+        for (var action in ['entries', 'check', 'screenshot', 'inspect']) {
+          var package = subject.report.actions
+              .firstWhere((a) => a.id == action)
+              .parameters
+              .firstWhere((p) => p.id == 'package');
+          expect(package.required, isFalse, reason: action);
+          expect(package.options.map((o) => o.value), [
+            'packages/gallery',
+            'packages/forms',
+          ], reason: action);
+        }
+      },
+    );
+
+    test('and look for the entry only there', () async {
+      for (var action in ['screenshot', 'inspect']) {
+        expect(
+          twoPackages().invoke(
+            action,
+            arguments: {
+              'entry': 'demo/field.dart#field',
+              'package': 'packages/gallery',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('no entry with that id'),
+                contains('packages/gallery/demo/card.dart#card'),
+                isNot(contains('field.dart')),
+              ),
+            ),
+          ),
+          reason: '$action found the entry in a package it was not given',
+        );
+      }
+    });
+
+    test('and refuse one the plugin does not declare', () async {
+      for (var action in ['screenshot', 'inspect']) {
+        expect(
+          twoPackages().invoke(
+            action,
+            arguments: {'entry': 'demo/field.dart#field', 'package': 'nope'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having((e) => e.name, 'name', 'package'),
+          ),
+          reason: action,
+        );
+      }
     });
   });
 

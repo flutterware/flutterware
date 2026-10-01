@@ -149,6 +149,36 @@ void main() {
     });
   });
 
+  group('an artifact', () {
+    Artifact picture({Map<String, Object?> meta = const {}}) => Artifact(
+      kind: Artifact.png,
+      address: Address(
+        worktree: 'x',
+        plugin: 'test.fake',
+        segments: const ['a'],
+      ),
+      path: 'build/a.png',
+      meta: meta,
+    );
+
+    test('prints its path alone', () async {
+      result = picture();
+      expect(await run(['run', 'fake', 'picture']), 0);
+      expect(out.toString(), 'build/a.png\n');
+      expect(err.toString(), isEmpty);
+    });
+
+    test("says its producer's note where a person reads it", () async {
+      // A picture of an entry that complained while it rendered. The file
+      // is still the answer, so it still exits 0 and stdout is still the
+      // path and nothing else — `| xargs open` must not open a sentence.
+      result = picture(meta: {'note': 'the entry reported an error'});
+      expect(await run(['run', 'fake', 'picture']), 0);
+      expect(out.toString(), 'build/a.png\n');
+      expect(err.toString(), contains('the entry reported an error'));
+    });
+  });
+
   test('a result with no verdict exits 0, however it reads', () async {
     // Most actions answer a question rather than passing judgement. Nothing
     // here may invent a verdict for one of those.
@@ -204,6 +234,7 @@ class _FakeCore extends PluginCore {
       PluginAction('assets', 'Assets', returns: AssetAuditResult),
       PluginAction('check', 'Check', returns: CatalogCheckResult),
       PluginAction('query', 'Query', returns: CatalogEntriesResult),
+      PluginAction('picture', 'Picture', returns: Artifact),
     ],
   );
 

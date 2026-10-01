@@ -152,17 +152,25 @@ after it. A hot reloader of your own inside the script, reloading it on a
 save, is waited for too, for up to ten seconds; if the VM still will not
 reload, the refusal says so in its words rather than as a compile error.
 Keep such a reloader out of a world all the same: two reloads compiling at
-once can take down the compiler the script reloads through. Reload then
-says the compiler is gone, and **Restart** starts the script on a fresh one.
-The answer, and the world's log, split the time between the script's code,
-its `onReassemble` callbacks and the apps:
-`Reloaded in 0.86 s: the script in 0.38 s, its onReassemble in 0.03 s, Shop in 0.45 s`.
+once can take down the compiler the script reloads through, or the script
+itself. A script that exits during a reload is said to have, with its exit
+code and the last thing it said, and **Restart** starts it again.
+
+The script reloads through a compiler of its own, which stops itself after
+30 minutes without a reload; one left open longer, or one a collision took
+down, is started afresh by the next reload, which says so in the log and in
+its answer's `note`. The answer, and the world's log, split the time between
+the script's code, its `onReassemble` callbacks and the apps:
+`Reloaded in 0.86 s (reload.2): the script in 0.38 s, its onReassemble in 0.03 s, Shop in 0.45 s`.
 
 Each reload is also a moment in the trace, a step of the world's own —
 `reload.2`, a pill on the timeline's World column — which the answer names.
 What happened after it ran the new code, but for work already running when
-it came: a job, a request, finishing on the old code as it lets go. The
-moment says which side of it a line is on.
+it came: a job, a request, finishing on the old code as it lets go. A step
+still going when it came has it as a line in its place,
+`+13148 ms  reload.2  the code reloaded`, and a job or request that ran
+across it says so — `done in 30.1 s, across reload.2` — since it began on
+the old code.
 
 From the command line, the world lives as long as the command does:
 
@@ -288,7 +296,11 @@ writes, the messages it sent and who they reached. Two calls say what only
 the server knows: `FlutterwareServer.identify(user.id)` once auth knows who
 the request is, so the world can tell whose a user is even when they signed
 up themselves, and `FlutterwareServer.reach(userId, what)` when it pushes
-something down a connection, such as a WebSocket frame.
+something down a connection, such as a WebSocket frame. Give `identify` the
+phone or address the account was made with when the server has them —
+`identify(user.id, phone: user.phone)` — and a person the world declared by
+those is known by the id too: someone invited by SMS, whose account a step
+makes and whose app then only syncs, is theirs rather than nobody's.
 
 **Work handed off keeps its step when you carry it.** A zone ends where its
 request does, so a job queued for later, or an upload whose storage calls
@@ -337,6 +349,13 @@ files the table under that name, apart from the records people act on,
 and counts its writes on the line of the request or job that made
 them rather than listing each. Job queues and outboxes belong there.
 
+**A write can say the level it is seen at.** Writes are the wire's; a
+record whose status is what a pipeline decided at each hand-off is worth
+seeing among the jobs, and `'level': 'system'` on its `write` events puts it
+there. A record's arrival on a phone, at a level that hides the write it
+came with, says what that write brought:
+`Cleo  orders/o5 arrived (op 16) · update · status ready`.
+
 **A server the script hosts is named after the script**, because it reports
 from the script's own process. Call `FlutterwareServer.configure(name: 'api')`
 before its first event to give it its own name.
@@ -350,11 +369,15 @@ An app that keeps its data in a synced database follows its records instead:
 with `sync: DatabaseSync.powersync` on its [Database watch](database_watch.md)
 adapter, a record written on one phone is traced to the others as it
 arrives, and each person's sync state shows in their focus and in
-`worlds status`. A phone subscribing to a bucket, or letting one go, is a
-line of its own under that person's step just before it: `subscribed to
-profile["u2"]`. What was written to a bucket before, the phone receives
-after it — a record that arrives long after its write says `new to this
-phone`.
+`worlds status`. A phone subscribing to a bucket is a line of its own,
+`subscribed to note["n1"]`, beneath the write that brought the bucket its
+first record — the join that record's arrival makes, by its key. A bucket
+nothing explains that way, and one the phone lets go of, is a line of that
+person's step just before it, and says it was joined by time. What was
+written to a bucket before, the phone receives after it — a record that
+arrives long after its write says `new to this phone`. A bucket the phone
+held empty from the start reads the same at its first record: the phone
+lists a bucket only once it holds something.
 
 ## Hand a message to a person
 

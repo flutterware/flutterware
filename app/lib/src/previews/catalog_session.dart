@@ -375,6 +375,7 @@ class CatalogSession extends ChangeNotifier {
     this.canvases = const [],
     this.scannedEntries = const [],
     this.clock,
+    this.setup,
     this.connectToDaemon = CompilerDaemonClient.connector,
     this.launchGuest = launchEmbeddedGuest,
     StartupProgress? startup,
@@ -576,6 +577,11 @@ class CatalogSession extends ChangeNotifier {
   /// The annotation names that mark an entry. Part of the daemon address, so
   /// this has to be the plugin's answer rather than a second one.
   final List<String> previewAnnotations;
+
+  /// The package's declared setup file, package-relative — part of the daemon
+  /// address too, and the plugin's answer for the same reason. See
+  /// `PreviewsPackage.setup`.
+  final String? setup;
 
   /// What the canvas frames as when the address names no device — what the
   /// package declared for the subtree the entry lives in, or null for the plain
@@ -1567,6 +1573,7 @@ class CatalogSession extends ChangeNotifier {
           roots: roots,
           previewAnnotations: previewAnnotations,
           clock: clock,
+          setup: setup,
         ),
         onLog: (line) => debugPrint('[catalog] $line'),
         onProgress: _onDaemonProgress,

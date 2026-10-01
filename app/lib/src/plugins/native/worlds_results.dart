@@ -344,6 +344,7 @@ class WorldReloadResult implements PluginResult {
     this.reassembleMs,
     this.appsMs,
     this.step,
+    this.note,
   });
 
   factory WorldReloadResult.of(WorldReload reload) => WorldReloadResult(
@@ -353,6 +354,7 @@ class WorldReloadResult implements PluginResult {
     reassembleMs: reload.reassemble.inMilliseconds,
     appsMs: reload.appsTook.inMilliseconds,
     step: reload.step,
+    note: reload.note,
   );
 
   factory WorldReloadResult.fromJson(Map<String, Object?> json) =>
@@ -363,6 +365,7 @@ class WorldReloadResult implements PluginResult {
         reassembleMs: json['reassembleMs'] as int?,
         appsMs: json['appsMs'] as int?,
         step: json['step'] as String?,
+        note: json['note'] as String?,
       );
 
   /// The whole reload: [scriptMs], [reassembleMs], then [appsMs].
@@ -381,6 +384,10 @@ class WorldReloadResult implements PluginResult {
   /// Its moment in the trace, `reload.2`, which `worlds trace --step` reads.
   final String? step;
 
+  /// What it had to do first, and why: a fresh compiler for the script, when
+  /// its own had stopped.
+  final String? note;
+
   @override
   Map<String, Object?> toJson() => {
     'ms': ms,
@@ -389,6 +396,7 @@ class WorldReloadResult implements PluginResult {
     'appsMs': ?appsMs,
     'apps': apps,
     'step': ?step,
+    'note': ?note,
   };
 }
 

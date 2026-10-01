@@ -203,6 +203,7 @@ class PreviewsPlugin extends NativePlugin<PreviewsCore> {
       roots: [core.rootFor(path)],
       previewAnnotations: core.previewAnnotationsFor(path),
       clock: host.projectClock,
+      setup: core.previewSetupFor(path)?.path,
       // The whole list, not one resolved device: which of them applies is a
       // function of the entry on screen, and the panel is where that changes.
       canvases: core.canvasesFor(path),

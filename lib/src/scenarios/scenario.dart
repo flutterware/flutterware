@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -15,6 +17,7 @@ import 'package:path/path.dart' as p;
 import '../bytes.dart';
 import '../clock.dart';
 import '../flutter_gpu_diagnosis.dart';
+import '../drive/keys.dart';
 import '../drive/resolve.dart';
 import '../translations/index.dart';
 import 'aim.dart';
@@ -27,6 +30,7 @@ import '../app_events/events.dart';
 import '../devices.dart';
 import 'keyboard.dart';
 import 'motion.dart';
+import 'mouse.dart';
 import 'network.dart';
 import 'notification.dart';
 import 'profile.dart';
@@ -601,13 +605,9 @@ Future<void> _runScenario(
       stage: scenarioRunArgs?.stage ?? const BareStage(),
       edit: edit,
       // What the cursor will be drawn as. A phone is touched and a window is
-      // pointed at, and the stage already knows which this is.
-      touch: switch (assignment?.orientedDevice?.platform) {
-        DevicePlatform.macos ||
-        DevicePlatform.windows ||
-        DevicePlatform.linux => false,
-        _ => true,
-      },
+      // pointed at — the same rule the verbs press by, so the arrow that
+      // hovers is the mouse that clicks.
+      touch: !pointsWithMouse(assignment?.device),
     ),
   };
   _countFrames(tester);
@@ -687,6 +687,9 @@ Future<void> _runScenario(
         // its own from the top, so a branch must not inherit what the branch
         // before it said — nor read its requests back.
         network.resetForReplay();
+        // The mouse too: one a branch left parked would hover whatever the
+        // next branch builds under it.
+        await ScenarioMouse.of(tester).leave();
       }
       first = false;
       pinned?.startRun();
@@ -1350,6 +1353,11 @@ class ScenarioTester {
   /// `IconData`, a `Type`, or a [Target] for the rest (a semantics label, a
   /// tooltip, a scope, an index).
   ///
+  /// With the pointer of the device the scenario is staged on: a click of
+  /// the scenario's mouse on a desktop — which stays where it clicked, so the
+  /// control is hovered in the picture that follows — and a finger everywhere
+  /// else. The same holds for every verb that presses.
+  ///
   /// `dynamic` is a deliberate exception to the house no-dynamic preference:
   /// `tap('NEXT')` / `tap(Icons.add)` / `tap(Keys.next)` read too well to give
   /// up, and the auto-write generator emits exactly the string form.
@@ -1365,7 +1373,7 @@ class ScenarioTester {
       var finder = await _resolve(target, 'tap');
       var at = _aimFor(target, finder);
       await _approach('tap');
-      await tester.tapAt(at);
+      await _pressAt(at, over: describeTarget(target));
     },
     verb: 'tap',
     target: describeTarget(target),
@@ -1399,7 +1407,7 @@ class ScenarioTester {
     () async {
       _aimAtPoint(at);
       await _approach('tapAt');
-      await tester.tapAt(at);
+      await _pressAt(at);
     },
     verb: 'tapAt',
     target: '${at.dx.round()},${at.dy.round()}',
@@ -1412,15 +1420,41 @@ class ScenarioTester {
       var finder = await _resolve(target, 'longPress');
       var at = _aimFor(target, finder);
       await _approach('longPress');
-      await tester.longPressAt(at);
+      if (_pointsWithMouse) {
+        await _mouse.longPress(at, over: describeTarget(target));
+      } else {
+        await tester.longPressAt(at);
+      }
     },
     verb: 'longPress',
     target: describeTarget(target),
   );
 
+  /// Puts [text] in the field at [target], replacing what was there — in one
+  /// edit, the way a paste arrives.
+  ///
+  /// [typing] types it instead: one edit per character, each followed by that
+  /// much of the fake clock, the way keystrokes arrive. Most fields cannot
+  /// tell the two apart, and the ones that can are the ones worth a scenario —
+  /// a search that debounces its query, a field that validates as it goes, a
+  /// code input that moves to the next box. In one edit a debounce sees one
+  /// change; typed faster than it waits, it restarts on every character and
+  /// fires once, after the last:
+  ///
+  /// ```dart
+  /// await s.enterText(Keys.search, 'flat white',
+  ///     typing: const Duration(milliseconds: 100));
+  /// await s.wait(const Duration(milliseconds: 300)); // the debounce's own
+  /// ```
+  ///
+  /// The `wait` is the debounce's to ask for, not the verb's: a pending timer
+  /// schedules no frame, so the step settles before it fires, the same as it
+  /// would after one edit. A character is what one key types — an emoji or an
+  /// accented letter goes in whole.
   Future<void> enterText(
     dynamic target,
     String text, {
+    Duration? typing,
     Shot? shot,
     Settle? settle,
   }) => _step(
@@ -1439,9 +1473,10 @@ class ScenarioTester {
       // otherwise box the render object under the finger.
       _aimAt(editable);
       await _approach('enterText');
-      // A film types; a run sets the value. The verb hands the setter over
-      // rather than the film reaching for the editable, so what lands in the
-      // field is the same call either way — see [ScenarioFilm.type].
+      // A film types; a run sets the value, or types it when asked to. The
+      // verb hands the setter over rather than the film reaching for the
+      // editable, so what lands in the field is the same call either way —
+      // see [ScenarioFilm.type].
       if (_film case var film?) {
         await film.type(
           tester,
@@ -1453,7 +1488,15 @@ class ScenarioTester {
           // different question asked ten frames later.
           follow: () =>
               _boundsOf(editable.evaluate().firstOrNull?.renderObject)?.center,
+          // The same clock as the run without a film, to the microsecond: the
+          // film's own frames would round the pace to themselves.
+          pause: typing == null ? null : () => _elapse(typing),
         );
+      } else if (typing != null) {
+        for (var typed in typedPrefixes(text)) {
+          await tester.enterText(editable, typed);
+          await _elapse(typing);
+        }
       } else {
         await tester.enterText(editable, text);
       }
@@ -1476,6 +1519,12 @@ class ScenarioTester {
   /// expressible. Measured on a 200-row list: `Offset(0, -300)` bare lands at
   /// exactly 300, over a second it carries to ~324, and over 300ms — the same
   /// distance at three times the speed — it flies past 450.
+  ///
+  /// On a desktop device the drag is the mouse's, as every press there is,
+  /// and a mouse drag does not move a list — not on a desktop, and so not
+  /// here: Flutter's default scroll behavior leaves the mouse out of the
+  /// devices that drag one. [scroll] turns the wheel, and [scrollTo] walks a
+  /// list wherever the scenario is staged.
   Future<void> drag(
     dynamic target,
     Offset by, {
@@ -1489,13 +1538,7 @@ class ScenarioTester {
       var finder = await _resolve(target, 'drag');
       var at = _aimFor(target, finder, by: by);
       await _approach('drag');
-      if (_film case var film?) {
-        await film.dragBy(tester, by, over: duration);
-      } else if (duration == null) {
-        await tester.dragFrom(at, by);
-      } else {
-        await tester.timedDragFrom(at, by, duration);
-      }
+      await _dragFrom(at, by, duration);
     },
     verb: 'drag',
     target: describeTarget(target),
@@ -1532,17 +1575,302 @@ class ScenarioTester {
       // where every finder verb would have refused.
       _aimAtPoint(from, by: by);
       await _approach('dragFrom');
-      if (_film case var film?) {
-        await film.dragBy(tester, by, over: duration);
-      } else if (duration == null) {
-        await tester.dragFrom(from, by);
-      } else {
-        await tester.timedDragFrom(from, by, duration);
-      }
+      await _dragFrom(from, by, duration);
     },
     verb: 'dragFrom',
     target: '${from.dx.round()},${from.dy.round()}',
   );
+
+  /// Parks the mouse over [target] and holds it there, so whatever the app
+  /// only shows to a mouse — a tooltip, a hover tint, a control that appears
+  /// under the pointer — is on the screen the step captures.
+  ///
+  /// The hold is [hold] of the fake clock, 600ms unless it says otherwise,
+  /// and it is why this is more than a hover event. A settle follows frames,
+  /// and what a hover usually starts is a `Timer` — `Tooltip.waitDuration` —
+  /// which schedules no frame until it fires, so a hover that only settled
+  /// would capture a quiet screen with nothing on it. Its frames are the
+  /// step's own, so a recording shows the tooltip arriving.
+  ///
+  /// The mouse stays where it is put, as a real one does. A [tap] that
+  /// follows still finds [target] hovered — which is what is wanted when the
+  /// thing to tap only appears on hover — and [unhover] ends it. Every
+  /// scenario starts with no mouse on the screen, and so does every branch of
+  /// a [split].
+  ///
+  /// The live drive's `hover`, with the same target, hold and pointer, so a
+  /// step worked out against the running app ports as written.
+  Future<void> hover(
+    dynamic target, {
+    Duration? hold,
+    Shot? shot,
+    Settle? settle,
+  }) => _step(
+    shot,
+    settle,
+    () async {
+      var finder = await _resolve(target, 'hover');
+      var at = _aimFor(target, finder);
+      await _approach('hover');
+      await _mouse.moveTo(at, over: describeTarget(target));
+      await _elapse(hold ?? _hoverHold);
+    },
+    verb: 'hover',
+    target: describeTarget(target),
+  );
+
+  /// Takes the mouse off the screen, so everything it was over gets its exit.
+  ///
+  /// Held like [hover], because an exit runs on a timer too — a `Tooltip`
+  /// dismisses on one — and an unhover that only settled would capture the
+  /// tooltip still up. With no mouse on the screen it moves nothing and takes
+  /// no automatic shot: that is already the state it was asked for. The step
+  /// names what the mouse was parked over, so the flow reads `unhover "Save"`.
+  Future<void> unhover({Duration? hold, Shot? shot, Settle? settle}) => _step(
+    shot,
+    settle,
+    () async {
+      if (_mouse.at == null) return;
+      await _mouse.leave();
+      await _elapse(hold ?? _hoverHold);
+    },
+    verb: 'unhover',
+    target: _mouse.hovering,
+    autoShotNeedsFrames: true,
+  );
+
+  /// Taps [target] twice in the same place, close enough together to read as
+  /// one gesture — what `onDoubleTap` waits for.
+  ///
+  /// The taps are [gap] of the fake clock apart, 80ms unless it says
+  /// otherwise, and the gap is not free to be zero. A
+  /// `DoubleTapGestureRecognizer` *restarts* rather than fires when the second
+  /// tap arrives inside `kDoubleTapMinTime` (40ms), and gives the pair up past
+  /// `kDoubleTapTimeout` (300ms), so two taps with no time between them do
+  /// nothing at all. Both land where the first one aimed: re-reading the
+  /// centre would follow a widget the first tap moved, out of the slop the
+  /// second has to land in.
+  Future<void> doubleTap(
+    dynamic target, {
+    Duration? gap,
+    Shot? shot,
+    Settle? settle,
+  }) => _step(
+    shot,
+    settle,
+    () async {
+      var finder = await _resolve(target, 'doubleTap');
+      var at = _aimFor(target, finder);
+      await _approach('doubleTap');
+      await _pressAt(at, over: describeTarget(target));
+      await _elapse(gap ?? _doubleTapGap);
+      await _pressAt(at, over: describeTarget(target));
+    },
+    verb: 'doubleTap',
+    target: describeTarget(target),
+  );
+
+  /// Right-clicks [target] — the mouse's other button, and how a context menu
+  /// is asked for on every desktop.
+  ///
+  /// Always the mouse, whatever the device: `onSecondaryTap` is a mouse's
+  /// gesture, and a finger has no second button. It is the mouse [hover]
+  /// moves, so the click leaves [target] hovered — a menu opening under the
+  /// pointer finds the pointer where it should be — and [unhover] ends that.
+  Future<void> secondaryTap(dynamic target, {Shot? shot, Settle? settle}) =>
+      _step(
+        shot,
+        settle,
+        () async {
+          var finder = await _resolve(target, 'secondaryTap');
+          var at = _aimFor(target, finder);
+          await _approach('secondaryTap');
+          await _mouse.click(
+            at,
+            buttons: kSecondaryButton,
+            over: describeTarget(target),
+          );
+        },
+        verb: 'secondaryTap',
+        target: describeTarget(target),
+      );
+
+  /// Turns the mouse wheel over [target] by [by] — scrolls the pane under
+  /// the mouse.
+  ///
+  /// Not a nicer [drag], and not [scrollTo]. A wheel turn is a pointer
+  /// *signal*: the framework hit-tests it to whatever is under the mouse and
+  /// hands it to that, so on a page with three scrollables this one moves the
+  /// pane [target] is in, where [scrollTo] picks a scrollable and walks it.
+  /// And a wheel moves a list on a desktop, where a mouse drag does not:
+  /// Flutter's default scroll behavior leaves the mouse out of the devices
+  /// that drag one.
+  ///
+  /// [by] is a wheel, not a finger, and its sign is the other way round from
+  /// [drag]'s: the delta is added to the scroll offset, so a positive `dy`
+  /// moves *down* the list. Both conventions are the platform's.
+  ///
+  /// The mouse moves there first, because that is how a wheel reaches
+  /// anything, so a scroll leaves [target] hovered — [unhover] ends that.
+  Future<void> scroll(
+    dynamic target,
+    Offset by, {
+    Shot? shot,
+    Settle? settle,
+  }) => _step(
+    shot,
+    settle,
+    () async {
+      var finder = await _resolve(target, 'scroll');
+      var at = _aimFor(target, finder);
+      await _approach('scroll');
+      await _mouse.scroll(at, by, over: describeTarget(target));
+    },
+    verb: 'scroll',
+    target: describeTarget(target),
+  );
+
+  /// Presses a key — `escape`, `enter`, `tab`, `arrowDown` — or a chord:
+  /// `meta+k`, `shift+tab`, `control+s`.
+  ///
+  /// [chord] is `+`-separated: the last name fires, and everything before it
+  /// is held down for it and released after, in reverse. Names are
+  /// `LogicalKeyboardKey` debug names spelled any way that reads, a single
+  /// character, or one of `cmd`, `ctrl`, `alt`, `opt`, `shift`, `esc` — each
+  /// modifier meaning its *left* key, which is what a `SingleActivator`
+  /// checks for. A Mac shortcut and its Windows twin are two chords.
+  ///
+  /// For shortcuts and navigation, never for typing. A character reaches a
+  /// field through the platform's text input rather than through a key event,
+  /// so `key('a')` into a focused field leaves it empty, in a running app as
+  /// much as here; [enterText] is the verb that types.
+  ///
+  /// A keystroke dispatches from whatever holds focus, upwards, and with
+  /// nothing focused it passes above every `Shortcuts` the app declares. So a
+  /// key nothing took, pressed while nothing held focus, is refused rather
+  /// than reported done — the one way this verb could otherwise do nothing
+  /// silently.
+  ///
+  /// The live drive's `key`, the same names and the same keystroke, so a
+  /// chord worked out against the running app ports as written.
+  Future<void> key(String chord, {Shot? shot, Settle? settle}) => _step(
+    shot,
+    settle,
+    () async {
+      KeyChord keys;
+      try {
+        keys = KeyChord.parse(chord, verb: 's.key');
+      } on TargetError catch (error) {
+        throw ScenarioTargetError(error.message);
+      }
+      if (keys.held case var key?) {
+        throw ScenarioTargetError(
+          '${key.debugName} is already held down — pressed through '
+          '`s.tester` and not released. `s.key("$chord")` presses every key '
+          'of its chord itself: release it first, or leave it out of the '
+          'chord.',
+        );
+      }
+      var handled = await keys.press();
+      if (!handled && nothingFocused) {
+        throw ScenarioTargetError(
+          '`s.key("$chord")` went nowhere: nothing in the app holds focus, so '
+          "the keystroke dispatched from the root scope — above the app's "
+          '`Shortcuts` and everything else that would have taken it. Give the '
+          'app a focus first: `s.tap` a control, `s.enterText` into a field, '
+          'or `autofocus: true` on the widget the shortcut belongs to. The '
+          'keys were pressed and released, so nothing is stuck.',
+        );
+      }
+    },
+    verb: 'key',
+    target: chord,
+  );
+
+  /// How long [hover] and [unhover] hold, when they name no hold of their
+  /// own — the live drive's default, and for its reason: Flutter's own
+  /// `Tooltip.waitDuration` is zero, and the themes that set one land between
+  /// 300 and 600ms. Fake time, so it costs the clock it moves and nothing
+  /// else.
+  static const _hoverHold = Duration(milliseconds: 600);
+
+  /// The gap between [doubleTap]'s taps, when it names none: above
+  /// `kDoubleTapMinTime`, and well inside `kDoubleTapTimeout`.
+  static const _doubleTapGap = Duration(milliseconds: 80);
+
+  /// The scenario's mouse — one for the whole test; see [ScenarioMouse].
+  ScenarioMouse get _mouse => ScenarioMouse.of(tester);
+
+  /// Whether this scenario's pointer is the mouse: a desktop is pointed at
+  /// and everything else is touched. See [pointsWithMouse].
+  ///
+  /// Read off the device rather than chosen per verb, because what an app
+  /// shows depends on it. A text field tapped by a finger raises selection
+  /// handles a click never does, a tooltip waits for a long press where a
+  /// mouse only has to arrive, and a control stays hovered under a mouse that
+  /// clicked it — so a desktop app pressed by a finger is photographed in a
+  /// layout its users never see.
+  bool get _pointsWithMouse => pointsWithMouse(assignment?.device);
+
+  /// One press and release where the verb aimed — a click on a desktop, a
+  /// tap everywhere else.
+  ///
+  /// The click leaves the mouse where it clicked, as a real one does, so the
+  /// control is hovered in the picture that follows; [over] names it for an
+  /// [unhover].
+  Future<void> _pressAt(Offset at, {String? over}) =>
+      _pointsWithMouse ? _mouse.click(at, over: over) : tester.tapAt(at);
+
+  /// [drag] and [dragFrom]'s gesture, once the verb has aimed it: the film's
+  /// frame-by-frame drag when there is one, and otherwise the pointer's own,
+  /// spread over [duration] when the verb named one.
+  ///
+  /// On a desktop that pointer is the mouse, which does not scroll a list:
+  /// Flutter's default scroll behavior leaves the mouse out of the devices
+  /// that drag one, as on the desktop itself. The wheel does —
+  /// [scroll] — and [scrollTo] still walks a list wherever it is staged.
+  Future<void> _dragFrom(Offset from, Offset by, Duration? duration) async {
+    if (_film case var film?) {
+      await film.dragBy(tester, by, over: duration);
+    } else if (_pointsWithMouse) {
+      await (duration == null
+          ? _mouse.drag(from, by)
+          : _mouse.timedDrag(from, by, duration));
+    } else if (duration == null) {
+      await tester.dragFrom(from, by);
+    } else {
+      await tester.timedDragFrom(from, by, duration);
+    }
+  }
+
+  /// Moves the fake clock by [duration] *inside* a verb, a frame at a time,
+  /// handing every frame to whatever is recording.
+  ///
+  /// [wait] is the same clock as a step of its own; this is the time a
+  /// gesture takes — a hover's hold, the gap in a double tap — which belongs
+  /// to the verb it is part of, and whose frames belong to that verb's
+  /// recording: a tooltip fading in, not a cut to one already up.
+  ///
+  /// Exact to the microsecond, in frames as close to the recording's own
+  /// interval as divide the duration evenly — so 100ms on a 30fps film is
+  /// three frames of a third each, rather than three and a sliver of one.
+  Future<void> _elapse(Duration duration) async {
+    if (duration <= Duration.zero) return;
+    var interval = _sink?.interval ?? const Duration(milliseconds: 100);
+    var frames = math.max(
+      1,
+      (duration.inMicroseconds / interval.inMicroseconds).round(),
+    );
+    var left = duration;
+    for (var i = frames; i > 0; i--) {
+      var step = left ~/ i;
+      left -= step;
+      _keyboard.step();
+      await tester.pump(step);
+      _sink?.capture(tester);
+      await _sink?.flush(tester);
+    }
+  }
 
   /// Scrolls until [target] is on screen, then captures it there.
   ///
@@ -1770,17 +2098,27 @@ class ScenarioTester {
   /// it. It is not the place for work that needs the *real* event loop:
   /// [runAsync] is its own step, so putting one inside this one captures
   /// twice, once for what landed and once for the name.
+  ///
+  /// `shot: false` keeps the step and drops the name. It is captured the way
+  /// any verb's automatic step is — labelled `act "<description>"` in the
+  /// flow, collapsed as detail, and under [Shots.manual] not at all — so it
+  /// never reaches `scenarios shots` or the store export, which keep named
+  /// shots only. For a walk that seeds a backend between the screens it is
+  /// about: the cause stays in the flow, and out of the exported pictures.
+  /// [tags] belong to the name, and go with it.
   Future<T> act<T>(
     String description,
     FutureOr<T> Function() body, {
     List<String> tags = const [],
     Settle? settle,
     Duration timeout = const Duration(seconds: 10),
+    bool shot = true,
   }) => _step(
-    Shot(description, tags: tags),
+    shot ? Shot(description, tags: tags) : null,
     settle,
     () => _awaitMovingClock(description, body, timeout),
     verb: 'act',
+    target: shot ? null : describeTarget(description),
   );
 
   /// [body]'s result, with the fake clock moved for as long as the body waits

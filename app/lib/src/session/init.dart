@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart_style/dart_style.dart';
 import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
 import '../identity/face_guess.dart';
 import '../shell/repo_layout.dart';
@@ -56,6 +58,7 @@ class ProjectInit {
   Future<int> run({bool quiet = false}) async {
     var scaffolded = _scaffoldConfig();
     var registered = _registerMcpServer();
+    var pinned = registered ? _pinnedSdkHint() : null;
 
     if (!quiet && (scaffolded || registered)) {
       out.writeln('Initialized $root');
@@ -69,9 +72,50 @@ class ProjectInit {
         if (await _isIgnoredByGit(p.join(root, mcpConfigFileName))) {
           out.writeln('    .gitignore hides it, so it stays on this machine');
         }
+        if (pinned != null) out.writeln('    $pinned');
       }
+    } else if (pinned != null) {
+      // The one line a quiet run says, and to stderr: it runs before every
+      // command, `fw mcp` and `--json` among them, whose stdout is not ours.
+      err.writeln('fw: $pinned');
     }
     return 0;
+  }
+
+  /// A line for a project that pins its SDK with a version manager, or null.
+  ///
+  /// The entry [_registerMcpServer] writes is plain `dart`, and stays that way
+  /// — see there. But `init` runs quietly before whatever command came first,
+  /// so the entry appears without anyone having read it, and a `dart` on
+  /// `PATH` older than the pin fails only later: at the client's handshake, in
+  /// a log nobody is watching. So the moment it is written, a project that
+  /// says it pins its SDK is told so once.
+  ///
+  /// Read from the pin files rather than by comparing the `dart` that launched
+  /// this with the one on `PATH`, which would be the sharper test. Finding that
+  /// one means resolving `dart` off `PATH`, which nothing here does — see
+  /// `test/ambient_sdk_test.dart` — and Flutter's `bin/dart` is a wrapper whose
+  /// path never equals the SDK binary it runs, so the comparison would fire
+  /// for everyone. A pin file this does not recognise costs only the line.
+  String? _pinnedSdkHint() {
+    for (var (name, command) in _pinFiles) {
+      String text;
+      try {
+        text = File(p.join(root, name)).readAsStringSync();
+      } on FileSystemException {
+        continue;
+      }
+      // `.tool-versions` and mise's files pin anything — node, java — and
+      // only a Flutter or Dart line is about the `dart` in question.
+      if (name != '.fvmrc' && !_sdkLine.hasMatch(text)) continue;
+      var fix = command == null
+          ? 'run it through your version manager'
+          : 'change it to `$command run flutterware mcp`';
+      return "$name pins this project's SDK, but the flutterware entry in "
+          '$mcpConfigFileName runs `dart` from PATH. If that is a different '
+          'SDK, $fix.';
+    }
+    return null;
   }
 
   /// Whether git already ignores [path].
@@ -112,9 +156,10 @@ class ProjectInit {
   ///
   /// A user whose `dart` is not the one this project wants edits the entry to
   /// say so — `fvm dart run flutterware mcp`, and so on. It is their file and
-  /// their choice; the one thing worth knowing before making it is that a
-  /// version manager which auto-installs an SDK may narrate that onto stdout,
-  /// which is where the protocol lives.
+  /// their choice, and a project with a pin file is told it may need making —
+  /// see [_pinnedSdkHint]. The one thing worth knowing before making it is
+  /// that a version manager which auto-installs an SDK may narrate that onto
+  /// stdout, which is where the protocol lives.
   ///
   /// Merges; never rewrites. This is the one file `init` touches that
   /// flutterware does not own — other servers live in it, it is normally
@@ -330,20 +375,59 @@ class ProjectInit {
     // Only the declared list, deliberately: promoting whatever a
     // directory scan turned up would write claims nobody made.
     var members = workspaceMembers(root);
-    var consts = members == null || members.isEmpty
-        ? {'app': '.'}
-        : _memberConsts(members);
+    var consts = {'app': '.'};
+    var widgetConsts = ['app'];
+    if (members != null && members.isNotEmpty) {
+      var pubspecs = {
+        for (var member in members) member: _readMember(root, member),
+      };
+      consts = _memberConsts({
+        for (var member in members) member: pubspecs[member]?.name,
+      });
+      // Previews and Scenarios render widgets, and a package that does not
+      // depend on Flutter has none: handed one anyway, each reports "no
+      // entries" for it on every `fw status`, for good. Dependencies has
+      // something to say about every package. A pubspec this cannot read is
+      // kept rather than judged.
+      widgetConsts = [
+        for (var MapEntry(key: name, value: path) in consts.entries)
+          if (pubspecs[path]?.flutter ?? true) name,
+      ];
+    }
     var declarations = [
       for (var entry in consts.entries)
         "const ${entry.key} = Pkg('${entry.value}');",
     ].join('\n');
-    var uses = consts.keys.map((name) => '.new($name)').join(', ');
+    String uses(Iterable<String> names) =>
+        names.map((name) => '.new($name)').join(', ');
     var perPackage = members == null || members.isEmpty
         ? '; the default is the single\n// package here'
-        : " — started as the root pubspec's\n// `workspace:` members";
+        : " — started as the root\n// pubspec's `workspace:` members";
+    var widgetTools = widgetConsts.isEmpty
+        ? '''
+  // Previews and Scenarios are for Flutter packages, and no member here
+  // depends on Flutter.
+'''
+        : '''
+  // Renders the widgets you have annotated with `@Preview`, found anywhere in
+  // the package — add `directory: 'demo'` to bound the scan.
+  // `fw run previews new --name="Buttons"` writes your first one.
+  fw.use(Previews(packages: [${uses(widgetConsts)}]));
 
-    file.parent.createSync(recursive: true);
-    file.writeAsStringSync('''
+  // Widget tests that screenshot every step, found anywhere under `test/`.
+  // `fw run scenarios new --name="Onboarding"` writes your first one.
+  fw.use(Scenarios(packages: [${uses(widgetConsts)}]));
+''';
+    if (widgetConsts.isNotEmpty && widgetConsts.length < consts.length) {
+      widgetTools = '''
+  // Previews and Scenarios get only the members that depend on Flutter: the
+  // others have no widgets to show.
+
+$widgetTools''';
+    }
+
+    var source =
+        '''
 import 'package:flutterware/plugins.dart';
 
 // Which tools this project gets, and what they work on.
@@ -356,29 +440,70 @@ import 'package:flutterware/plugins.dart';
 $declarations
 
 void main() => Flutterware.configure((fw) {
-${_identityLine(root)}
-  fw.use(Dependencies(packages: [$uses]));
+${_identityLine(root, consts)}
+  fw.use(Dependencies(packages: [${uses(consts.keys)}]));
 
-  // Renders the widgets you have annotated with `@Preview`, found anywhere in
-  // the package — add `directory: 'demo'` to bound the scan.
-  // `fw run previews new --name="Buttons"` writes your first one.
-  fw.use(Previews(packages: [$uses]));
+$widgetTools});
+''';
+    // Formatted, because the lists above are built on one line, and a
+    // workspace of two dozen members made each `fw.use(...)` 700 characters
+    // long — in a file whose whole job is to be read and edited. `init` runs
+    // before every command, so a source the formatter refuses is still
+    // written as it is rather than failing all of them.
+    try {
+      source = DartFormatter(
+        languageVersion: DartFormatter.latestLanguageVersion,
+      ).format(source);
+    } on FormatterException {
+      // Left as built; the analyzer will say what is wrong with it.
+    }
 
-  // Widget tests that screenshot every step, found anywhere under `test/`.
-  // `fw run scenarios new --name="Onboarding"` writes your first one.
-  fw.use(Scenarios(packages: [$uses]));
-});
-''');
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(source);
     return true;
   }
 }
 
-/// A Dart identifier per workspace member, keyed name → path.
+/// What the scaffold reads from a workspace member's pubspec: its name, and
+/// whether it depends on Flutter. Null when there is none or it will not
+/// parse.
+({String? name, bool flutter})? _readMember(String root, String member) {
+  try {
+    var text = File(p.join(root, member, 'pubspec.yaml')).readAsStringSync();
+    if (loadYaml(text) case YamlMap pubspec) {
+      var name = pubspec['name'];
+      return (
+        name: name is String ? name : null,
+        flutter: switch (pubspec['dependencies']) {
+          {'flutter': {'sdk': 'flutter'}} => true,
+          _ => false,
+        },
+      );
+    }
+  } on FileSystemException {
+    // A member the workspace lists and nobody has created yet.
+  } on YamlException {
+    // The project's problem, and `pub get` reports it.
+  }
+  return null;
+}
+
+/// A Dart identifier per workspace member, keyed name → path, from each
+/// member's path and the `name:` its pubspec declares.
 ///
-/// The directory's basename, camelCased — `packages/design_system` reads
-/// better as `designSystem` than as its whole path — falling back to the
-/// full path (then a counter) when two members share one.
-Map<String, String> _memberConsts(List<String> members) {
+/// The pubspec name, camelCased — `design_system` as `designSystem`. It is
+/// the name the package already goes by, and pub keeps it unique across a
+/// workspace. The directory was the source once, first come first served,
+/// and on a 24-package workspace the short names went to whatever was listed
+/// first — `example`, for one package's example app — while the app the
+/// repository exists for was pushed out to its whole path. A member whose
+/// pubspec does not say falls back to its directory, then to its whole path,
+/// then to a counter.
+///
+/// A name Dart reserves, or one the file already uses, gets `Pkg` on the end:
+/// a `main` beside `void main()` does not compile, and a const named `fw`
+/// would be shadowed, silently, by the closure's own `fw`.
+Map<String, String> _memberConsts(Map<String, String?> members) {
   String camel(String path) {
     var parts = path
         .split(RegExp(r'[^A-Za-z0-9]+'))
@@ -389,12 +514,13 @@ Map<String, String> _memberConsts(List<String> members) {
       parts.first.toLowerCase(),
       for (var part in parts.skip(1)) part[0].toUpperCase() + part.substring(1),
     ].join();
-    return RegExp(r'^[0-9]').hasMatch(name) ? 'pkg$name' : name;
+    if (RegExp(r'^[0-9]').hasMatch(name)) return 'pkg$name';
+    return _unavailableNames.contains(name) ? '${name}Pkg' : name;
   }
 
   var consts = <String, String>{};
-  for (var member in members) {
-    var name = camel(p.basename(member));
+  for (var MapEntry(key: member, value: pubspecName) in members.entries) {
+    var name = camel(pubspecName ?? p.basename(member));
     if (consts.containsKey(name)) name = camel(member);
     var base = name;
     for (var n = 2; consts.containsKey(name); n++) {
@@ -404,6 +530,48 @@ Map<String, String> _memberConsts(List<String> members) {
   }
   return consts;
 }
+
+/// What a scaffolded const cannot be called: the words Dart reserves, and the
+/// names the file itself declares or is handed.
+const _unavailableNames = {
+  'main',
+  'fw',
+  'assert',
+  'await',
+  'break',
+  'case',
+  'catch',
+  'class',
+  'const',
+  'continue',
+  'default',
+  'do',
+  'else',
+  'enum',
+  'extends',
+  'false',
+  'final',
+  'finally',
+  'for',
+  'if',
+  'in',
+  'is',
+  'new',
+  'null',
+  'rethrow',
+  'return',
+  'super',
+  'switch',
+  'this',
+  'throw',
+  'true',
+  'try',
+  'var',
+  'void',
+  'while',
+  'with',
+  'yield',
+};
 
 /// The `fw.identity(...)` the scaffold writes, with a guess already filled in.
 ///
@@ -416,25 +584,41 @@ Map<String, String> _memberConsts(List<String> members) {
 /// A repository where nothing has a real icon yet gets the line commented out:
 /// there is nothing true to put in it, and an empty default would not even
 /// show that the setting exists.
-String _identityLine(String root) {
+///
+/// The comment says what each field does because the call alone reads as
+/// though naming the package were the declaration and the icon a detail. It
+/// is the other way round: the picture is the point, and the package is only
+/// where to find it.
+String _identityLine(String root, Map<String, String> consts) {
   const preamble =
-      '  // Which package stands for this repository, and the picture that\n'
-      '  // stands for it. The window and the Dock show that picture, so several\n'
-      '  // checkouts open at once can be told apart.';
+      '  // The picture that stands for this repository in the window and the\n'
+      '  // Dock, so several checkouts open at once can be told apart. Both\n'
+      '  // fields are needed: `icon` is the picture, and `package` only says\n'
+      '  // which directory it is relative to — no icon is looked up from it.\n'
+      '  // The file is named rather than searched for because a search once\n'
+      '  // showed a real app as the Flutter logo, from a leftover\n'
+      '  // `flutter create` icon.\n'
+      '  //\n';
   var guessed = guessFace(root);
   if (guessed == null) {
-    return '$preamble Nothing here has an icon\n'
-        '  // of its own yet, so this is left for you to fill in.\n'
+    return '$preamble'
+        '  // Nothing here has an icon of its own yet, so this is left for you to\n'
+        '  // fill in.\n'
         '  // fw.identity(const ProjectIdentity(\n'
         "  //   package: Pkg('.'),\n"
         "  //   icon: 'assets/logo.png',\n"
         '  // ));\n';
   }
-  return '$preamble Guessed from the icons\n'
-      '  // found here — change either if that is the wrong app, or point `icon`\n'
-      '  // at the source art your icon generator reads.\n'
+  // The member's const when it has one, so a rename moves one line.
+  var package = consts.entries
+      .where((entry) => entry.value == guessed.package)
+      .map((entry) => entry.key)
+      .firstOrNull;
+  return '$preamble'
+      '  // Guessed from the icons found here: change either if that is the wrong\n'
+      '  // app, or point `icon` at the source art your icon generator reads.\n'
       '  fw.identity(const ProjectIdentity(\n'
-      "    package: Pkg('${guessed.package}'),\n"
+      "    package: ${package ?? "Pkg('${guessed.package}')"},\n"
       "    icon: '${guessed.icon}',\n"
       '  ));\n';
 }
@@ -545,3 +729,18 @@ int? _memberValue(String source, int body, String key) {
   }
   return null;
 }
+
+/// The files a version manager pins a project's SDK in, each with the command
+/// that runs `dart` through it — null where the file is shared by several
+/// managers and naming one would be a guess.
+const _pinFiles = [
+  ('.fvmrc', 'fvm dart'),
+  ('.mise.toml', 'mise exec -- dart'),
+  ('mise.toml', 'mise exec -- dart'),
+  // asdf's, and mise reads it too.
+  ('.tool-versions', null),
+];
+
+/// A line pinning Flutter or Dart, in `.tool-versions` (`flutter 3.x`) or a
+/// mise file (`flutter = "3.x"`).
+final _sdkLine = RegExp(r'^\s*"?(flutter|dart)\b', multiLine: true);

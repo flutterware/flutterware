@@ -119,6 +119,7 @@ Map<String, dynamic> _$CatalogRenderErrorToJson(CatalogRenderError instance) =>
       'exception': instance.exception,
       'library': ?instance.library,
       'context': ?instance.context,
+      'location': ?instance.location,
       'count': instance.count,
     };
 

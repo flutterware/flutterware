@@ -36,6 +36,8 @@ fw.use(
 
 - **`probe`** is how flutterware finds out whether the stack is up. It runs
   every few seconds while the panel is on screen (`poll:` sets the pace).
+  `fw` and your agent don't poll: they show the last reading, from whichever
+  process took it, and `fw run dev_stack status` takes a new one.
 - **`start`** and **`stop`** are optional. Leave both out for a service you only
   watch, like a shared server.
 - **`commands`** are extra buttons: logs, restart, reset. Mark one

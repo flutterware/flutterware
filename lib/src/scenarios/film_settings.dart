@@ -96,9 +96,10 @@ class FilmSettings {
 
   /// How long one character takes to type.
   ///
-  /// Ten a second, which is a fast but human hand. `enterText` itself spends
+  /// Ten a second, which is a fast but human hand. A bare `enterText` spends
   /// no fake time — it sets the whole value in one pump — so this is not a
-  /// slowdown of anything: it is the only place the typing exists.
+  /// slowdown of anything: it is the only place the typing exists. One that
+  /// types at a pace of its own (`typing:`) keeps it, film or not.
   final Duration typing;
 
   /// How long a drag takes when the scenario did not say.

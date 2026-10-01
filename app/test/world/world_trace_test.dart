@@ -1088,15 +1088,16 @@ void main() {
         '  +7 ms  → Cleo  order o5 · placed',
         '  +8 ms  → Ben  order o5 · placed',
         '  +9 ms  → Ben by SMS  Your order is placed',
-        // Its write hidden, what the phone received rises into its place.
-        '  +40 ms  Cleo  orders/o5 arrived (op 16)',
+        // Its write hidden, what the phone received rises into its place,
+        // and says what the write brought.
+        '  +40 ms  Cleo  orders/o5 arrived (op 16) · insert',
       ]);
       // What reached somebody: the call is gone, and what it sent says
       // which server sent it.
       expect(traced(level: TraceLevel.product)[order], [
         '+7 ms  lab → Cleo  order o5 · placed',
         '+9 ms  lab → Ben by SMS  Your order is placed',
-        '+40 ms  Cleo  orders/o5 arrived (op 16)',
+        '+40 ms  Cleo  orders/o5 arrived (op 16) · insert',
       ]);
     });
 
@@ -1195,7 +1196,8 @@ void main() {
       expect((beat.person, beat.kind), ('Cleo', BeatKind.call));
     });
 
-    test("a phone's subscription is a line of the step just before it", () {
+    test("a phone's subscription nothing explains is a line of the step "
+        'just before it, joined by time', () {
       step('Ben', 'ben.1', 1000, '"Sign in"');
       app('Ben', 1800, 'db:main/records', {
         'change': 'subscribed',
@@ -1206,14 +1208,155 @@ void main() {
         'bucket': 'profile["u2"]',
       });
       expect(traced()['ben.1 tap "Sign in"'], [
-        '+800 ms  Ben  subscribed to profile["u2"]',
-        '+8000 ms  Ben  let go of profile["u2"]',
+        '+800 ms  Ben  subscribed to profile["u2"], joined by time',
+        '+8000 ms  Ben  let go of profile["u2"], joined by time',
       ]);
       var beat = trace.steps().single.beats.first;
       expect(
         (beat.kind, beat.level),
         (BeatKind.subscription, TraceLevel.system),
       );
+    });
+  });
+
+  group('round six', () {
+    test('a reload while a step is going is a line of it, and what ran '
+        'across it says so', () {
+      trace.addActionStep(
+        'world.1',
+        'Upload',
+        since.add(const Duration(seconds: 1)),
+      );
+      lab(1100, 'job', {'name': 'build', 'step': 'world.1'}, 'job-1');
+      lab(1200, 'log', {'message': 'building', 'step': 'world.1'}, 'job-1');
+      lab(31100, 'job', {
+        'name': 'build',
+        'ms': 30000.0,
+        'step': 'world.1',
+      }, 'job-1');
+      lab(31200, 'job', {
+        'name': 'notify',
+        'ms': 50.0,
+        'step': 'world.1',
+      }, 'job-2');
+      // Ended before the reload: nothing of it to say.
+      step('Ben', 'ben.1', 500, '"Home"');
+      lab(600, 'log', {'message': 'home', 'step': 'ben.1'});
+      trace.addReload(since.add(const Duration(seconds: 14)));
+
+      expect(traced(person: worldActionsOwner)['world.1 action "Upload"'], [
+        '+100 ms  lab  job build, done in 30.0 s, across reload.1',
+        '  +200 ms  building',
+        '+13000 ms  reload.1  the code reloaded',
+        '+30150 ms  lab  job notify, done in 50 ms',
+      ]);
+      // Seen at every level: a moment of the whole world's.
+      expect(
+        traced(
+          person: worldActionsOwner,
+          level: TraceLevel.product,
+        )['world.1 action "Upload"'],
+        ['+13000 ms  reload.1  the code reloaded'],
+      );
+      expect(traced(person: 'Ben')['ben.1 tap "Home"'], ['+100 ms  lab  home']);
+      expect(
+        traced(person: worldActionsOwner)['reload.1 reload the code'],
+        isEmpty,
+      );
+    });
+
+    test("a bucket is the step's whose write brought its first record, "
+        'beneath that write', () {
+      step('Ben', 'ben.1', 500, '"Home"');
+      trace.addActionStep(
+        'world.1',
+        'Share',
+        since.add(const Duration(seconds: 1)),
+      );
+      lab(1100, 'write', {
+        'table': 'notes',
+        'key': 'n1',
+        'op': 'insert',
+        'owner': 'u1',
+        'step': 'world.1',
+      });
+      // The watch reads the bucket and its first record at once.
+      app('Ben', 1300, 'db:main/records', {
+        'change': 'subscribed',
+        'bucket': 'note["n1"]',
+      });
+      app('Ben', 1301, 'db:main/records', {
+        'key': 'n1',
+        'table': 'notes',
+        'change': 'synced',
+        'op': 7,
+        'bucket': 'note["n1"]',
+        'newBucket': true,
+      });
+      expect(traced(person: worldActionsOwner)['world.1 action "Share"'], [
+        '+100 ms  lab  wrote notes/n1 (insert · owner Cleo)',
+        '  +300 ms  Ben  subscribed to note["n1"]',
+        '  +301 ms  Ben  notes/n1 arrived (op 7)',
+      ]);
+      // Not Ben's tap, which came before it and did nothing of the kind.
+      expect(traced(person: 'Ben')['ben.1 tap "Home"'], isEmpty);
+    });
+
+    test('a write that says its level is seen there, and the level is not '
+        'what it wrote', () {
+      trace.addActionStep(
+        'world.1',
+        'Upload',
+        since.add(const Duration(seconds: 1)),
+      );
+      lab(1100, 'job', {'name': 'scan', 'step': 'world.1'}, 'job-1');
+      lab(1150, 'write', {
+        'table': 'uploads',
+        'key': 'up1',
+        'op': 'update',
+        'status': 'scanned',
+        'level': 'system',
+        'step': 'world.1',
+      }, 'job-1');
+      lab(1160, 'write', {
+        'table': 'leases',
+        'key': 'l1',
+        'op': 'update',
+        'held': false,
+        'step': 'world.1',
+      }, 'job-1');
+      lab(1200, 'job', {
+        'name': 'scan',
+        'ms': 100.0,
+        'step': 'world.1',
+      }, 'job-1');
+      expect(
+        traced(
+          person: worldActionsOwner,
+          level: TraceLevel.system,
+        )['world.1 action "Upload"'],
+        [
+          '+100 ms  lab  job scan, done in 100 ms',
+          '  +150 ms  wrote uploads/up1 (update · status scanned)',
+        ],
+      );
+    });
+
+    test('a user the server names with the phone or address a person was '
+        'declared by is that person', () {
+      trace.addPerson('Dee', email: 'dee@example.com');
+      lab(1000, 'identify', {'user': 'u7', 'phone': '+447700900001'}, 's1');
+      lab(1001, 'http', {
+        'method': 'GET',
+        'path': '/sync',
+        'status': 200,
+      }, 's1');
+      lab(1100, 'identify', {'user': 'u8', 'email': 'Dee@example.com'}, 's2');
+      expect(trace.personOfUser('u7'), 'Ben');
+      expect(trace.personOfUser('u8'), 'Dee');
+      // A user already known stays whose it was.
+      lab(1200, 'identify', {'user': 'u1', 'phone': '+447700900001'}, 's3');
+      expect(trace.personOfUser('u1'), 'Cleo');
     });
   });
 

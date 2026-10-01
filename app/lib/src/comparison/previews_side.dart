@@ -11,6 +11,7 @@ import 'package:flutterware/src/inspect/node.dart';
 import '../previews/catalog_entry.dart';
 import '../previews/devices.dart';
 import '../previews/discovery.dart';
+import '../previews/preview_setup.dart';
 import '../previews/test_runner.dart';
 import '../embedder/build_directory.dart';
 import '../utils/run_dir.dart';
@@ -48,6 +49,7 @@ class PreviewsSide implements ComparisonSide {
     required this.previewAnnotations,
     required this.canvases,
     this.projectClock,
+    this.setup,
   });
 
   final String flutterSdkRoot;
@@ -83,6 +85,20 @@ class PreviewsSide implements ComparisonSide {
   /// so a branch that changed `fw.clock(...)` is asking one question of both
   /// sides rather than comparing two dates.
   final DateTime? projectClock;
+
+  /// The package's preview setup, from the **head** config like [root].
+  ///
+  /// Run in each checkout that has the file. One that does not predates it —
+  /// the base of the change that adds it — and renders as it did then, which
+  /// is the question a comparison asks of a base. The head is held to its own
+  /// declaration before a comparison starts, by whoever builds this side.
+  final PreviewSetup? setup;
+
+  @override
+  List<String> get sharedSources => [
+    if (setup case var declared?)
+      p.normalize(p.join(packagePath, declared.path)),
+  ];
 
   /// An entry id is `<path>#<symbol>` where the path is relative to the
   /// *package*; a checkout can hold several packages, so the package's own
@@ -159,6 +175,12 @@ class PreviewsSide implements ComparisonSide {
       buildDirectory: buildDirectory,
       // Read once, and shareable: see `TesterHost.followEdits`.
       followEdits: false,
+      setup: switch (setup) {
+        var declared?
+            when File(p.join(packageRoot, declared.path)).existsSync() =>
+          declared,
+        _ => null,
+      },
     );
     // One harness, compiled once, and a guest per shard running it. The
     // entries are dealt round the shards rather than cut into runs, so a

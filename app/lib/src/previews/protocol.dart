@@ -583,6 +583,7 @@ class DaemonConfig {
     this.emitProbe = false,
     this.trackWidgetCreation = true,
     this.clock,
+    this.setup,
     this.daemonRevision = '',
   });
 
@@ -618,6 +619,7 @@ class DaemonConfig {
     List<String> previewAnnotations = defaultPreviewAnnotations,
     bool emitProbe = false,
     DateTime? clock,
+    String? setup,
   }) => DaemonConfig(
     previewAnnotations: previewAnnotations,
     appPackageRoot: appToolDirectory,
@@ -629,6 +631,7 @@ class DaemonConfig {
     roots: roots,
     emitProbe: emitProbe,
     clock: clock,
+    setup: setup,
   );
 
   /// flutterware's own `app/` directory — **not** the package being
@@ -694,6 +697,16 @@ class DaemonConfig {
   /// pictures.
   final DateTime? clock;
 
+  /// The package's declared setup file, relative to [projectRoot] — see
+  /// `PreviewsPackage.setup` — or null for none.
+  ///
+  /// Imported and awaited by the generated entrypoint, so it is part of the
+  /// kernel and the address forks on it, as it does on [clock]. Left out of
+  /// the JSON when null, so a package that declares none keeps the address it
+  /// had before the field existed.
+  @JsonKey(includeIfNull: false)
+  final String? setup;
+
   /// Identifies the daemon *build*. Set by the client, never by a caller.
   ///
   /// A daemon outlives the session that started it, and nothing restarts one
@@ -720,6 +733,7 @@ class DaemonConfig {
     emitProbe: emitProbe,
     trackWidgetCreation: trackWidgetCreation,
     clock: clock,
+    setup: setup,
     daemonRevision: revision,
   );
 

@@ -1667,6 +1667,10 @@ class FwCli {
           _printJson(artifact.toJson());
         } else {
           out.writeln(artifact.path ?? artifact.text);
+          // What the producer wants a person to know about the file — a
+          // picture taken of an entry that complained while it rendered. On
+          // stderr, so the line a pipe reads is still the path alone.
+          if (artifact.meta['note'] case String note) err.writeln('fw: $note');
         }
         return 0;
       }

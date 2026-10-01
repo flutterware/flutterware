@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware/plugins.dart' show Address, Artifact;
 import 'package:flutterware/src/constants.dart';
 import 'package:flutterware_app/src/plugins/native/run_plugin.dart';
 import 'package:flutterware_app/src/plugins/plugin_core.dart';
@@ -155,7 +156,7 @@ void main() {
 
     expect(result.isError, isTrue);
     var text = (result.content.single as TextContent).text;
-    expect(text, contains('"parameters" is not an argument'));
+    expect(text, contains('takes no argument "parameters"'));
     expect(
       text,
       contains('It takes: plugin, action, arguments, brief.'),
@@ -172,7 +173,27 @@ void main() {
     );
     expect(
       (result.content.single as TextContent).text,
-      contains('did you mean "plugin"?'),
+      contains('"plugins" (did you mean `plugin`?)'),
+    );
+  });
+
+  test('and every key it does not declare, not only the first', () async {
+    var result = await connection.callTool(
+      CallToolRequest(
+        name: 'flutterware_invoke',
+        arguments: {
+          'plugin': 'previews',
+          'action': 'list',
+          'parameters': {'top': '3'},
+          'brif': true,
+        },
+      ),
+    );
+    expect(
+      (result.content.single as TextContent).text,
+      contains(
+        'takes no arguments "parameters" and "brif" (did you mean `brief`?).',
+      ),
     );
   });
 
@@ -195,7 +216,7 @@ void main() {
         expect(result.isError, isTrue, reason: '${tool.name} took a bogus key');
         expect(
           (result.content.single as TextContent).text,
-          contains('"notAKey" is not an argument of ${tool.name}'),
+          contains('${tool.name} takes no argument "notAKey"'),
         );
       }
     },
@@ -702,6 +723,69 @@ void main() {
         ..writeAsStringSync('{"configVersion": 2, "packa');
 
       expect(FlutterwareMcpServer.resolvedFlutterware(directory.path), isNull);
+    });
+  });
+
+  group('a picture reaches a model as images', () {
+    late Directory root;
+    setUp(() {
+      root = Directory.systemTemp.createTempSync('fw_images');
+      for (var name in ['whole.png', 'whole.page-1.png', 'whole.page-2.png']) {
+        File(p.join(root.path, name)).writeAsBytesSync(utf8.encode(name));
+      }
+    });
+    tearDown(() => root.deleteSync(recursive: true));
+
+    Artifact picture({Map<String, Object?> meta = const {}}) => Artifact(
+      kind: Artifact.png,
+      address: Address.parse('fw://previews/entry'),
+      path: 'whole.png',
+      meta: meta,
+    );
+    List<String> sent(List<ImageContent> images) => [
+      for (var image in images) utf8.decode(base64Decode(image.data)),
+    ];
+
+    test('one picture is one image', () {
+      expect(sent(FlutterwareMcpServer.imagesOf(picture(), root: root.path)), [
+        'whole.png',
+      ]);
+    });
+
+    test('a picture with pages is sent as its pages, in order', () {
+      // The whole one is too tall to read once a model has been shown it.
+      expect(
+        sent(
+          FlutterwareMcpServer.imagesOf(
+            picture(
+              meta: {
+                'pages': ['whole.page-1.png', 'whole.page-2.png'],
+              },
+            ),
+            root: root.path,
+          ),
+        ),
+        ['whole.page-1.png', 'whole.page-2.png'],
+      );
+    });
+
+    test('what is not a picture, or is gone, sends nothing', () {
+      expect(
+        FlutterwareMcpServer.imagesOf(
+          Artifact(
+            kind: Artifact.json,
+            address: Address.parse('fw://previews/entry'),
+            path: 'whole.png',
+          ),
+          root: root.path,
+        ),
+        isEmpty,
+      );
+      File(p.join(root.path, 'whole.png')).deleteSync();
+      expect(
+        FlutterwareMcpServer.imagesOf(picture(), root: root.path),
+        isEmpty,
+      );
     });
   });
 }

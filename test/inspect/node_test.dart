@@ -390,6 +390,113 @@ void main() {
       expect(tree.resolve('Nonesuch'), isEmpty);
     });
 
+    group('places', () {
+      const box = InspectLayout(x: 0, y: 0, width: 10, height: 10);
+
+      test('takes matches nested in one another as the outermost', () {
+        // A row: its semantics label carries the words, so the padding, the
+        // card and the text all answer to them.
+        var row = InspectTree(
+          entryId: 'demo/a.dart#a',
+          root: const InspectNode(
+            id: '',
+            type: 'ListView',
+            children: [
+              InspectNode(
+                id: '0',
+                type: 'Padding',
+                label: 'Cold brew',
+                layout: box,
+                children: [
+                  InspectNode(
+                    id: '0/0',
+                    type: 'Card',
+                    label: 'Cold brew',
+                    layout: box,
+                    children: [
+                      InspectNode(
+                        id: '0/0/0',
+                        type: 'Text',
+                        description: 'Text("Cold brew")',
+                        layout: box,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        expect([for (var node in row.places('Cold brew')) node.id], ['0']);
+      });
+
+      test('keeps matches side by side, for the caller to refuse', () {
+        var twice = InspectTree(
+          entryId: 'demo/a.dart#a',
+          root: const InspectNode(
+            id: '',
+            type: 'Column',
+            children: [
+              InspectNode(id: '0', type: 'ElevatedButton', layout: box),
+              InspectNode(id: '1', type: 'ElevatedButton', layout: box),
+            ],
+          ),
+        );
+        expect(
+          [for (var node in twice.places('ElevatedButton')) node.id],
+          ['0', '1'],
+        );
+      });
+
+      test('a sibling prefix is not an ancestor', () {
+        // `1` and `10` share a prefix and not a branch.
+        var many = InspectTree(
+          entryId: 'demo/a.dart#a',
+          root: InspectNode(
+            id: '',
+            type: 'Column',
+            children: [
+              for (var i = 0; i <= 10; i++)
+                InspectNode(
+                  id: '$i',
+                  type: i == 1 || i == 10 ? 'Chip' : 'Gap',
+                  layout: box,
+                ),
+            ],
+          ),
+        );
+        expect([for (var node in many.places('Chip')) node.id], ['1', '10']);
+      });
+
+      test('drops a boxless match once there are several', () {
+        var provided = InspectTree(
+          entryId: 'demo/a.dart#a',
+          root: const InspectNode(
+            id: '',
+            type: 'Column',
+            children: [
+              InspectNode(id: '0', type: 'SaveProvider'),
+              InspectNode(id: '1', type: 'SaveButton', layout: box),
+            ],
+          ),
+        );
+        expect([for (var node in provided.places('Save')) node.id], ['1']);
+      });
+
+      test('returns a lone match boxed or not', () {
+        // So the crop can say "no box of its own" rather than "nothing".
+        var alone = InspectTree(
+          entryId: 'demo/a.dart#a',
+          root: const InspectNode(
+            id: '',
+            type: 'Column',
+            children: [InspectNode(id: '0', type: 'SaveProvider')],
+          ),
+        );
+        expect([for (var node in alone.places('Save')) node.id], ['0']);
+      });
+    });
+
     test('an unbuilt entry is an empty answer, not a broken one', () {
       var empty = InspectTree.fromJson(
         const InspectTree(entryId: 'x', root: null).toJson(),
@@ -431,6 +538,60 @@ void main() {
         isFalse,
       );
       expect(const InspectError(exception: 'x', count: 7).toJson()['count'], 7);
+    });
+
+    test('keeps the frames outside the framework, nearest first', () {
+      var frames = InspectError.framesOf(
+        StackTrace.fromString('''
+#0      _fetchFont (file:///app/demo/probes.dart:30:3)
+<asynchronous suspension>
+#1      Element.rebuild (package:flutter/src/widgets/framework.dart:5324:7)
+#2      loadFontIfNecessary (package:some_fonts/src/load.dart:12:5)
+#3      _rootRun (dart:async/zone.dart:1525:13)
+#4      Declarer.test (package:test_api/src/backend/declarer.dart:220:9)
+'''),
+      );
+      expect(frames, [
+        'file:///app/demo/probes.dart:30:3',
+        'package:some_fonts/src/load.dart:12:5',
+      ]);
+    });
+
+    test('reads the terse shape a chained stack prints in too', () {
+      var frames = InspectError.framesOf(
+        StackTrace.fromString('''
+package:app/src/theme.dart 42:7            buildTheme
+package:flutter/src/widgets/framework.dart 5324:7  Element.rebuild
+===== asynchronous gap ===========================
+dart:async                                  _Future.then
+'''),
+      );
+      expect(frames, ['package:app/src/theme.dart:42:7']);
+    });
+
+    test('a stack is capped, and none is no frames', () {
+      var deep = StackTrace.fromString(
+        [for (var i = 0; i < 20; i++) '#$i      f$i (package:app/f$i.dart:1:1)']
+            .join('\n'),
+      );
+      expect(InspectError.framesOf(deep), hasLength(InspectError.maxFrames));
+      expect(InspectError.framesOf(null), isEmpty);
+    });
+
+    test('frames cross the wire, and an older guest reads as none', () {
+      const error = InspectError(
+        exception: 'x',
+        frames: ['package:app/src/theme.dart:42:7'],
+      );
+      var round = InspectError.fromJson(
+        jsonDecode(jsonEncode(error.toJson())) as Map<String, Object?>,
+      );
+      expect(round.frames, error.frames);
+      expect(
+        const InspectError(exception: 'x').toJson().containsKey('frames'),
+        isFalse,
+      );
+      expect(InspectError.fromJson({'exception': 'x'}).frames, isEmpty);
     });
 
     test('an entry with nothing to say is empty rather than absent', () {

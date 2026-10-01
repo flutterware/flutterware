@@ -382,6 +382,51 @@ void main() {
       ),
     );
     expect(await said('Greet'), 'hello, v2');
+
+    // Its compiler stops itself after 30 minutes without a request, and
+    // takes its info file with it: the script's VM then refuses every
+    // reload, until one is started at that path again.
+    var compiler = Directory(flutterwareRunDir())
+        .listSync()
+        .map((entity) => entity.path)
+        .singleWhere(
+          (path) => p.basename(path).startsWith('world-compiler-$pid-'),
+        );
+    var dart = p.join(Platform.environment['FLUTTER_ROOT']!, 'bin', 'dart');
+    await Process.run(dart, [
+      'compilation-server',
+      'shutdown',
+      '--resident-compiler-info-file=$compiler',
+    ]);
+    expect(File(compiler).existsSync(), isFalse);
+    script.writeAsStringSync(original.replaceAll('v1', 'v5'));
+    var revived = await world.reload();
+    expect(revived.note, contains('had stopped'));
+    expect(await said('Greet'), 'hello, v5');
+    expect(world.log, contains(contains('a fresh one compiled this reload')));
+    // The log line names the moment.
+    expect(world.log.last, contains('(${revived.step})'));
+
+    // A script that exits under a reload is said to have, with the last
+    // thing it said, rather than as a connection its VM no longer answers.
+    var leave = File('build/leave_on_reload')..createSync(recursive: true);
+    addTearDown(() {
+      if (leave.existsSync()) leave.deleteSync();
+    });
+    await expectLater(
+      world.reload(),
+      throwsA(
+        isA<WorldRefusal>().having(
+          (refusal) => refusal.message,
+          'message',
+          allOf(
+            contains('exited (3) during the reload'),
+            contains('It last said: leaving on reload'),
+            contains('Restart'),
+          ),
+        ),
+      ),
+    );
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('a script that dies on the resident compiler is started once more, '

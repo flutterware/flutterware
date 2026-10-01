@@ -34,6 +34,38 @@ enum KnobKind {
   }
 }
 
+/// How a picker asks to be drawn — a knob's, or a shell's axis in the top bar.
+///
+/// Presentation only. It changes nothing about what the picker holds or how a
+/// value is set: `--knobs=theme=Dark` reads the same either way, and so does
+/// the address. That is what makes it safe for a host to fall back on
+/// [dropdown] — for a style it does not know, which a newer guest can send an
+/// older host, and for more options than [segmented] shows.
+enum PickerStyle {
+  /// The chosen option in a field that opens onto the rest. Right for any
+  /// number of options, which is why it is the default.
+  dropdown,
+
+  /// Every option on show, the chosen one raised: for a choice between two or
+  /// three, like Light and Dark, where seeing the alternative is the point.
+  ///
+  /// Up to five options. A picker offering more is drawn as a [dropdown]
+  /// anyway, because past that a row of segments stops reading at a glance,
+  /// and in a one-row toolbar it pushes everything after it out of sight.
+  segmented,
+}
+
+/// The most options a [PickerStyle.segmented] picker lays out inline.
+const maxSegments = 5;
+
+/// Whether a picker declared with [style] and offering [options] choices is
+/// drawn as segments.
+///
+/// Decided here rather than by each renderer, so that the studio and a
+/// catalog page cannot draw the same picker two different ways.
+bool drawsSegments(PickerStyle style, int options) =>
+    style == PickerStyle.segmented && options <= maxSegments;
+
 class KnobDescriptor {
   const KnobDescriptor({
     required this.name,
@@ -45,6 +77,7 @@ class KnobDescriptor {
     this.step,
     this.description,
     this.options = const [],
+    this.style = PickerStyle.dropdown,
   });
 
   factory KnobDescriptor.fromJson(Map<String, Object?> json) => KnobDescriptor(
@@ -59,6 +92,8 @@ class KnobDescriptor {
     options: [
       for (var option in json['options'] as List? ?? const []) option as String,
     ],
+    style:
+        PickerStyle.values.asNameMap()[json['style']] ?? PickerStyle.dropdown,
   );
 
   /// Unique within an entry, and how a value is addressed.
@@ -89,6 +124,11 @@ class KnobDescriptor {
   /// The labels of a [KnobKind.picker], in the order the demo declared them.
   final List<String> options;
 
+  /// How a [KnobKind.picker] asked to be drawn. Written to JSON only when it
+  /// is not the default, so a report from a guest that predates it reads the
+  /// same as one from a picker that never asked.
+  final PickerStyle style;
+
   bool get isDefault => value == defaultValue;
 
   /// The same knob showing [value], for a panel that wants to draw the value a
@@ -103,6 +143,7 @@ class KnobDescriptor {
     step: step,
     description: description,
     options: options,
+    style: style,
   );
 
   Map<String, Object?> toJson() => {
@@ -115,6 +156,7 @@ class KnobDescriptor {
     if (step != null) 'step': step,
     if (description != null) 'description': description,
     if (options.isNotEmpty) 'options': options,
+    if (style != PickerStyle.dropdown) 'style': style.name,
   };
 }
 

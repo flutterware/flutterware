@@ -74,7 +74,9 @@ The panel then reads PowerSync's own tables, through the same read-only
   change on one device and its arrival on another share the record's key.
   A bucket the device starts holding, or lets go of, is an entry of its own
   (`subscribed`, `unsubscribed`): what was written to it before arrives
-  after it, flagged `newBucket`.
+  after it, flagged `newBucket`. The device lists a bucket once it holds
+  something, so one subscribed to while empty is reported at its first
+  record.
 
 It is said rather than guessed: an app on plain sqlite gets nothing it has no
 use for, and flutterware still imports no sync library.

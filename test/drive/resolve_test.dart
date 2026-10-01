@@ -246,6 +246,44 @@ void main() {
     expect('$error', contains('the only index is 0'));
   });
 
+  testWidgets('a .first or .last over nothing is refused as a miss, not a '
+      'StateError', (tester) async {
+    // flutter_test's `.first` is `candidates.first` inside a `sync*`: over
+    // nothing it throws `No element` out of the iteration. Counted as the
+    // miss it is, it gets the miss's refusal — and, being a TargetError, the
+    // live driver's retry ladder.
+    await tester.pumpWidget(_covered());
+    var resolver = TargetResolver(
+      tester,
+      describeScreen: () => visibleTextsOf(tester).join(', '),
+    );
+
+    for (var target in [find.text('Pay').first, find.text('Pay').last]) {
+      var error = await _refusal(() => resolver.resolve(target, 'tap'));
+
+      expect(error.failure, TargetFailure.notFound);
+      expect('$error', contains('nothing matches'));
+      expect('$error', contains('Visible text: Buy'));
+    }
+  });
+
+  testWidgets("a StateError of the finder's own is not taken for a miss", (
+    tester,
+  ) async {
+    await tester.pumpWidget(_covered());
+    var resolver = TargetResolver(tester);
+
+    await expectLater(
+      () => resolver.resolve(
+        find.byElementPredicate((_) => throw StateError('not a miss')),
+        'tap',
+      ),
+      throwsA(
+        isA<StateError>().having((e) => e.message, 'message', 'not a miss'),
+      ),
+    );
+  });
+
   testWidgets('an nth index past several matches names the valid range', (
     tester,
   ) async {

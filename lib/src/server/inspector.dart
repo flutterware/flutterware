@@ -170,7 +170,13 @@ class FlutterwareServer {
 
   /// Says which user the current request is — once auth knows. The world
   /// maps the id to a person.
-  static void identify(String user) => event('identify', {'user': user});
+  ///
+  /// Pass the [phone] or [email] the account was made with when the server
+  /// knows them: a person the world declared by those, whose account one of
+  /// their steps made, is then known by the id too — even when all their app
+  /// sends afterwards comes from a sync engine, which carries no step.
+  static void identify(String user, {String? phone, String? email}) =>
+      event('identify', {'user': user, 'phone': ?phone, 'email': ?email});
 
   /// Says the server delivered [what] to [user] outside any response to them:
   /// a WebSocket frame, a sync, a push. The one kind of consequence no device
@@ -203,7 +209,9 @@ class FlutterwareServer {
   /// [details] is for the heavy parts — headers, bodies — held server-side
   /// in a byte-capped store and fetched only when an attacher asks
   /// (`meta/detail`, spec decision 11). The event itself stays small, so the
-  /// hot path and the ring never carry a body.
+  /// hot path and the ring never carry a body. The details are not free,
+  /// though: they are JSON-encoded as the event is reported, whether or not
+  /// anyone ever asks — only their delivery waits.
   static void event(
     String channel,
     Map<String, Object?> payload, {

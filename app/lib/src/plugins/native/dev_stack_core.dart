@@ -850,6 +850,15 @@ class DevStackCore extends PluginCore {
       if (detail.isNotEmpty) ViewField('Detail', detail),
     if (reading.failure case var failure?) ViewText(failure, tone: Tone.error),
     ViewField('Checked', stackAge(reading.at) ?? 'never'),
+    // Reading the report never runs the probe — it takes seconds, and loading
+    // spawns nothing — so only the studio's polling fills this in on its own.
+    // `fw` and the MCP server would otherwise say `unknown` on a cold worktree
+    // forever, with nothing in the answer to say how to get a better one.
+    if (reading.state == StackState.unknown)
+      ViewText(
+        'Nothing has looked yet. `fw run dev_stack status` runs the probe, '
+        'and every surface reads its answer from then on.',
+      ),
     ViewField('Working directory', workingDirectory),
     if (reading.services.isNotEmpty)
       ViewSection('Services', [
