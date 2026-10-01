@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutterware/plugins.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/app_axes.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../ui/design/design.dart';
@@ -24,9 +26,9 @@ typedef ScenarioVideoRender = Future<Artifact> Function(
 
 /// The options a film is rendered with, as this dialog offers them.
 ///
-/// Deliberately not every knob the action has. The device, the language and
-/// the brightness are the page's own axes and are shown a foot above this
-/// dialog; the pacing beats are for tuning the *look* of films in general
+/// Deliberately not every knob the action has. The device, the language, the
+/// brightness and the app's own axes are the page's and are shown a foot above
+/// this dialog; the pacing beats are for tuning the *look* of films in general
 /// rather than for one export. What is left is what somebody exporting a clip
 /// actually chooses: how big, how smooth, how heavy — and, where the scenario
 /// forks, which way.
@@ -39,6 +41,7 @@ Future<void> showScenarioVideoDialog(
   required String pluginId,
   required bool nameThePackage,
   String? device,
+  Map<String, String> axes = const {},
 }) => showDialog<void>(
   context: context,
   // A render outlives a careless click outside the dialog, and this is the
@@ -52,6 +55,7 @@ Future<void> showScenarioVideoDialog(
     pluginId: pluginId,
     nameThePackage: nameThePackage,
     device: device,
+    axes: axes,
   ),
 );
 
@@ -69,6 +73,7 @@ String scenarioVideoCommand({
   required bool nameThePackage,
   ScenarioVideoOptions options = const ScenarioVideoOptions(),
   String? device,
+  Map<String, String> axes = const {},
 }) => [
   'dart run flutterware run ${pluginId.split('.').last} video',
   if (nameThePackage) '--package=${_arg(package)}',
@@ -76,6 +81,7 @@ String scenarioVideoCommand({
   '--scenario=${_arg(scenario)}',
   for (var branch in options.branches) '--branch=${_arg(branch)}',
   if (device != null) '--device=$device',
+  if (axes.isNotEmpty) '--axes=${formatAppAxes(axes)}',
   if (options.scale != 3) '--scale=${_number(options.scale)}',
   if (options.fps != 30) '--fps=${options.fps}',
   if (options.crf != 18) '--crf=${options.crf}',
@@ -97,6 +103,7 @@ class _VideoDialog extends StatefulWidget {
     required this.pluginId,
     required this.nameThePackage,
     this.device,
+    this.axes = const {},
   });
 
   final ScenarioVideoRender render;
@@ -106,6 +113,9 @@ class _VideoDialog extends StatefulWidget {
   final String pluginId;
   final bool nameThePackage;
   final String? device;
+
+  /// The app axes the page ran under, so the film is of the same app.
+  final Map<String, String> axes;
 
   @override
   State<_VideoDialog> createState() => _VideoDialogState();
@@ -167,6 +177,7 @@ class _VideoDialogState extends State<_VideoDialog> {
           'scenario': widget.scenario,
           if (options.branches.isNotEmpty) 'branch': options.branches,
           if (widget.device != null) 'device': widget.device,
+          if (widget.axes.isNotEmpty) 'axes': formatAppAxes(widget.axes),
           'scale': '${options.scale}',
           'fps': '${options.fps}',
           'crf': '${options.crf}',
@@ -200,6 +211,7 @@ class _VideoDialogState extends State<_VideoDialog> {
       scenario: widget.scenario,
       nameThePackage: widget.nameThePackage,
       device: widget.device,
+      axes: widget.axes,
       options: _current,
     ),
     running: _running,

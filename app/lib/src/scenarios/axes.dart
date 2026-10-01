@@ -1,3 +1,9 @@
+import 'dart:convert';
+
+import 'package:collection/collection.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/app_axes.dart';
+
 import '../previews/devices.dart';
 
 /// The form factor a scenario runs as when nothing at all chose one: no
@@ -12,21 +18,29 @@ import '../previews/devices.dart';
 const defaultScenarioDeviceId = 'iphone-13';
 
 /// What names one point of a matrix on disk — `iphone-16-fr`,
-/// `ipad-landscape-fr`, or `default` where the point named nothing.
+/// `ipad-landscape-fr`, `iphone-16-fr-tea`, or `default` where the point named
+/// nothing.
 ///
 /// Deliberately the same rule as the standalone capture path's
 /// `ScenarioAssignment.slug`: the two lanes write the same directory names for
 /// the same assignment, so a project that starts with `flutter test` and moves
 /// to `fw run` does not have to relearn its own output tree. That includes
 /// **portrait writing nothing** — a `-portrait` segment would move every
-/// artifact path that exists today to record the default.
+/// artifact path that exists today to record the default — and the app's own
+/// axes last, by axis name, as `appAxisSlugParts` orders them for both.
 String axisSlug(ScenarioAxes axes) {
-  var parts = [?axes.device, if (axes.isLandscape) 'landscape', ?axes.language];
+  var parts = [
+    ?axes.device,
+    if (axes.isLandscape) 'landscape',
+    ?axes.language,
+    ...appAxisSlugParts(axes.appAxes),
+  ];
   return parts.isEmpty ? 'default' : parts.join('-');
 }
 
 /// One run's axis assignment, exactly as the address carries it:
-/// `?device=iphone-se&language=fr&text-scale=1.3&brightness=dark&bold-text=true`.
+/// `?device=iphone-se&language=fr&text-scale=1.3&brightness=dark&bold-text=true`
+/// — and `&axis.brand=tea` for the app's own.
 ///
 /// Plain Dart, plain strings — this is the vocabulary a person types into an
 /// address bar and an agent passes to the `run` action, kept unresolved so a
@@ -44,6 +58,7 @@ class ScenarioAxes {
     this.boldText = false,
     this.highContrast = false,
     this.invertColors = false,
+    this.appAxes = const {},
   });
 
   /// A [Device] id, [fitDeviceId] for the bare test surface, or **null for
@@ -82,6 +97,16 @@ class ScenarioAxes {
   final bool highContrast;
   final bool invertColors;
 
+  /// Values for the axes the app defines for itself — `ScenarioProfile.axes`,
+  /// declared per folder — by axis name: `{brand: tea}`.
+  ///
+  /// Only what was asked. An axis left out here runs at its folder's first
+  /// value, which the harness fills in, because only the harness knows which
+  /// folder declares which axes. Words this side never interprets, so it
+  /// carries them and checks nothing; a name or a value no folder declares is
+  /// refused by the harness, which can see the declarations.
+  final Map<String, String> appAxes;
+
   bool get isEmpty =>
       device == null &&
       !isLandscape &&
@@ -90,7 +115,8 @@ class ScenarioAxes {
       brightness == null &&
       !boldText &&
       !highContrast &&
-      !invertColors;
+      !invertColors &&
+      appAxes.isEmpty;
 
   /// Whether any accessibility setting departs from the default — what the
   /// toolbar's accessibility chip lights up on.
@@ -101,6 +127,7 @@ class ScenarioAxes {
     String? device,
     String? orientation,
     String? language,
+    Map<String, String>? appAxes,
   }) => ScenarioAxes(
     device: device ?? this.device,
     orientation: orientation ?? this.orientation,
@@ -110,6 +137,7 @@ class ScenarioAxes {
     boldText: boldText,
     highContrast: highContrast,
     invertColors: invertColors,
+    appAxes: appAxes ?? this.appAxes,
   );
 
   /// The address parameters this assignment writes — and what gets recorded
@@ -127,6 +155,10 @@ class ScenarioAxes {
     if (boldText) 'bold-text': 'true',
     if (highContrast) 'high-contrast': 'true',
     if (invertColors) 'invert-colors': 'true',
+    // Under `axis.`, as a preview's shell axes are on a capture's address: the
+    // names are the project's, and `axis.language` must not be `language`.
+    for (var name in appAxes.keys.toList()..sort())
+      'axis.$name': appAxes[name]!,
   };
 
   /// The flat string args the harness's `run` extension takes. Geometry is
@@ -171,6 +203,9 @@ class ScenarioAxes {
       if (boldText) 'boldText': 'true',
       if (highContrast) 'highContrast': 'true',
       if (invertColors) 'invertColors': 'true',
+      // One argument for all of them: a service extension's arguments are
+      // flat strings, and these names are the project's to choose.
+      if (appAxes.isNotEmpty) 'axes': jsonEncode(appAxes),
     };
   }
 
@@ -188,7 +223,8 @@ class ScenarioAxes {
       other.brightness == brightness &&
       other.boldText == boldText &&
       other.highContrast == highContrast &&
-      other.invertColors == invertColors;
+      other.invertColors == invertColors &&
+      const MapEquality<String, String>().equals(other.appAxes, appAxes);
 
   @override
   int get hashCode => Object.hash(
@@ -200,6 +236,7 @@ class ScenarioAxes {
     boldText,
     highContrast,
     invertColors,
+    const MapEquality<String, String>().hash(appAxes),
   );
 
   @override

@@ -480,8 +480,8 @@ do the same for a CI job that would rather set an environment block.
 
 Under the runner, don't restate the lists at all: `fw run scenarios run
 matrix=declared` reads the folder profiles and runs every point they declare
-— each folder's devices, languages and orientations, crossed the same way
-explicit lists are. A point runs only the files whose folder declares it, so
+— each folder's devices, languages, orientations and [app axes](#the-apps-own-axes),
+crossed the same way explicit lists are. A point runs only the files whose folder declares it, so
 the phone folder runs on its phones and the desktop folder on its windows,
 never on each other's; a point two folders both declare runs both in one
 pass, and a folder with no profile runs once, as a run naming no device
@@ -495,6 +495,73 @@ folders declare.
 
 Inside a body, `s.assignment` reports what this pass is running as, so an
 expectation can adapt to the screen it is on.
+
+## The app's own axes
+
+Devices, languages and orientations are axes flutterware knows. An app usually
+has a few of its own — two brand themes, a high-contrast mode, a feature
+flag's variant — and a folder declares those beside its devices, each with the
+values worth running:
+
+```dart
+// test/scenarios/mobile/flutter_test_config.dart
+const phones = ScenarioProfile(
+  'phones',
+  devices: [Devices.iphone16, Devices.iphoneSe],
+  languages: ['en', 'fr'],
+  axes: {
+    'brand': ['coffee', 'tea'],
+  },
+);
+```
+
+A scenario reads the value it is running in and builds its app for it:
+
+```dart
+scenario('Order a cappuccino', (s) async {
+  await s.pumpWidget(ShopApp(
+    theme: switch (s.axis('brand')) {
+      'tea' => teaTheme,
+      _ => coffeeTheme,
+    },
+  ));
+  await s.tap('Cappuccino');
+});
+```
+
+The values are words, because a profile is `const` and a theme is not: turning
+`tea` into a `ThemeData` is the scenario's job, or a helper's its folder
+shares. As with devices, **the first value is the default** — `flutter test`,
+the studio and a run that names none all build the coffee app. `s.axis` refuses
+a name the folder does not declare, so a typo fails rather than photographing
+the default twice under two names.
+
+Running across them is the same as running across the other lists:
+
+```shell
+fw run scenarios run --axes=brand=tea                # one value
+fw run scenarios run --axes=brand=coffee,tea         # both: …/coffee/, …/tea/
+fw run scenarios run --matrix=declared               # every folder's own values
+fw run scenarios shots --axes=brand=coffee,tea       # en/iphone-16-coffee/, en/iphone-16-tea/
+flutter test test/scenarios/mobile --dart-define=fw.axes=brand=coffee,tea
+```
+
+Several axes are comma-separated too — `--axes=brand=coffee,tea,contrast=high`
+— and `FW_AXES` is the environment form of `fw.axes`. An axis is run only
+where it is declared: a folder without `brand` ignores `--axes=brand=tea`, a
+folder that declares `brand` without `tea` fails its scenarios saying so, and a
+name or a value no folder declares is refused before anything runs. The web
+export and the video take `--axes` as well.
+
+Unlike portrait and light, a value is always written down — in a matrix
+directory (`iphone-16-fr-tea`), a test name (`Counter [iPhone 16 · fr · tea]`),
+a step's address (`?axis.brand=tea`) and `s.assignment?.axes` — the default
+included. The first value is only the order somebody listed them in, and a
+directory that left it out would change meaning when the list was reordered.
+A folder that declares no axes writes exactly what it wrote before.
+
+In the studio, each axis the open scenario's folder declares gets a picker
+beside Device and Language, offering that folder's values.
 
 ## Real-time folders
 

@@ -1168,6 +1168,36 @@ class ScenarioTester {
   /// runner used to leave this null.
   final ScenarioAssignment? assignment;
 
+  /// The value of [name], one of the axes this scenario's folder declares in
+  /// its profile — what the app is to be built for on this pass.
+  ///
+  /// ```dart
+  /// await s.pumpWidget(ShopApp(theme: switch (s.axis('brand')) {
+  ///   'tea' => teaTheme,
+  ///   _ => coffeeTheme,
+  /// }));
+  /// ```
+  ///
+  /// The folder's first value when nothing named one, so a bare `flutter test`
+  /// and a run that says nothing both answer. An axis the folder does not
+  /// declare is refused rather than answered with a default: a misspelt name
+  /// would otherwise build the default app on every pass of a matrix, and a
+  /// matrix of identical pictures looks exactly like a passing one.
+  String axis(String name) {
+    if (assignment?.axes[name] case var value?) return value;
+    var declared = assignment?.axes.keys ?? const <String>[];
+    throw ArgumentError.value(
+      name,
+      'axis',
+      declared.isEmpty
+          ? "this scenario's folder declares no axes. Declare it in the "
+                'profile its flutter_test_config.dart names: '
+                "`ScenarioProfile(axes: {'$name': [...]})`"
+          : "this scenario's folder does not declare it. Its profile "
+                'declares ${declared.map((n) => '`$n`').join(', ')}',
+    );
+  }
+
   /// Shared across replays; everything below is this replay's alone.
   final _ReplayState _state;
 

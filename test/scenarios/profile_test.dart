@@ -169,6 +169,94 @@ void main() {
     );
   });
 
+  group("the app's own axes", () {
+    const brands = ScenarioProfile(
+      'brands',
+      devices: [Devices.iphone16],
+      languages: ['en'],
+      axes: {
+        'brand': ['coffee', 'tea'],
+        'contrast': ['normal', 'high'],
+      },
+    );
+
+    test('each runs at its head, and is said in every name', () {
+      var assignment = scenarioAssignments(brands).single;
+
+      expect(assignment.axes, {'brand': 'coffee', 'contrast': 'normal'});
+      // The head is written, not left out as portrait is: it is the order
+      // somebody listed the values in, and reordering them must not quietly
+      // rename which directory is which.
+      expect(assignment.slug, 'iphone-16-en-coffee-normal');
+      expect(assignment.label, 'iPhone 16 · en · coffee · normal');
+    });
+
+    test("CI's values cross like any other list, innermost", () {
+      var assignments = scenarioAssignments(
+        brands,
+        languagesOverride: 'en,fr',
+        axesOverride: 'brand=coffee,tea',
+      );
+
+      expect(assignments.map((a) => a.slug), [
+        'iphone-16-en-coffee-normal',
+        'iphone-16-en-tea-normal',
+        'iphone-16-fr-coffee-normal',
+        'iphone-16-fr-tea-normal',
+      ]);
+    });
+
+    test('a value the profile does not declare is refused, naming them', () {
+      expect(
+        () => scenarioAssignments(brands, axesOverride: 'brand=juice'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '$e',
+            'message',
+            allOf(contains('brand=juice'), contains('coffee, tea')),
+          ),
+        ),
+      );
+    });
+
+    // `FW_AXES` is one environment for every folder `flutter test` walks, and
+    // the folder next door may be the one that declares it.
+    test('an axis the profile does not declare is left alone', () {
+      var assignment = scenarioAssignments(
+        phones,
+        axesOverride: 'brand=tea',
+      ).single;
+
+      expect(assignment.axes, isEmpty);
+      expect(assignment.slug, 'iphone-16-en');
+    });
+
+    test('a declaration no directory could carry is refused', () {
+      expect(
+        () => scenarioAssignments(
+          const ScenarioProfile('broken', axes: {'brand': []}),
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '$e',
+            'message',
+            contains('no values'),
+          ),
+        ),
+      );
+    });
+
+    test('a slug orders them by name, however they were declared', () {
+      var assignment = ScenarioAssignment(
+        language: 'fr',
+        axes: {'contrast': 'high', 'brand': 'tea'},
+      );
+
+      expect(assignment.slug, 'fr-tea-high');
+      expect(assignment.isEmpty, isFalse);
+    });
+  });
+
   test('a landscape assignment hands down a device already turned', () {
     var assignment = ScenarioAssignment(
       device: Devices.iPad,

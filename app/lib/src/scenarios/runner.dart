@@ -41,6 +41,7 @@ class ScenarioListing {
     this.devices = const [],
     this.languages = const [],
     this.orientations = const [],
+    this.axes = const {},
     this.tags = const [],
     this.skip = false,
   });
@@ -57,6 +58,11 @@ class ScenarioListing {
   final List<String> devices;
   final List<String> languages;
   final List<String> orientations;
+
+  /// The axes the app defines for itself, each with its values — the first
+  /// the default. Empty where the profile declares none, and from a harness
+  /// that predates them.
+  final Map<String, List<String>> axes;
 
   /// What `scenario(tags: [...])` declared — the vocabulary `run --tag` and
   /// `shots --tag` filter on. Only the live harness can see these; the
@@ -79,6 +85,11 @@ class ScenarioListing {
         languages: (json['languages'] as List?)?.cast<String>() ?? const [],
         orientations:
             (json['orientations'] as List?)?.cast<String>() ?? const [],
+        axes: {
+          for (var MapEntry(:key, :value)
+              in ((json['axes'] as Map?) ?? const {}).entries)
+            '$key': [for (var one in value as List) '$one'],
+        },
         tags: (json['tags'] as List?)?.cast<String>() ?? const [],
         skip: json['skip'] == true,
       );
@@ -90,6 +101,7 @@ class ScenarioListing {
     if (devices.isNotEmpty) 'devices': devices,
     if (languages.isNotEmpty) 'languages': languages,
     if (orientations.isNotEmpty) 'orientations': orientations,
+    if (axes.isNotEmpty) 'axes': axes,
     if (tags.isNotEmpty) 'tags': tags,
     if (skip) 'skip': true,
   };

@@ -363,13 +363,23 @@ class _ScenariosPanelState extends State<_ScenariosPanel> {
         _followPool(place);
         Widget detail;
         if ((place.file, place.scenario) case (var file?, var scenario?)) {
+          // The app's own axes ride under `axis.`, and only the ones this
+          // file's folder declares are this page's: a value picked in another
+          // folder stays in the address for when you go back to it, and is
+          // not sent to a folder that would refuse it.
+          var picked = AddressScope.params(context, namespace: 'axis');
           detail = _ScenarioPage(
             _core,
             place.package,
             file: file,
             scenario: scenario,
             step: place.step,
-            axes: axes,
+            axes: axes.copyWith(
+              appAxes: {
+                for (var name in _core.offeredAxesFor(place.package, file).keys)
+                  name: ?picked[name],
+              },
+            ),
             appIcon: widget.plugin.appIcon,
             key: ValueKey('${place.package}/$file#$scenario'),
           );
@@ -1429,6 +1439,7 @@ class _ScenarioPageState extends State<_ScenarioPage> {
             widget.package,
             widget.file,
           ),
+          appAxes: widget.core.offeredAxesFor(widget.package, widget.file),
         ),
         const Divider(height: 1),
         // Said out loud rather than repaired, with the accepted values — the
@@ -1638,8 +1649,9 @@ class _ScenarioPageState extends State<_ScenarioPage> {
         nameThePackage: widget.core.packages.length > 1,
         // What the page is showing, which is what the reader means by "this
         // scenario" — including the device a folder profile resolved for a
-        // run that named none.
+        // run that named none, and the app axes likewise.
         device: widget.axes.device ?? run?.device,
+        axes: {...?run?.outcome?.axes, ...widget.axes.appAxes},
       );
 
   /// Steps this run captured while something on them was still moving.
@@ -1961,7 +1973,8 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 /// The axis assignment, as controls: device, language, accessibility,
-/// brightness. **Every control writes the address and holds nothing** — the
+/// brightness, and one for each axis the app declares for this folder.
+/// **Every control writes the address and holds nothing** — the
 /// page notices the address moved and re-runs, so a picked axis and a pasted
 /// `?device=` link are the same code path.
 ///
@@ -1974,6 +1987,7 @@ class _AxesBar extends StatelessWidget {
     required this.languages,
     this.offered = const [],
     this.resolved,
+    this.appAxes = const {},
   });
 
   final ScenarioAxes axes;
@@ -1990,6 +2004,11 @@ class _AxesBar extends StatelessWidget {
 
   /// The locale tags the project's config declares — the whole language menu.
   final List<String> languages;
+
+  /// The axes this scenario's folder profile declares for the app, each with
+  /// the values it runs in, the first the default. A chip each, and none
+  /// before the live listing lands.
+  final Map<String, List<String>> appAxes;
 
   @override
   Widget build(BuildContext context) {
@@ -2125,10 +2144,40 @@ class _AxesBar extends StatelessWidget {
               onTap: controller.toggle,
             ),
           ),
+          for (var MapEntry(key: name, value: values) in appAxes.entries)
+            Menu(
+              entries: [
+                // The folder's first, said by name: unlike the platform's
+                // light or portrait, an app axis has no default anybody knows
+                // without being told.
+                MenuItem(
+                  'Default · ${values.first}',
+                  onSelected: () =>
+                      AddressScope.write(context).setParam('axis.$name', null),
+                ),
+                for (var value in values)
+                  MenuItem(
+                    value,
+                    onSelected: () =>
+                        AddressScope.write(context)
+                            .setParam('axis.$name', value),
+                  ),
+              ],
+              builder: (context, controller) => _AxisChip(
+                label: _capitalized(name),
+                value: axes.appAxes[name] ?? '${values.first} (default)',
+                active: axes.appAxes.containsKey(name),
+                onTap: controller.toggle,
+              ),
+            ),
         ],
       ),
     );
   }
+
+  /// `brand` → `Brand`, the way the built-in chips are labelled.
+  static String _capitalized(String name) =>
+      name.isEmpty ? name : '${name[0].toUpperCase()}${name.substring(1)}';
 
   static String _describeAccessibility(ScenarioAxes axes) {
     var features = [

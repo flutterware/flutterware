@@ -8,6 +8,9 @@ const phones = ScenarioProfile(
   'phones',
   devices: [Devices.iphone16, Devices.iphoneSe],
   languages: ['fr', 'en'],
+  axes: {
+    'brand': ['coffee', 'tea'],
+  },
 );
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) =>

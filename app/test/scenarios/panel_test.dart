@@ -416,6 +416,91 @@ void main() {
     expect(find.text('iPhone 13 (default)'), findsOneWidget);
   });
 
+  testWidgets('an app axis the folder declares gets a chip, and the address '
+      'drives it', (tester) async {
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var core = ScenariosCore(
+      PluginHost(
+        id: scenariosPluginId,
+        label: 'Scenarios',
+        worktree: Worktree(path: root.path),
+        workspace: Workspace(
+          root: root.path,
+          declared: [Pkg('.')],
+          discovered: ['.'],
+          appContext: AppContext(logger: LogClient.print()),
+          flutterSdk: FlutterSdkPath('/tmp/flutter'),
+        ),
+        config: {
+          'packages': [
+            {'path': '.'},
+          ],
+        },
+      ),
+    );
+    var runner = _FakeRunner()
+      ..listings = [
+        ScenarioListing(
+          file: 'test/scenarios/a_test.dart',
+          name: 'A',
+          axes: {
+            'brand': ['coffee', 'tea'],
+          },
+        ),
+      ];
+    core.debugInstallRunner('.', runner);
+    var plugin = ScenariosPlugin(core);
+
+    var address = ValueNotifier(
+      Address(
+        worktree: 'wt',
+        plugin: scenariosPluginId,
+        segments: ['.', 'test', 'scenarios', 'a_test.dart', 'A'],
+        // A value for an axis this folder declares, and one left over from a
+        // folder that declares another: only the first is this page's.
+        axes: {'axis.brand': 'tea', 'axis.contrast': 'high'},
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme,
+        home: AddressRoot(
+          address: address,
+          onChanged: (a) => address.value = a,
+          child: Builder(builder: plugin.buildPanel),
+        ),
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+
+    expect(runner.seenAxes.last.appAxes, {'brand': 'tea'});
+    expect(find.text('Brand: '), findsOneWidget);
+    expect(find.text('tea'), findsOneWidget);
+
+    // Back to the folder's first value: the address says nothing, the chip
+    // says which, and the run sends nothing for the harness to fill in.
+    address.value = address.value.copyWith(axes: {});
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+    expect(runner.seenAxes.last.appAxes, isEmpty);
+    expect(find.text('coffee (default)'), findsOneWidget);
+
+    // The chip's menu writes the address, which is all a pick is.
+    await tester.tap(find.text('coffee (default)'));
+    await tester.pump();
+    await tester.tap(find.text('tea').last);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+    expect(address.value.axes['axis.brand'], 'tea');
+    expect(runner.seenAxes.last.appAxes, {'brand': 'tea'});
+  });
+
   testWidgets('a device is remembered per pool, so a desktop scenario is '
       'never opened on the phone the last one used', (tester) async {
     // Two folders, each with a `flutter_test_config.dart` — which is all the
@@ -1596,11 +1681,14 @@ class _FakeRunner extends ScenarioRunner {
     };
   }
 
-  /// Nothing to list, and nothing spawned to find out: the panel asks for a
-  /// listing the moment a scenario is open, and the base implementation would
-  /// try to compile a harness against a Flutter SDK that is not there.
+  /// What the live listing says — nothing by default, and nothing spawned to
+  /// find out: the panel asks for a listing the moment a scenario is open,
+  /// and the base implementation would try to compile a harness against a
+  /// Flutter SDK that is not there.
+  var listings = const <ScenarioListing>[];
+
   @override
-  Future<List<ScenarioListing>> list() async => const [];
+  Future<List<ScenarioListing>> list() async => listings;
 
   @override
   Future<void> dispose() async {}

@@ -8,6 +8,7 @@ import 'package:meta/meta.dart';
 
 import '../devices.dart';
 import '../translations/index.dart';
+import 'app_axes.dart';
 import 'fonts.dart';
 import 'live_binding.dart';
 import 'network.dart';
@@ -41,12 +42,17 @@ import 'time_mode.dart';
 /// Future<void> testExecutable(FutureOr<void> Function() testMain) =>
 ///     runScenarios(testMain, profile: phones);
 /// ```
+///
+/// [axes] are the project's own: the switches only this app has — a brand, a
+/// contrast mode, a feature flag's variant — declared with the values worth
+/// running, crossed and photographed the way the devices and languages are.
 class ScenarioProfile {
   const ScenarioProfile(
     this.name, {
     this.devices = const [],
     this.languages = const [],
     this.orientations = const [],
+    this.axes = const {},
   });
 
   /// What the profile is called — in the panel, and in a `--profile=` on the
@@ -70,15 +76,50 @@ class ScenarioProfile {
   /// the same tablet, so `devices × orientations` is two short lists instead of
   /// one long one with the rotatable entries written twice.
   final List<ScreenOrientation> orientations;
+
+  /// The axes this app defines for itself, each with the values this folder
+  /// runs in — the first one, again, the default.
+  ///
+  /// ```dart
+  /// const phones = ScenarioProfile(
+  ///   'phones',
+  ///   devices: [Devices.iphone16],
+  ///   axes: {'brand': ['coffee', 'tea']},
+  /// );
+  /// ```
+  ///
+  /// Nothing here knows what `tea` means: a scenario reads the value with
+  /// `s.axis('brand')` and builds its app for it, and every lane carries the
+  /// word — into the run, the test's name, the directories a matrix writes.
+  /// So a value is a word a directory can hold, and a run that names one this
+  /// folder does not declare is refused rather than handed to an app that
+  /// would quietly fall back to its default.
+  ///
+  /// Labels rather than values, unlike a preview shell's `picker`: a profile
+  /// is `const`, and a theme is not. The one place that turns `tea` into a
+  /// `ThemeData` is the scenario, or a helper it shares.
+  final Map<String, List<String>> axes;
 }
 
-/// One point of a matrix: the device, orientation and language a scenario is
-/// running as.
+/// One point of a matrix: the device, orientation, language and app axes a
+/// scenario is running as.
 class ScenarioAssignment {
-  const ScenarioAssignment({this.device, this.orientation, this.language});
+  const ScenarioAssignment({
+    this.device,
+    this.orientation,
+    this.language,
+    this.axes = const {},
+  });
 
   final Device? device;
   final String? language;
+
+  /// The value of every axis the folder's profile declares — what
+  /// `s.axis(name)` answers with. Always each declared axis, the default
+  /// included: the default of an app axis is whichever value was listed
+  /// first, which is an order somebody wrote and not a fact about the
+  /// platform, so unlike portrait it is said rather than left out.
+  final Map<String, String> axes;
 
   /// Null and [ScreenOrientation.portrait] mean the same thing here, and both
   /// leave every name below untouched — see [_landscape].
@@ -99,16 +140,26 @@ class ScenarioAssignment {
       (device?.canRotate ?? false);
 
   /// What names this assignment in a test's description and in an artifact
-  /// path — `iphone-16-fr`, `ipad-landscape-fr`, or the empty string when
-  /// nothing was assigned.
-  String get slug =>
-      [?device?.id, if (_landscape) 'landscape', ?language].join('-');
+  /// path — `iphone-16-fr`, `ipad-landscape-fr`, `iphone-16-fr-tea`, or the
+  /// empty string when nothing was assigned.
+  String get slug => [
+    ?device?.id,
+    if (_landscape) 'landscape',
+    ?language,
+    ...appAxisSlugParts(axes),
+  ].join('-');
 
-  /// How it reads in a test name: `[iPhone 16 · fr]`, `[iPad · landscape · fr]`.
-  String get label =>
-      [?device?.label, if (_landscape) 'landscape', ?language].join(' · ');
+  /// How it reads in a test name: `[iPhone 16 · fr]`, `[iPad · landscape · fr]`,
+  /// `[iPhone 16 · fr · tea]`.
+  String get label => [
+    ?device?.label,
+    if (_landscape) 'landscape',
+    ?language,
+    ...appAxisSlugParts(axes),
+  ].join(' · ');
 
-  bool get isEmpty => device == null && language == null && !_landscape;
+  bool get isEmpty =>
+      device == null && language == null && !_landscape && axes.isEmpty;
 }
 
 /// The assignment the scenarios being declared right now belong to.
@@ -130,7 +181,8 @@ ScenarioAssignment? scenarioAmbientAssignment;
 /// ```sh
 /// flutter test --dart-define=fw.devices=iphone-se,iphone-16 \
 ///              --dart-define=fw.languages=en,fr,de \
-///              --dart-define=fw.orientations=portrait,landscape
+///              --dart-define=fw.orientations=portrait,landscape \
+///              --dart-define=fw.axes=brand=coffee,tea
 /// FW_DEVICES=iphone-se,iphone-16 FW_LANGUAGES=en,fr flutter test
 /// ```
 ///
@@ -450,13 +502,18 @@ Shots? scenarioProbedShots;
 ///
 /// A device a run names but the table does not know is refused rather than
 /// approximated — running at the wrong screen produces a picture that is wrong
-/// without looking wrong.
+/// without looking wrong. An app axis value the profile does not declare is
+/// refused for the same reason, and with less excuse: the declaration *is* the
+/// table. An axis the profile does not declare at all is left alone, because
+/// `FW_AXES` is one setting for every folder a `flutter test` walks, and the
+/// folder next door may be the one it was for.
 @visibleForTesting
 List<ScenarioAssignment> scenarioAssignments(
   ScenarioProfile? profile, {
   String? devicesOverride,
   String? languagesOverride,
   String? orientationsOverride,
+  String? axesOverride,
 }) {
   var deviceIdList = _list(
     devicesOverride ?? _setting('devices', 'FW_DEVICES'),
@@ -513,6 +570,30 @@ List<ScenarioAssignment> scenarioAssignments(
     orientations.add(profile?.orientations.firstOrNull);
   }
 
+  var declared = profile?.axes ?? const <String, List<String>>{};
+  if (appAxisProblems(declared) case [var problem, ...]) {
+    throw ArgumentError.value(profile!.name, 'ScenarioProfile.axes', problem);
+  }
+  var asked = _appAxes(axesOverride ?? _setting('axes', 'FW_AXES'));
+  var appAxes = {
+    for (var MapEntry(key: name, value: values) in declared.entries)
+      name: switch (asked[name]) {
+        null => [values.first],
+        var named => [
+          for (var value in named)
+            if (values.contains(value))
+              value
+            else
+              throw ArgumentError.value(
+                '$name=$value',
+                'fw.axes',
+                'the `${profile!.name}` profile declares `$name` as '
+                    '${values.join(', ')}',
+              ),
+        ],
+      },
+  };
+
   return [
     for (var device in devices)
       // **A device that cannot turn contributes one point, not two.** Crossing
@@ -524,12 +605,23 @@ List<ScenarioAssignment> scenarioAssignments(
               ? orientations
               : const <ScreenOrientation?>[null])
         for (var language in languages)
-          ScenarioAssignment(
-            device: device,
-            orientation: orientation,
-            language: language,
-          ),
+          for (var axes in appAxisPoints(appAxes))
+            ScenarioAssignment(
+              device: device,
+              orientation: orientation,
+              language: language,
+              axes: axes,
+            ),
   ];
+}
+
+Map<String, List<String>> _appAxes(String? raw) {
+  if (raw == null) return const {};
+  try {
+    return parseAppAxes(raw);
+  } on FormatException catch (error) {
+    throw ArgumentError.value(raw, 'fw.axes', error.message);
+  }
 }
 
 /// A dart-define, then an environment variable — the pair
@@ -539,6 +631,7 @@ String? _setting(String define, String variable) {
     'devices' => const String.fromEnvironment('fw.devices'),
     'languages' => const String.fromEnvironment('fw.languages'),
     'orientations' => const String.fromEnvironment('fw.orientations'),
+    'axes' => const String.fromEnvironment('fw.axes'),
     _ => '',
   };
   if (defined.isNotEmpty) return defined;

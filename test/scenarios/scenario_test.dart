@@ -47,6 +47,51 @@ void main() {
     });
   });
 
+  // An app axis, as the harness hands one down: already narrowed to the axes
+  // the folder declares, each at the value the request named or the folder's
+  // first.
+  group("with the runner's app axes", () {
+    setUp(
+      () => scenarioRunArgs = const ScenarioRunArgs(
+        assignment: ScenarioAssignment(axes: {'brand': 'tea'}),
+      ),
+    );
+    tearDown(() => scenarioRunArgs = null);
+
+    scenario('the body reads the value it is to build for', (s) async {
+      expect(s.axis('brand'), 'tea');
+      expect(s.assignment?.axes, {'brand': 'tea'});
+    });
+
+    scenario('an axis the folder does not declare is refused', (s) async {
+      expect(
+        () => s.axis('theme'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '$e',
+            'message',
+            allOf(contains('theme'), contains('`brand`')),
+          ),
+        ),
+      );
+    });
+  });
+
+  scenario('with no app axes at all, reading one says where to declare it', (
+    s,
+  ) async {
+    expect(
+      () => s.axis('brand'),
+      throwsA(
+        isA<ArgumentError>().having(
+          (e) => '$e',
+          'message',
+          allOf(contains('declares no axes'), contains('ScenarioProfile(')),
+        ),
+      ),
+    );
+  });
+
   // The clock knob, through the same seam the runner sets: pinned at the
   // origin, and still advancing with FakeAsync — a `wait` moves it.
   group('with a pinned clock', () {

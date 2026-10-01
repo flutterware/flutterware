@@ -612,6 +612,88 @@ void main() {
     );
   });
 
+  test('shots crosses app axes, each value last in its directory', () async {
+    var runner = _FakeRunner()
+      ..writeShots = true
+      ..declaredAxes = {
+        'brand': ['coffee', 'tea'],
+      };
+    var subject = core(runner: runner);
+    var output = p.join(root.path, 'store');
+    var result =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'package': '.',
+                'output': output,
+                'devices': 'iphone-16',
+                'brightness': 'light,dark',
+                'axes': 'brand=coffee,tea',
+                'languages': 'en',
+              },
+            ))!
+            as ScenarioShotsResult;
+
+    expect(
+      [for (var axes in runner.seenAxes) axes.appAxes['brand']],
+      ['coffee', 'tea', 'coffee', 'tea'],
+    );
+    expect(runner.seenOutDirs.toSet(), hasLength(4));
+    var sets = result.packages.single.sets;
+    // After `-dark`, as `-dark` is after `-landscape`.
+    expect(
+      [for (var set in sets) set.directory],
+      [
+        p.join('en', 'iphone-16-coffee'),
+        p.join('en', 'iphone-16-dark-coffee'),
+        p.join('en', 'iphone-16-dark-tea'),
+        p.join('en', 'iphone-16-tea'),
+      ],
+    );
+    expect(sets.last.axes, {
+      'language': 'en',
+      'device': 'iphone-16',
+      'axis.brand': 'tea',
+    });
+    expect(
+      File(p.join(output, 'en', 'iphone-16-dark-tea', 'a', '01-welcome.png'))
+          .existsSync(),
+      isTrue,
+    );
+  });
+
+  // The folder's first value is an order somebody wrote, not a default the
+  // platform has — so a set that ran at it says so, as one that named it does.
+  test('an app axis nobody named is written as what it ran at', () async {
+    var runner = _FakeRunner()
+      ..writeShots = true
+      ..shotFailure = 'broke'
+      ..declaredAxes = {
+        'brand': ['coffee', 'tea'],
+      };
+    var subject = core(runner: runner);
+    var result =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'package': '.',
+                'output': p.join(root.path, 'store'),
+                'devices': 'iphone-16',
+                'languages': 'en',
+              },
+            ))!
+            as ScenarioShotsResult;
+
+    var set = result.packages.single.sets.single;
+    expect(set.directory, p.join('en', 'iphone-16-coffee'));
+    // And a rerun names it, or it would not be the same point.
+    expect(
+      set.failures.single.rerun,
+      'fw run scenarios run --package=. --file=test/scenarios/a_test.dart '
+      '--scenario="A" --device=iphone-16 --language=en --axes=brand=coffee',
+    );
+  });
+
   test('shots says why a scenario failed, at the point it failed', () async {
     // A count was all that reached the reader, and the run that knew more is
     // scratch the action deletes — so a stall spent its deadline at every
@@ -867,6 +949,11 @@ class _FakeRunner extends ScenarioRunner {
   /// does: the request's device, or the fallback the host offered.
   String? resolvedDevice;
 
+  /// The app axes the folder declares, resolved the way the harness does: the
+  /// value the request named, or the folder's first.
+  var declaredAxes = const <String, List<String>>{};
+  var resolvedAxes = const <String, String>{};
+
   /// When set, [run] waits on it — so a test can observe the running state.
   Completer<void>? gate;
 
@@ -919,6 +1006,10 @@ class _FakeRunner extends ScenarioRunner {
     seenFiles.add(file);
     seenNative.add(captureNative);
     resolvedDevice = axes.device ?? unspecifiedDevice;
+    resolvedAxes = {
+      for (var MapEntry(key: name, value: values) in declaredAxes.entries)
+        name: axes.appAxes[name] ?? values.first,
+    };
     if (writeShots) return _shotRun(outDir, file, scenario);
     var step = {
       'index': 0,
@@ -983,6 +1074,7 @@ class _FakeRunner extends ScenarioRunner {
           'file': file ?? 'test/scenarios/a_test.dart',
           'name': scenario ?? 'A',
           'device': resolvedDevice,
+          if (resolvedAxes.isNotEmpty) 'axes': resolvedAxes,
           'ok': shotFailure == null,
           'ms': 3,
           if (shotFailure case var error?)

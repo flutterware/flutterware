@@ -9,6 +9,7 @@ import 'package:flutterware/app_events.dart' show AppChannel, AppEvent;
 // ignore: implementation_imports
 import 'package:flutterware/src/inspect/node.dart';
 // ignore: implementation_imports
+import 'package:flutterware/src/scenarios/app_axes.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/network_mode.dart';
 // ignore: implementation_imports
@@ -57,6 +58,20 @@ const webExportActionId = 'export';
 /// `video` — one scenario, rendered as a film. See
 /// `docs/superpowers/specs/2026-09-08-scenario-video-design.md`.
 const videoActionId = 'video';
+
+/// What `axes` is, on every action that runs scenarios as a matrix.
+const _appAxesDoc =
+    'Values for the axes the app defines for itself — '
+    "`ScenarioProfile(axes: {'brand': ['coffee', 'tea']})` in a folder's "
+    '`flutter_test_config.dart` — as `name=value`: `brand=tea`. Several values '
+    'cross like `languages` do, `brand=coffee,tea`, and several axes are '
+    'comma-separated too, `brand=coffee,tea,contrast=high`; a JSON object is '
+    "accepted as well. An axis left out runs at each folder's first value. A "
+    'name or a value no folder declares is refused; a folder that does not '
+    'declare the axis ignores it, and one that declares it without that value '
+    'fails its scenarios saying so. Each value is a directory segment after '
+    'the language — `<output>/iphone-16-fr-tea/` — and `axis.<name>` on every '
+    "artifact's address.";
 
 /// One scenario's latest panel-driven run — what the flow page renders.
 ///
@@ -459,6 +474,12 @@ class ScenariosCore extends PluginCore {
   List<String> offeredDevicesFor(String path, String file) =>
       _listed[path]?.firstWhereOrNull((l) => l.file == file)?.devices ??
       const [];
+
+  /// The app axes the profile governing [file] declares, each with its
+  /// values — the panel's pickers. Empty where the folder declares none, and
+  /// before the live listing has landed.
+  Map<String, List<String>> offeredAxesFor(String path, String file) =>
+      _listed[path]?.firstWhereOrNull((l) => l.file == file)?.axes ?? const {};
 
   /// The languages to offer for [file]: the profile's, and the package's
   /// `tool/flutterware.dart` declaration where no profile speaks.
@@ -996,15 +1017,23 @@ class ScenariosCore extends PluginCore {
                   'not double the run.',
             ),
             const ActionParameter(
+              'axes',
+              'App axes',
+              repeatable: true,
+              kind: ActionParameterKind.string,
+              required: false,
+              description: _appAxesDoc,
+            ),
+            const ActionParameter(
               'matrix',
               'Matrix',
               kind: ActionParameterKind.choice,
               required: false,
               description:
                   '`declared` runs every point the folder profiles declare — '
-                  "each folder's devices, languages and orientations, "
-                  'crossed exactly as explicit lists are, and each point runs '
-                  'only the files whose folder declares it. What CI wants '
+                  "each folder's devices, languages, orientations and app "
+                  'axes, crossed exactly as explicit lists are, and each point '
+                  'runs only the files whose folder declares it. What CI wants '
                   'instead of restating the declaration in `devices=` and '
                   'watching the two drift. Instead of the axis lists, not '
                   'beside them.',
@@ -1591,6 +1620,14 @@ class ScenariosCore extends PluginCore {
               description: 'The other half of the matrix — `en,fr,de`',
             ),
             const ActionParameter(
+              'axes',
+              'App axes',
+              repeatable: true,
+              kind: ActionParameterKind.string,
+              required: false,
+              description: _appAxesDoc,
+            ),
+            const ActionParameter(
               'brightness',
               'Brightness',
               kind: ActionParameterKind.choice,
@@ -1701,6 +1738,16 @@ class ScenariosCore extends PluginCore {
               required: false,
               description: 'light or dark',
               options: [ActionOption('light'), ActionOption('dark')],
+            ),
+            const ActionParameter(
+              'axes',
+              'App axes',
+              kind: ActionParameterKind.string,
+              required: false,
+              description:
+                  'Values for the axes the app defines for itself, one per '
+                  'axis — `brand=tea,contrast=high`. An axis left out is '
+                  "filmed at its folder's first value.",
             ),
             const ActionParameter(
               'scale',
@@ -1961,6 +2008,23 @@ class ScenariosCore extends PluginCore {
                   'Light writes no suffix and is what omitting this means, so '
                   'a tree that never asked for dark is the tree it was.',
               options: [ActionOption('light'), ActionOption('dark')],
+            ),
+            const ActionParameter(
+              'axes',
+              'App axes',
+              repeatable: true,
+              kind: ActionParameterKind.string,
+              required: false,
+              description:
+                  'Values for the axes the app defines for itself — '
+                  '`brand=coffee,tea` — crossed with the other axes. Each '
+                  'value is written after the device, last, '
+                  '`<language>/<device>-landscape-dark-tea/`, and it is '
+                  'written whether or not this names it: an axis left out '
+                  "runs at its folder's first value, and that value is an "
+                  'order somebody wrote rather than a default the platform '
+                  'has, so the directory says which. Recorded in each '
+                  "set's axes as `axis.<name>`.",
             ),
             const ActionParameter(
               'tag',
@@ -2997,6 +3061,7 @@ class ScenariosCore extends PluginCore {
       }
     }
     var orientations = _orientationList(arguments['orientations']);
+    var appAxes = _appAxisLists(arguments['axes']);
     var brightnesses = _axisList(arguments['brightness'], 'brightness');
     for (var brightness in brightnesses) {
       if (brightness != 'light' && brightness != 'dark') {
@@ -3012,12 +3077,14 @@ class ScenariosCore extends PluginCore {
         for (var orientation in _orientationsFor(device, orientations, null))
           for (var brightness in brightnesses.isEmpty ? [null] : brightnesses)
             for (var language in languages.isEmpty ? [null] : languages)
-              ScenarioAxes(
-                device: device,
-                orientation: orientation,
-                language: language,
-                brightness: brightness,
-              ),
+              for (var values in appAxisPoints(appAxes))
+                ScenarioAxes(
+                  device: device,
+                  orientation: orientation,
+                  language: language,
+                  brightness: brightness,
+                  appAxes: values,
+                ),
     ];
 
     var results = <ScenarioShotsPackage>[];
@@ -3090,10 +3157,15 @@ class ScenariosCore extends PluginCore {
             // one device share a key and the second run overwrites the first.
             // Portrait and light add nothing, so a store tree that never asked
             // for either is the tree it was before.
+            //
+            // The app's own axes join it last, from what the scenario ran as
+            // rather than from what was asked: an axis nobody named ran at
+            // its folder's first value, and only the outcome says which.
             var key = p.join(
               language,
               '${assignment.isLandscape ? '$device-landscape' : device}'
-              '${_darkSuffix(assignment)}',
+              '${_darkSuffix(assignment)}'
+              '${_appSuffix(outcome.axes)}',
             );
             axesOf[key] = {
               'language': ?assignment.language,
@@ -3101,6 +3173,8 @@ class ScenariosCore extends PluginCore {
               if (assignment.isLandscape)
                 'orientation': ScreenOrientation.landscape.name,
               if (_darkSuffix(assignment).isNotEmpty) 'brightness': 'dark',
+              for (var name in outcome.axes.keys.toList()..sort())
+                'axis.$name': outcome.axes[name]!,
             };
             sets.putIfAbsent(key, () => []).add(outcome);
             if (!outcome.ok) {
@@ -3214,12 +3288,21 @@ class ScenariosCore extends PluginCore {
     if (assignment.isLandscape) '--orientation=landscape',
     if (assignment.language case var language?) '--language=$language',
     if (_darkSuffix(assignment).isNotEmpty) '--brightness=dark',
+    // What it ran as, like the device: the folder's first value where the
+    // request named none, which a rerun has to name to be the same point.
+    if (outcome.axes.isNotEmpty) '--axes=${formatAppAxes(outcome.axes)}',
   ].join(' ');
 
   /// `-dark` for a dark point of the shots matrix, and nothing for light —
   /// the default, which writes nothing, as portrait does.
   static String _darkSuffix(ScenarioAxes assignment) =>
       assignment.brightness == 'dark' ? '-dark' : '';
+
+  /// `-tea` for a scenario that ran with `brand=tea`, every app axis in the
+  /// order `axisSlug` writes them — and nothing where its folder declares
+  /// none.
+  static String _appSuffix(Map<String, String> axes) =>
+      [for (var value in appAxisSlugParts(axes)) '-$value'].join();
 
   /// The directory each of [outcomes] writes its shots into, inside their
   /// set: the scenario's name, slugged — `Checkout` → `checkout/`.
@@ -3518,6 +3601,15 @@ class ScenariosCore extends PluginCore {
     // One point when nothing fanned out, which is every panel run and every
     // `fw run scenarios run` that names at most one of each.
     var orientations = _orientationList(arguments['orientations']);
+    var appAxes = _appAxisLists(arguments['axes']);
+    // A single value per axis is part of the one assignment, like `language`
+    // beside `languages`: what the whole run records when nothing fans out.
+    axes = axes.copyWith(
+      appAxes: {
+        for (var MapEntry(key: name, value: values) in appAxes.entries)
+          if (values.length == 1) name: values.single,
+      },
+    );
     var matrix = arguments['matrix'];
     if (matrix != null && matrix != 'declared') {
       throw ArgumentError.value(
@@ -3529,17 +3621,19 @@ class ScenariosCore extends PluginCore {
     if (matrix != null &&
         (devices.isNotEmpty ||
             languages.isNotEmpty ||
-            orientations.isNotEmpty)) {
+            orientations.isNotEmpty ||
+            appAxes.isNotEmpty)) {
       throw ArgumentError(
-        '`matrix=declared` reads devices, languages and orientations from '
-        'the declaration — drop the explicit lists, or keep them and drop '
-        '`matrix`.',
+        '`matrix=declared` reads devices, languages, orientations and app '
+        'axes from the declaration — drop the explicit lists, or keep them '
+        'and drop `matrix`.',
       );
     }
     List<ScenarioAxes> cross(
       List<String> devices,
       List<String> orientations,
       List<String> languages,
+      Map<String, List<String>> app,
     ) => [
       for (var device in devices.isEmpty ? [axes.device] : devices)
         for (var orientation in _orientationsFor(
@@ -3548,18 +3642,20 @@ class ScenariosCore extends PluginCore {
           axes.orientation,
         ))
           for (var language in languages.isEmpty ? [axes.language] : languages)
-            ScenarioAxes(
-              device: device,
-              orientation: orientation,
-              language: language,
-              textScale: axes.textScale,
-              brightness: axes.brightness,
-              boldText: axes.boldText,
-              highContrast: axes.highContrast,
-              invertColors: axes.invertColors,
-            ),
+            for (var values in appAxisPoints(app))
+              ScenarioAxes(
+                device: device,
+                orientation: orientation,
+                language: language,
+                textScale: axes.textScale,
+                brightness: axes.brightness,
+                boldText: axes.boldText,
+                highContrast: axes.highContrast,
+                invertColors: axes.invertColors,
+                appAxes: values,
+              ),
     ];
-    var assignments = cross(devices, orientations, languages);
+    var assignments = cross(devices, orientations, languages, appAxes);
     double? captureScale;
     if (arguments['capture-scale'] case var raw?) {
       captureScale = switch (raw) {
@@ -3713,6 +3809,25 @@ class ScenariosCore extends PluginCore {
         ];
       } finally {
         _setBusy(path, null);
+      }
+    }
+    // An app axis value is written bare, as `-dark` is, so two folders that
+    // declare different axes sharing a value would name two points alike —
+    // and the second would be written over the first. Said before anything
+    // runs rather than found as a directory holding half of each.
+    for (var list in assignmentsFor.values) {
+      var bySlug = <String, ScenarioAxes>{};
+      for (var (axes: point, file: _) in list) {
+        var slug = axisSlug(point);
+        if (bySlug[slug] case var other? when other != point) {
+          throw ArgumentError(
+            'two points of this matrix would both be written to `$slug`: '
+            '${other.toParams()} and ${point.toParams()}. Two folders declare '
+            'different app axes that share a value — give the values names '
+            'of their own.',
+          );
+        }
+        bySlug[slug] = point;
       }
     }
     var points = assignmentsFor.values.fold(
@@ -4297,7 +4412,7 @@ class ScenariosCore extends PluginCore {
         outDir: p.join(scratch.path, 'run'),
         file: file,
         scenario: scenario,
-        axes: _axesFrom(arguments),
+        axes: _axesFrom(arguments).copyWith(appAxes: _filmAppAxes(arguments)),
         unspecifiedDevice: defaultScenarioDeviceId,
         // A film is not evidence, so no step is photographed. The frames are
         // the whole product and the run's own pictures would be a second
@@ -4579,6 +4694,45 @@ class ScenariosCore extends PluginCore {
     ];
   }
 
+  /// The `axes` argument as values per axis — `brand=coffee,tea` — however it
+  /// arrived: the grammar as one string, the same repeated (which the CLI
+  /// joins with commas and an agent may send as a list), or a JSON object.
+  static Map<String, List<String>> _appAxisLists(Object? raw) {
+    var text = switch (raw) {
+      null => null,
+      String one => one,
+      List list => [for (var item in list) '$item'].join(','),
+      Map map => jsonEncode(map),
+      var other => throw ArgumentError.value(
+        other,
+        'axes',
+        'name=value pairs — `brand=tea`, or `brand=coffee,tea` for both',
+      ),
+    };
+    if (text == null) return const {};
+    try {
+      return parseAppAxes(text);
+    } on FormatException catch (error) {
+      throw ArgumentError.value(raw, 'axes', error.message);
+    }
+  }
+
+  /// A film's app axes: one value each, because a film is one point.
+  static Map<String, String> _filmAppAxes(Map<String, Object?> arguments) {
+    var lists = _appAxisLists(arguments['axes']);
+    return {
+      for (var MapEntry(key: name, value: values) in lists.entries)
+        name: values.length == 1
+            ? values.single
+            : throw ArgumentError.value(
+                arguments['axes'],
+                'axes',
+                'names ${values.join(', ')} for `$name`, and a film is one '
+                    'point. Name one',
+              ),
+    };
+  }
+
   /// The `file` argument as the one comma-separated string the runner and
   /// `fileSelectors` take, however it arrived.
   ///
@@ -4664,6 +4818,7 @@ class ScenariosCore extends PluginCore {
       List<String> devices,
       List<String> orientations,
       List<String> languages,
+      Map<String, List<String>> appAxes,
     )
     cross, {
     String? file,
@@ -4686,6 +4841,7 @@ class ScenariosCore extends PluginCore {
         listing.devices,
         listing.orientations,
         listing.languages,
+        listing.axes,
       )) {
         filesAt.putIfAbsent(point, () => {}).add(listing.file);
       }
@@ -4874,7 +5030,11 @@ class ScenariosCore extends PluginCore {
                   // The address on an artifact says what produced it, so an
                   // unspecified device is filled in with what the folder
                   // resolved it to — a link that reopens the same picture.
-                  axes: axes.copyWith(device: outcome.device),
+                  // The app axes the same way.
+                  axes: axes.copyWith(
+                    device: outcome.device,
+                    appAxes: outcome.axes.isEmpty ? null : outcome.axes,
+                  ),
                 ),
             ]);
           }(),

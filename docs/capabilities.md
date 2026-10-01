@@ -1321,7 +1321,7 @@ packages: List<ScenarioListPackage>
 Runs scenarios under FakeAsync in a directly-spawned flutter_tester, capturing a PNG, a widget tree and the visible texts per step. The paths in the result point at the artifacts; a failing scenario reports its error with the frame captured **at** the failure, whatever the capture policy. The answer summarises the steps (see `steps=`); `run.json` in the output directory always carries every one. Every run also compares itself against the run before it and reports the `drift`: which steps of a green suite moved that nobody asked to move — see the `diff` action, which is the same comparison over two runs you name.
 
 ```sh
-fw run scenarios run [--package=…] [--file=…] [--scenario=…] [--output=…] [--baseline=…] [--device=…] [--orientation=…] [--language=…] [--devices=…] [--languages=…] [--orientations=…] [--matrix=…] [--tag=…] [--steps=…] [--text-scale=…] [--brightness=…] [--bold-text=…] [--high-contrast=…] [--invert-colors=…] [--capture-scale=…] [--clock=…] [--network=…] [--jobs=…] [--format=…] [--pixels=…] [--expand=…] [--device-choice=…]
+fw run scenarios run [--package=…] [--file=…] [--scenario=…] [--output=…] [--baseline=…] [--device=…] [--orientation=…] [--language=…] [--devices=…] [--languages=…] [--orientations=…] [--axes=…] [--matrix=…] [--tag=…] [--steps=…] [--text-scale=…] [--brightness=…] [--bold-text=…] [--high-contrast=…] [--invert-colors=…] [--capture-scale=…] [--clock=…] [--network=…] [--jobs=…] [--format=…] [--pixels=…] [--expand=…] [--device-choice=…]
 ```
 
 Returns `ScenarioRunResult`:
@@ -1349,6 +1349,7 @@ packages: List<ScenarioRunPackage>
     skipped: bool?   # True when the scenario declared `skip: true` and its body never ran — the same answer `flutter test` gives the same file.
     skipReason: String?   # The reason the declaration gave, when it gave one.
     device: String?   # The device it actually ran as.
+    axes: Map<String, String>?   # The app axes it ran under — `ScenarioProfile.axes`, each the value the run named or the folder's first.
     ms: int
     steps: List<ScenarioRunStep>   # Trimmed in an action's answer per its `steps=` mode; whole in the file `ScenarioRunPackage.report` names.
       index: int   # 1-based position in the scenario's capture sequence.
@@ -1433,7 +1434,8 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 | `devices` | string | no | — | A comma-separated matrix — `iphone-se,android-tall`. Runs everything once per device, each into its own `<output>/<device>-<language>/` directory with an `index.json` beside them. The same plural vocabulary as `flutter test --dart-define=fw.devices=`. Overrides `device`. |
 | `languages` | string | no | — | The other half of the matrix — `en,fr,de`. Crossed with `devices`, and overrides `language`. |
 | `orientations` | string | no | — | The third axis — `portrait,landscape`. Crossed with the other two, and overrides `orientation`. A device that cannot turn contributes one point rather than two identical ones, so mixing a desktop into the devices does not double the run. |
-| `matrix` | choice | no | — | `declared` runs every point the folder profiles declare — each folder's devices, languages and orientations, crossed exactly as explicit lists are, and each point runs only the files whose folder declares it. What CI wants instead of restating the declaration in `devices=` and watching the two drift. Instead of the axis lists, not beside them. |
+| `axes` | string | no | — | Values for the axes the app defines for itself — `ScenarioProfile(axes: {'brand': ['coffee', 'tea']})` in a folder's `flutter_test_config.dart` — as `name=value`: `brand=tea`. Several values cross like `languages` do, `brand=coffee,tea`, and several axes are comma-separated too, `brand=coffee,tea,contrast=high`; a JSON object is accepted as well. An axis left out runs at each folder's first value. A name or a value no folder declares is refused; a folder that does not declare the axis ignores it, and one that declares it without that value fails its scenarios saying so. Each value is a directory segment after the language — `<output>/iphone-16-fr-tea/` — and `axis.<name>` on every artifact's address. |
+| `matrix` | choice | no | — | `declared` runs every point the folder profiles declare — each folder's devices, languages, orientations and app axes, crossed exactly as explicit lists are, and each point runs only the files whose folder declares it. What CI wants instead of restating the declaration in `devices=` and watching the two drift. Instead of the axis lists, not beside them. |
 | `tag` | string | no | — | Run only scenarios carrying this tag — the same tag `scenario(tags: [...])` declares and `flutter test --tags` filters on |
 | `steps` | choice | no | failing | How many steps ride back in the answer. Every run writes all of them to `run.json` in its output directory either way and each package names that file — a script reads it back typed with `package:flutterware/scenarios_report.dart` — so this is about what arrives without asking: `failing` (default) is the frame each red scenario died on, `all` is every step of every scenario — a matrix suite is hundreds — and `none` is the summary alone, which is the answer to "did it pass". Anything but `all` also counts the green scenarios instead of listing them: each package says `passed` and `failed`, lists only the red, skipped and stalled ones, and `scenariosElided` says how many rows are in the file. Every listed scenario reports its `stepCount` whatever this says, and `stepsElided` says how many of them are in the file rather than here. Anything but `all` also leaves the scenario's translation reads on disk: a suite with a catalog registered spends more of the answer on those than on everything else together. |
 | `text-scale` | string | no | — | The platform text scale factor — `1.3` is a common accessibility setting |
@@ -1508,7 +1510,7 @@ steps: List<String>   # The other captures of the same scenario, as bare file na
 Runs the scenarios and writes the result as a browsable page: the same flow canvas, step pages and inspect dock the GUI draws, over the run it just did. Takes every selector and axis `run` takes — the page shows what was run, so what to run is the question it asks. Needs serving over HTTP; the result says how. For a CI artifact, a review link, or anyone who has the app but not the checkout.
 
 ```sh
-fw run scenarios export [--package=…] [--file=…] [--scenario=…] [--tag=…] [--output=…] [--base-href=…] [--offline=…] [--device=…] [--orientation=…] [--language=…] [--devices=…] [--languages=…] [--brightness=…] [--capture-scale=…] [--clock=…]
+fw run scenarios export [--package=…] [--file=…] [--scenario=…] [--tag=…] [--output=…] [--base-href=…] [--offline=…] [--device=…] [--orientation=…] [--language=…] [--devices=…] [--languages=…] [--axes=…] [--brightness=…] [--capture-scale=…] [--clock=…]
 ```
 
 Returns `ScenarioWebExportResult`:
@@ -1541,6 +1543,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 | `language` | string | no | — | A locale tag — `fr`, `fr-CA` |
 | `devices` | string | no | — | A matrix — `iphone-se,ipad`. Every point lands on the same page, each scenario labelled with what it ran as. |
 | `languages` | string | no | — | The other half of the matrix — `en,fr,de` |
+| `axes` | string | no | — | Values for the axes the app defines for itself — `ScenarioProfile(axes: {'brand': ['coffee', 'tea']})` in a folder's `flutter_test_config.dart` — as `name=value`: `brand=tea`. Several values cross like `languages` do, `brand=coffee,tea`, and several axes are comma-separated too, `brand=coffee,tea,contrast=high`; a JSON object is accepted as well. An axis left out runs at each folder's first value. A name or a value no folder declares is refused; a folder that does not declare the axis ignores it, and one that declares it without that value fails its scenarios saying so. Each value is a directory segment after the language — `<output>/iphone-16-fr-tea/` — and `axis.<name>` on every artifact's address. |
 | `brightness` | choice | no | — | The platform brightness the app sees |
 | `capture-scale` | string | no | — | Screenshot pixels per logical pixel, up to 4. A page is read on a retina screen, so 2 is worth the bytes where 1 is right for a panel. |
 | `clock` | string | no | — | An ISO-8601 timestamp `clock.now()` starts at, or `now` for the wall clock. Omitted, the project's pin applies and two exported pages of the same suite are comparable. |
@@ -1550,7 +1553,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 Renders one scenario as an mp4 — the app moving under a cursor that travels, presses and types, paced for somebody watching rather than for a suite. For a landing page, a README or a release note. It is a second run of the same scenario: the verbs are the same, the pacing is not, and nothing it captures is evidence. Needs `ffmpeg` on PATH.
 
 ```sh
-fw run scenarios video [--package=…] --file=<string> [--scenario=…] [--branch=…] [--device=…] [--orientation=…] [--language=…] [--brightness=…] [--scale=…] [--fps=…] [--travel=…] [--aim=…] [--dwell=…] [--open=…] [--press=…] [--close=…] [--reel=…] [--crf=…] [--preset=…] [--output=…]
+fw run scenarios video [--package=…] --file=<string> [--scenario=…] [--branch=…] [--device=…] [--orientation=…] [--language=…] [--brightness=…] [--axes=…] [--scale=…] [--fps=…] [--travel=…] [--aim=…] [--dwell=…] [--open=…] [--press=…] [--close=…] [--reel=…] [--crf=…] [--preset=…] [--output=…]
 ```
 
 Returns `Artifact`:
@@ -1573,6 +1576,7 @@ meta: Map<String, Object?>?   # Anything the producer wants the reader to know: 
 | `orientation` | choice | no | — | Which way up the device is — `portrait` (the default) or `landscape`. An axis on top of `device` rather than a device of its own, so `ipad` plus `landscape` is the same iPad on its side: the screen trades width for height, and the safe areas become the ones that device declares for landscape (a phone loses its status bar rather than moving it). Ignored by anything that cannot turn, which is every desktop size and `fit`. |
 | `language` | string | no | — | A locale tag — `fr`, `fr-CA` |
 | `brightness` | choice | no | — | light or dark |
+| `axes` | string | no | — | Values for the axes the app defines for itself, one per axis — `brand=tea,contrast=high`. An axis left out is filmed at its folder's first value. |
 | `scale` | string | no | 3 | Output pixels per logical pixel. Three by default and not one: every player insists on `yuv420p`, which halves the colour resolution, and rendering above the size the clip is watched at is what keeps UI text crisp under it. |
 | `fps` | integer | no | 30 | Of the film and of the fake clock alike — a pump advances time by exactly one frame, so the curves are the app's own with nothing dropped. |
 | `travel` | integer | no | 350 | How long the cursor takes to fly to its target |
@@ -1614,7 +1618,7 @@ next: String   # The command that runs what was just written.
 The store/documentation lane: runs the scenarios and keeps only their **named** shots, at the pixel ratio each device really has, into `<output>/<language>/<device>/<scenario>/NN-name.png` — numbered within each scenario, so adding a shot renames nothing in any other. Everything a `run` leaves behind — the automatic steps, the widget trees — is dropped. A separate action because every default differs; `run` stays the debugging lane.
 
 ```sh
-fw run scenarios shots [--package=…] [--output=…] [--devices=…] [--languages=…] [--orientations=…] [--brightness=…] [--tag=…] [--file=…]
+fw run scenarios shots [--package=…] [--output=…] [--devices=…] [--languages=…] [--orientations=…] [--brightness=…] [--axes=…] [--tag=…] [--file=…]
 ```
 
 Returns `ScenarioShotsResult`:
@@ -1648,6 +1652,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 | `languages` | string | no | — | A comma-separated list — one directory per language, crossed with `devices` |
 | `orientations` | string | no | — | The third axis — `portrait,landscape`. Crossed with the other two. A turned device gets its own directory, `<language>/<device>-landscape/`, because the two ways up of one device are two sets of screenshots and sharing a directory would leave the second overwriting the first. Portrait writes no suffix, so a tree that never asked for landscape is the tree it was. A device that cannot turn contributes one point rather than two identical ones. |
 | `brightness` | choice | no | — | The platform brightness the app sees — `light,dark` for both, crossed with the other axes. Dark gets its own directory, `<language>/<device>-dark/`, after `-landscape` where both apply, for the reason a turned device does. Light writes no suffix and is what omitting this means, so a tree that never asked for dark is the tree it was. |
+| `axes` | string | no | — | Values for the axes the app defines for itself — `brand=coffee,tea` — crossed with the other axes. Each value is written after the device, last, `<language>/<device>-landscape-dark-tea/`, and it is written whether or not this names it: an axis left out runs at its folder's first value, and that value is an order somebody wrote rather than a default the platform has, so the directory says which. Recorded in each set's axes as `axis.<name>`. |
 | `tag` | string | no | — | Keep only shots carrying this tag — `Shot('Home', tags: ['store'])`. Omitted keeps every named shot, which is what a project that tags nothing wants. |
 | `file` | string | no | — | Only this scenario file, package-relative — as `list` reports it. A directory keeps everything under it, which is the unit the folder profiles are declared in. Several, comma-separated (or `--file` repeated), run in the order given in one process |
 

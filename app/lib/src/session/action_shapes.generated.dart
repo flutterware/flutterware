@@ -4677,6 +4677,12 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
         'doc': 'The device it actually ran as.',
       },
+      <String, Object?>{
+        'name': 'axes',
+        'type': 'Map<String, String>',
+        'optional': true,
+        'doc': 'The app axes it ran under — `ScenarioProfile.axes`, each the value the run named or the folder\'s first.',
+      },
       <String, Object?>{'name': 'ms', 'type': 'int'},
       <String, Object?>{
         'name': 'steps',
@@ -5089,6 +5095,12 @@ final resultShapes = <String, ResultShape>{
               'type': 'String',
               'optional': true,
               'doc': 'The device it actually ran as.',
+            },
+            <String, Object?>{
+              'name': 'axes',
+              'type': 'Map<String, String>',
+              'optional': true,
+              'doc': 'The app axes it ran under — `ScenarioProfile.axes`, each the value the run named or the folder\'s first.',
             },
             <String, Object?>{'name': 'ms', 'type': 'int'},
             <String, Object?>{
@@ -5583,6 +5595,12 @@ final resultShapes = <String, ResultShape>{
                     'type': 'String',
                     'optional': true,
                     'doc': 'The device it actually ran as.',
+                  },
+                  <String, Object?>{
+                    'name': 'axes',
+                    'type': 'Map<String, String>',
+                    'optional': true,
+                    'doc': 'The app axes it ran under — `ScenarioProfile.axes`, each the value the run named or the folder\'s first.',
                   },
                   <String, Object?>{'name': 'ms', 'type': 'int'},
                   <String, Object?>{

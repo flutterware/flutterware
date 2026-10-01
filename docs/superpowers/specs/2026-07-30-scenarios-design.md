@@ -486,6 +486,10 @@ both registries / capability regeneration):
   — language / device / text scale / brightness are **axes**, applied
   assignments recorded on every artifact, per the catalog's rule that a
   screenshot is under-specified without them.
+  *Joined 2026-10-01 by the app's own axes — a brand, a contrast mode —
+  declared per folder in `ScenarioProfile(axes: …)`, read with `s.axis`, and
+  recorded as `axis.<name>=<value>`. See
+  `2026-10-01-scenario-app-axes-design.md`.*
 - **MCP is a first-class consumer, not a port.** The agent loop the design
   serves: edit the scenario file → `flutterware_invoke {plugin: scenarios,
   action: run}` → explicit compile-and-run barrier (the catalog's "watching is

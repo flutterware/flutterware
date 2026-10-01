@@ -25,6 +25,7 @@ import '../devices.dart';
 import '../drive/resolve.dart' show visibleTextsOf;
 import '../inspect/guest_inspect.dart';
 import '../real_work/tracker.dart';
+import 'app_axes.dart';
 import 'async_watchdog.dart';
 import '../app_events/events.dart';
 import 'fake_timers.dart';
@@ -231,6 +232,18 @@ Future<void> _runHarness(
   developer.registerExtension('ext.flutterware.scenarios.run', (_, args) async {
     if (refused() case var refusal?) return refusal;
     try {
+      var runArgs = _parseRunArgs(args);
+      // A misspelt axis would otherwise run every folder at its default and
+      // report green — the same matrix, twice, under two names.
+      if (_appAxisRefusal(
+            runArgs?.assignment?.axes ?? const {},
+            profiles.values,
+          )
+          case var refusal?) {
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode({'refusal': refusal}),
+        );
+      }
       // The project's own default, under everything: a folder, a run and a
       // scenario each beat it. Read per request rather than once, because a
       // warm guest outlives an edit to `tool/flutterware.dart`.
@@ -246,7 +259,7 @@ Future<void> _runHarness(
         file: args['file'],
         scenario: args['scenario'],
         tag: args['tag'],
-        runArgs: _parseRunArgs(args),
+        runArgs: runArgs,
         profiles: profiles,
         shots: folderShots,
         keyboards: folderKeyboards,
@@ -561,6 +574,11 @@ _probeFolders(
         continue;
       }
       if (scenarioProbedProfile case var profile?) {
+        if (appAxisProblems(profile.axes) case var problems
+            when problems.isNotEmpty) {
+          refusals.add(_axisDeclarationRefusal(directory, profile, problems));
+          continue;
+        }
         profiles[directory] = profile;
       }
       if (scenarioProbedShots case var policy?) {
@@ -638,6 +656,97 @@ ScenarioProfile? _profileFor(
   Map<String, ScenarioProfile> profiles,
 ) => _nearest(file, profiles);
 
+/// What one file runs as on the app's own axes, and why it cannot run at all
+/// when the request asked its folder for a value the folder does not declare.
+///
+/// Every axis [profile] declares, each at the value [asked] named or at the
+/// folder's first; an axis [asked] names that this folder does not declare is
+/// left out, because nothing in the folder reads it. A value the folder does
+/// not offer is refused for the file rather than run anyway: the folder's
+/// list is the only vocabulary the app's own switch was written against.
+(Map<String, String>, String?) _appAxesFor(
+  String file,
+  ScenarioProfile? profile,
+  Map<String, String> asked,
+) {
+  var declared = profile?.axes ?? const <String, List<String>>{};
+  String? refusal;
+  var axes = <String, String>{};
+  for (var MapEntry(key: name, value: values) in declared.entries) {
+    var value = asked[name] ?? values.first;
+    if (!values.contains(value)) {
+      refusal ??=
+          '`$name=$value` is not a value `$file` can run in: its folder '
+          "declares `$name` as ${values.join(', ')} (the "
+          '`${profile!.name}` profile).';
+    }
+    axes[name] = value;
+  }
+  return (axes, refusal);
+}
+
+/// Why a request's app axes cannot run anywhere in this package — a name no
+/// folder declares, or a value no folder offers — or null when every one of
+/// them means something to some folder.
+///
+/// Asked once, before anything runs, so a typo is refused in one sentence
+/// naming what is declared instead of running every folder at its default.
+String? _appAxisRefusal(
+  Map<String, String> asked,
+  Iterable<ScenarioProfile> profiles,
+) {
+  if (asked.isEmpty) return null;
+  var declared = <String, Set<String>>{};
+  for (var profile in profiles) {
+    for (var MapEntry(key: name, value: values) in profile.axes.entries) {
+      declared.putIfAbsent(name, () => {}).addAll(values);
+    }
+  }
+  String listing() => [
+    for (var MapEntry(key: name, value: values) in declared.entries)
+      '`$name` (${values.join(', ')})',
+  ].join(', ');
+  for (var MapEntry(key: name, value: value) in asked.entries) {
+    var values = declared[name];
+    if (values == null) {
+      return declared.isEmpty
+          ? 'No scenario folder of this package declares an axis, so '
+                '`$name=$value` has nothing to set. A folder declares one in '
+                'the profile its flutter_test_config.dart names: '
+                "`ScenarioProfile(axes: {'$name': [...]})`."
+          : 'No scenario folder of this package declares an axis `$name`. '
+                'Declared: ${listing()}.';
+    }
+    if (!values.contains(value)) {
+      return 'No scenario folder of this package declares `$value` for '
+          '`$name`. Declared: ${listing()}.';
+    }
+  }
+  return null;
+}
+
+/// Why a folder's profile cannot be run at all: its app axes are written in a
+/// way no lane can carry.
+String _axisDeclarationRefusal(
+  String directory,
+  ScenarioProfile profile,
+  List<String> problems,
+) {
+  var config = directory.isEmpty
+      ? 'flutter_test_config.dart'
+      : '$directory/flutter_test_config.dart';
+  return 'The `${profile.name}` profile `$config` names cannot run: '
+      '${problems.join('; ')}.';
+}
+
+/// What a file runs as, worked out once per file in [_run].
+typedef _Framing = ({
+  ScenarioRunArgs? args,
+  String? device,
+  Map<String, String> axes,
+  String? refusal,
+});
+
 /// What the nearest folder above [file] says, out of a map keyed by directory
 /// — the rule `flutter test` itself resolves configs by, and the same one for
 /// every fact a folder declares.
@@ -677,6 +786,7 @@ List<Map<String, Object?>> _list(
               'devices': [for (var d in profile.devices) d.id],
               'languages': profile.languages,
               'orientations': [for (var o in profile.orientations) o.name],
+              if (profile.axes.isNotEmpty) 'axes': profile.axes,
             },
           });
         case Group():
@@ -749,6 +859,13 @@ ScenarioRunArgs? _parseRunArgs(Map<String, String> args) {
       var name => orientationById(name),
     },
     language: args['language'],
+    // The values the request named, by axis. Which axes a scenario actually
+    // runs under is its folder's to say, so this is narrowed per file in
+    // [_run] — see `ScenarioRunArgs.withAppAxes`.
+    axes: switch (args['axes']) {
+      null => const {},
+      var raw => (jsonDecode(raw) as Map).cast<String, String>(),
+    },
   );
   var runArgs = ScenarioRunArgs(
     size: size,
@@ -941,47 +1058,65 @@ Future<Map<String, Object?>> _run(
   // file's folder profile puts first — which is how one run over a mixed suite
   // frames the mobile folder as a phone and the desktop folder as a window,
   // without the caller having to know either folder exists.
-  var framings = <String, (ScenarioRunArgs?, String?)>{};
-  (ScenarioRunArgs?, String?) framingFor(String file) =>
-      framings.putIfAbsent(file, () {
-        if (!deviceUnspecified) return (runArgs, device);
-        var declared = _profileFor(file, profiles)?.devices;
-        // The max-length probe measures on the tightest geometry the folder
-        // claims — the narrowest *declared* device, never one the project
-        // does not run on, which would manufacture false-tight limits.
-        var chosen = narrowestDevice && (declared?.isNotEmpty ?? false)
-            ? declared!.reduce(
-                (a, b) => switch (a.width.compareTo(b.width)) {
-                  < 0 => a,
-                  > 0 => b,
-                  // Total, like every ordering that picks a stable winner.
-                  _ =>
-                    a.height != b.height
-                        ? (a.height < b.height ? a : b)
-                        : (a.id.compareTo(b.id) <= 0 ? a : b),
-                },
-              )
-            : declared?.firstOrNull;
-        if (chosen == null) return (runArgs, device);
-        return (
-          (runArgs ?? const ScenarioRunArgs()).withDevice(
-            chosen,
-            orientation: orientation,
-          ),
-          chosen.id,
-        );
-      });
+  (ScenarioRunArgs?, String?) deviceFor(String file) {
+    if (!deviceUnspecified) return (runArgs, device);
+    var declared = _profileFor(file, profiles)?.devices;
+    // The max-length probe measures on the tightest geometry the folder
+    // claims — the narrowest *declared* device, never one the project
+    // does not run on, which would manufacture false-tight limits.
+    var chosen = narrowestDevice && (declared?.isNotEmpty ?? false)
+        ? declared!.reduce(
+            (a, b) => switch (a.width.compareTo(b.width)) {
+              < 0 => a,
+              > 0 => b,
+              // Total, like every ordering that picks a stable winner.
+              _ =>
+                a.height != b.height
+                    ? (a.height < b.height ? a : b)
+                    : (a.id.compareTo(b.id) <= 0 ? a : b),
+            },
+          )
+        : declared?.firstOrNull;
+    if (chosen == null) return (runArgs, device);
+    return (
+      (runArgs ?? const ScenarioRunArgs()).withDevice(
+        chosen,
+        orientation: orientation,
+      ),
+      chosen.id,
+    );
+  }
+
+  // The app axes the same way, and for the same reason per file: the request
+  // names values, the folder says which axes exist and what each defaults to.
+  var asked = runArgs?.assignment?.axes ?? const <String, String>{};
+  var framings = <String, _Framing>{};
+  _Framing framingFor(String file) => framings.putIfAbsent(file, () {
+    var (framedArgs, framedDevice) = deviceFor(file);
+    var profile = _profileFor(file, profiles);
+    var (axes, refusal) = _appAxesFor(file, profile, asked);
+    if (axes.isNotEmpty || asked.isNotEmpty) {
+      framedArgs = (framedArgs ?? const ScenarioRunArgs()).withAppAxes(axes);
+    }
+    return (
+      args: framedArgs,
+      device: framedDevice,
+      axes: axes,
+      refusal: refusal,
+    );
+  });
 
   /// Set when a scenario blew its deadline: the walk unwinds, and the report
   /// says the run stopped rather than that the rest passed.
   var abandoned = false;
 
   Map<String, Object?> skippedOutcome(Test entry, Group group, String? file) {
-    var (_, framedDevice) = framingFor(file ?? '');
+    var framing = framingFor(file ?? '');
     return ScenarioRunOutcome(
       file: file ?? '',
       name: _leafName(entry, group),
-      device: framedDevice,
+      device: framing.device,
+      axes: framing.axes,
       // Not a failure — `flutter test` exits 0 on a skipped test — but not
       // silently green either: the flag is what every surface above renders
       // as its own third state.
@@ -994,7 +1129,11 @@ Future<Map<String, Object?>> _run(
   /// The selected skipped scenarios of a group nothing in will run — so a
   /// request that names one still finds it in the answer, saying skipped,
   /// rather than reading as a selector that matched nothing.
-  void reportSkipped(Group group, String? groupFile) {
+  ///
+  /// With a [refusal], the group will not run because of what the request
+  /// asked of its folder, and every selected scenario in it answers failed
+  /// and saying why — the caller who asked for one must find it.
+  void reportSkipped(Group group, String? groupFile, {String? refusal}) {
     for (var entry in group.entries) {
       switch (entry) {
         case Test():
@@ -1002,9 +1141,21 @@ Future<Map<String, Object?>> _run(
           if (!_selects(entry, group, scenario, tag)) break;
           if (entry.metadata.skip) {
             outcomes.add(skippedOutcome(entry, group, groupFile));
+          } else if (refusal != null) {
+            var framing = framingFor(groupFile ?? '');
+            outcomes.add(
+              ScenarioRunOutcome(
+                file: groupFile ?? '',
+                name: _leafName(entry, group),
+                device: framing.device,
+                axes: framing.axes,
+                ok: false,
+                errors: [ScenarioRunError(error: refusal)],
+              ).toJson(),
+            );
           }
         case Group():
-          reportSkipped(entry, groupFile ?? entry.name);
+          reportSkipped(entry, groupFile ?? entry.name, refusal: refusal);
         case GroupEntry():
           break;
       }
@@ -1032,6 +1183,14 @@ Future<Map<String, Object?>> _run(
       reportSkipped(group, groupFile);
       return;
     }
+    // Before the group's fixtures, like the filter above: a file whose folder
+    // cannot run what was asked of it is not worth a `setUpAll`.
+    if (groupFile != null) {
+      if (framingFor(groupFile).refusal case var refusal?) {
+        reportSkipped(group, groupFile, refusal: refusal);
+        return;
+      }
+    }
     var scope = [...parents, group];
 
     var setUpAllError = group.setUpAll == null
@@ -1050,7 +1209,9 @@ Future<Map<String, Object?>> _run(
           var name = _leafName(entry, group);
           if (!_isScenario(declared.scenarios, groupFile, entry, group)) break;
           if (!_selects(entry, group, scenario, tag)) break;
-          var (framedArgs, framedDevice) = framingFor(groupFile ?? '');
+          var framing = framingFor(groupFile ?? '');
+          var framedArgs = framing.args;
+          var framedDevice = framing.device;
           // `scenario(skip: true)` reaches `testWidgets` and stops in the
           // test's metadata: enforcing it is the *engine*'s job
           // (`test_core`'s `_runSkippedTest`), and this harness walks the
@@ -1071,6 +1232,7 @@ Future<Map<String, Object?>> _run(
                 file: groupFile ?? '',
                 name: name,
                 device: framedDevice,
+                axes: framing.axes,
                 ok: false,
                 errors: [setUpAllError],
               ).toJson(),
@@ -1098,6 +1260,7 @@ Future<Map<String, Object?>> _run(
                   file: groupFile ?? '',
                   name: name,
                   device: framedDevice,
+                  axes: framing.axes,
                   inspector: inspector,
                   outDir: outDir,
                   previous: previousName,
@@ -1107,6 +1270,7 @@ Future<Map<String, Object?>> _run(
                   file: groupFile ?? '',
                   name: name,
                   device: framedDevice,
+                  axes: framing.axes,
                   inspector: inspector,
                   outDir: outDir,
                   previous: previousName,
@@ -1304,6 +1468,7 @@ Future<Map<String, Object?>> _runReel(
   required GuestInspector inspector,
   required String outDir,
   String? device,
+  Map<String, String> axes = const {},
   String? previous,
 }) async {
   var film = args.film!;
@@ -1315,6 +1480,7 @@ Future<Map<String, Object?>> _runReel(
     file: file,
     name: name,
     device: device,
+    axes: axes,
     inspector: inspector,
     outDir: outDir,
     previous: previous,
@@ -1326,6 +1492,7 @@ Future<Map<String, Object?>> _runReel(
         file: file,
         name: name,
         device: device,
+        axes: axes,
         ok: false,
         errors: [ScenarioRunError(error: error, stack: stack?.toString())],
       ).toJson();
@@ -1349,6 +1516,7 @@ Future<Map<String, Object?>> _runReel(
     file: file,
     name: name,
     device: device,
+    axes: axes,
     inspector: inspector,
     outDir: outDir,
     previous: name,
@@ -1362,6 +1530,7 @@ Future<Map<String, Object?>> _runOne(
   required GuestInspector inspector,
   required String outDir,
   String? device,
+  Map<String, String> axes = const {},
   String? previous,
 }) async {
   var steps = <ScenarioRunStep>[];
@@ -1834,6 +2003,7 @@ Future<Map<String, Object?>> _runOne(
     // What it actually ran as — which the caller may not have said, having
     // left the folder's profile to answer.
     device: device,
+    axes: axes,
     ok: passed,
     ms: watch.elapsedMilliseconds,
     steps: steps,

@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/plugins.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/scenarios/app_axes.dart';
 import 'package:path/path.dart' as p;
 
 import '../address/address_scope.dart';
@@ -287,7 +289,15 @@ class _Header extends StatelessWidget {
               '$scenarios ${scenarios == 1 ? 'scenario' : 'scenarios'}',
               if (failed > 0) '$failed failed',
               if (run.axes case var axes? when axes.isNotEmpty)
-                axes.entries.map((e) => '${e.key} ${e.value}').join(' · '),
+                axes.entries
+                    // An app axis is recorded under `axis.`, which keeps it
+                    // apart on an address and is noise in a sentence.
+                    .map(
+                      (e) =>
+                          '${e.key.replaceFirst(RegExp(r'^axis\.'), '')} '
+                          '${e.value}',
+                    )
+                    .join(' · '),
               _when(report.generated),
             ].join('  ·  '),
             style: context.type.caption.copyWith(
@@ -386,9 +396,13 @@ class _ScenarioList extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (outcome.device case var device?)
+                if ([
+                      ?outcome.device,
+                      ...appAxisSlugParts(outcome.axes),
+                    ].join(' · ')
+                    case var ranAs when ranAs.isNotEmpty)
                   Text(
-                    device,
+                    ranAs,
                     style: context.type.micro.copyWith(color: colors.mut),
                   ),
               ],

@@ -41,6 +41,14 @@ void main() {
     );
   });
 
+  scenario("reads the app's own axis at the value this pass runs", (s) async {
+    // The head of the profile under a bare `flutter test`, and whatever CI
+    // named with `FW_AXES=brand=tea` under an override.
+    expect(s.axis('brand'), s.assignment?.axes['brand'] ?? 'coffee');
+    expect(['coffee', 'tea'], contains(s.axis('brand')));
+    expect(() => s.axis('flavor'), throwsArgumentError);
+  });
+
   scenario('measures text in the project fonts, not the fallback', (s) async {
     // `runScenarios` is the only thing standing between a `flutter test`
     // scenario and fallback metrics, and for a while nothing stood there at
