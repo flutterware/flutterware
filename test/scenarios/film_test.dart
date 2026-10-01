@@ -563,6 +563,38 @@ void main() {
     });
   });
 
+  group('filmed typing at a pace of its own', () {
+    film(
+      (directory) => FilmSettings(
+        directory: directory,
+        scale: 1,
+        open: const Duration(milliseconds: 100),
+        travel: const Duration(milliseconds: 100),
+        press: const Duration(milliseconds: 100),
+        dwell: const Duration(milliseconds: 100),
+        close: const Duration(milliseconds: 100),
+      ),
+    );
+
+    scenario("keeps the scenario's pace, not the film's", (s) async {
+      await s.pumpWidget(const _FormApp());
+      await s.enterText(
+        TextField,
+        'a b',
+        typing: const Duration(milliseconds: 200),
+      );
+    });
+
+    tearDown(() {
+      var typing = _beats(_timeline(directory))
+          .firstWhere((beat) => beat['kind'] == 'type');
+      // 200ms at 30fps is six frames a character, the space included: the
+      // pace is part of what the field does, so the film neither re-paces it
+      // to its own 95ms nor stretches the word gap.
+      expect(typing['frames'], 18);
+    });
+  });
+
   group('filmed typing on a phone', () {
     film(
       (directory) => FilmSettings(
