@@ -338,6 +338,102 @@ ${flutter ? '  flutter:\n    sdk: flutter\n' : ''}  path: ^1.9.0
       });
     });
 
+    group('in a project that pins its SDK', () {
+      // The entry stays plain `dart` — writing a guess from the pin file is
+      // what the design refuses. But it is written quietly, before whatever
+      // command ran first, and a `dart` on PATH older than the pin fails
+      // later, at the client's handshake, where nobody is looking.
+
+      test('still registers plain `dart`', () async {
+        File(p.join(root.path, '.fvmrc'))
+            .writeAsStringSync('{"flutter": "beta"}');
+        await initWith().run(quiet: true);
+
+        var entry =
+            (readConfig()['mcpServers']!
+                as Map<String, Object?>)['flutterware'];
+        expect(entry, {
+          'command': 'dart',
+          'args': ['run', 'flutterware', 'mcp'],
+        });
+      });
+
+      test('says so once, on stderr, even when quiet', () async {
+        File(p.join(root.path, '.fvmrc'))
+            .writeAsStringSync('{"flutter": "beta"}');
+        await initWith().run(quiet: true);
+
+        // Not stdout: a quiet run precedes `fw mcp` and `--json`, whose
+        // stdout belongs to the protocol or the parser.
+        expect(out.toString(), isEmpty);
+        expect(
+          err.toString(),
+          allOf(
+            startsWith('fw: .fvmrc pins'),
+            contains('runs `dart` from PATH'),
+            contains('`fvm dart run flutterware mcp`'),
+          ),
+        );
+
+        err.clear();
+        await initWith().run(quiet: true);
+        expect(err.toString(), isEmpty, reason: 'the entry is already there');
+      });
+
+      test('under the registration when init is run by hand', () async {
+        File(p.join(root.path, '.fvmrc'))
+            .writeAsStringSync('{"flutter": "beta"}');
+        await initWith().run();
+
+        expect(
+          out.toString(),
+          contains(
+            '  registered flutterware in .mcp.json\n'
+            '    .fvmrc pins',
+          ),
+        );
+        expect(err.toString(), isEmpty);
+      });
+
+      test('names mise by its own command', () async {
+        File(p.join(root.path, 'mise.toml'))
+            .writeAsStringSync('[tools]\nflutter = "3.48.0-0.2.pre-beta"\n');
+        await initWith().run(quiet: true);
+
+        expect(err.toString(), contains('`mise exec -- dart run flutterware'));
+      });
+
+      test(
+        'a .tool-versions pinning Flutter gets the generic advice',
+        () async {
+          File(
+            p.join(root.path, '.tool-versions'),
+          ).writeAsStringSync('nodejs 22.1.0\nflutter 3.48.0-0.2.pre-beta\n');
+          await initWith().run(quiet: true);
+
+          expect(
+            err.toString(),
+            contains('run it through your version manager'),
+          );
+        },
+      );
+
+      test('a .tool-versions pinning something else is not one', () async {
+        File(p.join(root.path, '.tool-versions'))
+            .writeAsStringSync('nodejs 22.1.0\npython 3.12.4\n');
+        await initWith().run(quiet: true);
+
+        expect(err.toString(), isEmpty);
+      });
+    });
+
+    test('says nothing about the SDK in a project that pins none', () async {
+      await initWith().run(quiet: true);
+
+      expect(err.toString(), isEmpty);
+      expect(out.toString(), isEmpty);
+    });
+
     test('replaces the dead `fw mcp` entry it used to write', () async {
       // The one entry this is allowed to overwrite: ours, and naming a binary
       // that no longer exists. Left alone it is an agent finding a server that
