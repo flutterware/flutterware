@@ -102,8 +102,8 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// `registerTool` validates against it, and so does any client holding the
   /// schema. This adds the sentence that flag cannot: which declared key was
   /// probably meant, and what the tool takes. "Additional property
-  /// "parameters" is not allowed" says the call was wrong; `did you mean
-  /// "arguments"?` says what to send instead, which is the difference between
+  /// "parameters" is not allowed" says the call was wrong; "did you mean
+  /// `arguments`?" says what to send instead, which is the difference between
   /// a retry and a round-trip through `listTools`.
   ///
   /// So the unknown-key check runs first and everything else — types, required
@@ -129,7 +129,7 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
     });
   }
 
-  /// The refusal for a top-level key the tool does not declare, or null.
+  /// The refusal for the top-level keys the tool does not declare, or null.
   ///
   /// Only the outermost layer. `arguments` on `flutterware_invoke` is an open
   /// map by design — its keys are a plugin action's parameter ids, which this
@@ -137,14 +137,12 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   static String? _undeclaredArgument(Tool tool, Map<String, Object?>? given) {
     if (given == null || given.isEmpty) return null;
     var declared = (tool.inputSchema.properties ?? const {}).keys.toList();
-    for (var key in given.keys) {
-      if (declared.contains(key)) continue;
-      var nearest = nearestName(key, declared);
-      return '"$key" is not an argument of ${tool.name}'
-          '${nearest == null ? '.' : ' — did you mean "$nearest"?'} '
-          '${declared.isEmpty ? 'It takes none.' : 'It takes: ${declared.join(', ')}.'}';
-    }
-    return null;
+    var undeclared = [
+      for (var key in given.keys)
+        if (!declared.contains(key)) key,
+    ];
+    if (undeclared.isEmpty) return null;
+    return refuseUndeclared(tool.name, 'argument', undeclared, declared);
   }
 
   /// Every tool this server exposes, in the order it registers them.

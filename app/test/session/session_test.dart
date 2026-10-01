@@ -157,27 +157,54 @@ void main() {
         'entry': 'demo/buttons.dart#buttons',
         'axes': 'true',
       });
-      expect(message, contains('no such parameter'));
-      expect(message, contains('(axes)'));
+      expect(message, startsWith('flutterware.previews describe takes no '));
+      expect(message, contains('"axes"'));
     });
 
     test('names the one it was probably meant to be', () async {
       var message = await refusal('previews', 'describe', {'axes': 'true'});
-      expect(message, contains('did you mean `with-axes`'));
+      expect(message, contains('"axes" (did you mean `with-axes`?)'));
     });
 
     test('lists the ones the action does have', () async {
       var message = await refusal('previews', 'describe', {'nonsense': '1'});
-      expect(message, contains('It takes: entry, with-knobs, with-axes'));
+      expect(message, contains('It takes: entry, with-knobs, with-axes.'));
+    });
+
+    /// The rejected name used to come last, in parentheses after the list of
+    /// accepted ones — `It takes: entry, …, engine (package)` — where it read
+    /// as one more thing the action takes.
+    test('leads with the name it refuses', () async {
+      var message = await refusal('previews', 'describe', {'nonsense': '1'});
+      expect(
+        message,
+        'flutterware.previews describe takes no parameter "nonsense". '
+        'It takes: entry, with-knobs, with-axes.',
+      );
+    });
+
+    test('names every one it refuses, not the first', () async {
+      var message = await refusal('previews', 'describe', {
+        'entry': 'demo/buttons.dart#buttons',
+        'nonsense': '1',
+        'axes': 'true',
+        'package': '.',
+      });
+      expect(
+        message,
+        'flutterware.previews describe takes no parameters "nonsense", '
+        '"axes" (did you mean `with-axes`?) and "package". '
+        'It takes: entry, with-knobs, with-axes.',
+      );
     });
 
     test('does not speak for an action that does not exist', () async {
       // The plugin owns everything past its own name, and an unknown action is
-      // refused by listing the real ones. Answering "no such parameter" first
-      // would describe the arguments of nothing.
+      // refused by listing the real ones. Answering "takes no parameter"
+      // first would describe the arguments of nothing.
       var message = await refusal('previews', 'not-an-action', {'axes': '1'});
       expect(message, contains('unknown action'));
-      expect(message, isNot(contains('no such parameter')));
+      expect(message, isNot(contains('takes no parameter')));
     });
 
     /// With no arguments at all there is nothing to coerce, and the check used
