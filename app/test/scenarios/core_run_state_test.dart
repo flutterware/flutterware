@@ -430,67 +430,128 @@ void main() {
     },
   );
 
+  test('shots keeps the named captures, by language, device and scenario, '
+      'numbered', () async {
+    var runner = _FakeRunner()..writeShots = true;
+    var subject = core(runner: runner);
+    var output = p.join(root.path, 'store');
+    var result =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'package': '.',
+                'output': output,
+                'devices': 'iphone-16',
+                'languages': 'en,fr',
+              },
+            ))!
+            as ScenarioShotsResult;
+
+    // A true screenshot, resolved in the guest — the device may have come
+    // from a folder profile the host never saw.
+    expect(runner.seenNative, everyElement(isTrue));
+
+    expect(result.ok, isTrue);
+    expect(result.count, 4);
+    expect(
+      [for (var set in result.packages.single.sets) set.directory],
+      [p.join('en', 'iphone-16'), p.join('fr', 'iphone-16')],
+    );
+    // Named shots only, numbered in capture order under their scenario —
+    // the automatic step between them is a debugging artefact, not a
+    // screenshot.
+    expect(result.packages.single.sets.first.images, [
+      p.join('a', '01-welcome.png'),
+      p.join('a', '02-order-placed.png'),
+    ]);
+    expect(
+      File(p.join(output, 'en', 'iphone-16', 'a', '01-welcome.png'))
+          .existsSync(),
+      isTrue,
+    );
+    // The run itself is scratch: what is left is the images and nothing else.
+    expect(Directory(p.join(output, '.runs')).existsSync(), isFalse);
+
+    // A tag narrows it to the shots that carry it.
+    var tagged =
+        (await subject.invoke(
+              'shots',
+              arguments: {
+                'package': '.',
+                'output': output,
+                'devices': 'iphone-16',
+                'tag': 'store',
+              },
+            ))!
+            as ScenarioShotsResult;
+    expect(tagged.packages.single.sets.single.images, [
+      p.join('a', '01-welcome.png'),
+    ]);
+    // Emptied first: yesterday's screenshot of a screen that no longer exists
+    // must not ship beside today's.
+    expect(
+      File(p.join(output, 'en', 'iphone-16', 'a', '02-order-placed.png'))
+          .existsSync(),
+      isFalse,
+    );
+  });
+
   test(
-    'shots keeps the named captures, by language and device, numbered',
+    'shots are numbered per scenario, so adding one renames nothing else',
     () async {
-      var runner = _FakeRunner()..writeShots = true;
+      // One number ran across the whole set in file order, so a shot added to
+      // one scenario renamed every file of every scenario after it, and every
+      // export's diff touched all of them.
+      var runner = _FakeRunner()
+        ..writeShots = true
+        ..moreShotScenarios = [
+          ('test/scenarios/cart_test.dart', 'Happy path', ['Cart', 'Paid']),
+          ('test/scenarios/checkout_test.dart', 'Happy path', ['Receipt']),
+          ('test/scenarios/settings_test.dart', 'Settings', ['Profile']),
+        ];
       var subject = core(runner: runner);
       var output = p.join(root.path, 'store');
-      var result =
-          (await subject.invoke(
-                'shots',
-                arguments: {
-                  'package': '.',
-                  'output': output,
-                  'devices': 'iphone-16',
-                  'languages': 'en,fr',
-                },
-              ))!
-              as ScenarioShotsResult;
+      Future<List<String>> shots() async =>
+          ((await subject.invoke(
+                    'shots',
+                    arguments: {
+                      'package': '.',
+                      'output': output,
+                      'devices': 'iphone-16',
+                    },
+                  ))!
+                  as ScenarioShotsResult)
+              .packages
+              .single
+              .sets
+              .single
+              .images;
 
-      // A true screenshot, resolved in the guest — the device may have come
-      // from a folder profile the host never saw.
-      expect(runner.seenNative, everyElement(isTrue));
-
-      expect(result.ok, isTrue);
-      expect(result.count, 4);
-      expect(
-        [for (var set in result.packages.single.sets) set.directory],
-        [p.join('en', 'iphone-16'), p.join('fr', 'iphone-16')],
-      );
-      // Named shots only, numbered in capture order — the automatic step
-      // between them is a debugging artefact, not a screenshot.
-      expect(result.packages.single.sets.first.images, [
-        '01-welcome.png',
-        '02-order-placed.png',
+      var before = await shots();
+      expect(before, [
+        p.join('a', '01-welcome.png'),
+        p.join('a', '02-order-placed.png'),
+        // A name is unique per file, not per package: the two `Happy path`s
+        // are told apart by their files, and nothing else is.
+        p.join('cart-happy-path', '01-cart.png'),
+        p.join('cart-happy-path', '02-paid.png'),
+        p.join('checkout-happy-path', '01-receipt.png'),
+        p.join('settings', '01-profile.png'),
       ]);
-      expect(
-        File(p.join(output, 'en', 'iphone-16', '01-welcome.png')).existsSync(),
-        isTrue,
-      );
-      // The run itself is scratch: what is left is the images and nothing else.
-      expect(Directory(p.join(output, '.runs')).existsSync(), isFalse);
 
-      // A tag narrows it to the shots that carry it.
-      var tagged =
-          (await subject.invoke(
-                'shots',
-                arguments: {
-                  'package': '.',
-                  'output': output,
-                  'devices': 'iphone-16',
-                  'tag': 'store',
-                },
-              ))!
-              as ScenarioShotsResult;
-      expect(tagged.packages.single.sets.single.images, ['01-welcome.png']);
-      // Emptied first: yesterday's screenshot of a screen that no longer exists
-      // must not ship beside today's.
-      expect(
-        File(p.join(output, 'en', 'iphone-16', '02-order-placed.png'))
-            .existsSync(),
-        isFalse,
+      runner.moreShotScenarios[0] = (
+        'test/scenarios/cart_test.dart',
+        'Happy path',
+        ['Cart', 'Coupon', 'Paid'],
       );
+      var after = await shots();
+      expect(after.toSet().difference(before.toSet()), {
+        p.join('cart-happy-path', '02-coupon.png'),
+        p.join('cart-happy-path', '03-paid.png'),
+      });
+      expect(before.toSet().difference(after.toSet()), {
+        p.join('cart-happy-path', '02-paid.png'),
+      });
     },
   );
 
@@ -600,7 +661,7 @@ void main() {
     expect(result.packages, hasLength(2));
     for (var package in ['root', 'examples-shop']) {
       expect(
-        File(p.join(output, package, 'en', 'iphone-16', '01-welcome.png'))
+        File(p.join(output, package, 'en', 'iphone-16', 'a', '01-welcome.png'))
             .existsSync(),
         isTrue,
         reason: package,
@@ -740,6 +801,10 @@ class _FakeRunner extends ScenarioRunner {
   /// shots up to the failure still on disk.
   String? shotFailure;
 
+  /// Further scenarios the shot run reports after its own: a file, a name and
+  /// the named shots it takes, in order.
+  var moreShotScenarios = <(String, String, List<String>)>[];
+
   /// What the harness resolved the device to, echoed the way the real one
   /// does: the request's device, or the fallback the host offered.
   String? resolvedDevice;
@@ -872,6 +937,18 @@ class _FakeRunner extends ScenarioRunner {
             step(2, 'Order placed', const []),
           ],
         },
+        for (var (index, (file, name, shots)) in moreShotScenarios.indexed)
+          {
+            'file': file,
+            'name': name,
+            'device': resolvedDevice,
+            'ok': true,
+            'ms': 3,
+            'steps': [
+              for (var (at, shot) in shots.indexed)
+                step(10 * (index + 1) + at, shot, const []),
+            ],
+          },
       ],
     };
   }

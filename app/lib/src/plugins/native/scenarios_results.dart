@@ -258,7 +258,7 @@ class ScenarioShotsPackage {
 
   final String path;
 
-  /// The root of the tree — `<language>/<device>/` beneath it.
+  /// The root of the tree — `<language>/<device>/<scenario>/` beneath it.
   final String output;
 
   final List<ScenarioShotSet> sets;
@@ -289,8 +289,16 @@ class ScenarioShotSet {
 
   final Map<String, String> axes;
 
-  /// File names, in the order they were captured — which is the order they
-  /// were numbered with.
+  /// Paths relative to [directory] — `<scenario>/NN-name.png` — in the order
+  /// they were captured.
+  ///
+  /// A directory per scenario, numbered within it: a scenario's shots are in
+  /// flow order, and adding one renames nothing in any other scenario. The
+  /// number used to run across the whole set in file order, so one shot added
+  /// early in a suite renamed every file after it, and an export's diff
+  /// touched all of them. The directory is the scenario's name, slugged; two
+  /// files that each have a scenario of that name get their files in front of
+  /// it — `cart-happy-path/`, `checkout-happy-path/`.
   final List<String> images;
 
   /// Scenarios that failed while producing this set. Their shots up to the

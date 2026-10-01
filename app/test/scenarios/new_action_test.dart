@@ -8,6 +8,7 @@ import 'package:flutterware_app/src/context.dart';
 import 'package:flutterware_app/src/plugins/native/scenarios_core.dart';
 import 'package:flutterware_app/src/plugins/native/scenarios_results.dart';
 import 'package:flutterware_app/src/plugins/plugin_host.dart';
+import 'package:flutterware_app/src/scenarios/authoring.dart';
 import 'package:flutterware_app/src/shell/workspace.dart';
 import 'package:flutterware_app/src/shell/worktree.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
@@ -138,6 +139,22 @@ void main() {
     test('an empty name', () async {
       expect(() => write(core(), name: '   '), throwsA(isA<ArgumentError>()));
     });
+  });
+
+  test('a numbered name writes a file the `file_names` lint accepts', () async {
+    // `01 Login` became `01_login_test.dart`, and a file name that starts
+    // with a digit is the one thing that lint refuses. The number is an
+    // order, and the order is the scenario's: it stays in the name.
+    var result = await write(core(), name: '01 Login');
+    expect(result.file, 'test/scenarios/login_test.dart');
+    expect(result.name, '01 Login');
+
+    expect(scenarioFileName('1. Checkout'), 'checkout_test.dart');
+    expect(scenarioFileName('01 02 Checkout'), 'checkout_test.dart');
+    // A digit inside the first word is part of the name, not an order.
+    expect(scenarioFileName('2FA setup'), 'scenario_2fa_setup_test.dart');
+    expect(scenarioFileName('2024'), 'scenario_2024_test.dart');
+    expect(scenarioFileName('Level 2'), 'level_2_test.dart');
   });
 
   test('a name with an apostrophe still parses', () async {

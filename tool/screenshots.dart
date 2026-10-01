@@ -187,8 +187,9 @@ Future<void> _capture(String root, List<String> failed) async {
       continue;
     }
     for (var shot in shots) {
-      // `NN-name.png`: the number is the step's order in the run, which is
-      // the one thing about a shot a picture's file name must not depend on.
+      // `<scenario>/NN-name.png`: the number is the step's order in its
+      // scenario, which is the one thing about a shot a picture's file name
+      // must not depend on.
       var name = p.basename(shot).replaceFirst(RegExp(r'^\d+-'), '');
       File(shot).copySync(p.join(raw.path, name));
     }
