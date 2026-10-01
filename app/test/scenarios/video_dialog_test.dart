@@ -30,6 +30,7 @@ void main() {
       bool nameThePackage = false,
       ScenarioVideoOptions options = const ScenarioVideoOptions(),
       String? device,
+      Map<String, String> axes = const {},
     }) => scenarioVideoCommand(
       pluginId: 'flutterware.scenarios',
       package: package,
@@ -38,6 +39,7 @@ void main() {
       nameThePackage: nameThePackage,
       options: options,
       device: device,
+      axes: axes,
     );
 
     ScenariosCore core() {
@@ -98,6 +100,14 @@ void main() {
       expect(line, contains("--branch='large cup'"));
     });
 
+    test('names the app axes the page ran under, as the action reads them', () {
+      expect(
+        command(axes: {'contrast': 'high', 'brand': 'tea'}),
+        contains('--axes=brand=tea,contrast=high'),
+      );
+      expect(command(), isNot(contains('--axes')));
+    });
+
     test('a default is not worth printing', () {
       expect(command(), isNot(contains('--scale')));
       expect(command(), isNot(contains('--fps')));
@@ -114,6 +124,7 @@ void main() {
         package: 'packages/ui',
         nameThePackage: true,
         device: 'iphone-13',
+        axes: {'brand': 'tea'},
         options: const ScenarioVideoOptions(
           scale: 2,
           fps: 60,
