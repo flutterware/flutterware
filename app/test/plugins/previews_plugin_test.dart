@@ -198,6 +198,18 @@ Widget counter() => const Placeholder();
     expect(subject.report.status.message, 'no entries in nonexistent/');
   });
 
+  test('a package scanned whole names no directory', () async {
+    // With no `directory:` the scan root is the package itself, and the same
+    // sentence came out as "no entries in /" — a filesystem root.
+    write('packages/empty/pubspec.yaml', 'name: empty\n');
+    var subject = catalog(packages: ['packages/empty'])
+      ..track('packages/empty');
+    await scanned(subject);
+
+    expect(subject.report.status.tone, Tone.warn);
+    expect(subject.report.status.message, 'no entries');
+  });
+
   test('a directory that is not there reads differently from an empty one', () {
     Future<void> check(String directory, CatalogSetup expected) async {
       var subject = catalog(directory: directory)..track('.');

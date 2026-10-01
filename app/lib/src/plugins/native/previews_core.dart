@@ -1741,9 +1741,7 @@ class PreviewsCore extends PluginCore {
     // looking for a setting; "no entries in demo/" *is* the setting.
     if (entries.isEmpty) {
       var only = packages.length == 1 ? packages.single : null;
-      return Status.warn(
-        only == null ? 'no entries' : 'no entries in ${rootFor(only)}/',
-      );
+      return Status.warn(only == null ? 'no entries' : _noEntriesIn(only));
     }
     var warnings = _scans.values.fold(
       0,
@@ -1753,6 +1751,13 @@ class PreviewsCore extends PluginCore {
         ? Status.none
         : Status.warn('$warnings ${warnings == 1 ? 'warning' : 'warnings'}');
   }
+
+  /// "no entries in demo/", or "no entries" when the scan is the whole
+  /// package — which has no directory to name, and used to read "in /".
+  String _noEntriesIn(String path) => switch (rootFor(path)) {
+    '' => 'no entries',
+    var root => 'no entries in $root/',
+  };
 
   Status _packageStatus(String path) {
     // The fact, not the exception: `_failures` holds a whole `'$e'`, which on
@@ -1771,7 +1776,7 @@ class PreviewsCore extends PluginCore {
       // A directory that is not there is a typo in `directory:` far more often
       // than it is an intention, so it is worth a different word from "empty".
       CatalogSetup.missing => Status.warn('no ${rootFor(path)}/ directory'),
-      CatalogSetup.empty => Status.warn('no entries in ${rootFor(path)}/'),
+      CatalogSetup.empty => Status.warn(_noEntriesIn(path)),
       _ => Status.none,
     };
   }

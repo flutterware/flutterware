@@ -34,17 +34,26 @@ library;
 import 'package.dart';
 
 /// The package that stands for the whole repository, and its picture.
+///
+/// Both are required, and neither does anything without the other: [icon] is
+/// what a window shows, and [package] is where that file is.
 class ProjectIdentity {
   const ProjectIdentity({required this.package, required this.icon});
 
-  /// Whose launcher icon and name represent this project.
+  /// The package [icon] is found in: the file is resolved against its root,
+  /// and the tooltip over the window's picture names it.
+  ///
+  /// That is all it drives. Nothing reads the package's name or its launcher
+  /// icon, so naming a package alone would declare nothing a window can show —
+  /// which is why [icon] is required beside it.
   ///
   /// A [Pkg] rather than a path string, so it is the same value the plugins
   /// below it are configured with and a rename moves one constant.
   final Pkg package;
 
-  /// The picture, relative to [package]'s root — `'logo.png'`,
-  /// `'assets/brand/mark.png'`, `'macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png'`.
+  /// The picture the window and the Dock show for this repository, relative
+  /// to [package]'s root — `'logo.png'`, `'assets/brand/mark.png'`,
+  /// `'macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png'`.
   ///
   /// Named rather than found, which is what this field is for. The
   /// first version of this searched the declared package's platform directories
