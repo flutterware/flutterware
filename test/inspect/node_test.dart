@@ -540,6 +540,60 @@ void main() {
       expect(const InspectError(exception: 'x', count: 7).toJson()['count'], 7);
     });
 
+    test('keeps the frames outside the framework, nearest first', () {
+      var frames = InspectError.framesOf(
+        StackTrace.fromString('''
+#0      _fetchFont (file:///app/demo/probes.dart:30:3)
+<asynchronous suspension>
+#1      Element.rebuild (package:flutter/src/widgets/framework.dart:5324:7)
+#2      loadFontIfNecessary (package:some_fonts/src/load.dart:12:5)
+#3      _rootRun (dart:async/zone.dart:1525:13)
+#4      Declarer.test (package:test_api/src/backend/declarer.dart:220:9)
+'''),
+      );
+      expect(frames, [
+        'file:///app/demo/probes.dart:30:3',
+        'package:some_fonts/src/load.dart:12:5',
+      ]);
+    });
+
+    test('reads the terse shape a chained stack prints in too', () {
+      var frames = InspectError.framesOf(
+        StackTrace.fromString('''
+package:app/src/theme.dart 42:7            buildTheme
+package:flutter/src/widgets/framework.dart 5324:7  Element.rebuild
+===== asynchronous gap ===========================
+dart:async                                  _Future.then
+'''),
+      );
+      expect(frames, ['package:app/src/theme.dart:42:7']);
+    });
+
+    test('a stack is capped, and none is no frames', () {
+      var deep = StackTrace.fromString(
+        [for (var i = 0; i < 20; i++) '#$i      f$i (package:app/f$i.dart:1:1)']
+            .join('\n'),
+      );
+      expect(InspectError.framesOf(deep), hasLength(InspectError.maxFrames));
+      expect(InspectError.framesOf(null), isEmpty);
+    });
+
+    test('frames cross the wire, and an older guest reads as none', () {
+      const error = InspectError(
+        exception: 'x',
+        frames: ['package:app/src/theme.dart:42:7'],
+      );
+      var round = InspectError.fromJson(
+        jsonDecode(jsonEncode(error.toJson())) as Map<String, Object?>,
+      );
+      expect(round.frames, error.frames);
+      expect(
+        const InspectError(exception: 'x').toJson().containsKey('frames'),
+        isFalse,
+      );
+      expect(InspectError.fromJson({'exception': 'x'}).frames, isEmpty);
+    });
+
     test('an entry with nothing to say is empty rather than absent', () {
       var report = InspectErrors.fromJson(
         const InspectErrors(entryId: 'x', errors: []).toJson(),

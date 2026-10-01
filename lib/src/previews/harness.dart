@@ -452,6 +452,17 @@ Future<Map<String, Object?>> _audit(
   var suite = Suite(declarer.build(), SuitePlatform(Runtime.vm));
 
   var failures = <String, String>{};
+  // Where each failure was thrown, as an error's `frames` say it. The failure
+  // is often the only record there is — a wrapper that throws before anything
+  // is pumped reports nothing to the error buffer — and a message with no
+  // place in it sends the reader to the entry when the fault is in its theme.
+  var failedAt = <String, List<String>>{};
+  void fail(PreviewEntry entry, String message, StackTrace? stack) {
+    if (failures.containsKey(entry.id)) return;
+    failures[entry.id] = auditFailureMessage(message);
+    failedAt[entry.id] = InspectError.framesOf(stack);
+  }
+
   var watch = Stopwatch()..start();
   for (var (index, test) in suite.group.entries.cast<backend.Test>().indexed) {
     var entry = wanted[index];
@@ -462,7 +473,7 @@ Future<Map<String, Object?>> _audit(
     // own bootstrap uses.
     var priorReporter = reportTestException;
     reportTestException = (details, _) =>
-        failures[entry.id] ??= auditFailureMessage(details.exceptionAsString());
+        fail(entry, details.exceptionAsString(), details.stack);
     var each = Stopwatch()..start();
     try {
       await live.run();
@@ -477,7 +488,7 @@ Future<Map<String, Object?>> _audit(
       stderr.writeln('[entry] ${each.elapsedMicroseconds} ${entry.id}');
     }
     for (var error in live.errors) {
-      failures[entry.id] ??= auditFailureMessage('${error.error}');
+      fail(entry, '${error.error}', error.stackTrace);
     }
   }
 
@@ -489,11 +500,13 @@ Future<Map<String, Object?>> _audit(
           ...?collected[entry.id]?.toJson(),
           ...?captured[entry.id],
           ...?declared[entry.id],
-          // Something went wrong that is not a framework error the build
-          // reported — the builder threw outright, a test timed out. Reported
-          // separately because it is a different kind of broken: the entry did
-          // not render at all rather than rendering badly.
+          // The entry's test failed — the builder threw outright, a timer
+          // outlived the clock, an error landed after the frame. Beside a
+          // frame it is one more complaint about a picture; with none it says
+          // the entry did not render at all, and the host tells the two apart.
           'failure': ?failures[entry.id],
+          if (failedAt[entry.id] case var frames? when frames.isNotEmpty)
+            'failureFrames': frames,
         },
     },
   };

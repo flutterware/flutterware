@@ -83,6 +83,7 @@ class GuestErrors {
       library: details.library,
       context: details.context?.toDescription(),
       network: details.exception is NetworkImageLoadException,
+      frames: InspectError.framesOf(details.stack),
     );
     var existing = _errors[error.key];
     if (existing != null) {
@@ -92,6 +93,7 @@ class GuestErrors {
         context: existing.context,
         count: existing.count + 1,
         network: existing.network,
+        frames: existing.frames,
       );
       return false;
     }

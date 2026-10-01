@@ -30,6 +30,7 @@ import '../../previews/catalog_tree.dart';
 import '../../previews/debug_flags.dart';
 import '../../previews/devices.dart';
 import '../../previews/discovery.dart';
+import '../../previews/error_location.dart';
 import '../../previews/inspect_client.dart';
 import '../../previews/live_session.dart';
 import '../../previews/protocol.dart';
@@ -936,7 +937,10 @@ class PreviewsCore extends PluginCore {
             'a filled box, and a screenshot of the whole app shrinks the thing '
             'you are asking about to a smudge. A widget that is not an entry '
             'yet becomes one in a few lines — a top-level function returning '
-            'it, marked `@Preview` — and then it is here for good.',
+            'it, marked `@Preview` — and then it is here for good. An entry '
+            'that reports errors while it renders still gets its picture: '
+            'the errors come back beside it in `meta.errors`, each with where '
+            'it was thrown, and only an entry that drew nothing is refused.',
         parameters: [
           ActionParameter(
             'entry',
@@ -2502,6 +2506,7 @@ class PreviewsCore extends PluginCore {
       }
       checked += audited.length;
 
+      var locator = _locatorFor(path);
       var byId = {
         for (var entry in _scans[path]?.entries ?? const <CatalogEntry>[])
           entry.id: entry,
@@ -2512,7 +2517,6 @@ class PreviewsCore extends PluginCore {
         // those entries was never checkable in this lane at all.
         if (row.errors.length != row.indicting.length) network++;
         if (row.ok) continue;
-        var indicting = row.indicting;
         rows.add(
           CatalogAuditEntry(
             id: row.id,
@@ -2527,15 +2531,7 @@ class PreviewsCore extends PluginCore {
                 ? null
                 : auditFramingFor(path, byId[row.id]?.path ?? '', arguments).$1,
             errors: [
-              // Only when the build reported nothing of its own. A failing
-              // entry usually has both — the framework's error, and the test
-              // runner's restatement of it — and listing the pair reports one
-              // overflow twice under two spellings.
-              if (indicting.isEmpty)
-                if (row.failure case var failure?)
-                  CatalogRenderError(exception: failure, count: 1),
-              for (var error in indicting)
-                _asRenderError(InspectError.fromJson(error)),
+              for (var error in row.findings) _asRenderError(error, locator),
             ],
             stillWaitingOn: row.pending.isEmpty
                 ? null
@@ -2580,13 +2576,22 @@ class PreviewsCore extends PluginCore {
     return normalized == target || p.isWithin(target, normalized);
   }
 
-  static CatalogRenderError _asRenderError(InspectError error) =>
-      CatalogRenderError(
-        exception: error.exception,
-        library: error.library,
-        context: error.context,
-        count: error.count,
-      );
+  static CatalogRenderError _asRenderError(
+    InspectError error,
+    ErrorLocator locator,
+  ) => CatalogRenderError(
+    exception: error.exception,
+    library: error.library,
+    context: error.context,
+    location: locator.locate(error.frames),
+    count: error.count,
+  );
+
+  /// Where [packagePath]'s errors are traced back to — see [ErrorLocator].
+  ErrorLocator _locatorFor(String packagePath) => ErrorLocator.forPackage(
+    p.join(host.worktree.path, packagePath),
+    worktree: host.worktree.path,
+  );
 
   /// A declared control, flattened for the wire. Axes are [KnobDescriptor]s
   /// too — the same kind of thing with a different lifetime — so they flatten
@@ -2715,7 +2720,13 @@ class PreviewsCore extends PluginCore {
     );
 
     var observed = await _observe(want, packagePath, address);
-    return _project(want, observed.$1, live: observed.$2, address: address);
+    return _project(
+      want,
+      observed.$1,
+      live: observed.$2,
+      address: address,
+      locator: _locatorFor(packagePath),
+    );
   }
 
   /// Reads the entry, from the session a person is driving when they asked for
@@ -2810,6 +2821,7 @@ class PreviewsCore extends PluginCore {
     CatalogObservation observed, {
     required bool live,
     required Address address,
+    required ErrorLocator locator,
   }) {
     var tree = observed.tree;
     // `find`, `at` and `styles` run over the *filtered* tree, exactly as the
@@ -2845,7 +2857,10 @@ class PreviewsCore extends PluginCore {
       // is too — a caller told `ok: false` with no list has been told nothing it
       // can act on. Suppressed only when explicitly switched off.
       errors: want.errors
-          ? [for (var error in observed.errors.errors) _asRenderError(error)]
+          ? [
+              for (var error in observed.errors.errors)
+                _asRenderError(error, locator),
+            ]
           : const [],
       tree: want.tree && tree != null
           ? _asNodes(_scoped(tree, node, want.depth, want.entryId))
@@ -3288,6 +3303,7 @@ class PreviewsCore extends PluginCore {
     };
     String relative(File file) =>
         p.relative(file.path, from: host.worktree.path);
+    var locator = _locatorFor(packagePath);
 
     return Artifact(
       kind: Artifact.png,
@@ -3326,6 +3342,18 @@ class PreviewsCore extends PluginCore {
           'page': page,
           'of': pages.isEmpty ? 1 : pages.length,
           'whole': relative(captured.file),
+        },
+        // **Taken, and complained about.** A frame with errors beside it is
+        // still a frame — often a picture of the very thing that is wrong — so
+        // it is handed over with them rather than refused because of them. An
+        // entry whose font package failed its download a moment after the
+        // first frame used to come back with no picture at all.
+        if (captured.errors.isNotEmpty) ...{
+          'errors': [
+            for (var error in captured.errors)
+              _asRenderError(error, locator).toJson(),
+          ],
+          'note': _reportedWhileRendering(captured.errors.length),
         },
       },
     );
@@ -3409,6 +3437,14 @@ class PreviewsCore extends PluginCore {
       return null;
     }
   }
+
+  /// What `screenshot` says beside a picture whose entry complained — a
+  /// sentence rather than only a list, because the CLI prints the path alone
+  /// and a list in `--json` is not where a person reading a terminal looks.
+  static String _reportedWhileRendering(int count) =>
+      'The picture was taken, but the entry reported '
+      '${count == 1 ? 'an error' : '$count errors'} while it rendered — '
+      'see `errors`, or `inspect` it.';
 
   /// Knob values, however they arrived.
   ///

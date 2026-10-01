@@ -164,6 +164,14 @@ renders with the real fonts and theme, at the device's pixel ratio, and
 `--node=<name>` crops to one widget. Over MCP the same actions go through
 `flutterware_invoke`.
 
+A preview that draws and then reports an error, such as a font that fails to
+download, still gets its picture. `screenshot` prints the path as usual, says on
+stderr that the preview reported errors, and lists them under `meta.errors` in
+`--json`. `inspect` lists them too and answers `ok: false`. Each error says
+where it was thrown, preferring your own code over a dependency's, so a fault in
+a theme or a wrapper points there rather than at the preview. Only a preview
+that drew nothing is refused.
+
 A preview can also be the source of an image you publish, such as store
 artwork. On the plain rectangle (`--device=fit`, or a canvas with no devices),
 `--width` and `--height` are pixels, so they give the exact size a store asks
