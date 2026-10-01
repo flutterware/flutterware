@@ -1691,16 +1691,26 @@ class ScenarioTester {
   /// else, and it is not the place for work that needs the *real* event loop:
   /// [runAsync] is its own step, so putting one inside this one captures
   /// twice, once for what landed and once for the name.
+  ///
+  /// `shot: false` keeps the step and drops the name. It is captured the way
+  /// any verb's automatic step is — labelled `act "<description>"` in the
+  /// flow, collapsed as detail, and under [Shots.manual] not at all — so it
+  /// never reaches `scenarios shots` or the store export, which keep named
+  /// shots only. For a walk that seeds a backend between the screens it is
+  /// about: the cause stays in the flow, and out of the exported pictures.
+  /// [tags] belong to the name, and go with it.
   Future<T> act<T>(
     String description,
     FutureOr<T> Function() body, {
     List<String> tags = const [],
     Settle? settle,
+    bool shot = true,
   }) => _step(
-    Shot(description, tags: tags),
+    shot ? Shot(description, tags: tags) : null,
     settle,
     () async => await body(),
     verb: 'act',
+    target: shot ? null : describeTarget(description),
   );
 
   /// Names the screen as it stands, without performing an action.

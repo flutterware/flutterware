@@ -307,6 +307,14 @@ await s.tap(next, shot: Shot('Home', tags: ['store']));
 
 Tags are how the store lane picks its screenshots — see below.
 
+`s.act` names its step with its description, which makes every act a shot.
+`shot: false` keeps the step and drops the name: the flow still shows it, as
+`act "…"`, and `shots` and the store export leave it out.
+
+```dart
+await s.act('The backend is seeded', shot: false, () => backend.seed());
+```
+
 ## Splitting a flow
 
 One scenario, every path through it:
