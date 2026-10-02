@@ -44,7 +44,7 @@ class WorldScriptProcess {
 
   /// The last thing it said that was not a stack frame: what an exit is
   /// quoted with.
-  final _LastSaid _said;
+  final LastSaid _said;
 
   /// Where the script's VM says how to reach its service — what [reload]
   /// speaks to.
@@ -98,7 +98,7 @@ class WorldScriptProcess {
       await server.close();
       rethrow;
     }
-    var said = _LastSaid();
+    var said = LastSaid();
     for (var stream in [process.stdout, process.stderr]) {
       stream
           .transform(utf8.decoder)
@@ -415,22 +415,28 @@ class WorldScriptExited implements Exception {
   String toString() => 'The world script exited ($exitCode) before it started.';
 }
 
-/// The last line a script said that was not a stack frame: of an uncaught
-/// error, the error rather than its bottom frame.
-class _LastSaid {
+/// The last line a script said that was not a stack trace: of an uncaught
+/// error, the error rather than its bottom frame; of the VM aborting, its
+/// reason — `kernel_loader.cc: 352: error: Invalid kernel binary` — rather
+/// than the native stack it dumps after it, which ends
+/// `-- End of DumpStackTrace`.
+@visibleForTesting
+class LastSaid {
   String? line;
 
   void add(String said) {
     var trimmed = said.trim();
-    if (trimmed.isEmpty ||
-        _frame.hasMatch(trimmed) ||
-        trimmed == '<asynchronous suspension>') {
-      return;
-    }
+    if (trimmed.isEmpty || _trace.hasMatch(trimmed)) return;
     line = trimmed;
   }
 
-  static final _frame = RegExp(r'^#\d+\s');
+  static final _trace = RegExp(
+    // A Dart frame, and the gap between two.
+    r'^(#\d+\s|<asynchronous suspension>$'
+    // The VM's crash dump: its header, a native frame, its end.
+    r'|=+ CRASH =+$|(version|pid|thread|os|isolate_instructions|fp|si_signo)='
+    r'|pc 0x|-- End of DumpStackTrace)',
+  );
 }
 
 /// [line] without what `dart run` says about itself, or null when that was

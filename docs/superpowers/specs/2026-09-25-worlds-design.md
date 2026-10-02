@@ -1053,6 +1053,34 @@ Not looked into yet: a camera button that did nothing and reported nothing,
 where a plugin failing in Dart before it reaches a channel would be
 invisible to `unanswered`.
 
+**A seventh round** (2026-10-01, on `4ccad678`, #426's merge) found the
+sixth's changes doing what they said. Left alone for half an hour, the
+script's compiler stopped 30 min 4 s after the last reload; the next
+reload started a fresh one, said so, took 2.20 s against 0.44 s for the
+one after, and carried the edit made during the idle. Of the upload step
+with a reload 13.2 s in, only the 30 s worker job read `across reload.1`,
+the one line running then. With `'level': 'system'` on the upload row,
+System showed the pipeline's decisions under each hand-off, 39 lines; at
+Product, three arrivals of one record told themselves apart by what their
+writes brought. The person invited by SMS read as theirs once the server
+passed `identify` the phone, which their identity provider's token does
+not carry: their adapter looks it up by the token's subject, once an id,
+out of the request's statements — a line in the guide now. The camera
+button of the sixth round was their app's own: a picture with no handler.
+What it moved (2026-10-01):
+
+- **A crash's reason, not its dump.** Both collisions now ended with the
+  VM aborting (`kernel_loader.cc: 352: error: Invalid kernel binary`), and
+  Reload quoted the last line of the native stack it dumps,
+  `-- End of DumpStackTrace`. The quote now skips the dump's lines as it
+  skips a Dart stack's frames.
+- **A bucket's first record is its first operation.** One subscription
+  still landed by time: the watch reports a read's records at one moment,
+  in table order, and took a side row no server reports — op 3191 — for
+  the bucket's first, over the record the action wrote, op 3189, reported
+  last. The join now takes the read's records by operation, and the first
+  whose write a server reported.
+
 ### The outbox, begun
 
 Built from what the servers already report, as the traces are: every `sms`,
