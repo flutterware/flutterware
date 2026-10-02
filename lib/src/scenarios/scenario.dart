@@ -1936,7 +1936,11 @@ class ScenarioTester {
     shot,
     settle,
     () async {
-      var finder = finderForTarget(target);
+      // Guarded, because the walk evaluates it on every step and an absent
+      // row is what a walk starts from: `find.text('Row 40').first` over a
+      // list that has not built it yet would otherwise throw on the first
+      // look.
+      var finder = emptyWhenAbsent(finderForTarget(target));
       var scrollable = within == null
           ? find.byType(Scrollable)
           : find.descendant(

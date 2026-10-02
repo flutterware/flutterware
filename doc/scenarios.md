@@ -116,7 +116,8 @@ What scrolling cannot fix is refused loudly: a covered widget, or one off
 screen with nothing scrolling to it. (`flutter_test` alone prints a console
 warning on a missed tap and carries on; a flow that silently diverges is the
 one failure a screenshot-per-step tool must not have.) A widget a lazy list
-has not built yet matches nothing — that is what `scrollTo` is for.
+has not built yet matches nothing — that is what `scrollTo` is for, and
+`find.text('Row 40').first` is walked to the same way as `'Row 40'`.
 
 `s.tester` is the real `WidgetTester` if you need something the verbs do not
 have. Frames it draws are counted and reported on the next step, so a flow with
