@@ -25,7 +25,9 @@ export 'worlds_core.dart' show WorldsCore, worldsPluginId;
 /// click away ([WorldCanvas]).
 class WorldsPlugin extends NativePlugin<WorldsCore> {
   WorldsPlugin(super.core) {
-    // Opened here, a person's app draws here.
+    // Opened here, a person's app draws here: so the worlds `fw` and the
+    // MCP server are asked to open, the studio opens instead.
+    unawaited(core.takeOpenings());
     core.guests = (person) => LiveWorldGuest(
       appRoot: host.workspace.appContext.appToolDirectory.path,
       flutterSdkRoot: host.workspace.flutterSdk.root,

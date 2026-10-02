@@ -12,12 +12,16 @@ void main() {
   setUp(() => runDir = Directory.systemTemp.createTempSync('world_owner'));
   tearDown(() => runDir.deleteSync(recursive: true));
 
+  /// Where an owner listens: a file is all [WorldHandle.read] looks for.
+  String socket(String name) =>
+      (File('${runDir.path}/$name')..createSync()).path;
+
   WorldHandle handle({required int owner}) => WorldHandle(
     worktree: '/work/shop',
     world: 'pickup_order',
     name: 'Pickup order',
     pid: owner,
-    socket: '/run/world-owner.sock',
+    socket: socket('world-owner.sock'),
   );
 
   test('a live owner is found by its worktree', () {
@@ -29,6 +33,17 @@ void main() {
 
     handle(owner: pid).delete(directory: runDir.path);
     expect(WorldHandle.read('/work/shop', directory: runDir.path), isNull);
+  });
+
+  test('an owner whose socket is gone is forgotten: nobody can ask it', () {
+    var owner = handle(owner: pid)..write(directory: runDir.path);
+    File(owner.socket).deleteSync();
+    expect(WorldHandle.read('/work/shop', directory: runDir.path), isNull);
+    expect(
+      File(WorldHandle.pathFor('/work/shop', directory: runDir.path))
+          .existsSync(),
+      isFalse,
+    );
   });
 
   test('an owner that died without closing is forgotten', () async {
@@ -83,7 +98,33 @@ void main() {
     await server.close();
     expect(
       () => askWorldOwner(socket, 'status'),
-      throwsA(isA<WorldOwnerRefusal>()),
+      throwsA(isA<WorldOwnerGone>()),
+    );
+  });
+
+  test("a studio's door is found by its worktree while the studio lives, "
+      'and forgotten once it does not', () async {
+    WorldDoor door({required int studio}) => WorldDoor(
+      worktree: '/work/shop',
+      pid: studio,
+      socket: socket('world-door.sock'),
+    );
+    door(studio: pid).write(directory: runDir.path);
+    expect(WorldDoor.read('/work/shop', directory: runDir.path)!.pid, pid);
+    expect(WorldDoor.read('/work/other', directory: runDir.path), isNull);
+    // Its own file, beside the world's handle rather than in its place.
+    expect(WorldHandle.read('/work/shop', directory: runDir.path), isNull);
+    door(studio: pid).delete(directory: runDir.path);
+    expect(WorldDoor.read('/work/shop', directory: runDir.path), isNull);
+
+    var gone = await Process.start('true', const []);
+    await gone.exitCode;
+    door(studio: gone.pid).write(directory: runDir.path);
+    expect(WorldDoor.read('/work/shop', directory: runDir.path), isNull);
+    expect(
+      File(WorldDoor.pathFor('/work/shop', directory: runDir.path))
+          .existsSync(),
+      isFalse,
     );
   });
 

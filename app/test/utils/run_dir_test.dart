@@ -273,6 +273,29 @@ void main() {
       );
     });
 
+    test("a world owner's socket that still answers, however old", () async {
+      // A world open in the studio for days is reached by every other
+      // process through this socket: aged out like a guest's, it went on
+      // listening, unlinked, and nobody could ask it anything.
+      var socketPath = p.join(runDir.path, 'world-owner-61199-1.sock');
+      var server = await ServerSocket.bind(
+        InternetAddress(socketPath, type: InternetAddressType.unix),
+        0,
+      );
+      addTearDown(() async {
+        await server.close();
+        if (File(socketPath).existsSync()) File(socketPath).deleteSync();
+      });
+      File(
+        socketPath,
+      ).setLastModifiedSync(DateTime.now().subtract(const Duration(days: 3)));
+      aged('world-owner-4242-0.sock', const Duration(days: 3));
+
+      // The dead one goes; the one listening stays.
+      expect(await sweep(), 1);
+      expect(File(socketPath).existsSync(), isTrue);
+    });
+
     test('anything modified inside the window', () async {
       // The rule that protects everything in use: a live daemon appends to its
       // log, and a client deciding whether to spawn has just created its lock.

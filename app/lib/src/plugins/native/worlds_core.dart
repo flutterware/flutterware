@@ -28,6 +28,12 @@ const worldsPluginId = 'flutterware.worlds';
 /// `status`, `trace`, `contents`, `outbox`, `deliver`, `show`, `invoke`,
 /// `restart` and `close` to the owner, which leaves a `WorldHandle` saying
 /// where to ask.
+///
+/// **The studio opens what others are asked to.** `fw` and the MCP server
+/// draw a person's app nowhere; the studio draws it live. So while the
+/// studio has the worktree it takes openings ([takeOpenings]), and an `open`
+/// anywhere else is sent there — unless it is held, which asks for this
+/// process by name.
 class WorldsCore extends PluginCore {
   WorldsCore(super.host) {
     if (_handedOver.remove(host.worktree.path) case var open?) {
@@ -128,8 +134,10 @@ class WorldsCore extends PluginCore {
           'Runs the world script in its package and starts every person it '
           'declares, each app in an embedded guest; answers once they are all '
           'up. Each is then a Run app on the device `studio-<name>`, so '
-          '`flutterware_act` with that `device` drives it. The world lives in '
-          'this process: it closes when this process does. Every other process '
+          '`flutterware_act` with that `device` drives it. When the studio '
+          "has this worktree open, the world opens there, its people's apps "
+          'live on screen, and the studio owns it; otherwise it lives in this '
+          'process and closes when this process does. Every other process '
           'reaches it: `status`, `invoke`, `restart` and `close` are answered '
           'by whichever process owns it.',
       parameters: [
@@ -150,9 +158,10 @@ class WorldsCore extends PluginCore {
           kind: ActionParameterKind.boolean,
           required: false,
           description:
-              'Keep this process, and the world, until it is interrupted. '
-              'For `fw`, whose process would otherwise end — and close the '
-              'world — as soon as the world is open',
+              'Open the world in this process, even with the studio open, and '
+              'keep both until it is interrupted. For `fw`, whose process '
+              'would otherwise end — and close the world — as soon as the '
+              'world is open',
         ),
       ],
     ),
@@ -630,6 +639,7 @@ class WorldsCore extends PluginCore {
 
   WorldOwnerServer? _owner;
   WorldHandle? _handle;
+  var _disposed = false;
 
   /// Leaves [opened]'s handle for other processes, and answers them.
   Future<void> _serveElsewhere(OpenWorld opened) async {
@@ -648,6 +658,62 @@ class WorldsCore extends PluginCore {
     _handle = null;
     await _owner?.close();
     _owner = null;
+  }
+
+  WorldOwnerServer? _door;
+
+  /// Opens the worlds other processes are asked to open — `fw`, the MCP
+  /// server — here, until this core goes: called by the studio, where a
+  /// person's app draws live ([guests]) rather than nowhere.
+  Future<void> takeOpenings() async {
+    if (_door != null || unsupported != null) return;
+    var door = _door = await WorldOwnerServer.start(_openForElsewhere);
+    if (_disposed) {
+      await door.close();
+      return;
+    }
+    WorldDoor(
+      worktree: host.worktree.path,
+      pid: pid,
+      socket: door.socket,
+    ).write();
+  }
+
+  Future<Map<String, Object?>> _openForElsewhere(
+    String action,
+    Map<String, Object?> arguments,
+  ) async {
+    if (action != 'open') {
+      throw WorldRefusal('The studio takes openings here, not "$action".');
+    }
+    var asker = arguments['from'];
+    var opened = await openWorld(
+      '${arguments['world']}',
+      knobs: parseWorldKnobs(arguments['knobs'] as String?),
+      onCreated: (open) => open.say(
+        'Opened for another process${asker == null ? '' : ' (pid $asker)'} '
+        '— `fw` or the MCP server — which reaches it from there',
+      ),
+    );
+    return WorldStateResult.of(opened).toJson();
+  }
+
+  /// The studio taking this worktree's openings, when it is another process.
+  WorldDoor? openingElsewhere() {
+    var door = WorldDoor.read(host.worktree.path);
+    return door == null || door.pid == pid ? null : door;
+  }
+
+  Future<void> _closeDoor() async {
+    var door = _door;
+    if (door == null) return;
+    _door = null;
+    WorldDoor(
+      worktree: host.worktree.path,
+      pid: pid,
+      socket: door.socket,
+    ).delete();
+    await door.close();
   }
 
   /// Closes the world open here.
@@ -682,6 +748,43 @@ class WorldsCore extends PluginCore {
     required Map<String, Object?> knobs,
     required bool hold,
   }) async {
+    var elsewhere = _open == null ? openElsewhere() : null;
+    if (elsewhere != null && elsewhere.world == world) {
+      // Open already, somewhere: an opening asked twice is the one there.
+      return await _forward(elsewhere, 'status', const {}) as WorldStateResult;
+    }
+    if (!hold && _open == null && elsewhere == null) {
+      if (openingElsewhere() case var studio?) {
+        try {
+          return WorldStateResult.fromJson(
+            await askWorldOwner(
+              studio.socket,
+              'open',
+              arguments: {
+                'world': world,
+                'knobs': [
+                  for (var MapEntry(:key, :value) in knobs.entries)
+                    '$key=$value',
+                ].join(';'),
+                'from': pid,
+              },
+            ),
+            note:
+                'Opened in the studio (pid ${studio.pid}), which owns it: '
+                "its people's apps are live there. Each is a Run app: "
+                '`flutterware_act` with `device: "studio-<name>"` drives it, '
+                'and every other action reaches the world from here.',
+          );
+        } on WorldOwnerGone {
+          // A studio that left its door and stopped answering: this process
+          // opens the world, as it would with no studio at all.
+        } on WorldOwnerRefusal catch (refusal) {
+          throw WorldRefusal(refusal.message);
+        } finally {
+          notifyChanged();
+        }
+      }
+    }
     // Held, `fw` is the world's only window: what the script says — its
     // server's log, the code it texted — is printed as it is said.
     StreamSubscription<String>? printing;
@@ -898,6 +1001,8 @@ class WorldsCore extends PluginCore {
 
   @override
   void dispose() {
+    _disposed = true;
+    unawaited(_closeDoor());
     unawaited(_stopServingElsewhere());
     if (_open case var open?) {
       var worktree = host.worktree.path;

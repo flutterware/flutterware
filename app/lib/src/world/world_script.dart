@@ -268,21 +268,33 @@ class WorldScriptProcess {
   Future<VmService> _connect() async {
     // The file a script that died leaves names a port nothing listens on.
     if (_exited case var code?) throw _exitFailure(code);
-    var info = File(_serviceInfo);
-    for (var waited = 0; !info.existsSync(); waited++) {
+    // The VM creates the file before it writes it: empty, or half written,
+    // is not there yet.
+    var uri = _serviceUri();
+    for (var waited = 0; uri == null; waited++) {
       if (waited == 100) {
         throw WorldScriptReloadFailed(
           'The world script has no VM service to reload it through.',
         );
       }
       await Future<void>.delayed(const Duration(milliseconds: 50));
+      uri = _serviceUri();
     }
-    var uri = Uri.parse(
-      (jsonDecode(info.readAsStringSync()) as Map)['uri'] as String,
-    );
     return vmServiceConnectUri(
       '${uri.replace(scheme: 'ws', path: '${uri.path}ws')}',
     );
+  }
+
+  /// Where the script's VM service is, once the VM has written it.
+  Uri? _serviceUri() {
+    try {
+      return switch (jsonDecode(File(_serviceInfo).readAsStringSync())) {
+        {'uri': String uri} => Uri.parse(uri),
+        _ => null,
+      };
+    } on Object {
+      return null;
+    }
   }
 
   Future<int?> _exitedWithin(Duration wait) async =>

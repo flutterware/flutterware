@@ -7,6 +7,7 @@ import 'package:flutterware/server.dart';
 import 'package:flutterware/src/world/protocol.dart';
 import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware/world.dart';
+import 'package:path/path.dart' as p;
 
 /// An owner on the other end of [World.serve]: sends what it is told to and
 /// keeps every message the script sends.
@@ -211,7 +212,12 @@ void main() {
 
   test('an SMTP inbox reports each mail a service sends as its own, on no '
       'step', () async {
-    var runDir = await Directory('/tmp').createTemp('fw_world_');
+    // Short enough for the inspector's socket under the 104-byte `sun_path`
+    // cap — macOS's temp directory is too deep — and a temp directory on
+    // Windows, which has no `/tmp`.
+    var base = Directory.systemTemp;
+    if (p.join(base.path, 'x' * 45).length > 90) base = Directory('/tmp');
+    var runDir = await base.createTemp('fw_world_');
     var inspector = ServerInspector.start(
       runDir: runDir.path,
       projectRoot: runDir.path,
