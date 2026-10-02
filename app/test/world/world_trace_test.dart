@@ -1344,6 +1344,48 @@ void main() {
       );
     });
 
+    test('a subscription reported with the record it brought reads before '
+        'it: the reason first', () {
+      trace.addActionStep(
+        'world.1',
+        'Share',
+        since.add(const Duration(seconds: 1)),
+      );
+      lab(1100, 'write', {
+        'table': 'notes',
+        'key': 'n1',
+        'op': 'insert',
+        'step': 'world.1',
+      });
+      // One read, one moment: the record first, as the watch's order goes.
+      app('Ben', 1300, 'db:main/records', {
+        'key': 'n1',
+        'table': 'notes',
+        'change': 'synced',
+        'op': 7,
+        'bucket': 'note["n1"]',
+      });
+      app('Ben', 1300, 'db:main/records', {
+        'change': 'subscribed',
+        'bucket': 'note["n1"]',
+      });
+      expect(traced(person: worldActionsOwner)['world.1 action "Share"'], [
+        '+100 ms  lab  wrote notes/n1 (insert)',
+        '  +300 ms  Ben  subscribed to note["n1"]',
+        '  +300 ms  Ben  notes/n1 arrived (op 7)',
+      ]);
+      expect(
+        traced(
+          person: worldActionsOwner,
+          level: TraceLevel.system,
+        )['world.1 action "Share"'],
+        [
+          '+300 ms  Ben  subscribed to note["n1"]',
+          '+300 ms  Ben  notes/n1 arrived (op 7) · insert',
+        ],
+      );
+    });
+
     test('a write that says its level is seen there, and the level is not '
         'what it wrote', () {
       trace.addActionStep(
@@ -1399,6 +1441,102 @@ void main() {
       // A user already known stays whose it was.
       lab(1200, 'identify', {'user': 'u1', 'phone': '+447700900001'}, 's3');
       expect(trace.personOfUser('u1'), 'Cleo');
+    });
+  });
+
+  group('settle', () {
+    const quiet = Duration(milliseconds: 150);
+    const poll = Duration(milliseconds: 10);
+    List<TracedStep> read() => trace.steps(person: worldActionsOwner);
+
+    setUp(() {
+      trace.addActionStep(
+        'world.1',
+        'Upload',
+        since.add(const Duration(seconds: 1)),
+      );
+    });
+
+    test('waits for what keeps arriving, then answers it whole', () async {
+      lab(1100, 'write', {
+        'table': 'uploads',
+        'key': 'u1',
+        'op': 'insert',
+        'step': 'world.1',
+      });
+      // The rest arrives while it waits, on its third and sixth look: by
+      // what it has seen, not by a clock a busy machine would stretch.
+      var looks = 0;
+      List<TracedStep> arriving() {
+        switch (++looks) {
+          case 3:
+            lab(1200, 'push', {
+              'to': 'u1',
+              'title': 'Uploaded',
+              'step': 'world.1',
+            });
+          case 6:
+            app('Cleo', 1300, 'db:main/records', {
+              'key': 'u1',
+              'table': 'uploads',
+              'change': 'synced',
+              'op': 4,
+            });
+        }
+        return read();
+      }
+
+      var waited = await settle(arriving, quiet: quiet, poll: poll);
+      expect(waited.settled, isTrue);
+      expect(looks, greaterThan(6));
+      expect(traced(person: worldActionsOwner)['world.1 action "Upload"'], [
+        '+100 ms  lab  wrote uploads/u1 (insert)',
+        '  +300 ms  Cleo  uploads/u1 arrived (op 4)',
+        '+200 ms  lab → Cleo by push  Uploaded',
+      ]);
+    });
+
+    test('a job begun and not ended keeps it open, and says so', () async {
+      lab(1100, 'job', {'name': 'scan', 'step': 'world.1'}, 'job-1');
+      var waited = await settle(
+        read,
+        quiet: quiet,
+        timeout: const Duration(milliseconds: 400),
+        poll: poll,
+      );
+      expect(waited.settled, isFalse);
+      expect(waited.running, ['world.1: lab  job scan, running']);
+
+      // Ended, it settles.
+      lab(1400, 'job', {
+        'name': 'scan',
+        'ms': 300.0,
+        'step': 'world.1',
+      }, 'job-1');
+      waited = await settle(read, quiet: quiet, poll: poll);
+      expect(waited.settled, isTrue);
+      expect(waited.running, isEmpty);
+    });
+
+    test('a step heard while it waits is part of what it waits for', () async {
+      var looks = 0;
+      List<TracedStep> ben() {
+        if (++looks == 3) {
+          step('Ben', 'ben.1', 2000, '"Order"');
+          lab(2005, 'write', {
+            'table': 'orders',
+            'key': 'o1',
+            'op': 'insert',
+            'step': 'ben.1',
+          });
+        }
+        return trace.steps(person: 'Ben');
+      }
+
+      var waited = await settle(ben, quiet: quiet, poll: poll);
+      expect(waited.settled, isTrue);
+      expect(looks, greaterThan(3));
+      expect(trace.steps(person: 'Ben').single.step.id, 'ben.1');
     });
   });
 

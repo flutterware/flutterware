@@ -290,6 +290,21 @@ fw run worlds trace --person=Leo
 }
 ```
 
+**What a tap causes arrives over seconds**, and the trace answers at once
+with what has arrived so far: the jobs it queued, the sync to the other
+phones, a mail a service sends later. `--settle=2000` waits first, until the
+answer has not changed for two seconds and no job in it is still running,
+then answers. The answer says whether it settled (`"settled": true`); if the
+timeout came first, it lists the jobs still running. The timeout is 30
+seconds by default, `--timeout` up to 120. A wait settles on what is there,
+not on what is coming: an app that debounces for longer than the quiet you
+ask for still lands after the answer. So ask for more than its debounce, or
+read again.
+
+```shell
+fw run worlds trace --person=Leo --settle=2000
+```
+
 Every request an app sends carries its step in an `x-fw-step` header. A Dart
 server takes part with one line in its [inspection
 adapter](server_inspection.md), putting the header in the zone beside the

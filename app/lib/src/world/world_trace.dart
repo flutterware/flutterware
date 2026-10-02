@@ -251,8 +251,18 @@ List<TraceBeat> _seenAt(List<TraceBeat> beats, TraceLevel level) {
               ? risen
               : risen._copy(what: risen.alone, alone: risen.alone),
   ];
-  mergeSort(seen, compare: (a, b) => a.at.compareTo(b.at));
+  mergeSort(seen, compare: byMoment);
   return seen;
+}
+
+/// The order lines are read in: by when each happened, and at one moment a
+/// subscription before the records it brought — the reason before what it
+/// is the reason for — and otherwise as they were.
+int byMoment(TraceBeat a, TraceBeat b) {
+  var at = a.at.compareTo(b.at);
+  if (at != 0) return at;
+  int first(TraceBeat beat) => beat.kind == BeatKind.subscription ? 0 : 1;
+  return first(a) - first(b);
 }
 
 /// [beats] and every beat beneath them, each after the one it is beneath.
@@ -287,6 +297,55 @@ List<String> traceLines(
     ...traceLines(beat.children, since, folded: folded, indent: '$indent  '),
   ],
 ];
+
+/// How a wait for steps to settle ended: whether they did, how long it took,
+/// and — when they did not — each job still running in them.
+typedef TraceSettled = ({bool settled, Duration waited, List<String> running});
+
+/// Waits until what [read] answers has not changed for [quiet], and no job in
+/// it is still running — or until [timeout], whichever comes first.
+///
+/// What settles is the answer, not the world. A line, a count or a duration
+/// changing in it starts the quiet again, and a step heard during the wait is
+/// part of the answer, so a person's newest step arriving late is waited for
+/// too. A job that began and has not ended keeps it open. What comes after
+/// the quiet is not waited for, because nothing says it is coming: a sync
+/// engine's next checkpoint, an app's debounce, a job queued for later.
+Future<TraceSettled> settle(
+  List<TracedStep> Function() read, {
+  required Duration quiet,
+  Duration timeout = const Duration(seconds: 30),
+  Duration poll = const Duration(milliseconds: 200),
+}) async {
+  var watch = Stopwatch()..start();
+  String? said;
+  var changedAt = Duration.zero;
+  while (true) {
+    var traced = read();
+    var now = [
+      for (var (:step, :beats) in traced) ...[
+        step.id,
+        ...traceLines(beats, step.at!, folded: true),
+      ],
+    ].join('\n');
+    var running = [
+      for (var (:step, :beats) in traced)
+        for (var beat in everyBeat(beats))
+          if (beat.kind == BeatKind.job && beat.data['ms'] is! num)
+            '${step.id}: ${beat.alone ?? beat.what}',
+    ];
+    if (now != said) {
+      said = now;
+      changedAt = watch.elapsed;
+    } else if (running.isEmpty && watch.elapsed - changedAt >= quiet) {
+      return (settled: true, waited: watch.elapsed, running: const <String>[]);
+    }
+    if (watch.elapsed >= timeout) {
+      return (settled: false, waited: watch.elapsed, running: running);
+    }
+    await Future<void>.delayed(poll);
+  }
+}
 
 /// The node every synced record arrives from: the sync engine's service,
 /// which is not Dart and reports nothing but what the apps' databases show.
@@ -1395,10 +1454,7 @@ class WorldTrace {
         received.add((beat, write!));
       }
     }
-    return _withReloads(
-      step,
-      _beneathWrites(beats, received)..sort((a, b) => a.at.compareTo(b.at)),
-    );
+    return _withReloads(step, _byTime(_beneathWrites(beats, received)));
   }
 
   /// The write that gave [subscription]'s bucket its first record on the
@@ -1507,9 +1563,9 @@ class WorldTrace {
     return latest;
   }
 
-  /// [beats] in the order they happened; those at one time as they were.
+  /// [beats] in the order they happened ([byMoment]).
   static List<TraceBeat> _byTime(List<TraceBeat> beats) {
-    mergeSort(beats, compare: (a, b) => a.at.compareTo(b.at));
+    mergeSort(beats, compare: byMoment);
     return beats;
   }
 

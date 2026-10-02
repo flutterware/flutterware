@@ -7391,6 +7391,24 @@ final resultShapes = <String, ResultShape>{
         'doc': 'Oldest first.',
       },
       <String, Object?>{'name': 'note', 'type': 'String', 'optional': true},
+      <String, Object?>{
+        'name': 'settled',
+        'type': 'bool',
+        'optional': true,
+        'doc': 'With `settle`: whether the steps stopped changing, with no job still running in them, before the timeout.',
+      },
+      <String, Object?>{
+        'name': 'waitedMs',
+        'type': 'int',
+        'optional': true,
+        'doc': 'With `settle`: how long it waited.',
+      },
+      <String, Object?>{
+        'name': 'running',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'With `settle`, when it did not: each job still running, by its step.',
+      },
     ],
   }),
 };
