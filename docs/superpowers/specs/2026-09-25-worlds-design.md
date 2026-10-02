@@ -161,6 +161,24 @@ for them (`app/lib/src/world/world_owner.dart`): whoever opened a world
 owns it, and everyone else can still ask it. A script run with no owner
 prints what it declares instead, which is how its setup is debugged.
 
+**The studio opens what an agent is asked to** (2026-10-02). Owned by `fw`
+or the MCP server, a world's phones drew nowhere, and the human beside the
+agent saw them only as Run's pictures. Re-attaching the studio to guests
+another process owns was weighed and left: the frames would cross (a
+guest's surfaces are global, so only their ids and a frame tick need
+relaying), but the canvas, the timeline and the log read the world's live
+state in the owner's memory. So the studio leaves a second file per
+worktree, a door, while it has the worktree, and an `open` anywhere else is
+sent through it: the studio opens the world live, owns it, and says in its
+log who asked; the asker reaches it through the handle as before. `hold`
+asks for the asking process by name, and a door nobody answers is opened
+past, as if there were no studio. Trying it found a world the studio had
+kept open for two days unreachable: the run directory's sweep ages out any
+socket older than a day that is not a daemon's, and took the owner's for a
+guest's while the studio went on listening on it. An owner's socket, and a
+door, are now knocked on as a daemon's are, and a handle or door whose
+socket is gone is forgotten rather than trusted.
+
 ### A sketch
 
 Sketched on a coffee shop with a staff dashboard and a customer phone app —

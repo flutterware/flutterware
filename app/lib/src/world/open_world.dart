@@ -892,6 +892,9 @@ class OpenWorld {
 
   /// Says [said] in the log: the world's own words, or a line the script
   /// [printed].
+  /// Says [line] in the log, as the world's own.
+  void say(String line) => _say(line);
+
   void _say(String said, {bool printed = false}) {
     var line = WorldLogLine.of(_clock.elapsed, said, printed: printed);
     _lines.add(line.line);

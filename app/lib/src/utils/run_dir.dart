@@ -101,6 +101,13 @@ String? flutterwareDirOverride;
 /// connection that has not sent `meta/attach` (see
 /// `lib/src/server/protocol.dart` in `package:flutterware`).
 ///
+/// `world-owner-*` sockets get the daemon rule too: a world stays open in the
+/// studio for as long as somebody works in it, and its owner's socket — or
+/// the studio's door, which takes the openings `fw` and the MCP server are
+/// asked for — is how every other process reaches it. Aged out, the world
+/// was still open and answered nobody. The knock costs nothing: an owner
+/// answers a connection that asks nothing with nothing anyone reads.
+///
 /// `live-*.json` is left alone: there is exactly one per project, so it is
 /// bounded, and [attachToLiveSession] already deletes one that will not
 /// connect. `srv-*.json` does not share that bound — one per server process,
@@ -155,9 +162,12 @@ Future<int> sweepRunDir({
       continue;
     }
     // A daemon key is the 16 hex characters of a config hash; `srv-*` is an
-    // inspected server's socket. Both are probed rather than aged — see the
-    // doc above. Anything else is a guest or a spike, aged out unprobed.
-    if ((_daemonKey.hasMatch(key) || key.startsWith('srv-')) &&
+    // inspected server's socket, `world-owner-*` a world's owner or a
+    // studio's door. All are probed rather than aged — see the doc above.
+    // Anything else is a guest or a spike, aged out unprobed.
+    if ((_daemonKey.hasMatch(key) ||
+            key.startsWith('srv-') ||
+            key.startsWith('world-owner-')) &&
         await _answers(entity.path)) {
       serving.add(key);
       continue;

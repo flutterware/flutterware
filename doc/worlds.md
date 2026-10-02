@@ -172,11 +172,13 @@ still going when it came has it as a line in its place,
 across it says so — `done in 30.1 s, across reload.2` — since it began on
 the old code.
 
-From the command line, the world lives as long as the command does:
+From the command line, with the studio open on the checkout, the world opens
+in the studio; without it, the world lives as long as the command does:
 
 ```shell
 fw run worlds list
-fw run worlds open --world=pickup_order --hold=true   # Ctrl-C closes it
+fw run worlds open --world=pickup_order               # in the studio, when it is open
+fw run worlds open --world=pickup_order --hold=true   # here; Ctrl-C closes it
 fw run worlds reload
 ```
 
@@ -248,6 +250,15 @@ still reach it: `fw run worlds status`, `trace`, `invoke`, `reload`,
 `restart` and `close` are answered by the process that owns it, so an agent can run an
 action on the world you opened in the studio, or close one it left held in a
 terminal.
+
+**With the studio open, you and an agent see the same world.** `fw` and the
+MCP server draw a person's app nowhere, so while the studio has the checkout
+open, a `worlds open` from either of them is sent to the studio: the world
+opens there, its people's apps live on screen, and its log says who asked.
+The agent's answer says so, and everything it does next reaches the world as
+before. `--hold=true` keeps the world in the asking process instead. A world
+opened before the studio was stays where it is: close it and open it again
+to see it.
 
 ## See what a tap caused
 
