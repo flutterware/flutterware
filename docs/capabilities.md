@@ -2872,7 +2872,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 The newest steps taken on the people's apps — each tap, a person's or an agent's — with what each one caused: the requests it sent, what the servers did under them and whom they reached, and where the records it wrote arrived. A server takes part by reading the `x-fw-step` header into `FlutterwareServer.stepKey`; a synced database, by its database panel reading the engine.
 
 ```sh
-fw run worlds trace [--person=…] [--step=…] [--limit=…] [--statements=…] [--level=…] [--world=…]
+fw run worlds trace [--person=…] [--step=…] [--limit=…] [--statements=…] [--level=…] [--settle=…] [--timeout=…] [--world=…]
 ```
 
 Returns `WorldTraceResult`:
@@ -2880,6 +2880,9 @@ Returns `WorldTraceResult`:
 ```
 steps: List<Map<String, Object?>>   # Oldest first.
 note: String?
+settled: bool?   # With `settle`: whether the steps stopped changing, with no job still running in them, before the timeout.
+waitedMs: int?   # With `settle`: how long it waited.
+running: List<String>?   # With `settle`, when it did not: each job still running, by its step.
 ```
 
 | parameter | kind | required | default | |
@@ -2889,6 +2892,8 @@ note: String?
 | `limit` | integer | no | — | How many of the newest steps, 10 by default |
 | `statements` | boolean | no | false | What each line counts, beneath it: the SQL statements a request or a job ran, its writes to a table in a layer, each of a record's updates in a row. Without it a line says how many. |
 | `level` | choice | no | wire | How far into the system to go. `product`: what people did and what reached someone else — messages sent outside, updates and records arriving on another person's app. `system` adds the calls and jobs; `wire`, the writes, statements and sync. What a hidden line caused still shows, in its place |
+| `settle` | integer | no | — | Wait first, until the answer has not changed for this many milliseconds and no job in it is still running, then answer. What a tap causes arrives over seconds — the server, the jobs it queues, the sync to the other phones — and this is how to read it whole: 2000 suits most worlds; a sync engine that batches, or an app that debounces, wants more. The answer says whether it settled. Nothing after the quiet is waited for: a debounce longer than it still lands later |
+| `timeout` | integer | no | — | How long settle may wait, in milliseconds: 30000 by default, 120000 at most. Past it, the answer says it did not settle, and which jobs were still running |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
 #### `outbox` — Outbox

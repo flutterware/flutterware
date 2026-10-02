@@ -9,7 +9,8 @@ import '../../run/entrypoints.dart';
 import '../../world/open_world.dart';
 import '../../world/world_files.dart';
 import '../../world/world_owner.dart';
-import '../../world/world_trace.dart' show TraceLevel;
+import '../../world/world_trace.dart'
+    show TraceLevel, TraceSettled, TracedStep, settle;
 import '../plugin_core.dart';
 import '../plugin_host.dart';
 import 'run_core.dart' show runPluginId;
@@ -237,6 +238,31 @@ class WorldsCore extends PluginCore {
             ActionOption('system', label: 'System'),
             ActionOption('wire', label: 'Wire'),
           ],
+        ),
+        ActionParameter(
+          'settle',
+          'Settle',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description:
+              'Wait first, until the answer has not changed for this many '
+              'milliseconds and no job in it is still running, then answer. '
+              'What a tap causes arrives over seconds — the server, the jobs '
+              'it queues, the sync to the other phones — and this is how to '
+              'read it whole: 2000 suits most worlds; a sync engine that '
+              'batches, or an app that debounces, wants more. The answer '
+              'says whether it settled. Nothing after the quiet is waited '
+              'for: a debounce longer than it still lands later',
+        ),
+        ActionParameter(
+          'timeout',
+          'Timeout',
+          kind: ActionParameterKind.integer,
+          required: false,
+          description:
+              'How long settle may wait, in milliseconds: 30000 by default, '
+              '120000 at most. Past it, the answer says it did not settle, '
+              'and which jobs were still running',
         ),
         _worldParameter,
       ],
@@ -512,7 +538,7 @@ class WorldsCore extends PluginCore {
       arguments,
     ),
     'status' => WorldStateResult.of(_required),
-    'trace' => _traceAction(arguments),
+    'trace' => await _traceAction(arguments),
     'contents' => _contentsAction(arguments),
     'outbox' => _outboxAction(arguments),
     'deliver' => await _deliverAction(arguments),
@@ -828,7 +854,7 @@ class WorldsCore extends PluginCore {
     return result;
   }
 
-  WorldTraceResult _traceAction(Map<String, Object?> arguments) {
+  Future<WorldTraceResult> _traceAction(Map<String, Object?> arguments) async {
     var open = _required;
     var person = arguments['person'] as String?;
     if (person != null &&
@@ -844,15 +870,43 @@ class WorldsCore extends PluginCore {
       String value => int.tryParse(value) ?? 10,
       _ => 10,
     };
-    var traced =
+    List<TracedStep> read() =>
         open.tracer?.trace.steps(
           person: person,
           step: arguments['step'] as String?,
           limit: limit,
         ) ??
         const [];
+    int? ms(String name) => switch (arguments[name]) {
+      int value => value,
+      String value => int.tryParse(value),
+      _ => null,
+    };
+    TraceSettled? waited;
+    if (ms('settle') case var quiet?) {
+      if (quiet <= 0) {
+        throw WorldRefusal(
+          'settle is how long the steps must stay unchanged, in '
+          'milliseconds: more than 0.',
+        );
+      }
+      var timeout = ms('timeout') ?? 30000;
+      if (timeout <= 0 || timeout > 120000) {
+        throw WorldRefusal(
+          'timeout is how long settle may wait, in milliseconds: more than 0 '
+          'and at most 120000.',
+        );
+      }
+      waited = await settle(
+        read,
+        quiet: Duration(milliseconds: quiet),
+        timeout: Duration(milliseconds: timeout),
+      );
+    }
+    var traced = read();
     return WorldTraceResult.of(
       traced,
+      waited: waited,
       statements: arguments['statements'] == true,
       level: switch (arguments['level']) {
         String named =>
@@ -865,6 +919,10 @@ class WorldsCore extends PluginCore {
       note: traced.isEmpty
           ? 'No step yet: a step is a tap on one of the apps, by a person or '
                 'through `flutterware_act`.'
+          : waited?.settled == false
+          ? 'Still changing after ${waited!.waited.inMilliseconds} ms'
+                '${waited.running.isEmpty ? '' : ', with ${waited.running.length == 1 ? 'a job' : '${waited.running.length} jobs'} running'}: '
+                'what it caused may not all be here yet.'
           : null,
     );
   }

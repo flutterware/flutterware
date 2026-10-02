@@ -244,7 +244,13 @@ class Timeline {
       }
       // Time runs down, whatever the tree: a record a phone received sits
       // beneath the write that sent it, and may arrive after the next tap.
-      mergeSort(rows, compare: (a, b) => a.at.compareTo(b.at));
+      mergeSort(
+        rows,
+        compare: (a, b) => switch ((a.beat, b.beat)) {
+          (var x?, var y?) => byMoment(x, y),
+          _ => a.at.compareTo(b.at),
+        },
+      );
       return _together(rows);
     }
 

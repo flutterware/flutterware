@@ -462,17 +462,28 @@ class WorldActionResult implements PluginResult, ReportsFailure {
 /// each with what it caused — the requests it sent, what the servers did
 /// under them, and where the records it wrote arrived.
 class WorldTraceResult implements PluginResult {
-  const WorldTraceResult({required this.steps, this.note});
+  const WorldTraceResult({
+    required this.steps,
+    this.note,
+    this.settled,
+    this.waitedMs,
+    this.running = const [],
+  });
 
   /// [statements] lists what each line only counts: the statements a
   /// request ran, its writes in a layer. [level] leaves out the lines finer
-  /// than it, and keeps what they caused.
+  /// than it, and keeps what they caused. [waited] is how a wait for them to
+  /// settle ended, when one was asked for.
   factory WorldTraceResult.of(
     List<TracedStep> traced, {
     bool statements = false,
     TraceLevel level = TraceLevel.wire,
     String? note,
+    TraceSettled? waited,
   }) => WorldTraceResult(
+    settled: waited?.settled,
+    waitedMs: waited?.waited.inMilliseconds,
+    running: waited?.running ?? const [],
     steps: [
       for (var (:step, :beats) in traced)
         WorldTraceStep(
@@ -493,16 +504,32 @@ class WorldTraceResult implements PluginResult {
             WorldTraceStep.fromJson((step as Map).cast()),
         ],
         note: json['note'] as String?,
+        settled: json['settled'] as bool?,
+        waitedMs: json['waitedMs'] as int?,
+        running: [...(json['running'] as List? ?? const []).cast<String>()],
       );
 
   /// Oldest first.
   final List<WorldTraceStep> steps;
   final String? note;
 
+  /// With `settle`: whether the steps stopped changing, with no job still
+  /// running in them, before the timeout. Null when no wait was asked for.
+  final bool? settled;
+
+  /// With `settle`: how long it waited.
+  final int? waitedMs;
+
+  /// With `settle`, when it did not: each job still running, by its step.
+  final List<String> running;
+
   @override
   Map<String, Object?> toJson() => {
     'steps': [for (var step in steps) step.toJson()],
     'note': ?note,
+    'settled': ?settled,
+    'waitedMs': ?waitedMs,
+    if (running.isNotEmpty) 'running': running,
   };
 }
 

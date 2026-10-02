@@ -1099,6 +1099,17 @@ What it moved (2026-10-01):
   last. The join now takes the read's records by operation, and the first
   whose write a server reported.
 
+**Reading a step whole** (2026-10-02). Asked whether an agent can test with
+a world, the gap was not seeing but waiting: `act` settles the app's frames,
+and what a tap causes arrives after — jobs, sync, mail — while `trace`
+answered at once. `trace` takes `settle`: it waits until its own answer has
+not changed for that long and no job in it is still running (a job reports
+its start and its end), bounded by a timeout, and says whether it settled.
+Settling on the answer rather than on the world keeps a server's own polling
+from holding it open, and lets a step heard during the wait be waited for. It
+claims nothing about what comes after the quiet. Checks on top of it — a
+world as a live scenario's setup — stay the later step they were.
+
 ### The outbox, begun
 
 Built from what the servers already report, as the traces are: every `sms`,
