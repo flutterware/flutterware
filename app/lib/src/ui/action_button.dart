@@ -44,6 +44,7 @@ class FwActionButton extends StatefulWidget {
     this.acknowledges = true,
     this.icon,
     this.iconColor,
+    this.trailingIcon,
     this.plain = false,
   });
 
@@ -58,6 +59,10 @@ class FwActionButton extends StatefulWidget {
   /// colour would: the accent of a play glyph on a button that runs
   /// something. The label keeps its own.
   final Color? iconColor;
+
+  /// Drawn after [label] while idle: a chevron, for a button that opens a
+  /// menu.
+  final IconData? trailingIcon;
 
   /// No border at rest, for the quieter actions of a row whose main one is
   /// bordered — a header's Reload beside its Close. The hover still shows
@@ -194,21 +199,34 @@ class _FwActionButtonState extends State<FwActionButton> {
           borderRadius: BorderRadius.circular(context.radii.radius),
           border: Border.all(color: border),
         ),
-        child: switch (widget.icon) {
-          var icon? when _phase == _Phase.idle || _phase == _Phase.running =>
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+        child: switch ((
+          _phase == _Phase.idle || _phase == _Phase.running
+              ? widget.icon
+              : null,
+          _phase == _Phase.idle ? widget.trailingIcon : null,
+        )) {
+          (null, null) => Text(
+            label,
+            style: context.type.caption.copyWith(color: fg),
+          ),
+          (var icon, var trailing) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
                 Icon(
                   icon,
                   size: FwIconSize.sm,
                   color: _phase == _Phase.idle ? widget.iconColor ?? fg : fg,
                 ),
                 const SizedBox(width: FwSpacing.xs),
-                Text(label, style: context.type.caption.copyWith(color: fg)),
               ],
-            ),
-          _ => Text(label, style: context.type.caption.copyWith(color: fg)),
+              Text(label, style: context.type.caption.copyWith(color: fg)),
+              if (trailing != null) ...[
+                const SizedBox(width: FwSpacing.xxs),
+                Icon(trailing, size: FwIconSize.sm, color: context.colors.mut),
+              ],
+            ],
+          ),
         },
       ),
     );

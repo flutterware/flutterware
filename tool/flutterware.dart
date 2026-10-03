@@ -435,25 +435,22 @@ void main() => Flutterware.configure((fw) {
               name: 'Pickup order',
               description:
                   'A barista and two customers. Ana runs the counter in a '
-                  'browser on a desktop, signed in; Leo has never used the '
-                  'app and signs up with a code by SMS, which is in the '
-                  "world's log; Mia has no app, and an action orders for her",
+                  'browser. Leo signs up with a code sent by SMS. Mia has no '
+                  'app; an action orders for her.',
             ),
             WorldScript(
               'tool/worlds/rush_hour.dart',
               name: 'Rush hour',
               description:
-                  'A busy shop: two baristas, regulars with the app, and a '
-                  'kitchen that brews every order through a job queue. Its '
-                  'Rush hour action brings a dozen walk-ins',
+                  'A busy shop with two baristas and regulars. The kitchen '
+                  'makes every order through a job queue.',
             ),
             WorldScript(
               'tool/worlds/synced_pickup.dart',
               name: 'Synced pickup',
               description:
-                  'The same shop, offline first: each app keeps its orders '
-                  'in a local database PowerSync keeps in step with '
-                  "Postgres. Needs Docker; starts the lab's stack",
+                  'The same shop, offline first: orders sync between the '
+                  'apps through PowerSync and Postgres. Needs Docker.',
             ),
           ],
         ),

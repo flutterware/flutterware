@@ -57,8 +57,8 @@ void main() {
         null,
         // A step the trace no longer holds is still named, by its id.
         'leo.9',
-        'Leo: tap "Order a flat white"',
-        'action "The regulars order"',
+        'Leo tapped "Order a flat white"',
+        'The regulars order',
       ],
     );
   });

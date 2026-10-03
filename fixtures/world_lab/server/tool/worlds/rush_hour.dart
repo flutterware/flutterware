@@ -64,7 +64,7 @@ void main(List<String> args) => World.run(args, (w) async {
   w.action(
     'Rush hour',
     (run) => rushHour(server, run),
-    description: 'A dozen walk-ins order, and the kitchen works the queue',
+    description: 'A dozen customers walk in and order',
   );
   w.action(
     'The regulars order',
@@ -76,8 +76,7 @@ void main(List<String> args) => World.run(args, (w) async {
       }
     },
     description:
-        'Each regular orders under their own session, and each is pushed '
-        'when theirs is ready',
+        'Each regular orders, and gets a push when their coffee is ready',
   );
 });
 

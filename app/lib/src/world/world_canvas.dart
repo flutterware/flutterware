@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import '../inspect/inspect_dock.dart';
 import '../plugins/native/run_core.dart' show RunCore;
 import '../ui/empty_state.dart';
+import '../ui/loading_state.dart';
 import '../ui/theme.dart';
 import '../ui/zoom_buttons.dart';
 import 'live_guest.dart';
@@ -216,11 +217,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                   children: [
                     Expanded(
                       child: switch (focused) {
-                        _ when people.isEmpty => const EmptyState(
-                          icon: Icons.person_outline,
-                          title: 'Nobody yet',
-                          message: 'People appear as the script declares them.',
-                        ),
+                        _ when people.isEmpty => _NoOneYet(world: world),
                         _ when timeline => _timeline(colorOf),
                         null => _stage(context, colorOf),
                         var person => PersonFocus(
@@ -242,7 +239,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                       tabs: [
                         InspectDockTab(
                           id: 'log',
-                          label: 'World log',
+                          label: 'Log',
                           icon: Icons.terminal,
                           body: (context) => _WorldLog(lines: world.logLines),
                         ),
@@ -280,8 +277,8 @@ class _WorldCanvasState extends State<WorldCanvas> {
       ),
       null => const EmptyState(
         icon: Icons.view_timeline_outlined,
-        title: 'Nothing traced yet',
-        message: 'The world traces what happens in it once it is open.',
+        title: 'Nothing to show yet',
+        message: 'The timeline starts once the world is open.',
       ),
     };
   }
@@ -381,6 +378,72 @@ class _WorldCanvasState extends State<WorldCanvas> {
   static const _tagHeight = PersonTag.height + FwSpacing.md;
 }
 
+/// The stage before anyone is on it: what the world is doing while it opens,
+/// and for how long — the script compiling, the server starting, an app's
+/// first build can each take a while — or why nobody came.
+class _NoOneYet extends StatefulWidget {
+  const _NoOneYet({required this.world});
+
+  final OpenWorld world;
+
+  @override
+  State<_NoOneYet> createState() => _NoOneYetState();
+}
+
+class _NoOneYetState extends State<_NoOneYet> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    // The seconds count up whether or not the world says anything new.
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var world = widget.world;
+    var name = world.file.name;
+    String doing() {
+      var said = [
+        for (var line in world.logLines)
+          if (line.source == 'world') line.text,
+      ];
+      var seconds = world.sinceOpening.inSeconds;
+      return [?said.lastOrNull, '$seconds s'].join(' · ');
+    }
+
+    return switch (world.phase) {
+      WorldPhase.opening => LoadingState(
+        title: 'Opening $name…',
+        message: doing(),
+      ),
+      WorldPhase.restarting => LoadingState(
+        title: 'Restarting $name…',
+        message: doing(),
+      ),
+      WorldPhase.closing => const LoadingState(title: 'Closing…'),
+      WorldPhase.failed => EmptyState(
+        icon: Icons.error_outline,
+        iconColor: context.colors.red,
+        title: "$name didn't open",
+        message: 'The log below says why.',
+      ),
+      WorldPhase.open || WorldPhase.closed => const EmptyState(
+        icon: Icons.person_outline,
+        title: 'No people in this world',
+        message: "The world's script doesn't add anyone.",
+      ),
+    };
+  }
+}
+
 /// The world's own log — its script, its server, each app's build — in the
 /// dock, the newest at the foot.
 class _WorldLog extends StatelessWidget {
@@ -395,10 +458,7 @@ class _WorldLog extends StatelessWidget {
     if (lines.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(FwSpacing.lg),
-        child: Text(
-          'The world has logged nothing yet.',
-          style: context.type.bodyMuted,
-        ),
+        child: Text('Nothing logged yet.', style: context.type.bodyMuted),
       );
     }
     var mono = context.type.mono;

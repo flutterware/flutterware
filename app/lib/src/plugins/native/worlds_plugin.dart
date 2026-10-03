@@ -135,10 +135,8 @@ class _AnotherOpen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => EmptyState(
     icon: Icons.public_outlined,
-    title: '${asked.name} is not open',
-    message:
-        '${open.file.name} is, and a checkout opens one world at a time: two '
-        'would give two people the same device in Run.',
+    title: 'Another world is open',
+    message: 'Close ${open.file.name} to open ${asked.name}.',
     action: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -150,7 +148,7 @@ class _AnotherOpen extends StatelessWidget {
         ),
         const SizedBox(width: FwSpacing.sm),
         FwActionButton(
-          label: 'Close it and open ${asked.name}',
+          label: 'Close and open ${asked.name}',
           primary: true,
           onPressed: () async {
             await core.closeWorld();
@@ -175,8 +173,8 @@ class _WorldList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const FwPanelHeader(
-          'No world open',
-          subtitle: ['Several people on your real server, set up by a script'],
+          'Worlds',
+          subtitle: ["Each world starts your server and several people's apps"],
         ),
         if (elsewhere != null)
           Padding(
@@ -190,16 +188,15 @@ class _WorldList extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${elsewhere.name} is open in another process (pid '
-                    '${elsewhere.pid}), `fw` or the MCP server, which owns it. '
-                    'Its people are Run apps, in pictures.',
+                    '${elsewhere.name} is open in another process (fw or the '
+                    'MCP server, pid ${elsewhere.pid}). Its apps show in Run.',
                     style: context.type.bodyMuted,
                   ),
                 ),
                 const SizedBox(width: FwSpacing.md),
                 FwActionButton(
                   label: 'Close it',
-                  tooltip: 'Ask the process that owns it to close it',
+                  tooltip: 'Close the world in that process',
                   onPressed: () async {
                     try {
                       await core.invoke('close');
@@ -293,9 +290,8 @@ fw.use(Worlds(packages: [
           Text('No worlds yet', style: context.type.bodyStrong),
           const SizedBox(height: FwSpacing.sm),
           Text(
-            'A world is a script whose main calls World.run, in the package '
-            "that can start your server — for a Dart server, the server's "
-            'own. Declare each one in tool/flutterware.dart:',
+            'A world is a Dart script that starts your server and adds the '
+            'people in it. Add one to tool/flutterware.dart:',
             style: context.type.body,
           ),
           const SizedBox(height: FwSpacing.md),
@@ -346,8 +342,7 @@ class _OpenWorldView extends StatelessWidget {
                 plain: true,
                 tooltip: world.reloading
                     ? 'Reloading…'
-                    : 'Bring the script, its server and every app to the '
-                          'code on disk: same people',
+                    : 'Apply code changes. People and data stay as they are.',
                 onPressed: world.phase == WorldPhase.open && !world.reloading
                     ? _reload
                     : null,
@@ -357,7 +352,7 @@ class _OpenWorldView extends StatelessWidget {
                 label: 'Restart',
                 icon: Icons.restart_alt,
                 plain: true,
-                tooltip: 'Run the script again: new people, same apps',
+                tooltip: 'Start the world again, with new people',
                 onPressed: moving ? null : () => world.restart(),
               ),
               const SizedBox(width: FwSpacing.sm),

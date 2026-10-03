@@ -57,8 +57,8 @@ class WorldSources implements TimelineSources {
     var uri = who != null && who.running ? who.handle?.vmService : null;
     if (uri == null) {
       return AppRequest.missing(
-        "$person's app is not running, so its side of the request cannot be "
-        'read.',
+        "$person's app isn't running, so its side of the request isn't "
+        'available.',
       );
     }
     var data = row.beat!.data;
@@ -94,8 +94,8 @@ class WorldSources implements TimelineSources {
         }
       }
       return AppRequest.missing(
-        "$person's app holds no record of it: a restart of the app clears "
-        'what it recorded.',
+        "$person's app has no record of it. Restarting an app clears what it "
+        'recorded.',
       );
     } on Object catch (error) {
       unawaited(
@@ -320,8 +320,8 @@ class _TimelineDetailState extends State<TimelineDetail> {
             else
               const _Block.note(
                 'SQL',
-                'None reported with it. A server that reports its statements '
-                    '(`sql` events) shows here what its request ran.',
+                'None reported. Statements show here when the server reports '
+                    '`sql` events.',
               ),
           ],
         );
@@ -330,14 +330,14 @@ class _TimelineDetailState extends State<TimelineDetail> {
         var who = widget.trace.personOfUser(user);
         return (
           who == null
-              ? 'The $server server learnt the user of this request: $user, '
-                    'nobody the world knows.'
-              : 'The $server server learnt that $user is $who.',
+              ? 'The $server server identified this request as $user, who '
+                    'is not in this world.'
+              : 'The $server server identified $user as $who.',
           [cause],
           [
             _Block.fields('Who', [
               ('user', user),
-              ('is', who ?? 'nobody the world knows'),
+              ('is', who ?? 'not in this world'),
             ]),
           ],
         );
@@ -346,10 +346,10 @@ class _TimelineDetailState extends State<TimelineDetail> {
         var reached = row.to.isEmpty ? ['${data['user']}'] : row.to;
         return (
           reached.length == 1
-              ? "The $server server told ${reached.single}'s app, over the "
-                    'connection it holds open: ${data['what']}.'
-              : 'The $server server told the apps of ${_listed(reached)}, '
-                    'over the connections they hold open: ${data['what']}.',
+              ? "The $server server sent ${reached.single}'s app an update: "
+                    '${data['what']}.'
+              : 'The $server server sent an update to ${_listed(reached)}: '
+                    '${data['what']}.',
           [cause],
           [
             _Block.fields('What the server reported', [
@@ -357,10 +357,9 @@ class _TimelineDetailState extends State<TimelineDetail> {
               ('said', '${data['what']}'),
             ]),
             const _Block.note(
-              'What went down the connection',
-              'Not recorded: the server reports whom it reached and what '
-                  'about, and the message itself passed on a live connection '
-                  'the world does not read.',
+              'Content',
+              'Not recorded. The server reports who it updated and about '
+                  'what, not the message itself.',
             ),
           ],
         );
@@ -378,16 +377,16 @@ class _TimelineDetailState extends State<TimelineDetail> {
               : "$person's phone received $name$op.",
           [
             if (change.startsWith('local '))
-              'Caused by ${causeOf(step)} (${step.id}), just before it.'
+              'Caused by ${causeOf(step)} (${step.id}).'
             else
-              'Carried by the sync from the write ${step.id} caused.',
+              'Synced from a write caused by ${causeOf(step)} (${step.id}).',
           ],
           [
             _Block.fields('The record', [
               for (var MapEntry(:key, :value) in data.entries)
                 if (key != 'newBucket') (key, '$value'),
               if (data['newBucket'] == true)
-                ('bucket', 'new to this phone: its first sync of it'),
+                ('bucket', 'new to this phone (first sync)'),
             ]),
           ],
         );
@@ -395,11 +394,10 @@ class _TimelineDetailState extends State<TimelineDetail> {
         var bucket = '${data['bucket']}';
         var subscribed = data['change'] == 'subscribed';
         var under = data['byTime'] == true
-            ? 'Nothing says what caused it, so it is shown under the last '
-                  "step on $person's phone before it: ${causeOf(step)} "
-                  '(${step.id}).'
-            : 'Its first record came with a write of ${causeOf(step)} '
-                  '(${step.id}), which it is shown under.';
+            ? "Its cause isn't known, so it is shown under $person's last "
+                  'action before it: ${causeOf(step)} (${step.id}).'
+            : 'Shown under ${causeOf(step)} (${step.id}), whose write brought '
+                  'its first record.';
         return (
           subscribed
               ? "$person's phone subscribed to $bucket."
@@ -416,7 +414,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
         return (
           beat.kind == BeatKind.job
               ? 'The $server server ran ${beat.said}.'
-              : 'The $server server ran ${beat.said}, under no request.',
+              : 'The $server server ran ${beat.said} in the background.',
           [cause],
           [
             if (beat.folded.isNotEmpty)
@@ -480,7 +478,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
     ];
     if (step.verb == 'reload') {
       return (
-        'The world was brought to the code on disk at $at (${step.id}).',
+        'The code was reloaded at $at (${step.id}).',
         [?step.note, _afterReload],
         const [],
       );
@@ -491,9 +489,9 @@ class _TimelineDetailState extends State<TimelineDetail> {
           : '${step.person} ${Timeline.didOf(step)} at $at.',
       [
         if (said.isEmpty)
-          world ? 'The world heard it cause nothing.' : 'Nothing left the app.'
+          world ? 'It caused nothing.' : 'The app sent nothing.'
         else
-          'It caused ${_listed(said)}: the rows under it, in its colour.',
+          'It caused ${_listed(said)}, shown under it in its colour.',
         if (step.target?.startsWith('at (') ?? false) _unlabelled,
       ],
       const [],
@@ -501,19 +499,18 @@ class _TimelineDetailState extends State<TimelineDetail> {
   }
 
   static const _heldFrom =
-      'From here it holds that bucket: what was written to it before, it '
-      'receives now — which is why a record can arrive long after its write.';
+      'The phone now receives this bucket, including records written to it '
+      'earlier. That is why a record can arrive long after it was written.';
 
-  static const _letGo = 'It no longer receives what is written to that bucket.';
+  static const _letGo = 'The phone no longer receives this bucket.';
 
   static const _afterReload =
-      'What happened after it ran the new code — the server the world hosts, '
-      "what its actions call, the people's apps — but for work already "
-      'running when it came, a job or a request, which finishes on the old.';
+      'Everything after this runs the new code, except work that was '
+      'already running (a job or a request), which finishes on the old code.';
 
   static const _unlabelled =
-      'It landed on nothing with a label near it, so the world names it by '
-      'where it landed.';
+      'There was no label near where it landed, so it is named by its '
+      'position.';
 
   (String, List<String>, List<_Block>) _call(TraceBeat beat, String cause) {
     var data = beat.data;
@@ -533,7 +530,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
     if (person == null || data['url'] == null) {
       var who = widget.row.from == worldActionsOwner
           ? "The world's script"
-          : 'Something no app here is';
+          : 'Something outside the apps';
       return (
         '$who called $what on $server, answered ${data['status']}'
             '${serverMs == null ? '' : ' in $serverMs'}.',
@@ -548,9 +545,9 @@ class _TimelineDetailState extends State<TimelineDetail> {
           _Block.note(
             "The caller's side",
             widget.row.from == worldActionsOwner
-                ? 'Not recorded: the script is not an app, so only the '
-                      "server's report of it exists."
-                : 'Not recorded: no app here sent it.',
+                ? "Not recorded. The script isn't an app, so only the "
+                      "server's side exists."
+                : 'Not recorded. No app here sent it.',
           ),
         ],
       );
@@ -559,7 +556,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
       answered
           ? "$person's app called $what, answered ${data['status']}"
                 '${serverMs == null ? '' : ', $serverMs of it in the server'}.'
-          : "$person's app called $what on $server, which reported no answer.",
+          : "$person's app called $what on $server, which hasn't answered.",
       [cause, if (data['how'] == 'window') _byWindow],
       [
         _Block.future(
@@ -571,8 +568,8 @@ class _TimelineDetailState extends State<TimelineDetail> {
   }
 
   static const _byWindow =
-      'It left outside any tap, so it is joined to the step that ended just '
-      'before it.';
+      'It was sent outside any tap, so it is matched to the one just before '
+      'it.';
 
   List<_Block> _appSide(
     BuildContext context,
@@ -586,7 +583,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
         _Block.note(
           "The app's side",
           request.why == null || request.why!.isEmpty
-              ? 'Nothing to read it from here.'
+              ? 'Not available.'
               : request.why!,
         ),
       ];
@@ -611,7 +608,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
         ].join(' '),
         headers: _headers(response?.headers),
         body: upgrade
-            ? 'A live connection from here on: what passes down it is not '
+            ? 'A live connection from here on. What passes over it is not '
                   'recorded.'
             : _body(detail.responseBody),
       ),
@@ -623,16 +620,16 @@ class _TimelineDetailState extends State<TimelineDetail> {
     var message = _message;
     var word = switch (beat.kind) {
       BeatKind.sms => 'SMS',
-      BeatKind.mail => 'Mail',
+      BeatKind.mail => 'Email',
       _ => 'Push',
     };
     var to = beat.person ?? message?.to ?? '${beat.data['to']}';
     var said = message?.text ?? beat.said;
     var lines = [
       if (message?.byTime ?? false)
-        'Nothing carries a step over SMTP, so it is joined by time to '
-            '${causeOf(widget.row.step)} (${widget.row.step.id}), which ran '
-            'just before it.'
+        "Its sender doesn't say what caused it, so it is matched to "
+            '${causeOf(widget.row.step)} (${widget.row.step.id}), just before '
+            'it.'
       else
         cause,
     ];
@@ -648,14 +645,14 @@ class _TimelineDetailState extends State<TimelineDetail> {
       '$word to $to: “$said”',
       lines,
       [
-        _Block.fields('The ${word == 'Mail' ? 'mail' : word}', [
+        _Block.fields('The ${word == 'Email' ? 'email' : word}', [
           if (message.sender case var sender? when sender != beat.server)
             ('from', sender)
           else
             ('from', beat.server ?? ''),
           ('to', person == null ? message.to : '${message.to} ($person)'),
           (
-            word == 'Mail'
+            word == 'Email'
                 ? 'subject'
                 : word == 'Push'
                 ? 'title'
@@ -663,13 +660,13 @@ class _TimelineDetailState extends State<TimelineDetail> {
             message.text,
           ),
           if (message.body case var body? when body != message.text)
-            (word == 'Mail' ? 'text' : 'body', body),
+            (word == 'Email' ? 'text' : 'body', body),
           if (message.code case var code?)
             (
               'code',
               person == null
                   ? code
-                  : "$code, which the world can type into $person's app",
+                  : "$code (Enter code types it into $person's app)",
             ),
           for (var link in message.links) ('link', link),
         ]),
@@ -703,12 +700,12 @@ String causeOf(TraceStep step) {
   var target = step.target ?? '';
   return switch (step.verb) {
     'action' => "the world's action $target",
-    'reload' => "the world's ${step.id}",
+    'reload' => 'the reload ${step.id}',
     'tap' => "$person's tap on $target",
     'longPress' => "$person's long press on $target",
     'drag' => "$person's drag on $target",
-    'type' => "the world typing $target into $person's app",
-    'open' => "the world opening $target in $person's app",
+    'type' => "$target entered in $person's app",
+    'open' => "$target opened in $person's app",
     'start' => "$person's app starting",
     _ => "$person's ${step.did}",
   };

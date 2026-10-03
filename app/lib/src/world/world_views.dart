@@ -47,7 +47,7 @@ class WorldPhone extends StatelessWidget {
             '${engine?.errorMessage}',
             error: true,
           ),
-          (_, null) => const WorldPhoneNote('Starting'),
+          (_, null) => const WorldPhoneNote('Starting the app…'),
           (_, var textureId?) => _Cursor(
             system: platform?.system,
             child: EmbedderInputRegion(
@@ -63,8 +63,8 @@ class WorldPhone extends StatelessWidget {
   }
 }
 
-/// What stands where a phone will be: why it is not there yet, or why it
-/// will not be.
+/// What stands where a phone will be: what it is waiting on, with a
+/// spinner, or why it will not come.
 class WorldPhoneNote extends StatelessWidget {
   const WorldPhoneNote(this.text, {super.key, this.error = false});
 
@@ -75,12 +75,29 @@ class WorldPhoneNote extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(FwSpacing.lg),
     child: Center(
-      child: SelectableText(
-        text,
-        textAlign: TextAlign.center,
-        style: error
-            ? context.type.body.copyWith(color: context.colors.red)
-            : context.type.bodyMuted,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!error) ...[
+            // Grown back with the words, where the stage scales the text
+            // up: a spinner drawn at the stage's scale is a dot.
+            SizedBox.square(
+              dimension: MediaQuery.textScalerOf(context).scale(20),
+              child: CircularProgressIndicator(
+                strokeWidth: MediaQuery.textScalerOf(context).scale(2),
+                color: context.colors.mut3,
+              ),
+            ),
+            SizedBox(height: MediaQuery.textScalerOf(context).scale(12)),
+          ],
+          SelectableText(
+            text,
+            textAlign: TextAlign.center,
+            style: error
+                ? context.type.body.copyWith(color: context.colors.red)
+                : context.type.bodyMuted,
+          ),
+        ],
       ),
     ),
   );

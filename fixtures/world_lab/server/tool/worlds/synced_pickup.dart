@@ -84,7 +84,6 @@ void main(List<String> args) => World.run(args, (w) async {
   w.action(
     'Mia orders a flat white',
     (run) => miaOrders(server, run),
-    description:
-        'A customer with no app, through the API: synced to the counter',
+    description: 'Mia orders through the API; the order syncs to the counter',
   );
 });

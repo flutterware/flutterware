@@ -163,7 +163,7 @@ class _MailViewState extends State<MailView> {
                   if (_page != null)
                     FwSegmented<bool>(
                       segments: const [
-                        FwSegment(false, 'Mail'),
+                        FwSegment(false, 'Email'),
                         FwSegment(true, 'Page'),
                       ],
                       selected: _live,
@@ -176,8 +176,7 @@ class _MailViewState extends State<MailView> {
                 FwChip(
                   cause,
                   icon: Icons.subdirectory_arrow_right,
-                  mono: true,
-                  tooltip: 'What caused it: ${message.step}',
+                  tooltip: 'What caused it',
                 ),
               ],
             ],
@@ -206,7 +205,7 @@ class _MailViewState extends State<MailView> {
                               ? WebViewWidget(controller: _pageController())
                               : Center(
                                   child: Text(
-                                    'The live page needs macOS.',
+                                    'Showing the page needs macOS.',
                                     style: context.type.bodyMuted,
                                   ),
                                 ))
@@ -245,17 +244,14 @@ class _Picture extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.all(FwSpacing.lg),
           child: Text(
-            'Could not draw it: $error',
+            "Couldn't show the email: $error",
             style: context.type.bodyMuted,
           ),
         );
       }
       var page = drawn.data;
       if (page == null) {
-        return const LoadingState(
-          title: 'Drawing the mail',
-          message: 'WebKit renders it once; half a second.',
-        );
+        return const LoadingState(title: 'Loading the email…');
       }
       return LayoutBuilder(
         builder: (context, constraints) {
