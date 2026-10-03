@@ -19,9 +19,9 @@ import 'world_person.dart' show PersonDot;
 enum WorldView { phones, timeline }
 
 /// The open world's one toolbar: on the left what can be done to it — its
-/// knobs, each a restart with a new value, then its actions, run in the world
-/// as it is — and on the right how it is looked at, and who is in view:
-/// everyone, or one person.
+/// knobs, each a restart with a new value, then a menu of its actions, run
+/// in the world as it is — and on the right how it is looked at, and who is
+/// in view: everyone, or one person.
 class WorldToolbar extends StatelessWidget {
   const WorldToolbar({
     super.key,
@@ -80,14 +80,31 @@ class WorldToolbar extends StatelessWidget {
       for (var knob in knobs) _knob(context, knob),
       if (knobs.isNotEmpty && world.actions.isNotEmpty)
         Container(width: 1, height: 20, color: colors.line),
-      for (var MapEntry(key: action, value: description)
-          in world.actions.entries)
-        FwActionButton(
-          label: action,
-          icon: Icons.play_arrow_rounded,
-          iconColor: colors.accent,
-          tooltip: description,
-          onPressed: enabled ? () async => world.invoke(action) : null,
+      // However many the script declares, one button: a row of them grew
+      // past the bar.
+      if (world.actions.isNotEmpty)
+        Menu(
+          entries: [
+            for (var MapEntry(key: action, value: description)
+                in world.actions.entries)
+              MenuItem(
+                action,
+                detail: description,
+                icon: Icons.play_arrow_rounded,
+                onSelected: enabled
+                    ? () => unawaited(world.invoke(action))
+                    : null,
+              ),
+          ],
+          maxWidth: 360,
+          builder: (context, controller) => FwActionButton(
+            label: 'Actions',
+            icon: Icons.play_arrow_rounded,
+            iconColor: colors.accent,
+            trailingIcon: Icons.expand_more,
+            acknowledges: false,
+            onPressed: enabled ? () async => controller.toggle() : null,
+          ),
         ),
     ];
     return Container(
@@ -108,7 +125,7 @@ class WorldToolbar extends StatelessWidget {
                 size: FwIconSize.sm,
                 color: colors.ink2,
               ),
-              tooltip: "Everyone's apps, side by side",
+              tooltip: 'All the apps, side by side',
             ),
             FwSegment(
               WorldView.timeline,
@@ -118,11 +135,11 @@ class WorldToolbar extends StatelessWidget {
                 size: FwIconSize.sm,
                 color: colors.ink2,
               ),
-              tooltip: 'What happened in the world, in order',
+              tooltip: 'Everything that happened, in order',
             ),
           ];
           var used =
-              _widthOf(context, knobs, world.actions.keys) +
+              _widthOf(context, knobs, actions: world.actions.isNotEmpty) +
               FwSegmented.trayInset +
               views
                   .map((view) => FwSegmented.widthOf(context, view))
@@ -160,20 +177,23 @@ class WorldToolbar extends StatelessWidget {
   /// How wide the left of the bar is drawn: what the switch cannot have.
   double _widthOf(
     BuildContext context,
-    List<WorldKnob> knobs,
-    Iterable<String> actions,
-  ) {
+    List<WorldKnob> knobs, {
+    required bool actions,
+  }) {
     var text = _textWidth;
-    var caption = context.type.caption;
     var widths = [
       for (var knob in knobs)
         text(knob.name, context.type.bodyMuted) +
             FwSpacing.sm +
             _knobWidth(context, knob),
-      if (knobs.isNotEmpty && actions.isNotEmpty) 1.0,
-      // Its padding, its icon and the icon's gap, then its words.
-      for (var action in actions)
-        2 * FwSpacing.lg + FwIconSize.sm + FwSpacing.xs + text(action, caption),
+      if (knobs.isNotEmpty && actions) 1.0,
+      // Its padding, its two icons and their gaps, then its word.
+      if (actions)
+        2 * FwSpacing.lg +
+            2 * FwIconSize.sm +
+            FwSpacing.xs +
+            FwSpacing.xxs +
+            text('Actions', context.type.caption),
     ];
     return widths.fold(0.0, (a, b) => a + b) +
         (widths.length - 1).clamp(0, 99) * FwSpacing.sm;
@@ -189,8 +209,8 @@ class WorldToolbar extends StatelessWidget {
         child: Tooltip(
           message: [
             ?knob.description,
-            'Changing it restarts the world',
-          ].join('. '),
+            'Changing this restarts the world.',
+          ].join('\n'),
           child: FwPicker<String>(
             choices: [
               for (var option in knob.options)

@@ -64,7 +64,7 @@ void main(List<String> args) => World.run(args, (w) async {
   w.action(
     'The newsletter goes out',
     (run) => sendNewsletter(port: mail.port, to: 'ana.${w.id}@example.com'),
-    description: 'A service that is not Dart mails Ana, over SMTP',
+    description: 'Ana gets the newsletter by email',
   );
 
   // A line that calls a function: an edit to it reaches the open world on
@@ -72,6 +72,6 @@ void main(List<String> args) => World.run(args, (w) async {
   w.action(
     'Mia orders a flat white',
     (run) => miaOrders(server, run, mia: mia),
-    description: 'A customer with no app puts an order on the board',
+    description: 'Mia orders through the API; the order shows on the counter',
   );
 });

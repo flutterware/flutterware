@@ -73,7 +73,7 @@ class PersonTag extends StatelessWidget {
         if ((counts[kind] ?? 0) > 0) kind,
     ];
     return Tooltip(
-      message: onTap == null ? '' : "Open $name's app in focus",
+      message: onTap == null ? '' : 'Show only $name',
       child: Tappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(context.radii.pill),
@@ -207,11 +207,12 @@ class HeadlessCard extends StatelessWidget {
           Text.rich(
             TextSpan(
               children: [
-                TextSpan(text: "No app. The world's actions act for $name"),
-                if (actions.isEmpty)
-                  const TextSpan(text: '.')
-                else ...[
-                  const TextSpan(text: ': '),
+                TextSpan(
+                  text: actions.isEmpty
+                      ? '$name has no app.'
+                      : '$name has no app. Use Actions: ',
+                ),
+                if (actions.isNotEmpty) ...[
                   for (var (i, action) in actions.indexed) ...[
                     if (i > 0) const TextSpan(text: ', '),
                     TextSpan(
@@ -346,9 +347,9 @@ class PersonDevice extends StatelessWidget {
         shouldIgnorePointer: ignores,
       ),
       (PersonPhase.building, _) => note(
-        'Building ${person.spec.app?.entrypoint}',
+        'Building ${person.spec.app?.entrypoint}…',
       ),
-      _ => note('Starting'),
+      _ => note('Starting the app…'),
     };
   }
 }

@@ -18,6 +18,10 @@ sealed class MenuEntry {
 /// flutterware is a desktop app, and no menu row here navigates to a URL.
 class MenuItem extends MenuEntry {
   final String label;
+
+  /// A second, quieter line under [label]: what the item does, where its
+  /// name alone does not say.
+  final String? detail;
   final IconData? icon;
   final String? shortcut;
   final VoidCallback? onSelected;
@@ -29,6 +33,7 @@ class MenuItem extends MenuEntry {
 
   const MenuItem(
     this.label, {
+    this.detail,
     this.icon,
     this.shortcut,
     this.onSelected,
@@ -171,11 +176,26 @@ class _MenuItemRow extends StatelessWidget {
               const Gap(FwSpacing.md),
             ],
             Expanded(
-              child: Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.type.body.copyWith(color: fg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.type.body.copyWith(color: fg),
+                  ),
+                  if (item.detail case var detail?)
+                    Text(
+                      detail,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.type.bodySmall.copyWith(
+                        color: context.colors.mut,
+                      ),
+                    ),
+                ],
               ),
             ),
             if (item.shortcut != null) ...[

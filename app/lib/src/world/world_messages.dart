@@ -1,5 +1,3 @@
-// ignore: implementation_imports
-import 'package:flutterware/src/world/step_names.dart' show worldActionsOwner;
 import 'package:material_ui/material_ui.dart';
 
 import '../session/job.dart' show ActionRefusal;
@@ -10,11 +8,11 @@ import 'open_world.dart';
 import 'platform/studio_platform.dart';
 import 'world_trace.dart';
 
-/// `SMS`, `Push`, `Mail`.
+/// `SMS`, `Push`, `Email`.
 String messageKind(String kind) => switch (kind) {
   'sms' => 'SMS',
   'push' => 'Push',
-  'mail' => 'Mail',
+  'mail' => 'Email',
   var other => other,
 };
 
@@ -52,10 +50,25 @@ String? causeOf(OutboxMessage message, WorldTrace? trace) {
   if (id == null) return null;
   var step = trace?.step(id);
   if (step == null || step.verb == null) return id;
-  return step.person == worldActionsOwner
-      ? step.did
-      : '${step.person}: ${step.did}';
+  var person = step.person;
+  var target = step.target ?? '';
+  return switch (step.verb) {
+    'action' => _unquoted(target),
+    'tap' => '$person tapped $target',
+    'longPress' => '$person long-pressed $target',
+    'drag' => '$person dragged $target',
+    'type' => "$target typed into $person's app",
+    'open' => "$target opened in $person's app",
+    'start' => "$person's app started",
+    'reload' => 'Code reload',
+    _ => '$person: ${step.did}',
+  };
 }
+
+String _unquoted(String target) =>
+    target.length > 1 && target.startsWith('"') && target.endsWith('"')
+    ? target.substring(1, target.length - 1)
+    : target;
 
 /// Whether the app showed [push] itself: a notification it posted with the
 /// push's title, around when the push was sent.
@@ -107,15 +120,15 @@ class MessageRow extends StatelessWidget {
     var colors = context.colors;
     var body = _body;
     var marks = [
-      if (shown) _Mark(Icons.check, 'shown', color: colors.grn),
+      if (shown) _Mark(Icons.check, 'shown by the app', color: colors.grn),
       if (message.byTime)
         _Mark(
           Icons.schedule,
           'matched by time',
           color: colors.mut,
           tooltip:
-              'Sent by a service that carries no step: joined to the step '
-              'that ran just before it',
+              "Its sender doesn't say what caused it, so it is matched to "
+              'what happened just before',
         ),
     ];
     return Container(
@@ -174,8 +187,7 @@ class MessageRow extends StatelessWidget {
                           FwChip(
                             cause,
                             icon: Icons.subdirectory_arrow_right,
-                            mono: true,
-                            tooltip: 'What caused it: ${message.step}',
+                            tooltip: 'What caused it',
                           ),
                         ...marks,
                       ],
@@ -236,7 +248,7 @@ extension on MessageRow {
     var caption = type.caption;
     var chip = switch (cause) {
       var cause? =>
-        _textWidth(cause, type.mono.copyWith(fontSize: caption.fontSize)) +
+        _textWidth(cause, caption) +
             FwIconSize.xs +
             FwSpacing.xs +
             2 * FwSpacing.sm +
@@ -244,7 +256,7 @@ extension on MessageRow {
       null => 0.0,
     };
     var marks = [
-      if (shown) 'shown',
+      if (shown) 'shown by the app',
       if (message.byTime) 'matched by time',
     ].map((mark) => _textWidth(mark, caption) + FwIconSize.xs + FwSpacing.xxs);
     var parts = [_textWidth(from, caption), chip, ...marks];
@@ -255,10 +267,10 @@ extension on MessageRow {
   double _buttonsWidth(BuildContext context) {
     var running = onDeliver != null;
     var labels = [
-      if (message.kind == 'mail') 'Read it',
-      if (message.code != null && running) 'Type it',
+      if (message.kind == 'mail') 'View email',
+      if (message.code != null && running) 'Enter code',
       if (message.link != null && running)
-        message.kind == 'push' ? 'Tap it' : 'Open',
+        message.kind == 'push' ? 'Open notification' : 'Open link',
     ];
     return labels
             .map(
@@ -369,20 +381,22 @@ class _DeliveryButtonsState extends State<DeliveryButtons> {
     var buttons = [
       if (widget.onRead case var read?)
         FwActionButton(
-          label: 'Read it',
+          label: 'View email',
           acknowledges: false,
           onPressed: () async => read(),
         ),
       if (message.code case var code? when deliver != null)
         FwActionButton(
-          label: 'Type it',
-          tooltip: 'Types $code into the focused field in $whose app',
+          label: 'Enter code',
+          tooltip: 'Types $code into the field that has focus in $whose app',
           onPressed: () => _deliver('type'),
         ),
       if (message.link case var link? when deliver != null)
         FwActionButton(
-          label: message.kind == 'push' ? 'Tap it' : 'Open',
-          tooltip: 'Opens $link in $whose app',
+          label: message.kind == 'push' ? 'Open notification' : 'Open link',
+          tooltip: message.kind == 'push'
+              ? 'Opens it in $whose app, as tapping the notification would'
+              : 'Opens $link in $whose app',
           onPressed: () => _deliver('open'),
         ),
     ];

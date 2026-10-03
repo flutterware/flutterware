@@ -282,11 +282,11 @@ void main() {
     await tester.tap(find.text('SMS'));
     await tester.pump();
     expect(focus, 'system/sent/sms');
-    expect(find.text('Only SMS · show everything'), findsOneWidget);
+    expect(find.text('Only SMS · Show all'), findsOneWidget);
     expect(find.text('wrote orders/o1 (insert)'), findsNothing);
     expect(find.text('SMS: Order o1 is placed'), findsOneWidget);
 
-    await tester.tap(find.text('Only SMS · show everything'));
+    await tester.tap(find.text('Only SMS · Show all'));
     await tester.pump();
     expect(focus, isNull);
   });
@@ -322,8 +322,8 @@ void main() {
     await open('taps "Order"', 'Leo taps "Order" at 1.0 s.');
     expect(
       find.text(
-        'It caused one call, one write, 2 updates and one SMS: the rows '
-        'under it, in its colour.',
+        'It caused one call, one write, 2 updates and one SMS, shown under '
+        'it in its colour.',
       ),
       findsOneWidget,
     );
@@ -337,8 +337,7 @@ void main() {
     expect(find.text('insert'), findsOneWidget);
     await open(
       'order o1 · placed',
-      'The lab server told the apps of Ana and Leo, over the connections '
-          'they hold open: order o1 · placed.',
+      'The lab server sent an update to Ana and Leo: order o1 · placed.',
     );
     await open('SMS: Order o1 is placed', 'SMS to Leo: “Order o1 is placed”');
     expect(find.text('+447700900001 (Leo)'), findsOneWidget);

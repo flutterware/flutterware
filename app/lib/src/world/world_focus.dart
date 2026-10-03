@@ -206,12 +206,24 @@ class _PersonFocusState extends State<PersonFocus> {
         }
       }
       if (messages.isEmpty) {
-        return note('No server has sent ${person.name} anything yet.');
+        return note('No messages for ${person.name} yet.');
       }
       var posted =
           person.platform?.notifications.shown ?? const <GuestNotification>[];
       return ListView(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              FwSpacing.xl,
+              FwSpacing.md,
+              FwSpacing.xl,
+              FwSpacing.xs,
+            ),
+            child: Text(
+              'Sent to ${person.name}',
+              style: context.type.caption.copyWith(color: context.colors.mut),
+            ),
+          ),
           for (var message in messages)
             MessageRow(
               message: message,
@@ -239,7 +251,7 @@ class _PersonFocusState extends State<PersonFocus> {
         memory: FlagMemory(run.runDir, files: run.files),
       ),
       'logs' when run != null => LogsTab(key: app, core: run, handle: handle),
-      _ => note('This project declares no run plugin to read it with.'),
+      _ => note('Add the Run plugin to see this.'),
     };
   }
 }
@@ -359,7 +371,7 @@ class _Unanswered extends StatelessWidget {
       for (var MapEntry(key: channel, value: method) in plugins.entries)
         GuestPlatform.describe(channel, method),
     ];
-    var them = named.length == 1 ? 'it fails' : 'them fail';
+    var one = named.length == 1;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: FwSpacing.xl,
@@ -383,9 +395,9 @@ class _Unanswered extends StatelessWidget {
           const SizedBox(width: FwSpacing.sm),
           Expanded(
             child: SelectableText(
-              'Nothing answers ${named.join(', ')} in a world, so every '
-              "call $person's app makes to $them. Fake the plugin in the "
-              'entry point the world starts, behind a knob.',
+              'Not available in a world: ${named.join(', ')}. Calls to '
+              "${one ? 'it' : 'them'} fail in $person's app. To use "
+              "${one ? 'it' : 'them'}, add a fake in the app's entry point.",
               style: context.type.caption.copyWith(color: colors.warningText),
             ),
           ),
@@ -420,20 +432,16 @@ class _PlatformMenuState extends State<_PlatformMenu> {
       align: PopoverAlign.end,
       minWidth: 240,
       entries: [
+        MenuItem('Open a link…', icon: Icons.link, onSelected: _openLink),
         MenuItem(
-          "Open a link in $person's app…",
-          icon: Icons.link,
-          onSelected: _openLink,
-        ),
-        MenuItem(
-          'Notifications posted',
+          'Notifications',
           icon: Icons.notifications_none,
           shortcut: '${posted.length}',
           onSelected: posted.isEmpty ? null : _notifications,
         ),
         if (opened.isNotEmpty)
           MenuItem(
-            'Pages it opened',
+            'Opened pages',
             icon: Icons.open_in_browser,
             shortcut: '${opened.length}',
             onSelected: _pages,
@@ -449,7 +457,7 @@ class _PlatformMenuState extends State<_PlatformMenu> {
         ),
       ],
       builder: (context, controller) => Tooltip(
-        message: "$person's app, as its platform",
+        message: "More for $person's app",
         child: Tappable(
           onTap: controller.toggle,
           borderRadius: BorderRadius.circular(context.radii.radius),
@@ -480,7 +488,7 @@ class _PlatformMenuState extends State<_PlatformMenu> {
   Future<void> _notifications() => showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text("Notifications ${widget.person}'s app posted"),
+      title: Text("${widget.person}'s notifications"),
       content: SizedBox(
         width: 460,
         child: ListView(
@@ -509,7 +517,7 @@ class _PlatformMenuState extends State<_PlatformMenu> {
                       ),
                     ),
                     FwActionButton(
-                      label: 'Tap it',
+                      label: 'Open',
                       onPressed: () async {
                         widget.platform.notifications.tap(notification);
                         Navigator.of(context).pop();
@@ -616,8 +624,8 @@ class _OpenLinkState extends State<_OpenLink> {
     } else {
       setState(
         () => _said =
-            "${widget.person}'s app is not listening for links: it registers "
-            'no handler with app_links, or has not started it yet.',
+            "${widget.person}'s app doesn't handle links yet (it registers "
+            'no app_links handler, or has not started it).',
       );
     }
   }
@@ -632,8 +640,7 @@ class _OpenLinkState extends State<_OpenLink> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Delivered where the OS would deliver it: to the app’s link '
-            'handler.',
+            'The app receives it as if the phone opened the link.',
             style: context.type.bodyMuted,
           ),
           const SizedBox(height: FwSpacing.md),
