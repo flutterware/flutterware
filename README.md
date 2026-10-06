@@ -13,7 +13,7 @@ Live previews, widget tests that picture every step, store screenshots, and
 your app on a device you can drive. All of it also runs from the terminal.
 <!-- /site -->
 
-**[Open the web demo](https://flutterware.github.io/flutterware/)** to look
+**[Open the web demo](https://flutterware.dev/demo/)** to look
 around before installing anything. It is the studio itself, compiled for the
 web and opened on the demo app, a small coffee shop: the previews run live in
 the page, and every other tool shows what it found on a recorded run of the
