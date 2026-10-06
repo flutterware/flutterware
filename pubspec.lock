@@ -690,6 +690,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.1"
+  hotreloader:
+    dependency: transitive
+    description:
+      name: hotreloader
+      sha256: "66871df468fc24eee81f1a0a7cb98acc104716f9b7376d355437b48d633c4ebf"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.4.0"
   html:
     dependency: transitive
     description:
@@ -754,6 +762,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
+  jaspr:
+    dependency: transitive
+    description:
+      name: jaspr
+      sha256: c4e7459389fadb3f48ed7c2d5165b000ad93f4aaa08f86a490eaf5d3b652bb3e
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.23.5"
+  jaspr_builder:
+    dependency: transitive
+    description:
+      name: jaspr_builder
+      sha256: "15f62fcd3a678dbf0cf68b38fa19b6258d4708b61bff2b8b1f0d6e8302770d41"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.23.5"
   jni:
     dependency: transitive
     description:
@@ -1260,6 +1284,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.2"
+  shelf_gzip:
+    dependency: transitive
+    description:
+      name: shelf_gzip
+      sha256: "4f4b793c0f969f348aece1ab4cc05fceba9fea431c1ce76b1bc0fa369cecfc15"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.0"
   shelf_packages_handler:
     dependency: transitive
     description:
@@ -1268,6 +1300,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  shelf_proxy:
+    dependency: transitive
+    description:
+      name: shelf_proxy
+      sha256: "0c3a7b2b4c111cae8a6d9077701e0622c6013d38a780373ac359d6d45b3aa10b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.5"
   shelf_router:
     dependency: transitive
     description:
@@ -1489,6 +1529,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.1"
+  universal_web:
+    dependency: transitive
+    description:
+      name: universal_web
+      sha256: "618a9d8659e9429875f69d4da0fb9c0c143d3d4cdab28b4545502088aa50ed62"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1+1"
   url_launcher:
     dependency: transitive
     description:

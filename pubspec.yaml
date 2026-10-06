@@ -17,6 +17,7 @@ workspace:
   - fixtures/world_lab/server
   - examples/brewline
   - web_demo
+  - site
 
 # **No `web:` here, and it is load-bearing — see the `pub_score` CI job.**
 #

@@ -26,7 +26,9 @@
 /// new recording.
 ///
 /// The pictures that are not the studio come from where they really are: the
-/// store images are the demo app's own `fw run store export`, run here first.
+/// store images are the demo app's own `fw run store export`, run here first,
+/// and the screens in the hero's agent session are the recording's own
+/// comparison of its feature branch.
 ///
 /// Then [composed] lays the raw shots out at the size a README wants — the
 /// hero, the grid's cards, the guides' windows — through preview entries in
@@ -100,6 +102,8 @@ const cards = [
   'card-comparison',
   'card-changes',
   'card-server',
+  'card-launcher-icon',
+  'card-native-splash',
 ];
 
 /// The guides' pictures: a window each.

@@ -88,4 +88,17 @@ void main() {
     await s.tap(const Target.containing('/orders?today=1'));
     await card(s, shell, 'card-server');
   });
+
+  scenario('Launcher icon card', (s) async {
+    var shell = await studio(s);
+    await s.tap('Launcher icon');
+    await s.tap('Themed icon');
+    await card(s, shell, 'card-launcher-icon');
+  });
+
+  scenario('Splash card', (s) async {
+    var shell = await studio(s);
+    await s.tap('Splash screen');
+    await card(s, shell, 'card-native-splash');
+  });
 }

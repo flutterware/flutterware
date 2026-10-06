@@ -1,0 +1,9 @@
+# One thing is held here, for `site/`: Jaspr's builder declares analyzer 12
+# and the studio is written against 13. A workspace has one resolution, and
+# without this line it settles on 12 — which the studio does not compile on,
+# and whose formatter cannot parse this repo. The builder does run on 13.
+#
+# Delete this file when `jaspr_builder` declares the analyzer the workspace
+# is on; `fvm flutter pub get` says so by no longer reporting an override.
+dependency_overrides:
+  analyzer: ^13.3.0

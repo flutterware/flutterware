@@ -483,9 +483,9 @@ jobs:
         # point plus the recording copied next to `index.html`, which is where
         # the page fetches it from — the recording is deliberately not an
         # asset of the app (see `app/lib/src/demo/recording.dart`).
-        # `--base-href` is the repository's Pages path, which is where the
-        # deploy job below puts it.
-        run: dart run tool/demo/build_web.dart --base-href "/${{ github.event.repository.name }}/"
+        # `--base-href` is where the deploy job below puts it: under the home
+        # page, on a domain of its own.
+        run: dart run tool/demo/build_web.dart --base-href "/demo/"
         working-directory: app
       # puppeteer's Chrome, ~150 MB, keyed on the lockfile so a puppeteer bump
       # fetches the browser it wants and nothing else does.
@@ -510,16 +510,42 @@ jobs:
           name: studio-demo-shots
           path: app/build/web_demo/shots
           retention-days: 7
+      - name: "the home page builds from the README"
+        # `site/` is a Jaspr package and a member of the workspace, so the
+        # `pub get` and the analysis above already covered it. Its words are
+        # regions of README.md: a README that no longer has one the page
+        # renders fails here, and says which.
+        #
+        # The Jaspr tool is installed rather than depended on, and pinned as
+        # pana is: its own code needs analyzer 12, and the workspace holds 13
+        # (`pubspec_overrides.yaml` says why). The second line turns off the
+        # usage statistics it otherwise sends from a machine it has not run on
+        # before, which is every runner.
+        run: |
+          dart pub global activate jaspr_cli 0.23.5
+          dart pub global run jaspr_cli:jaspr --disable-analytics
+          dart test
+          dart pub global run jaspr_cli:jaspr build
+        working-directory: site
+      - name: "one site: the home page, and the demo under it"
+        # The build also writes what a page running Dart in the browser would
+        # load. This one runs none, so only the page and `site/web/` go out.
+        run: |
+          rm -rf site/build/jaspr/packages site/build/jaspr/.dart_tool site/build/jaspr/.build.manifest
+          cp -R app/build/web site/build/jaspr/demo
       - uses: actions/upload-artifact@v4
         with:
-          name: studio-demo
-          path: app/build/web
+          name: site
+          path: site/build/jaspr
           retention-days: 7
 
   deploy_demo:
-    name: Deploy the studio demo
-    # Every push to master publishes the page the README links to. One-time
-    # setup on the repository: Settings → Pages → Source: GitHub Actions.
+    name: Deploy the site and the studio demo
+    # Every push to master publishes flutterware.dev: the home page built from
+    # `site/` at the root, and the studio demo it links to under `demo/`. One-time
+    # setup on the repository: Settings → Pages → Source: GitHub Actions, and
+    # the custom domain on the same screen — a deploy from a workflow reads no
+    # CNAME file.
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: studio_demo
     runs-on: ubuntu-latest
@@ -532,7 +558,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: studio-demo
+          name: site
           path: site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

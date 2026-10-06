@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
@@ -9,7 +10,9 @@ import 'package:flutterware/previews.dart';
 ///
 /// Nothing here is a capture. The window, the cards and the guides' pictures
 /// are named steps of the studio's own scenarios, written to
-/// `build/screenshots/raw/`; the store images are the demo app's own export.
+/// `build/screenshots/raw/`; the store images are the demo app's own export,
+/// and the screens in the agent's session are the recording's own comparison
+/// of its feature branch.
 /// These entries lay them out and scale them to the size a README wants —
 /// so the hero can never show a screen the scenarios did not reach.
 ///
@@ -105,16 +108,16 @@ class _StoreStrip extends StatelessWidget {
   }
 }
 
-/// The studio's window, on the flow of the demo's flagship scenario, with
-/// what that flow turns into held in front of it: two of the store images
-/// the same run exported, and the commands that produced them.
+/// The studio's window, on the flow of the demo's flagship scenario, with the
+/// two other ways in held in front of it: a coding agent's session, and the
+/// commands a terminal takes.
 class _Hero extends StatelessWidget {
   const _Hero();
 
   @override
   Widget build(BuildContext context) {
     var window = _raw('hero-window');
-    var store = _storeImages('ios/en-US', prefix: 'iphone-').toList();
+    var work = _agentWork();
     return Directionality(
       textDirection: TextDirection.ltr,
       child: DefaultTextStyle(
@@ -131,39 +134,34 @@ class _Hero extends StatelessWidget {
               colors: [Color(0xFF0B2A6B), Color(0xFF1668E3)],
             ),
           ),
-          child: window == null || store.length < 2
+          child: window == null || work == null
               ? const Center(
                   child: Text(
-                    'Run tool/screenshots.dart: the window shot or the store '
-                    'export is missing',
+                    'Run tool/screenshots.dart: the window shot or the '
+                    'recorded comparison is missing',
                   ),
                 )
               : LayoutBuilder(
-                  builder: (context, box) =>
-                      _layout(box.biggest, window, store),
+                  builder: (context, box) => _layout(box.biggest, window, work),
                 ),
         ),
       ),
     );
   }
 
-  Widget _layout(Size size, File window, List<File> store) {
+  Widget _layout(Size size, File window, _AgentWork work) {
     // Laid out on a 1600×900 board and scaled to whatever the canvas is, so
     // the composition holds at any render size.
     var k = size.width / 1600;
-    Widget at(double left, double top, Widget child, {double turn = 0}) =>
-        Positioned(
-          left: left * k,
-          top: top * k,
-          child: Transform.rotate(angle: turn, child: child),
-        );
+    Widget at(double left, double top, Widget child) =>
+        Positioned(left: left * k, top: top * k, child: child);
     return ClipRect(
       child: Stack(
         children: [
           // Bleeding off the right edge: the window is bigger than the board,
           // which is what makes the pieces in front of it read as in front.
           at(
-            470,
+            520,
             56,
             _Framed(
               radius: 14 * k,
@@ -175,36 +173,179 @@ class _Hero extends StatelessWidget {
               ),
             ),
           ),
-          at(
-            34,
-            214,
-            _Framed(
-              radius: 20 * k,
-              k: k,
-              child: Image.file(
-                store[0],
-                width: 208 * k,
-                filterQuality: FilterQuality.high,
-              ),
-            ),
-            turn: -0.07,
-          ),
-          at(
-            214,
-            350,
-            _Framed(
-              radius: 20 * k,
-              k: k,
-              child: Image.file(
-                store[1],
-                width: 208 * k,
-                filterQuality: FilterQuality.high,
-              ),
-            ),
-            turn: 0.05,
-          ),
-          at(860, 632, _Terminal(k: k)),
+          at(36, 84, _AgentSession(k: k, work: work)),
+          at(900, 640, _Terminal(k: k)),
         ],
+      ),
+    );
+  }
+}
+
+/// A coding agent's session: asked for a feature, it reports back with the
+/// screens it changed. The feature is the one the recording's branch adds —
+/// the tab of the window beside it carries its name — and the two screens are
+/// that branch's own comparison, so the pictures are the app's and only the
+/// words are written here.
+class _AgentSession extends StatelessWidget {
+  const _AgentSession({required this.k, required this.work});
+
+  final double k;
+  final _AgentWork work;
+
+  static const _ink = Color(0xFF15181D);
+  static const _mut = Color(0xFF6B7280);
+  static const _line = Color(0xFFE8EAEE);
+  static const _green = Color(0xFF2F9E63);
+  static const _amber = Color(0xFF9A6700);
+
+  @override
+  Widget build(BuildContext context) {
+    var body = TextStyle(fontSize: 17 * k, height: 1.45, color: _ink);
+    var mono = TextStyle(
+      fontFamily: 'Menlo',
+      fontSize: 13.5 * k,
+      height: 1.3,
+      color: _ink,
+    );
+    Widget call(String action, String result) => Container(
+      padding: EdgeInsets.symmetric(horizontal: 12 * k, vertical: 8 * k),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(8 * k),
+      ),
+      child: Row(
+        spacing: 10 * k,
+        children: [
+          Text('flutterware', style: mono.copyWith(color: _mut)),
+          Expanded(child: Text(action, style: mono)),
+          Text('✓ $result', style: mono.copyWith(color: _green)),
+        ],
+      ),
+    );
+    return _Framed(
+      radius: 14 * k,
+      k: k,
+      child: Container(
+        width: 470 * k,
+        color: Colors.white,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 16 * k,
+                vertical: 11 * k,
+              ),
+              color: const Color(0xFFF3F4F6),
+              child: Text(
+                'Coding agent',
+                style: body.copyWith(
+                  fontSize: 14 * k,
+                  fontWeight: FontWeight.w600,
+                  color: _mut,
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(20 * k, 18 * k, 20 * k, 20 * k),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 16 * k,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: 360 * k),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16 * k,
+                        vertical: 11 * k,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE7F0FB),
+                        borderRadius: BorderRadius.circular(16 * k),
+                      ),
+                      child: Text(
+                        'Add a stamp card: a stamp for every drink, and a '
+                        'free one when it is full.',
+                        style: body,
+                      ),
+                    ),
+                  ),
+                  Column(
+                    spacing: 6 * k,
+                    children: [
+                      call('scenarios run', '${work.scenarios} scenarios'),
+                      call(
+                        'previews compare',
+                        '${work.changed} changed · ${work.added} new',
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Done. The menu opens a stamp card now, and a new '
+                    'scenario covers it. Here is what changed on screen:',
+                    style: body,
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 14 * k,
+                    children: [
+                      for (var screen in work.screens)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 8 * k,
+                            children: [
+                              DecoratedBox(
+                                position: DecorationPosition.foreground,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: _line, width: k),
+                                  borderRadius: BorderRadius.circular(10 * k),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10 * k),
+                                  // The top of the screen, where both the
+                                  // new icon and the new card are.
+                                  child: Align(
+                                    alignment: Alignment.topCenter,
+                                    heightFactor: 0.6,
+                                    child: Image.file(
+                                      screen.picture,
+                                      filterQuality: FilterQuality.high,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                spacing: 8 * k,
+                                children: [
+                                  Text(
+                                    screen.label,
+                                    style: body.copyWith(
+                                      fontSize: 14 * k,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    screen.added ? 'new' : 'changed',
+                                    style: body.copyWith(
+                                      fontSize: 13 * k,
+                                      color: screen.added ? _green : _amber,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -308,6 +449,56 @@ class _Terminal extends StatelessWidget {
       ),
     );
   }
+}
+
+typedef _AgentWork = ({
+  int scenarios,
+  int changed,
+  int added,
+  List<({String label, bool added, File picture})> screens,
+});
+
+/// What the recording's feature branch did to the app, as its own comparison
+/// measured it — the numbers the Changes panel shows, and two of its
+/// pictures: the menu, which gained the way in, and the preview the branch
+/// added. Null when the recording has no such comparison.
+_AgentWork? _agentWork() {
+  var comparison = _up('app/demo/fixture/comparison');
+  if (comparison == null) return null;
+  var index = File('${comparison.path}/index.json');
+  if (!index.existsSync()) return null;
+  if (jsonDecode(index.readAsStringSync()) case {
+    'counts': {'changed': int changed, 'added': int added},
+    'scenarios': {'ran': int scenarios},
+    'previews': {'items': List<Object?> items},
+  }) {
+    var screens = [
+      for (var item in items)
+        if (item
+            case {
+              'id': String id,
+              'state': String state,
+              'label': String label,
+              'shots': {'head': String head},
+            }
+            when state == 'added' || id.endsWith('#shopMenu'))
+          (
+            label: label,
+            added: state == 'added',
+            picture: File('${comparison.path}/$head'),
+          ),
+    ]..sort((a, b) => (a.added ? 1 : 0) - (b.added ? 1 : 0));
+    if (screens.length < 2 || screens.any((s) => !s.picture.existsSync())) {
+      return null;
+    }
+    return (
+      scenarios: scenarios,
+      changed: changed,
+      added: added,
+      screens: screens,
+    );
+  }
+  return null;
 }
 
 /// A named shot from `build/screenshots/raw/`, or null when the scenarios
