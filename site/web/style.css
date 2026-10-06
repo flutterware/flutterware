@@ -275,6 +275,11 @@ h1 span {
   margin-top: 18px;
 }
 
+/* For a snippet whose lines are longer than half the page. */
+.split.code-wide {
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+}
+
 .outcomes {
   margin: 22px 0 0;
   padding: 0;
@@ -523,7 +528,8 @@ footer .wrap {
     padding: 56px 0 64px;
   }
 
-  .split {
+  .split,
+  .split.code-wide {
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }

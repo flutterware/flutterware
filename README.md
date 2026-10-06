@@ -147,6 +147,7 @@ runs plain `dart` from your `PATH`, so if a version manager picks your SDK, edit
 that entry to go through it (`fvm dart run flutterware mcp`). The first launch
 creates `tool/flutterware.dart`, where you pick your tools:
 
+<!-- site:config -->
 ```dart
 import 'package:flutterware/plugins.dart';
 
@@ -159,12 +160,15 @@ void main() => Flutterware.configure((fw) {
   fw.use(Assets(packages: [.new(app)]));
 });
 ```
+<!-- /site -->
 
+<!-- site:config-note -->
 It's a plain Dart file, so the analyzer checks it and your editor completes it.
 For a monorepo, declare one `Pkg` per package and give each tool the ones it
 applies to. The [demo's config](examples/brewline/tool/flutterware.dart) is
 one app's; [this repo's](tool/flutterware.dart) covers a workspace of several
 packages.
+<!-- /site -->
 
 ## Libraries
 
