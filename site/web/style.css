@@ -1,0 +1,567 @@
+/*
+  The studio's own palette, `app/lib/src/ui/design/themes/flutter_blue.dart`,
+  so the page and the demo it opens are one product.
+*/
+:root {
+  --bg: #ffffff;
+  --panel: #f7f8fa;
+  --ink: #15181d;
+  --ink2: #3a3d43;
+  --mut: #6b7280;
+  --line: #e8eaee;
+  --accent: #0553b1;
+  --accent-hover: #04407f;
+  --accent-soft: #e7f0fb;
+  --on-accent: #ffffff;
+  --code-bg: #0b1d32;
+  --code-line: #0b1d32;
+  --code-ink: #e3ebf5;
+  --code-keyword: #7ab8ff;
+  --code-string: #9fdcb0;
+  --shadow: 0 24px 60px -24px rgba(11, 29, 50, 0.35);
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171f;
+    --panel: #1c1f29;
+    --ink: #ecedf2;
+    --ink2: #cdcfd9;
+    --mut: #9a9dad;
+    --line: #2a2e3c;
+    --accent: #42a5f5;
+    --accent-hover: #6bb8f7;
+    --accent-soft: #152b40;
+    --on-accent: #0b1d32;
+    --code-bg: #10121a;
+    --code-line: #2a2e3c;
+    --shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink2);
+  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--ink);
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+h2 {
+  font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+  line-height: 1.2;
+}
+
+h3 {
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+p {
+  margin: 0;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+:not(pre) > code {
+  font-size: 0.88em;
+  padding: 0.12em 0.36em;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+section {
+  padding: 88px 0;
+}
+
+.band {
+  background: var(--panel);
+  border-block: 1px solid var(--line);
+}
+
+/* Header */
+
+.top {
+  border-bottom: 1px solid var(--line);
+}
+
+.top .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: 64px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 650;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+  font-size: 0.93rem;
+}
+
+nav a {
+  color: var(--mut);
+}
+
+nav a:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* Hero */
+
+.hero {
+  padding: 84px 0 96px;
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--mut);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+h1 {
+  margin: 0 auto;
+  font-size: clamp(2.1rem, 5vw, 3.3rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+h1 span {
+  display: block;
+  color: var(--accent);
+}
+
+.lede {
+  max-width: 660px;
+  margin: 24px auto 0;
+  font-size: 1.16rem;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.button {
+  display: inline-block;
+  padding: 11px 20px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.98rem;
+}
+
+.button:hover {
+  border-color: var(--mut);
+  text-decoration: none;
+}
+
+.button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.button.primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.note {
+  max-width: 560px;
+  margin: 18px auto 0;
+  color: var(--mut);
+  font-size: 0.9rem;
+}
+
+.shot {
+  display: block;
+  margin-top: 56px;
+}
+
+.shot img {
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+/* Text beside a picture or a code block */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: center;
+}
+
+.split p {
+  margin-top: 18px;
+}
+
+.outcomes {
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outcomes li {
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+
+.outcomes a {
+  font-weight: 600;
+}
+
+.framed {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+/* Code */
+
+.code {
+  position: relative;
+  border: 1px solid var(--code-line);
+  border-radius: 12px;
+  background: var(--code-bg);
+}
+
+pre {
+  margin: 0;
+  padding: 20px 22px;
+  overflow-x: auto;
+  color: var(--code-ink);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.k {
+  color: var(--code-keyword);
+}
+
+.s {
+  color: var(--code-string);
+}
+
+/* The button gets a row of its own, so it never sits on a long command. */
+.code:has(button) pre {
+  padding-top: 44px;
+}
+
+.code button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  padding: 3px 9px;
+  border: 1px solid rgba(227, 235, 245, 0.25);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.code button:hover {
+  border-color: rgba(227, 235, 245, 0.6);
+}
+
+/* Tools */
+
+.sub {
+  max-width: 620px;
+  margin-top: 14px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 40px;
+}
+
+.card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  color: var(--ink2);
+  transition: border-color 0.15s;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.card img {
+  width: 100%;
+  border-bottom: 1px solid var(--line);
+}
+
+.card h3 {
+  padding: 20px 24px 0;
+}
+
+.card p {
+  padding: 8px 24px 24px;
+  font-size: 0.97rem;
+}
+
+.rest-title {
+  margin-top: 64px;
+}
+
+.rest {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 48px;
+  margin: 16px 0 0;
+}
+
+.rest div {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.rest dt {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.rest dd {
+  margin: 2px 0 0;
+  font-size: 0.97rem;
+}
+
+/* Agents */
+
+.ways {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 56px;
+}
+
+.ways .code {
+  margin-top: 12px;
+}
+
+.ways pre {
+  min-height: 9.4em;
+}
+
+.ways p {
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+.same {
+  margin-top: 36px;
+  color: var(--mut);
+}
+
+/* Try it */
+
+.steps {
+  display: grid;
+  gap: 16px;
+  margin: 36px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 40px;
+  align-items: center;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.steps h3::before {
+  content: counter(step);
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.steps p {
+  margin-top: 10px;
+  font-size: 0.97rem;
+}
+
+.fine {
+  max-width: 720px;
+  margin-top: 28px;
+  color: var(--mut);
+  font-size: 0.92rem;
+}
+
+/* Footer */
+
+footer {
+  border-top: 1px solid var(--line);
+  color: var(--mut);
+  font-size: 0.93rem;
+}
+
+footer .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-block: 28px;
+}
+
+/* The page on a 404 */
+
+.lost {
+  padding: 120px 0;
+  text-align: center;
+}
+
+.lost p {
+  margin: 16px 0 28px;
+}
+
+@media (max-width: 900px) {
+  section {
+    padding: 64px 0;
+  }
+
+  .hero {
+    padding: 56px 0 64px;
+  }
+
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .ways {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .steps li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 22px;
+  }
+
+  .ways pre {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .cards,
+  .rest {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .in-page {
+    display: none;
+  }
+
+  nav {
+    gap: 8px 18px;
+  }
+
+  .shot {
+    margin-top: 40px;
+  }
+
+  .shot img {
+    border-radius: 8px;
+  }
+}

@@ -3,11 +3,15 @@
 [![pub package](https://img.shields.io/pub/v/flutterware.svg)](https://pub.dev/packages/flutterware)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+<!-- site:tagline -->
 **A desktop studio for your Flutter project, with the same tools for your
 coding agent.**
+<!-- /site -->
 
+<!-- site:lede -->
 Live previews, widget tests that picture every step, store screenshots, and
 your app on a device you can drive. All of it also runs from the terminal.
+<!-- /site -->
 
 **[Open the web demo](https://flutterware.github.io/flutterware/)** to look
 around before installing anything. It is the studio itself, compiled for the
@@ -24,17 +28,23 @@ commands that produce them](https://raw.githubusercontent.com/flutterware/flutte
 Clone the demo, the coffee shop app with every tool turned on, and start the
 studio:
 
+<!-- site:sample -->
 ```shell
 git clone https://github.com/flutterware/flutterware_example
 cd flutterware_example
 dart run flutterware
 ```
+<!-- /site -->
 
+<!-- site:requirements -->
 The first launch builds the studio, so give it a minute. You need Flutter 3.47
 or newer. Live previews are macOS only for now; the rest also runs on Linux and
 Windows.
+<!-- /site -->
 
 ## What's in it
+
+<!-- site:tools -->
 
 | [Previews](doc/previews.md) | [Scenarios](doc/scenarios.md) |
 |:---|:---|
@@ -50,7 +60,11 @@ Windows.
 | [![A branch's files, the ones the project pins first, one open on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-changes.webp)](doc/changes.md) | [![A Dart server's requests, one open on its queries, an N+1 flagged](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-server.webp)](doc/server_inspection.md) |
 | Your branch's diff with the files that matter listed first, and notes you can leave for your agent. | The requests your Dart backend handles, the SQL each one ran, and N+1 queries flagged. |
 
+<!-- /site -->
+
 And the rest:
+
+<!-- site:more-tools -->
 
 | | |
 |:---|:---|
@@ -63,10 +77,13 @@ And the rest:
 | **[Scenes](doc/scenes.md)** | Animations drawn with your own widgets and theme, exported to video. |
 | **[Renders](doc/renders.md)** | A widget as SVG, PNG or PDF, from a script or from a server. |
 
+<!-- /site -->
+
 Each tool has a guide in [doc/](doc/README.md).
 
 ## Scenarios are widget tests
 
+<!-- site:scenario -->
 ```dart
 scenario('Around the shop', (s) async {
   await s.pumpWidget(const ShopApp());
@@ -83,6 +100,7 @@ scenario('Around the shop', (s) async {
   });
 });
 ```
+<!-- /site -->
 
 `flutter test` runs this like any other test. Each step waits for the screen to
 settle, then keeps what it showed. `s.split` replays the body once per branch,
@@ -92,10 +110,12 @@ comparisons are all built from these runs.
 
 ## Your agent gets the same tools
 
+<!-- site:agents -->
 The first launch adds an MCP server to your project's `.mcp.json`. Through it, an
 agent can render a preview to check a layout, run your scenarios and read what
 each screen showed, or launch the app on a simulator and tap through it, with
 every step it takes shown in the studio as it happens.
+<!-- /site -->
 
 The same actions are on the command line:
 
@@ -112,10 +132,12 @@ Every action and option is listed in the
 
 ## Add it to your project
 
+<!-- site:add -->
 ```shell
 dart pub add flutterware
 dart run flutterware
 ```
+<!-- /site -->
 
 Flutterware runs on the Dart SDK you start it with (`fvm dart run flutterware`
 works too) and never installs one of its own. The `.mcp.json` entry it writes

@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 /// web, with the recording copied beside it.
 ///
 /// ```sh
-/// cd app && fvm dart run tool/demo/build_web.dart [--base-href /flutterware/]
+/// cd app && fvm dart run tool/demo/build_web.dart [--base-href /demo/]
 /// ```
 ///
 /// The page reads its recording from `demo/fixture/` relative to the

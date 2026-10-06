@@ -393,7 +393,7 @@ Future<String> _build(String packageRoot) async {
     'run',
     'tool/demo/build_web.dart',
     '--base-href',
-    '/flutterware/',
+    '/demo/',
   ], workingDirectory: packageRoot);
   if (result.exitCode != 0) {
     fail('build_web.dart failed:\n${result.stdout}\n${result.stderr}');

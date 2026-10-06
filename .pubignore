@@ -14,6 +14,11 @@ app/demo/
 # The studio's web demo package: built by CI, deployed to Pages, never
 # installed by anyone.
 web_demo/
+# The home page at flutterware.dev, deployed beside it.
+site/
+# What the home page's build needs held for the workspace to resolve: the
+# repository's own arrangement, and nothing a consumer should inherit.
+pubspec_overrides.yaml
 
 # `docs/` is the repo's own tree: 4 MB of design specs that produced the code,
 # plus the generated capability reference. The README links it by relative path
