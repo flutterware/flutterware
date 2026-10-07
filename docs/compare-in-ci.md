@@ -274,8 +274,9 @@ to want to see. That is why the default is `all`.
   and a replay that failed is filed only once its failure has reproduced.
   `fw compare` trims it at the end of every run — anything unread for two
   weeks, then the oldest past 2GB — so a restored cache stays bounded without
-  a cleanup step of your own; so do the base checkouts and each checkout
-  path's comparison directory. `~/.flutterware/kernels` holds the **seed kernel** —
+  a cleanup step of your own; so do the base checkouts — the five most
+  recently used survive, for two weeks — and each checkout path's comparison
+  directory. `~/.flutterware/kernels` holds the **seed kernel** —
   a compiled kernel of the half of the program no checkout owns, the SDK and
   the pub cache — and it is what a cold harness compile starts from instead of
   starting from nothing. Measured on this repository, a scenario harness
