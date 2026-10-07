@@ -13,6 +13,9 @@ void main() {
       expect(content.snippet('config').code, contains('Flutterware.configure'));
       expect(content.html('config-note'), contains('$repository/blob/master/'));
       expect(content.snippet('sample').code, contains('git clone'));
+      expect(content.snippet('add').isShell, isTrue);
+      expect(content.html('first-launch'), isNotEmpty);
+      expect(content.html('requirements'), isNotEmpty);
     });
 
     test('lists its tools the way the page reads them', () {

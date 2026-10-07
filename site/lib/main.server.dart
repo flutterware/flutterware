@@ -30,6 +30,16 @@ void main() {
         _property('og:image', content.picture('hero').url),
         link(rel: 'icon', type: 'image/png', href: 'favicon.png'),
         link(rel: 'preconnect', href: 'https://raw.githubusercontent.com'),
+        // The stylesheet asks for both; asking here too spares the page a
+        // moment in the fallback font.
+        for (var font in ['geist', 'geist-mono'])
+          link(
+            rel: 'preload',
+            href: 'fonts/$font.woff2',
+            as: 'font',
+            type: 'font/woff2',
+            attributes: {'crossorigin': ''},
+          ),
         link(rel: 'stylesheet', href: 'style.css'),
       ],
       body: Home(content),

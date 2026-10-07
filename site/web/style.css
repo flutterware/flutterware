@@ -1,42 +1,60 @@
 /*
   The studio's own palette, `app/lib/src/ui/design/themes/flutter_blue.dart`,
-  so the page and the demo it opens are one product.
+  and the navy of its icon, so the page and the demo it opens are one product:
+  thin borders, small mono labels, commands drawn as terminals.
 */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/geist.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/geist-mono.woff2") format("woff2");
+}
+
 :root {
   --bg: #ffffff;
-  --panel: #f7f8fa;
-  --ink: #15181d;
-  --ink2: #3a3d43;
+  --panel: #f6f8fb;
+  --ink: #11151b;
+  --ink2: #3b4049;
   --mut: #6b7280;
-  --line: #e8eaee;
+  --line: #e5e8ee;
   --accent: #0553b1;
   --accent-hover: #04407f;
   --accent-soft: #e7f0fb;
-  --on-accent: #ffffff;
-  --code-bg: #0b1d32;
-  --code-line: #0b1d32;
-  --code-ink: #e3ebf5;
+  --navy: #0c1826;
+  --navy-2: #1a2f4c;
+  --navy-line: #22344d;
+  --on-navy: #e6edf7;
+  --on-navy-mut: #9fb0c7;
+  --sky: #8ec2ff;
   --code-keyword: #7ab8ff;
   --code-string: #9fdcb0;
-  --shadow: 0 24px 60px -24px rgba(11, 29, 50, 0.35);
+  --shadow: 0 28px 64px -28px rgba(12, 24, 38, 0.45);
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15171f;
-    --panel: #1c1f29;
-    --ink: #ecedf2;
-    --ink2: #cdcfd9;
-    --mut: #9a9dad;
-    --line: #2a2e3c;
-    --accent: #42a5f5;
-    --accent-hover: #6bb8f7;
-    --accent-soft: #152b40;
-    --on-accent: #0b1d32;
-    --code-bg: #10121a;
-    --code-line: #2a2e3c;
-    --shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+    --bg: #0f1218;
+    --panel: #141821;
+    --ink: #eceef2;
+    --ink2: #c5c9d2;
+    --mut: #8d93a1;
+    --line: #242936;
+    --accent: #6cb2f8;
+    --accent-hover: #9ccbfb;
+    --accent-soft: #13283d;
+    --shadow: 0 28px 64px -28px rgba(0, 0, 0, 0.85);
   }
 }
 
@@ -59,7 +77,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink2);
-  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 img {
@@ -75,6 +94,7 @@ a {
 
 a:hover {
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 :focus-visible {
@@ -85,33 +105,38 @@ a:hover {
 
 h1,
 h2,
-h3 {
-  color: var(--ink);
-  margin: 0;
-  letter-spacing: -0.015em;
-}
-
-h2 {
-  font-size: clamp(1.6rem, 3.2vw, 2.1rem);
-  line-height: 1.2;
-}
-
-h3 {
-  font-size: 1.1rem;
-  line-height: 1.3;
-}
-
+h3,
 p {
   margin: 0;
 }
 
+h1,
+h2,
+h3 {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+h2 {
+  font-size: clamp(1.65rem, 3vw, 2.1rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+h3 {
+  font-size: 0.98rem;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
 code,
 pre {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--mono);
 }
 
 :not(pre) > code {
-  font-size: 0.88em;
+  font-size: 0.86em;
   padding: 0.12em 0.36em;
   border-radius: 5px;
   background: var(--accent-soft);
@@ -119,13 +144,13 @@ pre {
 }
 
 .wrap {
-  max-width: 1120px;
+  max-width: 1128px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 28px;
 }
 
 section {
-  padding: 88px 0;
+  padding: 96px 0;
 }
 
 .band {
@@ -133,10 +158,69 @@ section {
   border-block: 1px solid var(--line);
 }
 
-/* Header */
+/* What a section is, above its title. */
+.label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  color: var(--mut);
+  font: 500 0.74rem/1 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
+.label b {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.label::after {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Hero: a navy band the picture steps out of. */
+
+/* The header lies on the band rather than in it, so it stays the page's
+   header and the band stays the first thing in the page's content. */
 .top {
-  border-bottom: 1px solid var(--line);
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 1;
+}
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  padding: 68px 0 72px;
+  color: var(--on-navy-mut);
+}
+
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 clamp(140px, 23vw, 330px) 0;
+  z-index: -1;
+}
+
+.hero::before {
+  background:
+    radial-gradient(900px 420px at 78% 0%, var(--navy-2), transparent 70%),
+    linear-gradient(180deg, #101f33, var(--navy));
+}
+
+.hero::after {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: center top;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
 }
 
 .top .wrap {
@@ -144,89 +228,109 @@ section {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  height: 64px;
+  height: 68px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--ink);
-  font-weight: 650;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: -0.015em;
 }
 
 .brand:hover {
   text-decoration: none;
 }
 
+.brand img {
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
 nav {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 26px;
-  font-size: 0.93rem;
+  font-size: 0.9rem;
 }
 
-nav a {
-  color: var(--mut);
+.top nav a {
+  color: var(--on-navy-mut);
 }
 
-nav a:hover {
-  color: var(--ink);
+.top nav a:hover {
+  color: #fff;
   text-decoration: none;
 }
 
-/* Hero */
-
-.hero {
-  padding: 84px 0 96px;
-  text-align: center;
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 56px;
+  align-items: end;
+  padding-top: 68px;
 }
 
-.eyebrow {
-  color: var(--mut);
-  font-size: 0.9rem;
-  margin-bottom: 20px;
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: var(--on-navy);
+  font: 400 0.76rem/1.2 var(--mono);
+}
+
+.chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5fd08a;
 }
 
 h1 {
-  margin: 0 auto;
-  font-size: clamp(2.1rem, 5vw, 3.3rem);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  margin-top: 22px;
+  color: #fff;
+  font-size: clamp(2.2rem, 4.5vw, 3.35rem);
+  line-height: 1.07;
+  letter-spacing: -0.038em;
   text-wrap: balance;
 }
 
 h1 span {
-  display: block;
-  color: var(--accent);
+  color: var(--sky);
 }
 
 .lede {
-  max-width: 660px;
-  margin: 24px auto 0;
-  font-size: 1.16rem;
+  max-width: 34em;
+  margin-top: 22px;
+  color: var(--on-navy);
+  font-size: 1.08rem;
+  line-height: 1.6;
   text-wrap: pretty;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: 30px;
 }
 
 .button {
-  display: inline-block;
-  padding: 11px 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.66em 1.1em;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--bg);
   color: var(--ink);
-  font-weight: 600;
-  font-size: 0.98rem;
+  font-weight: 500;
+  font-size: 0.94rem;
 }
 
 .button:hover {
@@ -234,32 +338,232 @@ h1 span {
   text-decoration: none;
 }
 
-.button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
+.hero .button {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: transparent;
+  color: #fff;
 }
 
-.button.primary:hover {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
+.hero .button:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.hero .button.primary {
+  border-color: #fff;
+  background: #fff;
+  color: var(--navy);
+}
+
+.hero .button.primary:hover {
+  border-color: #dbe8f8;
+  background: #dbe8f8;
 }
 
 .note {
-  max-width: 560px;
-  margin: 18px auto 0;
-  color: var(--mut);
-  font-size: 0.9rem;
+  max-width: 36em;
+  margin-top: 18px;
+  font-size: 0.86rem;
+}
+
+.hero-side p {
+  margin-top: 12px;
+  font-size: 0.86rem;
 }
 
 .shot {
   display: block;
-  margin-top: 56px;
+  margin-top: 60px;
 }
 
 .shot img {
-  border-radius: 14px;
-  box-shadow: var(--shadow);
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), var(--shadow);
+}
+
+/* Code, and a terminal wherever the page shows commands. */
+
+.code {
+  position: relative;
+  border: 1px solid var(--navy-line);
+  border-radius: 10px;
+  background: var(--navy);
+  overflow: hidden;
+}
+
+.code .title {
+  display: block;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--navy-line);
+  color: var(--on-navy-mut);
+  font: 400 0.74rem/1.4 var(--mono);
+}
+
+pre {
+  margin: 0;
+  padding: 18px 20px;
+  overflow-x: auto;
+  color: var(--on-navy);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.k {
+  color: var(--code-keyword);
+}
+
+.s {
+  color: var(--code-string);
+}
+
+/* The prompt is drawn, so a copied command is the command alone. */
+.shell .ln::before {
+  content: "$ ";
+  color: #5f7592;
+}
+
+.code button {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  padding: 2px 9px;
+  border: 1px solid rgba(230, 237, 247, 0.22);
+  border-radius: 6px;
+  background: var(--navy);
+  color: var(--on-navy);
+  font: 400 0.72rem var(--sans);
+  cursor: pointer;
+}
+
+.code button:hover {
+  border-color: rgba(230, 237, 247, 0.6);
+}
+
+/* With no title to sit in, the button gets a row of its own, so it never
+   covers a long command. */
+.code:not(:has(.title)):has(button) pre {
+  padding-top: 40px;
+}
+
+.hero .code {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(8, 17, 28, 0.72);
+}
+
+.hero .code .title {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Tools */
+
+.sub {
+  max-width: 36em;
+  margin-top: 12px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 40px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  overflow: hidden;
+  color: var(--ink2);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.tile:hover {
+  border-color: var(--accent);
+  box-shadow: 0 12px 28px -18px rgba(5, 83, 177, 0.5);
+  text-decoration: none;
+}
+
+.tile.big {
+  grid-column: span 2;
+}
+
+.tile .pic {
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.tile.big .pic {
+  aspect-ratio: 4 / 3;
+}
+
+.tile.big .pic img {
+  width: 100%;
+}
+
+/* A small tile shows one part of its panel, at a size you can read. */
+.tile:not(.big) .pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--fx, 0%) var(--fy, 0%);
+  transform: scale(1.85);
+  transform-origin: var(--fx, 0%) var(--fy, 0%);
+}
+
+.tile h3 {
+  padding: 16px 18px 0;
+}
+
+.tile p {
+  padding: 6px 18px 18px;
+  color: var(--mut);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.tile.big h3 {
+  padding: 20px 22px 0;
+  font-size: 1.08rem;
+}
+
+.tile.big p {
+  padding: 6px 22px 22px;
+  color: var(--ink2);
+  font-size: 0.94rem;
+}
+
+.rest-title {
+  margin-top: 56px;
+}
+
+.rest {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 40px;
+  margin: 14px 0 0;
+}
+
+.rest div {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+
+.rest dt a {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.rest dd {
+  margin: 0;
+  color: var(--mut);
 }
 
 /* Text beside a picture or a code block */
@@ -271,150 +575,50 @@ h1 span {
   align-items: center;
 }
 
-.split p {
-  margin-top: 18px;
-}
-
 /* For a snippet whose lines are longer than half the page. */
 .split.code-wide {
   grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
 }
 
+.split p {
+  margin-top: 16px;
+}
+
 .outcomes {
-  margin: 22px 0 0;
+  margin: 24px 0 0;
   padding: 0;
   list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
 }
 
 .outcomes li {
-  padding: 11px 0;
+  display: flex;
+  gap: 12px;
+  padding: 11px 16px;
+  font-size: 0.94rem;
+}
+
+.outcomes li + li {
   border-top: 1px solid var(--line);
+}
+
+.outcomes li::before {
+  content: "\2192";
+  color: var(--accent);
+  font-family: var(--mono);
 }
 
 .outcomes a {
-  font-weight: 600;
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .framed {
-  border-radius: 12px;
   border: 1px solid var(--line);
-}
-
-/* Code */
-
-.code {
-  position: relative;
-  border: 1px solid var(--code-line);
-  border-radius: 12px;
-  background: var(--code-bg);
-}
-
-pre {
-  margin: 0;
-  padding: 20px 22px;
-  overflow-x: auto;
-  color: var(--code-ink);
-  font-size: 0.86rem;
-  line-height: 1.65;
-}
-
-.k {
-  color: var(--code-keyword);
-}
-
-.s {
-  color: var(--code-string);
-}
-
-/* The button gets a row of its own, so it never sits on a long command. */
-.code:has(button) pre {
-  padding-top: 44px;
-}
-
-.code button {
-  position: absolute;
-  top: 9px;
-  right: 9px;
-  padding: 3px 9px;
-  border: 1px solid rgba(227, 235, 245, 0.25);
-  border-radius: 6px;
-  background: var(--code-bg);
-  color: var(--code-ink);
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.code button:hover {
-  border-color: rgba(227, 235, 245, 0.6);
-}
-
-/* Tools */
-
-.sub {
-  max-width: 620px;
-  margin-top: 14px;
-}
-
-.cards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 40px;
-}
-
-.card {
-  display: block;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  overflow: hidden;
-  color: var(--ink2);
-  transition: border-color 0.15s;
-}
-
-.card:hover {
-  border-color: var(--accent);
-  text-decoration: none;
-}
-
-.card img {
-  width: 100%;
-  border-bottom: 1px solid var(--line);
-}
-
-.card h3 {
-  padding: 20px 24px 0;
-}
-
-.card p {
-  padding: 8px 24px 24px;
-  font-size: 0.97rem;
-}
-
-.rest-title {
-  margin-top: 64px;
-}
-
-.rest {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 48px;
-  margin: 16px 0 0;
-}
-
-.rest div {
-  padding: 14px 0;
-  border-top: 1px solid var(--line);
-}
-
-.rest dt {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.rest dd {
-  margin: 2px 0 0;
-  font-size: 0.97rem;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
 }
 
 /* Agents */
@@ -422,73 +626,87 @@ pre {
 .ways {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
   margin-top: 56px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.ways > div {
+  padding: 22px 24px 24px;
+}
+
+.ways > div + div {
+  border-left: 1px solid var(--line);
 }
 
 .ways .code {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .ways pre {
-  min-height: 9.4em;
+  min-height: 9em;
 }
 
 .ways p {
-  margin-top: 12px;
-  font-size: 0.95rem;
+  margin-top: 14px;
+  color: var(--mut);
+  font-size: 0.9rem;
 }
 
 .same {
-  margin-top: 36px;
+  margin-top: 28px;
   color: var(--mut);
+  font-size: 0.94rem;
 }
 
 /* Try it */
 
 .steps {
-  display: grid;
-  gap: 16px;
   margin: 36px 0 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
+  border: 1px solid var(--line);
+  border-radius: 12px;
 }
 
 .steps li {
   counter-increment: step;
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  gap: 40px;
+  grid-template-columns: 44px minmax(0, 4fr) minmax(0, 5fr);
+  gap: 0 24px;
   align-items: center;
-  padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  padding: 26px 28px;
 }
 
-.steps h3::before {
-  content: counter(step);
-  display: inline-grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-right: 10px;
-  border-radius: 50%;
-  background: var(--accent-soft);
+.steps li + li {
+  border-top: 1px solid var(--line);
+}
+
+.steps li::before {
+  content: counter(step, decimal-leading-zero);
+  align-self: start;
+  padding-top: 3px;
   color: var(--accent);
-  font-size: 0.85rem;
+  font: 500 0.8rem var(--mono);
+}
+
+.steps pre {
+  font-size: 0.78rem;
 }
 
 .steps p {
-  margin-top: 10px;
-  font-size: 0.97rem;
+  margin-top: 6px;
+  color: var(--mut);
+  font-size: 0.93rem;
 }
 
 .fine {
-  max-width: 720px;
-  margin-top: 28px;
+  max-width: 48em;
+  margin-top: 24px;
   color: var(--mut);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 /* Footer */
@@ -496,7 +714,7 @@ pre {
 footer {
   border-top: 1px solid var(--line);
   color: var(--mut);
-  font-size: 0.93rem;
+  font-size: 0.9rem;
 }
 
 footer .wrap {
@@ -508,15 +726,40 @@ footer .wrap {
   padding-block: 28px;
 }
 
-/* The page on a 404 */
+footer span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+footer nav a {
+  color: var(--mut);
+}
+
+footer nav a:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* The page on a 404: the band alone, with nothing stepping out of it. */
 
 .lost {
-  padding: 120px 0;
-  text-align: center;
+  min-height: 100vh;
+  padding-bottom: 96px;
+}
+
+.lost::before,
+.lost::after {
+  inset: 0;
+}
+
+.lost h1 {
+  margin-top: 96px;
 }
 
 .lost p {
-  margin: 16px 0 28px;
+  margin-top: 16px;
+  color: var(--on-navy);
 }
 
 @media (max-width: 900px) {
@@ -525,7 +768,17 @@ footer .wrap {
   }
 
   .hero {
-    padding: 56px 0 64px;
+    padding-bottom: 48px;
+  }
+
+  .lost {
+    padding-bottom: 64px;
+  }
+
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+    padding-top: 40px;
   }
 
   .split,
@@ -534,25 +787,41 @@ footer .wrap {
     gap: 32px;
   }
 
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rest {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .ways {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .steps li {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-    padding: 22px;
+  .ways > div + div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
   }
 
   .ways pre {
     min-height: 0;
   }
+
+  .steps li {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 14px;
+    padding: 22px;
+  }
+
+  .steps li > :last-child {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 680px) {
-  .cards,
-  .rest {
-    grid-template-columns: minmax(0, 1fr);
+  .wrap {
+    padding: 0 20px;
   }
 
   .in-page {
@@ -560,7 +829,34 @@ footer .wrap {
   }
 
   nav {
-    gap: 8px 18px;
+    flex-wrap: nowrap;
+    gap: 8px 16px;
+  }
+
+  footer nav {
+    flex-wrap: wrap;
+  }
+
+  /* One column: every tile shows its whole picture. */
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tile.big {
+    grid-column: auto;
+  }
+
+  .tile:not(.big) .pic {
+    aspect-ratio: 4 / 3;
+  }
+
+  .tile:not(.big) .pic img {
+    transform: none;
+  }
+
+  .rest div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
   }
 
   .shot {

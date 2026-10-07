@@ -13,6 +13,22 @@ const _demo = 'demo/';
 const _sample = 'https://github.com/flutterware/flutterware_example';
 const _pub = 'https://pub.dev/packages/flutterware';
 
+/// What the page calls the two commands that add flutterware to a project,
+/// wherever it shows them.
+const _addIt = 'Add it to your project';
+
+/// The part of its picture a small tile looks at, as percentages from the left
+/// and from the top. A picture not listed here shows its top left corner.
+const _focus = {
+  'card-store': (0, 12),
+  'card-run': (5, 80),
+  'card-comparison': (100, 62),
+  'card-changes': (70, 45),
+  'card-server': (100, 30),
+  'card-launcher-icon': (100, 40),
+  'card-native-splash': (0, 62),
+};
+
 /// The home page.
 ///
 /// What it says in the README's words comes from [content], by region name;
@@ -33,7 +49,7 @@ class Home extends StatelessComponent {
   Component _top() => header(classes: 'top', [
     div(classes: 'wrap', [
       a(href: './', classes: 'brand', [
-        img(src: 'icon.svg', alt: '', width: 28, height: 28),
+        img(src: 'icon.svg', alt: '', width: 26, height: 26),
         .text('flutterware'),
       ]),
       nav(
@@ -56,28 +72,38 @@ class Home extends StatelessComponent {
     var hero = content.picture('hero');
     return section(classes: 'hero', [
       div(classes: 'wrap', [
-        p(classes: 'eyebrow', [.text('Open source, MIT license')]),
-        h1([
-          if (comma < 0)
-            .text(tagline)
-          else ...[
-            .text(tagline.substring(0, comma + 1)),
-            span([.text(tagline.substring(comma + 1))]),
-          ],
-        ]),
-        p(classes: 'lede', [RawText(content.html('lede'))]),
-        div(classes: 'actions', [
-          a(href: _demo, target: .blank, classes: 'button primary', [
-            .text('Open the web demo'),
+        div(classes: 'hero-grid', [
+          div([
+            span(classes: 'chip', [.text('Open source, MIT license')]),
+            h1([
+              if (comma < 0)
+                .text(tagline)
+              else ...[
+                .text(tagline.substring(0, comma + 1)),
+                span([.text(tagline.substring(comma + 1))]),
+              ],
+            ]),
+            p(classes: 'lede', [RawText(content.html('lede'))]),
+            div(classes: 'actions', [
+              a(href: _demo, target: .blank, classes: 'button primary', [
+                .text('Open the web demo'),
+              ]),
+              a(href: _sample, classes: 'button', [
+                .text('Clone the sample app'),
+              ]),
+            ]),
+            p(classes: 'note', [
+              .text(
+                'The demo is the studio itself, running in your browser on a '
+                'small coffee-shop app. Nothing to install, and nothing in it '
+                'can change.',
+              ),
+            ]),
           ]),
-          a(href: _sample, classes: 'button', [.text('Clone the sample app')]),
-        ]),
-        p(classes: 'note', [
-          .text(
-            'The demo is the studio itself, running in your browser on a '
-            'small coffee-shop app. Nothing to install, and nothing in it can '
-            'change.',
-          ),
+          div(classes: 'hero-side', [
+            _code(content.snippet('add'), copy: true, title: _addIt),
+            p([RawText(content.html('first-launch'))]),
+          ]),
         ]),
         a(href: _demo, target: .blank, classes: 'shot', [
           img(
@@ -96,6 +122,7 @@ class Home extends StatelessComponent {
     div(classes: 'wrap', [
       div(classes: 'split', [
         div([
+          _label(3, 'Scenarios'),
           h2([.text('Write the test once. Get the rest from it.')]),
           p([
             .text(
@@ -139,45 +166,68 @@ class Home extends StatelessComponent {
   ]);
 
   Component _outcome(String guide, String name, String rest) => li([
-    a(href: '$repository/blob/master/doc/$guide.md', [.text(name)]),
-    .text(rest),
-  ]);
-
-  Component _tools() => section(id: 'tools', [
-    div(classes: 'wrap', [
-      h2([.text("What's in it")]),
-      p(classes: 'sub', [
-        .text('Each tool has a guide, and you turn on only the ones you want.'),
-      ]),
-      div(classes: 'cards', [
-        for (var tool in content.tools('tools'))
-          a(href: tool.guide, classes: 'card', [
-            img(
-              src: tool.picture.url,
-              alt: tool.picture.alt,
-              width: 1200,
-              height: 900,
-              loading: .lazy,
-            ),
-            h3([.text(tool.name)]),
-            p([RawText(tool.description)]),
-          ]),
-      ]),
-      h3(classes: 'rest-title', [.text('And the rest')]),
-      dl(classes: 'rest', [
-        for (var row in content.rows('more-tools'))
-          div([
-            dt([RawText(row.name)]),
-            dd([RawText(row.description)]),
-          ]),
-      ]),
+    span([
+      a(href: '$repository/blob/master/doc/$guide.md', [.text(name)]),
+      .text(rest),
     ]),
   ]);
+
+  Component _tools() {
+    var tools = content.tools('tools');
+    return section(id: 'tools', [
+      div(classes: 'wrap', [
+        _label(1, 'Tools'),
+        h2([.text("What's in it")]),
+        p(classes: 'sub', [
+          .text(
+            'Each tool has a guide, and you turn on only the ones you want.',
+          ),
+        ]),
+        div(classes: 'tiles', [
+          // The first two lead, at twice the width and with their whole
+          // picture; the others show a part of theirs.
+          for (var (i, tool) in tools.indexed) _tile(tool, big: i < 2),
+        ]),
+        h3(classes: 'rest-title', [.text('And the rest')]),
+        dl(classes: 'rest', [
+          for (var row in content.rows('more-tools'))
+            div([
+              dt([RawText(row.name)]),
+              dd([RawText(row.description)]),
+            ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  Component _tile(Tool tool, {required bool big}) {
+    var focus = _focus[tool.picture.name];
+    return a(href: tool.guide, classes: big ? 'tile big' : 'tile', [
+      div(
+        classes: 'pic',
+        attributes: {
+          if (focus case (var x, var y)) 'style': '--fx:$x%;--fy:$y%',
+        },
+        [
+          img(
+            src: tool.picture.url,
+            alt: tool.picture.alt,
+            width: 1200,
+            height: 900,
+            loading: .lazy,
+          ),
+        ],
+      ),
+      h3([.text(tool.name)]),
+      p([RawText(tool.description)]),
+    ]);
+  }
 
   Component _config() => section(id: 'config', classes: 'band', [
     div(classes: 'wrap', [
       div(classes: 'split code-wide', [
         div([
+          _label(2, 'Configuration'),
           h2([.text('Pick your tools in one Dart file')]),
           p([
             .text('The first launch creates '),
@@ -186,7 +236,7 @@ class Home extends StatelessComponent {
           ]),
           p([RawText(content.html('config-note'))]),
         ]),
-        _code(content.snippet('config')),
+        _code(content.snippet('config'), title: 'tool/flutterware.dart'),
       ]),
     ]),
   ]);
@@ -197,6 +247,7 @@ class Home extends StatelessComponent {
       div(classes: 'wrap', [
         div(classes: 'split', [
           div([
+            _label(4, 'Agents'),
             h2([.text('Your agent gets the same tools')]),
             p([RawText(content.html('agents'))]),
           ]),
@@ -210,12 +261,17 @@ class Home extends StatelessComponent {
           ),
         ]),
         div(classes: 'ways', [
-          _way('The studio', const Snippet(code: 'dart run flutterware'), [
-            .text('The desktop app, opened on your project.'),
-          ]),
+          _way(
+            'The studio',
+            const Snippet(language: 'shell', code: 'dart run flutterware'),
+            [.text('The desktop app, opened on your project.')],
+          ),
           _way(
             'The command line',
-            const Snippet(code: 'fw run scenarios run\nfw run store export'),
+            const Snippet(
+              language: 'shell',
+              code: 'fw run scenarios run\nfw run store export',
+            ),
             [
               .text('Every action, from a terminal. '),
               code([.text('fw')]),
@@ -264,6 +320,7 @@ class Home extends StatelessComponent {
 
   Component _tryIt() => section(id: 'try', [
     div(classes: 'wrap', [
+      _label(5, 'Get started'),
       h2([.text('Try it')]),
       ol(classes: 'steps', [
         li([
@@ -292,7 +349,7 @@ class Home extends StatelessComponent {
         ]),
         li([
           div([
-            h3([.text('Add it to your project')]),
+            h3([.text(_addIt)]),
             p([
               .text('The first launch creates '),
               code([.text('tool/flutterware.dart')]),
@@ -302,13 +359,20 @@ class Home extends StatelessComponent {
           _code(content.snippet('add'), copy: true),
         ]),
       ]),
-      p(classes: 'fine', [RawText(content.html('requirements'))]),
+      p(classes: 'fine', [
+        RawText(
+          '${content.html('first-launch')} ${content.html('requirements')}',
+        ),
+      ]),
     ]),
   ]);
 
   Component _footer() => footer([
     div(classes: 'wrap', [
-      span([.text('MIT license')]),
+      span([
+        img(src: 'icon.svg', alt: '', width: 20, height: 20),
+        .text('MIT license'),
+      ]),
       nav(
         attributes: {'aria-label': 'Footer'},
         [
@@ -324,11 +388,19 @@ class Home extends StatelessComponent {
     ]),
   ]);
 
-  /// A code block, with a copy button when it is a command to run.
-  Component _code(Snippet snippet, {bool copy = false}) => div(
-    classes: 'code',
+  /// What a section is, above its title, numbered down the page.
+  Component _label(int number, String name) => span(classes: 'label', [
+    b([.text('$number'.padLeft(2, '0'))]),
+    .text(name),
+  ]);
+
+  /// A code block: a terminal when it holds commands, with a [title] bar when
+  /// it has a name, and a copy button when it is something to run.
+  Component _code(Snippet snippet, {bool copy = false, String? title}) => div(
+    classes: snippet.isShell ? 'code shell' : 'code',
     attributes: {if (copy) 'data-copy': ''},
     [
+      if (title != null) span(classes: 'title', [.text(title)]),
       pre([
         code([RawText(_highlight(snippet))]),
       ]),
@@ -336,9 +408,15 @@ class Home extends StatelessComponent {
   );
 }
 
-/// Strings and a handful of keywords, which is all the page's snippets need.
+/// Strings and a handful of keywords, which is all the page's snippets need,
+/// and a line apart for each command so the stylesheet can draw its prompt.
 String _highlight(Snippet snippet) {
   var escaped = const HtmlEscape(.element).convert(snippet.code);
+  if (snippet.isShell) {
+    return [
+      for (var line in escaped.split('\n')) '<span class="ln">$line</span>',
+    ].join('\n');
+  }
   var token = switch (snippet.language) {
     'dart' => RegExp(r"('[^'\n]*')|\b(async|await|const|import|void)\b"),
     'json' => RegExp('("[^"\n]*")'),

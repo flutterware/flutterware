@@ -159,6 +159,9 @@ class Picture {
 
   final String url;
   final String alt;
+
+  /// The file name without its extension, which is how a picture is known.
+  String get name => _pictureName.firstMatch(url)?.group(1) ?? '';
 }
 
 class Tool {
@@ -182,6 +185,9 @@ class Snippet {
 
   final String language;
   final String code;
+
+  /// Whether these are commands for a terminal, one per line.
+  bool get isShell => language == 'shell';
 }
 
 /// Where a link the README writes relative to itself goes from the page.
