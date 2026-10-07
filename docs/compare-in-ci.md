@@ -274,8 +274,9 @@ to want to see. That is why the default is `all`.
   and a replay that failed is filed only once its failure has reproduced.
   `fw compare` trims it at the end of every run — anything unread for two
   weeks, then the oldest past 2GB — so a restored cache stays bounded without
-  a cleanup step of your own; so do the base checkouts and each checkout
-  path's comparison directory. `~/.flutterware/kernels` holds the **seed kernel** —
+  a cleanup step of your own; so do the base checkouts — the five most
+  recently used survive, for two weeks — and each checkout path's comparison
+  directory. `~/.flutterware/kernels` holds the **seed kernel** —
   a compiled kernel of the half of the program no checkout owns, the SDK and
   the pub cache — and it is what a cold harness compile starts from instead of
   starting from nothing. Measured on this repository, a scenario harness
@@ -286,7 +287,10 @@ to want to see. That is why the default is `all`.
   command (about 14s) and rebuilds the viewer in about 2s instead of 18s;
   a new flutterware version or SDK is a new stamp, and it is rebuilt. The
   `restore-keys` line matters: a lockfile change should reuse the previous
-  run's cache and write a new one, not start empty.
+  run's cache and write a new one, not start empty. The copies of versions
+  the project has moved off are deleted by the first launch that finds them
+  unused for a month, so a cache carried across versions does not pile them
+  up.
 - **Do not cache `~/.flutterware/bases`.** The base checkout is a real
   `git worktree`, registered inside the repository's own `.git` — which a
   fresh CI checkout does not have, so a restored one is a directory git does

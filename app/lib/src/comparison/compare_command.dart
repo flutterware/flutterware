@@ -850,36 +850,32 @@ Future<ScenarioResults> _comparePackageScenarios({
     baseRoot: baseRoot,
     guests: jobs,
   );
+  // Scratch for the replays' frames, beside the shot cache for the reason the
+  // previews half puts its own there: a frame on the same filesystem is filed
+  // by a rename. Every frame a row names is in the store by the time `run`
+  // returns, so the directory goes with the run. It used to sit under the
+  // worktree's comparison directory, written by every run and cleared by
+  // none.
+  var scratch = Directory(p.join(flutterwareDir(), 'comparisons'))
+    ..createSync(recursive: true);
+  var outDir = scratch.createTempSync('scenarios-');
   try {
     try {
-      var results =
-          await ScenariosRunner(
-            headRoot: top,
-            baseRoot: baseRoot,
-            source: source,
-            cache: cache,
-            sdk: renderKeyOf(sdk),
-            pixels: PixelInputs.ofScenarios(
-              packagePath: side.packagePath,
-              roots: [top, baseRoot],
-            ),
-            locks: LockSides(
-              packagePath: side.packagePath,
-              roots: [top, baseRoot],
-            ),
-            only: only.isEmpty ? null : only,
-            jobs: jobs,
-            clock: clock,
-          ).run(
-            // Per package, because two packages' `test/scenarios/shop_test.dart`
-            // are two different files and one directory would have them writing
-            // each other's frames.
-            outDir: p.join(
-              comparisonDirFor(flutterwareDir(), session.worktree),
-              'scenarios',
-              packagePath,
-            ),
-          );
+      var results = await ScenariosRunner(
+        headRoot: top,
+        baseRoot: baseRoot,
+        source: source,
+        cache: cache,
+        sdk: renderKeyOf(sdk),
+        pixels: PixelInputs.ofScenarios(
+          packagePath: side.packagePath,
+          roots: [top, baseRoot],
+        ),
+        locks: LockSides(packagePath: side.packagePath, roots: [top, baseRoot]),
+        only: only.isEmpty ? null : only,
+        jobs: jobs,
+        clock: clock,
+      ).run(outDir: outDir.path);
       return results.inPackage(package, qualify: qualify);
     } on Object catch (error) {
       // A side whose harness will not build is a side, not a crash — the same
@@ -905,5 +901,11 @@ Future<ScenarioResults> _comparePackageScenarios({
     }
   } finally {
     await source.dispose();
+    try {
+      outDir.deleteSync(recursive: true);
+    } on FileSystemException {
+      // A file a tester still has open; the comparison directory's sweep
+      // takes what is left.
+    }
   }
 }

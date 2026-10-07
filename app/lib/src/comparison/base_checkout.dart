@@ -57,14 +57,39 @@ class BaseCheckout {
 
   /// How long a base survives without a comparison asking for it.
   ///
-  /// Age alone, with no size budget, and that is the one difference from the
-  /// other two caches under `~/.flutterware`. A base is a whole checkout —
-  /// measured on this repository at 553MB — so pricing the directory means
-  /// walking half a gigabyte to decide whether to keep it, on every run. The
-  /// shot cache can afford a budget because its entries are files it already
-  /// has the size of; this one cannot, and does not need one: a base is
-  /// disposable by construction, and what survives it is the shot cache.
+  /// Age and a count ([keep]), with no size budget, and that is the one
+  /// difference from the other two caches under `~/.flutterware`. A base is a
+  /// whole checkout — measured on this repository at 553MB — so pricing the
+  /// directory means walking half a gigabyte to decide whether to keep it, on
+  /// every run. The shot cache can afford a budget because its entries are
+  /// files it already has the size of; this one cannot, and does not need
+  /// one: a base is disposable by construction, and what survives it is the
+  /// shot cache.
   static const forget = Duration(days: 14);
+
+  /// How many bases survive the sweep whatever their age: the most recently
+  /// used, by the marker's mtime.
+  ///
+  /// Age alone was the whole policy, and it is the wrong unit on a CI runner.
+  /// There the base is the merge base with trunk, which moves with every
+  /// merge and every rebase, so a base serves about one job and then sits out
+  /// the fortnight — measured on one runner, 70GB of them at ~550MB a
+  /// checkout. A count is the unit a laptop and a runner have in common: five
+  /// is a couple of agents off two trunk commits and a base somebody named by
+  /// hand, and it costs the listing and the stat the age test already pays.
+  static const keep = 5;
+
+  /// How long a checkout that never got its marker is left alone before it
+  /// is taken for abandoned.
+  ///
+  /// The marker is written after `pub get` succeeds, so a run killed between
+  /// `worktree add` and then leaves a directory with none — a cancelled CI
+  /// job does it routinely. [_ensureLocked] throws such a directory away when
+  /// the same sha is asked for again, which on a runner it never is, and the
+  /// sweep used to leave it alone for ever as somebody's half-built base.
+  /// Nothing takes a day to check out and resolve, and a creator still inside
+  /// its day holds the lock, which [_removeIfUnheld] respects.
+  static const abandonAfter = Duration(days: 1);
 
   /// The checkout of [sha], creating it if nothing has yet.
   ///
@@ -94,7 +119,7 @@ class BaseCheckout {
     // comparison has asked for in a fortnight, so nothing is waiting on it,
     // and doing it here rather than in the background keeps the disk claim
     // and its release in one order a test can drive.
-    await sweep(repoRoot: repoRoot, cacheRoot: cacheRoot, keep: path);
+    await sweep(repoRoot: repoRoot, cacheRoot: cacheRoot, spare: path);
     // One creator per sha at a time, across processes — the directory is
     // shared by every worktree on the machine by design, and without the
     // lock a second comparison arriving mid-`resolve` saw a directory with
@@ -267,7 +292,9 @@ class BaseCheckout {
   Future<void> dispose({required String repoRoot}) =>
       _remove(repoRoot: repoRoot, path: path);
 
-  /// Drops every base nothing has asked for in [forget], and returns how many.
+  /// Drops every base nothing has asked for in [forget], every one beyond
+  /// the [keep] most recently used, and every half-built one older than
+  /// [abandonAfter]; returns how many.
   ///
   /// **This directory is shared by every repository on the machine**, so a
   /// sweep run from one project will meet another's bases and take them if
@@ -278,35 +305,54 @@ class BaseCheckout {
   /// fails, it prunes, and it retries. Pruning here instead would mean
   /// knowing which repository each base came from, which nothing records.
   ///
-  /// [keep] is the base this run is about to use, whatever its age.
+  /// [spare] is the base this run is about to use, whatever its age. It is
+  /// one of the [keep] whether or not it exists yet.
   ///
   /// Every failure is swallowed per checkout, as housekeeping should be.
   static Future<int> sweep({
     required String repoRoot,
     String? cacheRoot,
-    String? keep,
+    String? spare,
     Duration forget = BaseCheckout.forget,
+    int keep = BaseCheckout.keep,
     DateTime? now,
   }) async {
     var root = Directory(cacheRoot ?? defaultRoot);
     if (!root.existsSync()) return 0;
-    var expiry = (now ?? DateTime.now()).subtract(forget);
-    var swept = 0;
+    var at = now ?? DateTime.now();
+    var expiry = at.subtract(forget);
+    var abandoned = at.subtract(abandonAfter);
+    var stale = <String>[];
+    var used = <(String, DateTime)>[];
     for (var entity in root.listSync()) {
       if (entity is! Directory) continue;
       var path = entity.path;
-      if (keep != null && p.equals(path, keep)) continue;
+      if (spare != null && p.equals(path, spare)) continue;
       var marker = File(p.join(path, _marker));
       try {
-        // No marker is a checkout that died between `worktree add` and
-        // `resolve`, and `_ensureLocked` already throws those away when it
-        // meets them. Left alone here: it is somebody's half-built base until
-        // the run that is building it says otherwise.
-        if (!marker.existsSync()) continue;
-        if (!marker.statSync().modified.isBefore(expiry)) continue;
+        if (marker.existsSync()) {
+          used.add((path, marker.statSync().modified));
+        } else if (entity.statSync().modified.isBefore(abandoned)) {
+          // No marker is a checkout that died between `worktree add` and
+          // `resolve` — or one that is between them this moment. Its age
+          // tells those apart, and for a creator slower than a day, the lock
+          // [_removeIfUnheld] takes does.
+          stale.add(path);
+        }
       } on FileSystemException {
         continue;
       }
+    }
+    // The newest few by last use stay whatever their age; the rest go for
+    // being old enough, or for being beyond the count.
+    var room = spare == null ? keep : keep - 1;
+    used.sort((a, b) => b.$2.compareTo(a.$2));
+    for (var (i, (path, touched)) in used.indexed) {
+      if (i < room && !touched.isBefore(expiry)) continue;
+      stale.add(path);
+    }
+    var swept = 0;
+    for (var path in stale) {
       if (await _removeIfUnheld(repoRoot: repoRoot, path: path)) swept++;
     }
     return swept;

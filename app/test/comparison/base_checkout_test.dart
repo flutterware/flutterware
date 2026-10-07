@@ -242,21 +242,104 @@ void main() {
       var swept = await BaseCheckout.sweep(
         repoRoot: repo,
         cacheRoot: cache,
-        keep: base.path,
+        spare: base.path,
       );
 
       expect(swept, 0);
       expect(Directory(base.path).existsSync(), isTrue);
     });
 
-    // Half-built, and somebody's: `_ensureLocked` throws these away when it
-    // meets one under its own lock, which is the only place that knows
-    // whether a run is still inside it.
+    // Age is the wrong unit on a CI runner: the base is the merge base with
+    // trunk, which moves with every merge, so each base serves one job and
+    // then sits out the fortnight — measured, 70GB of them.
+    test(
+      'beyond the most recently used few, a base goes however young',
+      () async {
+        var bases = <BaseCheckout>[];
+        for (var i = 1; i <= 3; i++) {
+          File(p.join(repo, 'card.dart'))
+              .writeAsStringSync('const card = ${i + 1};');
+          await git(['add', '.']);
+          await git(['commit', '-m', 'commit $i']);
+          var base = await checkout(await git(['rev-parse', 'HEAD']));
+          age(base.path, Duration(days: 4 - i));
+          bases.add(base);
+        }
+
+        var swept = await BaseCheckout.sweep(
+          repoRoot: repo,
+          cacheRoot: cache,
+          keep: 2,
+        );
+
+        expect(swept, 1);
+        expect(Directory(bases[0].path).existsSync(), isFalse);
+        expect(Directory(bases[1].path).existsSync(), isTrue);
+        expect(Directory(bases[2].path).existsSync(), isTrue);
+      },
+    );
+
+    test('the base about to be used is one of the few', () async {
+      var older = await checkout(await git(['rev-parse', 'HEAD']));
+      age(older.path, const Duration(days: 2));
+      File(p.join(repo, 'card.dart')).writeAsStringSync('const card = 2;');
+      await git(['add', '.']);
+      await git(['commit', '-m', 'second']);
+      var newer = await checkout(await git(['rev-parse', 'HEAD']));
+      age(newer.path, const Duration(days: 1));
+
+      var swept = await BaseCheckout.sweep(
+        repoRoot: repo,
+        cacheRoot: cache,
+        keep: 1,
+        spare: older.path,
+      );
+
+      expect(swept, 1);
+      expect(Directory(older.path).existsSync(), isTrue);
+      expect(Directory(newer.path).existsSync(), isFalse);
+    });
+
+    // Half-built, and fresh: `_ensureLocked` throws these away when it meets
+    // one under its own lock, which is the only place that knows whether a
+    // run is still inside it.
     test('leaves a checkout that never finished resolving', () async {
       var half = Directory(p.join(cache, 'deadbeef'))
         ..createSync(recursive: true);
 
       expect(await BaseCheckout.sweep(repoRoot: repo, cacheRoot: cache), 0);
+      expect(half.existsSync(), isTrue);
+    });
+
+    // The marker is written after `pub get` succeeds, so a run killed before
+    // that — a cancelled CI job, routinely — leaves a directory with none,
+    // which only an `ensure` of the same sha would ever replace.
+    test('a half-built checkout nobody came back to is dropped', () async {
+      var half = Directory(p.join(cache, 'deadbeef'))
+        ..createSync(recursive: true);
+
+      var swept = await BaseCheckout.sweep(
+        repoRoot: repo,
+        cacheRoot: cache,
+        now: DateTime.now().add(const Duration(days: 2)),
+      );
+
+      expect(swept, 1);
+      expect(half.existsSync(), isFalse);
+    });
+
+    test('a half-built checkout somebody holds is left, however old', () async {
+      var half = Directory(p.join(cache, 'deadbeef'))
+        ..createSync(recursive: true);
+      await holdLock('${half.path}.lock');
+
+      var swept = await BaseCheckout.sweep(
+        repoRoot: repo,
+        cacheRoot: cache,
+        now: DateTime.now().add(const Duration(days: 2)),
+      );
+
+      expect(swept, 0);
       expect(half.existsSync(), isTrue);
     });
 

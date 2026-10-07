@@ -283,46 +283,41 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
         headRoot: topLevel,
         baseRoot: baseRoot,
       );
+      // Scratch for the replays' frames, gone with the run — `fw compare`
+      // says why, and where.
+      var scratch = Directory(p.join(cacheRoot, 'comparisons'))
+        ..createSync(recursive: true);
+      var outDir = scratch.createTempSync('scenarios-');
       try {
-        var results =
-            await ScenariosRunner(
-              headRoot: topLevel,
-              baseRoot: baseRoot,
-              source: source,
-              cache: _cache,
-              sdk: renderKeyOf(flutterSdk),
-              pixels: PixelInputs.ofScenarios(
-                packagePath: side.packagePath,
-                roots: [topLevel, baseRoot],
-              ),
-              locks: LockSides(
-                packagePath: side.packagePath,
-                roots: [topLevel, baseRoot],
-              ),
-              onScenario: (scenario) =>
-                  onScenario(scenario.inPackage(package, qualify: qualify)),
-              onPlan: onPlan == null
-                  ? null
-                  : (plan) {
-                      // This package's ids only — see `runPreviews`.
-                      total += plan.total;
-                      onPlan(total, [
-                        for (var id in plan.toRun)
-                          qualify ? comparedIdIn(package, id) : id,
-                      ]);
-                    },
-              onProgress: onProgress,
-              cancel: cancel,
-            ).run(
-              // Per package: two packages' `test/scenarios/shop_test.dart` are two
-              // different files, and one directory would have them writing each
-              // other's frames.
-              outDir: p.join(
-                comparisonDirFor(cacheRoot, session.worktree),
-                'scenarios',
-                side.packagePath,
-              ),
-            );
+        var results = await ScenariosRunner(
+          headRoot: topLevel,
+          baseRoot: baseRoot,
+          source: source,
+          cache: _cache,
+          sdk: renderKeyOf(flutterSdk),
+          pixels: PixelInputs.ofScenarios(
+            packagePath: side.packagePath,
+            roots: [topLevel, baseRoot],
+          ),
+          locks: LockSides(
+            packagePath: side.packagePath,
+            roots: [topLevel, baseRoot],
+          ),
+          onScenario: (scenario) =>
+              onScenario(scenario.inPackage(package, qualify: qualify)),
+          onPlan: onPlan == null
+              ? null
+              : (plan) {
+                  // This package's ids only — see `runPreviews`.
+                  total += plan.total;
+                  onPlan(total, [
+                    for (var id in plan.toRun)
+                      qualify ? comparedIdIn(package, id) : id,
+                  ]);
+                },
+          onProgress: onProgress,
+          cancel: cancel,
+        ).run(outDir: outDir.path);
         halves.add((
           package: package,
           results: results.inPackage(package, qualify: qualify),
@@ -353,6 +348,11 @@ class SessionComparisonEnvironment implements ComparisonEnvironment {
         // one was built. A panel that navigated away mid-run would leak both
         // without this.
         await source.dispose();
+        try {
+          outDir.deleteSync(recursive: true);
+        } on FileSystemException {
+          // The comparison directory's sweep takes what is left.
+        }
       }
     }
     // Every package failed: there is no half to show, and the panel's

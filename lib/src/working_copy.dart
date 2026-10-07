@@ -24,7 +24,25 @@ import 'utils/list_files.dart';
 /// anything runs, and deciding it means knowing this path first: whether the
 /// CLI and the GUI need building are questions about files inside it.
 String workingCopyPath(String packageRoot) =>
-    p.join(userHomePath(), '.flutterware', hashOf(packageRoot));
+    p.join(flutterwareHomePath(), hashOf(packageRoot));
+
+/// `~/.flutterware`: where the copies live, with their locks and every other
+/// store flutterware keeps per user.
+String flutterwareHomePath() => p.join(userHomePath(), '.flutterware');
+
+/// Where the lock for a build tree lives.
+///
+/// Keyed on [root], because [root] is precisely what the collision is about:
+/// two projects share a working copy exactly when they resolve the same
+/// flutterware version, and a checkout is its own root and so collides only
+/// with itself.
+///
+/// Beside the trees rather than inside one. Unpacking rewrites the tree it is
+/// guarding, and a lock a copy can remove is not a lock.
+///
+/// [home] is [flutterwareHomePath]; a test passes its own.
+String buildLockPath(String root, {String? home}) =>
+    p.join(home ?? flutterwareHomePath(), 'locks', '${hashOf(root)}.lock');
 
 /// Where [copyPackageInto] records the stamp of the copy it made.
 File workingCopyStampFile(String root) => File(p.join(root, '.source_stamp'));
@@ -250,6 +268,122 @@ bool _delete(FileSystemEntity entity) {
     return true;
   } on FileSystemException {
     return false;
+  }
+}
+
+/// Records that the copy at [root] was launched.
+///
+/// The stamp's content says what the copy was made from; its mtime is free,
+/// and [sweepWorkingCopies] reads it as the last launch. A copy is unpacked
+/// once and launched for months, so on the mtime it was *written* at, a copy
+/// in daily use is exactly what an age sweep would take first — the same move
+/// `BaseCheckout` makes on its marker, for the same reason.
+void touchWorkingCopy(String root) {
+  try {
+    workingCopyStampFile(root).setLastModifiedSync(DateTime.now());
+  } on FileSystemException {
+    // Read-only, or a stamp another process is this moment rewriting. A touch
+    // lost costs an unpack a month from now at the very worst.
+  }
+}
+
+/// How long a copy survives without being launched.
+const workingCopyKeepFor = Duration(days: 30);
+
+/// Deletes every working copy beside [current] that nothing has launched in
+/// [keepFor], and answers how many.
+///
+/// Nothing deleted a copy, ever. One is made per flutterware package root —
+/// per published version, or per *commit* for a project that pins a git
+/// ref — and the only thing that ever visits an old one again is this sweep,
+/// run from the copy that replaced it. Measured on one machine: 67 copies,
+/// 53GB, most of them not launched since the week they were unpacked.
+/// [trimWorkingCopy] reclaims a copy's build state only when that copy is
+/// launched again, which an old one never is, so the copies holding the most
+/// were the ones it never reached.
+///
+/// A copy is told from its neighbours by its stamp, never by its name: the
+/// forty-hex directories under `~/.flutterware` also hold a repository's
+/// worktree facts and a checkout's review log, and those are left exactly
+/// where they are. A copy that lost its stamp — an unpack that was
+/// interrupted — is still a copy, and the directory's own mtime stands in
+/// for the stamp's.
+///
+/// Each copy is removed under its own build lock, taken without waiting: a
+/// copy another process is unpacking or building in is one it is about to
+/// launch, and the lock is how that process says so.
+///
+/// [home] is [flutterwareHomePath]; a test passes its own, and [now].
+int sweepWorkingCopies({
+  required String current,
+  Duration keepFor = workingCopyKeepFor,
+  String? home,
+  DateTime? now,
+}) {
+  var root = home ?? flutterwareHomePath();
+  List<FileSystemEntity> entries;
+  try {
+    entries = Directory(root).listSync();
+  } on FileSystemException {
+    return 0;
+  }
+  var cutoff = (now ?? DateTime.now()).subtract(keepFor);
+  var deleted = 0;
+  for (var entity in entries) {
+    if (entity is! Directory) continue;
+    var path = entity.path;
+    if (!_copyName.hasMatch(p.basename(path)) || p.equals(path, current)) {
+      continue;
+    }
+    DateTime launched;
+    try {
+      var stamp = workingCopyStampFile(path);
+      if (stamp.existsSync()) {
+        launched = stamp.lastModifiedSync();
+      } else if (File(p.join(path, 'pubspec.yaml')).existsSync() &&
+          Directory(p.join(path, 'app')).existsSync()) {
+        launched = entity.statSync().modified;
+      } else {
+        continue;
+      }
+    } on FileSystemException {
+      continue;
+    }
+    if (!launched.isBefore(cutoff)) continue;
+    if (_removeIfUnheld(path, lock: buildLockPath(path, home: root))) {
+      deleted++;
+    }
+  }
+  return deleted;
+}
+
+final _copyName = RegExp(r'^[0-9a-f]{40}$');
+
+/// Deletes the copy at [path] unless some process holds its [lock].
+///
+/// The lock is tried, never waited for: a held one means a launch is inside
+/// the copy, and a sweep is housekeeping. Closing the handle releases it.
+bool _removeIfUnheld(String path, {required String lock}) {
+  RandomAccessFile handle;
+  try {
+    File(lock).parent.createSync(recursive: true);
+    handle = File(lock).openSync(mode: FileMode.append);
+  } on FileSystemException {
+    return false;
+  }
+  try {
+    try {
+      handle.lockSync(FileLock.exclusive);
+    } on FileSystemException {
+      return false;
+    }
+    Directory(path).deleteSync(recursive: true);
+    return true;
+  } on FileSystemException {
+    // Lost a race with another sweeper, or a file somebody has open.
+    return false;
+  } finally {
+    handle.closeSync();
   }
 }
 

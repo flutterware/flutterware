@@ -150,8 +150,8 @@ Future<ProcessLog?> _work(
   // copy is current, whether the binary is newer than its sources — so an
   // answer reached outside the lock is an answer about a tree that no longer
   // exists by the time it is acted on.
-  return withBuildLock(
-    _buildLockPath(root),
+  var built = await withBuildLock(
+    buildLockPath(root),
     onWait: () => out.writeln(
       'flutterware: another process is building the same tools; waiting for it.',
     ),
@@ -169,19 +169,24 @@ Future<ProcessLog?> _work(
       protocolOwnsStdout: protocolOwnsStdout,
     ),
   );
-}
 
-/// Where the lock for a build tree lives.
-///
-/// Keyed on [root], because [root] is precisely what the collision is about:
-/// two projects share a working copy exactly when they resolve the same
-/// flutterware version, and a checkout is its own root and so collides only
-/// with itself.
-///
-/// Beside the trees rather than inside one. Unpacking rewrites the tree it is
-/// guarding, and a lock a copy can remove is not a lock.
-String _buildLockPath(String root) =>
-    p.join(userHomePath(), '.flutterware', 'locks', '${hashOf(root)}.lock');
+  // The copies of other versions, after the lock rather than under it: that
+  // lock guards this tree, and every other copy is taken under its own. On
+  // the warm path this is a listing and a stat per copy, and it has to be on
+  // the warm path — an old copy is never launched again, so the only process
+  // that will ever visit it is a launch of the copy that replaced it.
+  if (!editable) {
+    var swept = sweepWorkingCopies(current: root);
+    if (swept > 0) {
+      out.writeln(
+        'flutterware: removed $swept unused '
+        '${swept == 1 ? 'copy' : 'copies'} of other versions from '
+        '${flutterwareHomePath()}.',
+      );
+    }
+  }
+  return built;
+}
 
 /// The plan itself, narrated, with nobody else writing into the tree.
 ///
@@ -209,6 +214,10 @@ Future<ProcessLog?> _prepare(
       (force ||
           !stampFile.existsSync() ||
           stampFile.readAsStringSync() != stamp);
+  // A copy that is current is being launched, and that is what its stamp's
+  // mtime records — see [sweepWorkingCopies]. One about to be unpacked gets a
+  // fresh stamp anyway.
+  if (stamp != null && !unpacks) touchWorkingCopy(root);
 
   // Resolve exactly when the tree was just replaced, which is the only time the
   // copy holds a resolution it did not make itself: [workingCopyStamp] unpacks

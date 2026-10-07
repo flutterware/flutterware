@@ -116,6 +116,17 @@ int sweepComparisonDirs(
   var swept = 0;
   for (var entity in found) {
     if (entity is! Directory) continue;
+    // What earlier versions left under each worktree's directory: a
+    // `scenarios/` tree of raw frames per package, written by every run and
+    // cleared by none — one worktree's measured at 6GB from runs weeks past.
+    // Frames go to the store now and a run's scratch goes with the run, so
+    // nothing writes here any more; it goes the first time a sweep meets it,
+    // whatever the directory's own age — unless something inside it is
+    // fresh, which is an older flutterware's run writing it this moment.
+    _dropLegacyFrames(
+      Directory(p.join(entity.path, 'scenarios')),
+      cutoff: (now ?? DateTime.now()).subtract(const Duration(days: 1)),
+    );
     try {
       DateTime? touched;
       for (var child in entity.listSync()) {
@@ -132,6 +143,19 @@ int sweepComparisonDirs(
     }
   }
   return swept;
+}
+
+void _dropLegacyFrames(Directory frames, {required DateTime cutoff}) {
+  try {
+    if (!frames.existsSync()) return;
+    for (var entity in frames.listSync(recursive: true)) {
+      if (entity is! File) continue;
+      if (!entity.statSync().modified.isBefore(cutoff)) return;
+    }
+    frames.deleteSync(recursive: true);
+  } on FileSystemException {
+    // An older run writing it, or another sweep ahead of this one.
+  }
 }
 
 /// The scenario half of a comparison, as the artifact records it.
