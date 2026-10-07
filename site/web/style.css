@@ -37,6 +37,8 @@
   --sky: #8ec2ff;
   --code-keyword: #7ab8ff;
   --code-string: #9fdcb0;
+  --code-comment: #7d91ab;
+  --code-accent: #e7c58a;
   --shadow: 0 28px 64px -28px rgba(12, 24, 38, 0.45);
   --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -249,7 +251,8 @@ section {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
-nav {
+.top nav,
+footer nav {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 26px;
@@ -260,9 +263,16 @@ nav {
   color: var(--on-navy-mut);
 }
 
-.top nav a:hover {
+.top nav a:hover,
+.top nav a[aria-current] {
   color: #fff;
   text-decoration: none;
+}
+
+/* A page with no hero to lie on: the header is a bar of its own. */
+.top.bar {
+  position: static;
+  background: linear-gradient(180deg, #101f33, var(--navy));
 }
 
 .hero-grid {
@@ -292,7 +302,7 @@ nav {
   background: #5fd08a;
 }
 
-h1 {
+.hero h1 {
   margin-top: 22px;
   color: #fff;
   font-size: clamp(2.2rem, 4.5vw, 3.35rem);
@@ -301,7 +311,7 @@ h1 {
   text-wrap: balance;
 }
 
-h1 span {
+.hero h1 span {
   color: var(--sky);
 }
 
@@ -408,12 +418,29 @@ pre {
   line-height: 1.7;
 }
 
-.k {
+/* What `lib/code.dart` marks in a snippet. */
+.hljs-keyword,
+.hljs-built_in,
+.hljs-literal {
   color: var(--code-keyword);
 }
 
-.s {
+.hljs-string {
   color: var(--code-string);
+}
+
+.hljs-subst {
+  color: var(--on-navy);
+}
+
+.hljs-comment {
+  color: var(--code-comment);
+}
+
+.hljs-number,
+.hljs-meta,
+.hljs-attr {
+  color: var(--code-accent);
 }
 
 /* The prompt is drawn, so a copied command is the command alone. */
@@ -741,6 +768,280 @@ footer nav a:hover {
   text-decoration: none;
 }
 
+/* Docs: the menu of every guide, the guide, and the list of its sections. */
+
+.docs {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr) 200px;
+  gap: 56px;
+  align-items: start;
+  padding-top: 48px;
+  padding-bottom: 96px;
+}
+
+.docs-menu {
+  display: none;
+}
+
+.docs-side,
+.docs-toc {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.docs-nav {
+  font-size: 0.9rem;
+}
+
+.docs-nav a {
+  display: block;
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: var(--ink2);
+}
+
+.docs-nav a:hover {
+  background: var(--panel);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.docs-nav a[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.docs-nav .group {
+  display: block;
+  margin: 22px 0 6px;
+  padding: 0 10px;
+  color: var(--mut);
+  font: 500 0.7rem/1.3 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.docs-toc .label {
+  margin-bottom: 12px;
+}
+
+.docs-toc .label::after {
+  content: none;
+}
+
+.docs-toc a {
+  display: block;
+  padding: 4px 0 4px 12px;
+  border-left: 1px solid var(--line);
+  color: var(--mut);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.docs-toc a.level-3 {
+  padding-left: 24px;
+}
+
+.docs-toc a:hover {
+  border-left-color: var(--mut);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* A guide's own words: markdown, with nothing but tags to style it by. */
+
+.prose {
+  min-width: 0;
+  max-width: 760px;
+}
+
+.prose > .label {
+  margin-bottom: 14px;
+}
+
+.prose h1 {
+  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.prose h2 {
+  margin-top: 56px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  font-size: 1.45rem;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.prose h3 {
+  margin-top: 36px;
+  font-size: 1.08rem;
+}
+
+.prose h2,
+.prose h3 {
+  scroll-margin-top: 24px;
+}
+
+.prose .anchor {
+  margin-left: 8px;
+  color: var(--mut);
+  font-weight: 400;
+  opacity: 0;
+}
+
+.prose h2:hover .anchor,
+.prose h3:hover .anchor,
+.prose .anchor:focus-visible {
+  opacity: 1;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose .code,
+.prose .table {
+  margin: 16px 0 0;
+}
+
+/* The paragraph that says what the tool is for. */
+.prose h1 + p {
+  margin-top: 20px;
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 22px;
+}
+
+.prose li {
+  margin-top: 6px;
+}
+
+.prose li > ul,
+.prose li > ol {
+  margin-top: 6px;
+}
+
+.prose strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.prose img {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.prose blockquote {
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.prose blockquote p:first-child {
+  margin-top: 0;
+}
+
+.prose .table {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.prose th,
+.prose td {
+  padding: 9px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.prose tr + tr td,
+.prose tbody tr:first-child td {
+  border-top: 1px solid var(--line);
+}
+
+/* On a guide the button waits for the pointer, so a snippet stays the height
+   of its code; where there is no pointer there is no button. */
+.prose .code:not(:has(.title)):has(button) pre {
+  padding-top: 18px;
+}
+
+.prose .code button {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.prose .code:hover button,
+.prose .code button:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .prose .code button {
+    display: none;
+  }
+}
+
+.pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 64px;
+}
+
+.pager a {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.pager a:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.pager small {
+  display: block;
+  color: var(--mut);
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.pager .next {
+  grid-column: 2;
+  text-align: right;
+}
+
+.edit {
+  margin-top: 28px;
+  font-size: 0.86rem;
+}
+
 /* The page on a 404: the band alone, with nothing stepping out of it. */
 
 .lost {
@@ -753,7 +1054,7 @@ footer nav a:hover {
   inset: 0;
 }
 
-.lost h1 {
+.hero.lost h1 {
   margin-top: 96px;
 }
 
@@ -762,9 +1063,48 @@ footer nav a:hover {
   color: var(--on-navy);
 }
 
+@media (max-width: 1100px) {
+  .docs {
+    grid-template-columns: 216px minmax(0, 1fr);
+    gap: 48px;
+  }
+
+  .docs-toc {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
   section {
     padding: 64px 0;
+  }
+
+  .docs {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding-top: 24px;
+    padding-bottom: 64px;
+  }
+
+  .docs-side {
+    display: none;
+  }
+
+  .docs-menu {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+
+  .docs-menu summary {
+    padding: 11px 16px;
+    color: var(--ink);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .docs-menu .docs-nav {
+    padding: 0 6px 12px;
   }
 
   .hero {
@@ -828,13 +1168,13 @@ footer nav a:hover {
     display: none;
   }
 
-  nav {
+  .top nav {
     flex-wrap: nowrap;
     gap: 8px 16px;
   }
 
   footer nav {
-    flex-wrap: wrap;
+    gap: 8px 16px;
   }
 
   /* One column: every tile shows its whole picture. */

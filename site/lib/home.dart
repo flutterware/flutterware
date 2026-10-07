@@ -1,17 +1,15 @@
-import 'dart:convert';
-
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
+import 'chrome.dart';
+import 'code.dart';
 import 'content.dart';
-
-const _guides = '$repository/tree/master/doc';
+import 'docs.dart';
 
 /// The studio demo. Every link to it opens a tab of its own: it is an app,
 /// and leaving the page for it loses the page.
 const _demo = 'demo/';
 const _sample = 'https://github.com/flutterware/flutterware_example';
-const _pub = 'https://pub.dev/packages/flutterware';
 
 /// What the page calls the two commands that add flutterware to a project,
 /// wherever it shows them.
@@ -34,35 +32,24 @@ const _focus = {
 /// What it says in the README's words comes from [content], by region name;
 /// what is written here is the page's own.
 class Home extends StatelessComponent {
-  const Home(this.content, {super.key});
+  const Home(this.content, this.docs, {super.key});
 
   final Content content;
+  final Docs docs;
 
   @override
   Component build(BuildContext context) => .fragment([
-    _top(),
+    pageHead(
+      root: '',
+      path: '',
+      title: 'Flutterware: a studio for your Flutter project',
+      description: '${content.text('tagline')} ${content.text('lede')}',
+      image: content.picture('hero').url,
+    ),
+    pageTop(root: ''),
     main_([_hero(), _tools(), _config(), _scenarios(), _agents(), _tryIt()]),
-    _footer(),
+    pageFooter(root: ''),
     script(src: 'copy.js', defer: true),
-  ]);
-
-  Component _top() => header(classes: 'top', [
-    div(classes: 'wrap', [
-      a(href: './', classes: 'brand', [
-        img(src: 'icon.svg', alt: '', width: 26, height: 26),
-        .text('flutterware'),
-      ]),
-      nav(
-        attributes: {'aria-label': 'Main'},
-        [
-          a(href: '#tools', classes: 'in-page', [.text('Tools')]),
-          a(href: '#agents', classes: 'in-page', [.text('Agents')]),
-          a(href: _guides, [.text('Docs')]),
-          a(href: repository, [.text('GitHub')]),
-          a(href: _pub, [.text('pub.dev')]),
-        ],
-      ),
-    ]),
   ]);
 
   Component _hero() {
@@ -167,7 +154,7 @@ class Home extends StatelessComponent {
 
   Component _outcome(String guide, String name, String rest) => li([
     span([
-      a(href: '$repository/blob/master/doc/$guide.md', [.text(name)]),
+      a(href: docs.pageOf('$guide.md').path, [.text(name)]),
       .text(rest),
     ]),
   ]);
@@ -367,27 +354,6 @@ class Home extends StatelessComponent {
     ]),
   ]);
 
-  Component _footer() => footer([
-    div(classes: 'wrap', [
-      span([
-        img(src: 'icon.svg', alt: '', width: 20, height: 20),
-        .text('MIT license'),
-      ]),
-      nav(
-        attributes: {'aria-label': 'Footer'},
-        [
-          a(href: _guides, [.text('Docs')]),
-          a(href: repository, [.text('GitHub')]),
-          a(href: _pub, [.text('pub.dev')]),
-          a(href: '$_pub/changelog', [.text('Changelog')]),
-          a(href: '$repository/blob/master/CONTRIBUTING.md', [
-            .text('Contributing'),
-          ]),
-        ],
-      ),
-    ]),
-  ]);
-
   /// What a section is, above its title, numbered down the page.
   Component _label(int number, String name) => span(classes: 'label', [
     b([.text('$number'.padLeft(2, '0'))]),
@@ -408,25 +374,14 @@ class Home extends StatelessComponent {
   );
 }
 
-/// Strings and a handful of keywords, which is all the page's snippets need,
-/// and a line apart for each command so the stylesheet can draw its prompt.
+/// The snippet in the page's colours, or, when it is commands, a line apart
+/// for each so the stylesheet can draw its prompt.
 String _highlight(Snippet snippet) {
-  var escaped = const HtmlEscape(.element).convert(snippet.code);
   if (snippet.isShell) {
     return [
-      for (var line in escaped.split('\n')) '<span class="ln">$line</span>',
+      for (var line in snippet.code.split('\n'))
+        '<span class="ln">${escapeCode(line)}</span>',
     ].join('\n');
   }
-  var token = switch (snippet.language) {
-    'dart' => RegExp(r"('[^'\n]*')|\b(async|await|const|import|void)\b"),
-    'json' => RegExp('("[^"\n]*")'),
-    _ => null,
-  };
-  if (token == null) return escaped;
-  return escaped.replaceAllMapped(
-    token,
-    (m) => m.group(1) != null
-        ? '<span class="s">${m.group(1)}</span>'
-        : '<span class="k">${m.group(2)}</span>',
-  );
+  return highlightCode(snippet.code, language: snippet.language);
 }

@@ -13,23 +13,31 @@ import 'package:path/path.dart' as p;
 ///
 /// Pictures are found the same way, by file name, in the README and the
 /// guides — so the page shows the picture, and the alt text, they show.
+///
+/// The README writes its links for GitHub, relative to itself. [link] says
+/// where each one goes from the page; left out, they all go to GitHub.
 class Content {
-  Content({required String readme, Iterable<String> guides = const []})
-    : _regions = {
-        for (var m in _region.allMatches(readme))
-          m.group(1)!: m.group(2)!.trim(),
-      },
-      _pictures = {
-        for (var text in [readme, ...guides])
-          for (var m in _image.allMatches(text))
-            if (_pictureName.firstMatch(m.group(2)!) case var name?)
-              name.group(1)!: Picture(m.group(2)!, _collapse(m.group(1)!)),
-      };
+  Content({
+    required String readme,
+    Iterable<String> guides = const [],
+    String Function(String href) link = _absolute,
+  }) : _resolve = link,
+       _regions = {
+         for (var m in _region.allMatches(readme))
+           m.group(1)!: m.group(2)!.trim(),
+       },
+       _pictures = {
+         for (var text in [readme, ...guides])
+           for (var m in _image.allMatches(text))
+             if (_pictureName.firstMatch(m.group(2)!) case var name?)
+               name.group(1)!: Picture(m.group(2)!, _collapse(m.group(1)!)),
+       };
 
   /// Reads the README and the guides of the repository this package sits in.
-  factory Content.load() {
+  factory Content.load({String Function(String href) link = _absolute}) {
     var root = _repositoryRoot();
     return Content(
+      link: link,
       readme: File(p.join(root, 'README.md')).readAsStringSync(),
       guides: [
         for (var file in Directory(p.join(root, 'doc')).listSync())
@@ -39,6 +47,7 @@ class Content {
     );
   }
 
+  final String Function(String href) _resolve;
   final Map<String, String> _regions;
   final Map<String, Picture> _pictures;
 
@@ -110,7 +119,7 @@ class Content {
     if (image == null) throw _wrong(region, 'has no picture in "$picture"');
     return Tool(
       name: link.group(1)!,
-      guide: _absolute(link.group(2)!),
+      guide: _resolve(link.group(2)!),
       picture: Picture(image.group(2)!, _collapse(image.group(1)!)),
       description: _html(description),
     );
@@ -144,7 +153,7 @@ class Content {
     var nodes = md.Document(extensionSet: md.ExtensionSet.gitHubFlavored)
         .parseInline(markdown);
     for (var node in nodes) {
-      node.accept(_AbsoluteLinks());
+      node.accept(_Links(_resolve));
     }
     return nodes;
   }
@@ -190,17 +199,21 @@ class Snippet {
   bool get isShell => language == 'shell';
 }
 
-/// Where a link the README writes relative to itself goes from the page.
+/// Where a file of the repository is read when the site has no page for it.
 const repository = 'https://github.com/flutterware/flutterware';
 
 String _absolute(String link) =>
     Uri.parse(link).hasScheme ? link : '$repository/blob/master/$link';
 
-class _AbsoluteLinks implements md.NodeVisitor {
+class _Links implements md.NodeVisitor {
+  _Links(this.link);
+
+  final String Function(String href) link;
+
   @override
   bool visitElementBefore(md.Element element) {
     if (element.tag == 'a') {
-      element.attributes.update('href', _absolute);
+      element.attributes.update('href', link);
     }
     return true;
   }
