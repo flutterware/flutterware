@@ -19,6 +19,7 @@ String pageTitle(ShellController shell, {String site = 'flutterware'}) {
     null => const <String>[],
     Address.shellConfig => ['Config'],
     Address.shellChanges => ['Changes'],
+    Address.shellAbout => ['About'],
     var plugin => _pluginPlace(shell.selectedSession, plugin, address),
   };
   return [...place, site].join(' · ');

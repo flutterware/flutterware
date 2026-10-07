@@ -140,12 +140,17 @@ void main() {
       });
     }
 
-    test('both ids are named, so a third screen cannot be forgotten', () {
+    test('every id is named, so a fourth screen cannot be forgotten', () {
       expect(Address.shellOwned, contains(Address.shellConfig));
       expect(Address.shellOwned, contains(Address.shellChanges));
+      expect(Address.shellOwned, contains(Address.shellAbout));
       // The sessionless set is a subset: `config` is about the session, so it
-      // needs one; `changes` reads git and does not.
-      expect(Address.shellSessionless, {Address.shellChanges});
+      // needs one; `changes` reads git and `about` reads nothing, so neither
+      // does.
+      expect(Address.shellSessionless, {
+        Address.shellChanges,
+        Address.shellAbout,
+      });
     });
   });
 

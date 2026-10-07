@@ -190,6 +190,14 @@ without the studio.
 | `ui_catalog.dart` | A browsable web page of your previews. |
 | `plugins.dart` | What `tool/flutterware.dart` is written against. |
 
+## Get in touch
+
+<!-- site:contact -->
+If you use flutterware, are trying it out, or wonder whether it would fit your
+project, we'd love to hear from you. Questions, ideas, or something that got in
+your way: write to [hello@flutterware.dev](mailto:hello@flutterware.dev).
+<!-- /site -->
+
 ## Contributing
 
 Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md)

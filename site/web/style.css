@@ -736,6 +736,15 @@ pre {
   font-size: 0.88rem;
 }
 
+/* Get in touch */
+
+.contact {
+  max-width: 48em;
+  margin-top: 18px;
+  font-size: 1.02rem;
+  text-wrap: pretty;
+}
+
 /* Footer */
 
 footer {
