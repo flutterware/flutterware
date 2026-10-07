@@ -94,6 +94,26 @@ abstract final class RealWork {
   /// This is the entry point for loading anything a dependency caches:
   /// `await RealWork.run(() => loadModel(bundle), label: 'model')`.
   ///
+  /// Lottie is the common one. With `backgroundLoading: true` it reads the
+  /// file through the bundle, which a scenario counts, and then parses it with
+  /// `compute`, which nothing counts — and it keeps every load for the life of
+  /// the process, which is what makes this `run` rather than [track]. Start
+  /// the load here and hand the builder the same provider, so it finds the
+  /// announced load rather than starting one of its own:
+  ///
+  /// ```dart
+  /// final _intro = AssetLottie('assets/intro.json', backgroundLoading: true);
+  ///
+  /// @override
+  /// void didChangeDependencies() {
+  ///   super.didChangeDependencies();
+  ///   RealWork.run(() => _intro.load(context: context), label: 'intro');
+  /// }
+  ///
+  /// @override
+  /// Widget build(BuildContext context) => LottieBuilder(lottie: _intro);
+  /// ```
+  ///
   /// Its outcome — value or error — is handed back through a future that
   /// belongs to the caller's zone, so an error is the caller's to catch and
   /// never the root zone's to report as unhandled, which under a test binding

@@ -70,16 +70,26 @@ const _waitingTurn = Duration(milliseconds: 1);
 /// turn to find out: `ImageCache.pendingImageCount`, which every
 /// `ImageProvider` passes through — `Image.asset`, `Image.memory`,
 /// `Image.network`, an `AssetImage` — [ScenarioAssetBundle.readsInFlight],
-/// which is every asset the app reads through the scenario's own bundle, so
-/// `SvgPicture.asset` and `Lottie.asset` are in it too — and [RealWork.pending],
-/// which is whatever the app itself handed to `RealWork.track`: a model
-/// import, an isolate, a database open. While any is non-zero this **waits**,
-/// in real milliseconds, until it is not. That is the deterministic half: the
-/// wait ends when the work ends, on a fast machine and a slow one alike, and a
-/// 780×609 PNG does not need a bigger number than an 8×8 one — it needs the
-/// same condition, held for longer. The first two are bounded by
-/// [realWorkWait]; a tracked future is the app's own promise and is waited
-/// for as long as it takes, up to the scenario's deadline.
+/// which is every asset the app reads through the scenario's own bundle, the
+/// bytes behind an `SvgPicture.asset` or a `Lottie.asset` among them — and
+/// [RealWork.pending], which is whatever the app itself handed to
+/// `RealWork.track`: a model import, an isolate, a database open. While any is
+/// non-zero this **waits**, in real milliseconds, until it is not. That is the
+/// deterministic half: the wait ends when the work ends, on a fast machine and
+/// a slow one alike, and a 780×609 PNG does not need a bigger number than an
+/// 8×8 one — it needs the same condition, held for longer. The first two are
+/// bounded by [realWorkWait]; a tracked future is the app's own promise and is
+/// waited for as long as it takes, up to the scenario's deadline.
+///
+/// The bundle counts the read and nothing after it. What a package does with
+/// the bytes is its own, and when that is a parse handed to `compute` — Lottie
+/// with `backgroundLoading: true`, which is what a large animation wants — it
+/// runs in an isolate no counter names: the read finishes, the count is back
+/// at zero, and the parse lands on a guessed turn or after the picture.
+/// Measured on a consumer's 523 KB animation, three runs of the same code: one
+/// drawn on guessed turn four, one never drawn before the scenario ended, one
+/// drawn with nothing to say so. That load is the app's to announce, and
+/// `RealWork.run`'s documentation shows how.
 ///
 /// What is left over is guessed at, and a turn is the only detector there
 /// is. A `FutureBuilder` on a real future announces nothing, so this takes a
