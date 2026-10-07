@@ -393,6 +393,14 @@ own and the act only awaits it.
 By default every verb captures. `Shot('name')` names the picture; the unnamed
 ones are collapsed as detail steps in the flow.
 
+A flow never holds the same picture twice by accident. `screen(name)` straight
+after a verb puts the name on that verb's picture rather than taking a second
+one of the same frame. A verb that is there to let something happen — `wait`,
+`runAsync`, `scrollTo`, `unhover` — takes no step when the screen ends where it
+started, whether it drew nothing or redrew the same pixels. Any other verb that
+changes nothing keeps its step, marked identical to the one before it: a `tap`
+that moved nothing is what a stalled flow looks like.
+
 ```dart
 scenario('Long flow', shots: Shots.manual, (s) async {
   await s.tap(next);                       // no capture

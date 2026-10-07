@@ -56,7 +56,9 @@ void main() {
     scenario('and does not inherit the last verb that had one', (s) async {
       await s.pumpWidget(const _App());
       await s.tap('Second');
-      await s.wait(const Duration(milliseconds: 10));
+      // Named, because a wait that changes nothing on screen takes no
+      // automatic shot.
+      await s.wait(const Duration(milliseconds: 10), shot: Shot('waited'));
     });
     tearDown(() {
       expect(captures[captures.length - 2].aim, isNotNull, reason: 'the tap');
