@@ -36,10 +36,13 @@ dart run flutterware
 ```
 <!-- /site -->
 
+<!-- site:first-launch -->
+The first launch builds the studio, so give it a minute.
+<!-- /site -->
+
 <!-- site:requirements -->
-The first launch builds the studio, so give it a minute. You need Flutter 3.47
-or newer. Live previews are macOS only for now; the rest also runs on Linux and
-Windows.
+You need Flutter 3.47 or newer. Live previews are macOS only for now; the rest
+also runs on Linux and Windows.
 <!-- /site -->
 
 ## What's in it

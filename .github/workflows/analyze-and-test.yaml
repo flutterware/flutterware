@@ -510,11 +510,13 @@ jobs:
           name: studio-demo-shots
           path: app/build/web_demo/shots
           retention-days: 7
-      - name: "the home page builds from the README"
+      - name: "the site builds from the README and the guides"
         # `site/` is a Jaspr package and a member of the workspace, so the
-        # `pub get` and the analysis above already covered it. Its words are
-        # regions of README.md: a README that no longer has one the page
-        # renders fails here, and says which.
+        # `pub get` and the analysis above already covered it. The home page's
+        # words are regions of README.md, and the docs are the guides in
+        # `doc/`: a README that no longer has a region the page renders, a
+        # guide `doc/README.md` does not list, or a link between guides that
+        # lands on no heading fails here, and says which.
         #
         # The Jaspr tool is installed rather than depended on, and pinned as
         # pana is: its own code needs analyzer 12, and the workspace holds 13
@@ -527,7 +529,7 @@ jobs:
           dart test
           dart pub global run jaspr_cli:jaspr build
         working-directory: site
-      - name: "one site: the home page, and the demo under it"
+      - name: "one site: the home page and the docs, and the demo under them"
         # The build also writes what a page running Dart in the browser would
         # load. This one runs none, so only the page and `site/web/` go out.
         run: |
