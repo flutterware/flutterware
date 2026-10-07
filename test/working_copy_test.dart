@@ -4,6 +4,8 @@ import 'package:flutterware/src/working_copy.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import 'support/lock_holder.dart';
+
 /// What the working copy is a function of.
 ///
 /// Both cases here are the same bug seen from its two ends, and the bug is not
@@ -350,6 +352,107 @@ void main() {
             .existsSync(),
         isTrue,
       );
+    });
+  });
+
+  // Nothing deleted a copy, ever, and a project pinning a git ref makes one
+  // per commit it moves to. Measured on one machine: 67 of them, 53GB.
+  group('sweeping the copies nobody launches', () {
+    late String home;
+    var copies = 0;
+
+    setUp(() {
+      home = p.join(temp.path, 'home');
+      Directory(home).createSync();
+    });
+
+    /// A copy as the launcher leaves it, last launched [ago].
+    String copy({Duration ago = Duration.zero, bool stamped = true}) {
+      var name = (copies++).toRadixString(16).padLeft(40, '0');
+      var root = p.join(home, name);
+      _write(p.join(root, 'pubspec.yaml'), 'name: flutterware\n');
+      _write(p.join(root, 'app', 'pubspec.yaml'), 'name: flutterware_app\n');
+      if (stamped) {
+        var stamp = workingCopyStampFile(root)..writeAsStringSync('stamp');
+        stamp.setLastModifiedSync(DateTime.now().subtract(ago));
+      }
+      return root;
+    }
+
+    test('drops a copy nothing has launched in a month', () {
+      var old = copy(ago: const Duration(days: 40));
+      var current = copy();
+
+      var swept = sweepWorkingCopies(current: current, home: home);
+
+      expect(swept, 1);
+      expect(Directory(old).existsSync(), isFalse);
+      expect(Directory(current).existsSync(), isTrue);
+    });
+
+    test('keeps one launched this month', () {
+      var recent = copy(ago: const Duration(days: 10));
+
+      expect(sweepWorkingCopies(current: copy(), home: home), 0);
+      expect(Directory(recent).existsSync(), isTrue);
+    });
+
+    test('never the copy being launched, however old its stamp', () {
+      var current = copy(ago: const Duration(days: 40));
+
+      expect(sweepWorkingCopies(current: current, home: home), 0);
+      expect(Directory(current).existsSync(), isTrue);
+    });
+
+    // The launcher touches the stamp on every warm run: a copy is unpacked
+    // once and launched for months, and on the mtime it was written at it
+    // would be the first thing to go.
+    test('a launch is what keeps a copy, not the unpack', () {
+      var copied = copy(ago: const Duration(days: 40));
+
+      touchWorkingCopy(copied);
+
+      expect(sweepWorkingCopies(current: copy(), home: home), 0);
+      expect(Directory(copied).existsSync(), isTrue);
+    });
+
+    // The same forty-hex names hold a repository's worktree facts and a
+    // checkout's review log, and nothing says "copy" but the stamp.
+    test('a directory that is not a copy is not touched', () {
+      var facts = p.join(home, 'f' * 40);
+      _write(p.join(facts, 'worktrees.json'), '{}');
+
+      var swept = sweepWorkingCopies(
+        current: copy(),
+        home: home,
+        now: DateTime.now().add(const Duration(days: 365)),
+      );
+
+      expect(swept, 0);
+      expect(Directory(facts).existsSync(), isTrue);
+    });
+
+    // The stamp is written last, so an unpack that was interrupted left a
+    // copy with none — a copy all the same, and one no launch will finish.
+    test('an unpack that never finished is a copy too', () {
+      var interrupted = copy(stamped: false);
+
+      var swept = sweepWorkingCopies(
+        current: copy(),
+        home: home,
+        now: DateTime.now().add(const Duration(days: 40)),
+      );
+
+      expect(swept, 1);
+      expect(Directory(interrupted).existsSync(), isFalse);
+    });
+
+    test('leaves a copy another process is building in', () async {
+      var building = copy(ago: const Duration(days: 40));
+      await holdLock(buildLockPath(building, home: home));
+
+      expect(sweepWorkingCopies(current: copy(), home: home), 0);
+      expect(Directory(building).existsSync(), isTrue);
     });
   });
 }

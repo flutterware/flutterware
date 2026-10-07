@@ -287,7 +287,10 @@ to want to see. That is why the default is `all`.
   command (about 14s) and rebuilds the viewer in about 2s instead of 18s;
   a new flutterware version or SDK is a new stamp, and it is rebuilt. The
   `restore-keys` line matters: a lockfile change should reuse the previous
-  run's cache and write a new one, not start empty.
+  run's cache and write a new one, not start empty. The copies of versions
+  the project has moved off are deleted by the first launch that finds them
+  unused for a month, so a cache carried across versions does not pile them
+  up.
 - **Do not cache `~/.flutterware/bases`.** The base checkout is a real
   `git worktree`, registered inside the repository's own `.git` — which a
   fresh CI checkout does not have, so a restored one is a directory git does
