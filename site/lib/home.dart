@@ -6,6 +6,9 @@ import 'package:jaspr/jaspr.dart';
 import 'content.dart';
 
 const _guides = '$repository/tree/master/doc';
+
+/// The studio demo. Every link to it opens a tab of its own: it is an app,
+/// and leaving the page for it loses the page.
 const _demo = 'demo/';
 const _sample = 'https://github.com/flutterware/flutterware_example';
 const _pub = 'https://pub.dev/packages/flutterware';
@@ -64,7 +67,7 @@ class Home extends StatelessComponent {
         ]),
         p(classes: 'lede', [RawText(content.html('lede'))]),
         div(classes: 'actions', [
-          a(href: _demo, classes: 'button primary', [
+          a(href: _demo, target: .blank, classes: 'button primary', [
             .text('Open the web demo'),
           ]),
           a(href: _sample, classes: 'button', [.text('Clone the sample app')]),
@@ -76,7 +79,7 @@ class Home extends StatelessComponent {
             'change.',
           ),
         ]),
-        a(href: _demo, classes: 'shot', [
+        a(href: _demo, target: .blank, classes: 'shot', [
           img(
             src: hero.url,
             alt: hero.alt,
@@ -275,7 +278,9 @@ class Home extends StatelessComponent {
             ]),
           ]),
           div([
-            a(href: _demo, classes: 'button', [.text('Open the web demo')]),
+            a(href: _demo, target: .blank, classes: 'button', [
+              .text('Open the web demo'),
+            ]),
           ]),
         ]),
         li([
