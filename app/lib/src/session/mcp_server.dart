@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import '../changes/review_agent.dart';
 import '../shell/repo_layout.dart';
+import '../shell/worktree_discovery.dart';
 import '../constants.dart';
 import '../plugins/plugin_core.dart';
 import 'action_shapes.generated.dart';
@@ -159,9 +160,99 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
     _reviewTool,
   ];
 
-  /// Where to resolve the project from. A session walks up to the repo root,
+  /// Where to resolve the project from, unless the client's roots name
+  /// another checkout of its repository. A session walks up to the repo root,
   /// so any directory inside the project works.
+  ///
+  /// It is also where the server was built from: `dart run flutterware mcp`
+  /// resolved flutterware here, whichever checkout the client is working in.
   final Directory workingDirectory;
+
+  /// The roots the client last listed, or null when it keeps none.
+  ///
+  /// A client spawns a project's servers wherever its config lives, which is
+  /// not always where its session works: one running in a linked git worktree
+  /// was measured starting them in the main checkout, and a server that took
+  /// the project from its own directory then answered every call about a tree
+  /// nobody was editing — while saying so only in a `root` field nobody reads.
+  /// The roots say which checkout the client is working in.
+  Future<List<Root>>? _clientRoots;
+
+  @override
+  void handleInitialized([InitializedNotification? notification]) {
+    super.handleInitialized(notification);
+    if (clientCapabilities.roots == null) return;
+    _clientRoots = _listClientRoots();
+    rootsListChanged?.listen((_) => _clientRoots = _listClientRoots());
+  }
+
+  Future<List<Root>> _listClientRoots() => listRoots().then(
+    (result) => result.roots,
+    onError: (Object _) => <Root>[],
+  );
+
+  Future<Directory> _projectDirectory() async {
+    var roots =
+        await _clientRoots?.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => <Root>[],
+        ) ??
+        const <Root>[];
+    var paths = [
+      for (var root in roots)
+        if (Uri.tryParse(root.uri) case var uri? when uri.isScheme('file'))
+          _canonical(uri.toFilePath()),
+    ];
+    if (paths.isEmpty) return workingDirectory;
+    var start = _canonical(_startRoot);
+    var checkouts = await WorktreeDiscovery().discover(start);
+    var project = checkoutIn(
+      roots: paths,
+      start: start,
+      checkouts: [for (var checkout in checkouts) _canonical(checkout.path)],
+    );
+    return project == null ? workingDirectory : Directory(project);
+  }
+
+  /// Where [start] sits in the first of [roots] that is one of [checkouts],
+  /// or null when none is.
+  ///
+  /// [checkouts] are the worktrees of the repository [start] is in, so the
+  /// answer is never another project: a client lists every directory its
+  /// session may touch, and the server was started for this one. Among two
+  /// checkouts of it the client's order decides — the measured client lists
+  /// the directory its session works in first, and the protocol promises no
+  /// order at all.
+  @visibleForTesting
+  static String? checkoutIn({
+    required List<String> roots,
+    required String start,
+    required List<String> checkouts,
+  }) {
+    String? checkoutOf(String path) => checkouts
+        .where(
+          (checkout) => p.equals(checkout, path) || p.isWithin(checkout, path),
+        )
+        .firstOrNull;
+    var home = checkoutOf(start);
+    if (home == null) return null;
+    for (var root in roots) {
+      if (checkoutOf(root) case var checkout?) {
+        return p.normalize(p.join(checkout, p.relative(start, from: home)));
+      }
+    }
+    return null;
+  }
+
+  /// [path] with its symlinks resolved, because git reports a worktree by its
+  /// real path and a client may name it through a link.
+  static String _canonical(String path) {
+    try {
+      return Directory(path).resolveSymbolicLinksSync();
+    } on FileSystemException {
+      return p.normalize(path);
+    }
+  }
 
   /// Which cores this server exposes. Null means the default set.
   final PluginCoreRegistry? registry;
@@ -179,7 +270,7 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
       session =
           await (openSession?.call() ??
               Session.open(
-                workingDirectory,
+                await _projectDirectory(),
                 registry: registry,
                 // Sessions log, and the default sink is stdout — which here is
                 // the wire. A plugin that logs while loading would not be
@@ -223,15 +314,28 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// Latched on the first call rather than at construction: a client connects
   /// while the bootstrap's `pub get` may still be settling, and the resolution
   /// that matters is the one the first answer was built from.
+  ///
+  /// Read from [workingDirectory], not from the project a call opens: that is
+  /// where the server was built, and a client's root can be another checkout
+  /// pinned to another flutterware.
   String? _flutterwareSeen;
 
-  /// The line a reply owes when flutterware has been re-resolved under this
-  /// process, or null.
+  String get _startRoot =>
+      findRepoRoot(workingDirectory.path) ?? workingDirectory.path;
+
+  /// The line a reply owes when the project resolves a flutterware this
+  /// process was not built from, or null.
   String? _staleResolutionNote(String root) {
     var resolved = resolvedFlutterware(root);
     if (resolved == null) return null;
-    var seen = _flutterwareSeen ??= resolved;
-    return staleResolutionNote(seen: seen, resolved: resolved);
+    var seen = _flutterwareSeen ??= resolvedFlutterware(_startRoot) ?? resolved;
+    return staleResolutionNote(
+      seen: seen,
+      resolved: resolved,
+      startedIn: p.equals(_canonical(root), _canonical(_startRoot))
+          ? null
+          : _startRoot,
+    );
   }
 
   /// How many rows of any one list a status reply carries.
@@ -1245,14 +1349,14 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
       if (json is! Map<String, Object?>) return null;
       var packages = json['packages'];
       if (packages is! List) return null;
+      // A path dependency's rootUri is relative to the config file, so the
+      // same string in two checkouts can name two trees. Resolved, it can be
+      // compared with another checkout's.
       var resolved = [
         for (var package in packages)
-          if (package is Map<String, Object?> &&
-              const {
-                'flutterware',
-                'flutterware_app',
-              }.contains(package['name']))
-            '${package['name']}=${package['rootUri']}',
+          if (package case {'name': String name, 'rootUri': String rootUri}
+              when const {'flutterware', 'flutterware_app'}.contains(name))
+            '$name=${file.absolute.uri.resolve(rootUri)}',
       ]..sort();
       return resolved.isEmpty ? null : resolved.join(' ');
     } on FormatException {
@@ -1286,18 +1390,31 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// saying in advance which call that will be. It ends by reconnecting, which
   /// is the only thing that can end it — an MCP client cannot re-exec its
   /// server mid-session, and this process cannot re-link itself.
+  ///
+  /// [startedIn] is the checkout the server was started in, when that is not
+  /// the one it is answering about. Reconnecting cannot help there on its
+  /// own: the client starts the next server in the same place, and it builds
+  /// from the same resolution.
   static String? staleResolutionNote({
     required String seen,
     required String resolved,
+    String? startedIn,
   }) {
     if (seen == resolved) return null;
-    return 'Note: the project has resolved a different flutterware since this '
-        'MCP server started, and the server still serves $flutterwareVersion '
-        'out of the code it was built from. Anything that resolution changed '
-        'is not in it — a plugin reported as declared with no implementation '
-        'may be defined in the project and missing only here. `fw` in the '
-        'same worktree is a fresh process and will answer correctly; '
-        'reconnect the MCP client to bring this one up to date.';
+    var cause = startedIn == null
+        ? 'the project has resolved a different flutterware since this MCP '
+              'server started'
+        : 'this checkout resolves a different flutterware from $startedIn, '
+              'where this MCP server was started and built';
+    var cure = startedIn == null
+        ? 'reconnect the MCP client to bring this one up to date'
+        : 'reconnecting brings this one up to date once $startedIn resolves '
+              'the same flutterware';
+    return 'Note: $cause, and the server still serves $flutterwareVersion out '
+        'of the code it was built from. Anything that resolution changed is '
+        'not in it — a plugin reported as declared with no implementation may '
+        'be defined in the project and missing only here. `fw` in the same '
+        'worktree is a fresh process and will answer correctly; $cure.';
   }
 
   /// Errors go back as tool results with [isError], not as protocol errors —

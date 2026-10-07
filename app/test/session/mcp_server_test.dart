@@ -697,6 +697,47 @@ void main() {
       );
     });
 
+    // pub writes a path dependency relative to the config file. Compared as
+    // written, two checkouts at different depths naming one tree disagree,
+    // and two at the same depth naming different trees agree.
+    test('a path dependency compares by the tree it names', () {
+      var directory = Directory.systemTemp.createTempSync('fw_res');
+      addTearDown(() => directory.deleteSync(recursive: true));
+      void resolvePath(String at, String rootUri) =>
+          File(p.join(directory.path, at, '.dart_tool', 'package_config.json'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              jsonEncode({
+                'configVersion': 2,
+                'packages': [
+                  {'name': 'flutterware', 'rootUri': rootUri},
+                ],
+              }),
+            );
+      resolvePath('main', '../../flutterware');
+      resolvePath(p.join('worktrees', 'feature'), '../../../flutterware');
+      resolvePath('other', '../flutterware');
+
+      String resolved(String at) =>
+          FlutterwareMcpServer.resolvedFlutterware(p.join(directory.path, at))!;
+      expect(resolved('main'), resolved(p.join('worktrees', 'feature')));
+      expect(resolved('main'), isNot(resolved('other')));
+    });
+
+    // Reconnecting is no cure when the client starts the server in another
+    // checkout: the next one is built there again.
+    test('a server answering about another checkout names the one it was '
+        'built in', () {
+      var note = FlutterwareMcpServer.staleResolutionNote(
+        seen: 'flutterware=file:///pub/flutterware-0.5.2',
+        resolved: 'flutterware=file:///pub/flutterware-0.5.3',
+        startedIn: '/src/main',
+      );
+      expect(note, contains('/src/main'));
+      expect(note, contains('no implementation'));
+      expect(note, isNot(contains('reconnect the MCP client')));
+    });
+
     // The note is appended to a result somebody else built, and rebuilding
     // one field at a time is how the rest go missing.
     test('appending the note keeps everything else the result carried', () {
@@ -788,6 +829,154 @@ void main() {
       );
     });
   });
+
+  // A client starts a project's servers where its config lives, which is not
+  // always where its session works: measured, a session in a linked worktree
+  // had them started in the main checkout, and every answer described a tree
+  // nobody was editing. The client's roots say which checkout it works in.
+  group('the project is the checkout the client says it works in', () {
+    Future<Map<String, Object?>> status(ServerConnection connection) async =>
+        _decode(
+          await connection.callTool(
+            CallToolRequest(name: 'flutterware_status'),
+          ),
+        );
+
+    Future<ServerConnection> connect(
+      _RootsClient client, {
+      required String startedIn,
+    }) async {
+      var toServer = StreamController<String>();
+      var toClient = StreamController<String>();
+      FlutterwareMcpServer(
+        StreamChannel<String>(toServer.stream, toClient.sink),
+        workingDirectory: Directory(startedIn),
+        registry: PluginCoreRegistry(),
+      );
+      var connection = client.connectServer(
+        StreamChannel<String>(toClient.stream, toServer.sink),
+      );
+      await connection.initialize(
+        InitializeRequest(
+          protocolVersion: ProtocolVersion.latestSupported,
+          capabilities: client.capabilities,
+          clientInfo: client.implementation,
+        ),
+      );
+      connection.notifyInitialized();
+      addTearDown(() async {
+        await connection.shutdown();
+        await toServer.close();
+        await toClient.close();
+      });
+      return connection;
+    }
+
+    /// A repository with one linked worktree on branch `feature`.
+    ({String main, String linked}) repository() {
+      var base = Directory.systemTemp.createTempSync('fw_roots');
+      addTearDown(() => base.deleteSync(recursive: true));
+      var main = p.join(base.resolveSymbolicLinksSync(), 'main');
+      var linked = p.join(base.resolveSymbolicLinksSync(), 'linked');
+      Directory(main).createSync();
+      void git(List<String> arguments) {
+        var result = Process.runSync('git', [
+          '-c',
+          'user.name=test',
+          '-c',
+          'user.email=test@example.com',
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'core.hooksPath=/dev/null',
+          ...arguments,
+        ], workingDirectory: main);
+        expect(result.exitCode, 0, reason: '${result.stderr}');
+      }
+
+      git(['init', '-q', '-b', 'main']);
+      git(['commit', '-q', '--allow-empty', '-m', 'start']);
+      git(['worktree', 'add', '-q', '-b', 'feature', linked]);
+      return (main: main, linked: linked);
+    }
+
+    Root rootAt(String path) => Root(uri: Uri.directory(path).toString());
+
+    test('a linked worktree the client works in beats the checkout the '
+        'server was started in', () async {
+      var repo = repository();
+      var client = _RootsClient()
+        ..addRoot(rootAt(repo.linked))
+        ..addRoot(rootAt(repo.main));
+      var payload = await status(await connect(client, startedIn: repo.main));
+
+      expect(payload['root'], repo.linked);
+      expect(payload['worktree'], 'feature');
+    });
+
+    // A client lists every directory its session may touch, and the server
+    // was started for one project. Another one among the roots — even one
+    // with a tool/flutterware.dart — is not it.
+    test('another repository among the roots is passed over', () async {
+      var repo = repository();
+      var client = _RootsClient()..addRoot(rootAt(findRepoRoot('..')!));
+      var payload = await status(await connect(client, startedIn: repo.main));
+
+      expect(payload['root'], repo.main);
+    });
+
+    test('roots that change are followed', () async {
+      var repo = repository();
+      var client = _RootsClient();
+      var connection = await connect(client, startedIn: repo.main);
+      expect((await status(connection))['root'], repo.main);
+
+      client.addRoot(rootAt(repo.linked));
+      await pumpEventQueue();
+
+      expect((await status(connection))['root'], repo.linked);
+    });
+
+    group('which checkout a root names', () {
+      // Built rather than written, so the Windows run reads them its own way.
+      String at(String path) => p.joinAll([p.separator, ...path.split('/')]);
+      var checkouts = [at('repo/main'), at('worktrees/feature')];
+
+      String? checkoutIn(List<String> roots, {String start = 'repo/main'}) =>
+          FlutterwareMcpServer.checkoutIn(
+            roots: [for (var root in roots) at(root)],
+            start: at(start),
+            checkouts: checkouts,
+          );
+
+      // A repository can keep its tool/flutterware.dart below the top, and
+      // the server was started there: the other checkout has it in the same
+      // place.
+      test('the same place in the other checkout', () {
+        expect(
+          checkoutIn(['worktrees/feature'], start: 'repo/main/app'),
+          at('worktrees/feature/app'),
+        );
+      });
+
+      test('a root inside a checkout names that checkout', () {
+        expect(checkoutIn(['worktrees/feature/lib']), at('worktrees/feature'));
+      });
+
+      test("between two checkouts, the client's order decides", () {
+        expect(checkoutIn(['repo/main', 'worktrees/feature']), at('repo/main'));
+      });
+
+      test('a start in none of the checkouts takes no root', () {
+        expect(checkoutIn(['worktrees/feature'], start: 'elsewhere'), isNull);
+      });
+    });
+  });
+}
+
+final class _RootsClient extends MCPClient with RootsSupport {
+  _RootsClient()
+    : super(Implementation(name: 'roots client', version: '1.0.0'));
 }
 
 String _text(CallToolResult result) =>
