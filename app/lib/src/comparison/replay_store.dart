@@ -162,37 +162,7 @@ class ReplayStore {
     var listed = <Map<String, Object?>>[];
     for (var shot in steps) {
       var step = shot.step;
-      var rgba = shot.rgba;
-      var frameKey = rgba == null
-          ? null
-          : _frameKey(rgba, shot.width, shot.height);
-      if (frameKey != null) {
-        var left = switch (shot.frame?.path) {
-          var path? when File(path).existsSync() => File(path),
-          _ => null,
-        };
-        if (cache.has(frameKey)) {
-          // Already filed, by another step or another side or another push.
-          // The run's own copy is litter now.
-          try {
-            left?.deleteSync();
-          } on FileSystemException {
-            // Left for the comparison directory's own sweep.
-          }
-        } else {
-          var record = ShotRecord(
-            format: 'raw',
-            width: shot.width,
-            height: shot.height,
-            entryId: step.label,
-          );
-          if (left != null) {
-            cache.adopt(frameKey, left, rgba!, record);
-          } else {
-            cache.write(frameKey, rgba!, record);
-          }
-        }
-      }
+      var (adopted, frameKey) = _adopt(shot);
       if (shot.tree case var tree?) {
         cache.writeTree(_stepKey(key, step.index), tree.toJson());
       }
@@ -213,26 +183,7 @@ class ReplayStore {
         if (shot.events.isNotEmpty) 'events': shot.events,
         'failure': ?shot.failure,
       });
-      filed.add(
-        ScenarioStepShot(
-          step: step,
-          rgba: rgba,
-          width: shot.width,
-          height: shot.height,
-          tree: shot.tree,
-          treeFormat: shot.treeFormat,
-          texts: shot.texts,
-          events: shot.events,
-          failure: shot.failure,
-          frame: frameKey == null
-              ? shot.frame
-              : FrameRef(
-                  path: cache.pathOf(frameKey),
-                  width: shot.width,
-                  height: shot.height,
-                ),
-        ),
-      );
+      filed.add(adopted);
     }
     var list = File(_listOf(key));
     list.parent.createSync(recursive: true);
@@ -248,6 +199,76 @@ class ReplayStore {
     );
     staging.renameSync(list.path);
     return filed;
+  }
+
+  /// [steps] with every frame moved into the store and named from there, and
+  /// nothing filed under any key.
+  ///
+  /// For a side that is a result to report but not one to serve again — its
+  /// requests went out, a step landed work by guessing, the harness gave up
+  /// on it — and whose frames the artifact names by path all the same. Left
+  /// where the replay wrote them, they pinned the run's scratch directory to
+  /// the disk: nothing could delete it, so nothing did, and one worktree's
+  /// held 6GB of frames from runs weeks past. In the store a frame is an
+  /// entry like any other, kept while something reads it and swept with the
+  /// rest.
+  List<ScenarioStepShot> adoptFrames(List<ScenarioStepShot> steps) => [
+    for (var shot in steps) _adopt(shot).$1,
+  ];
+
+  /// [shot] with its frame in the store, and the key the frame sits under —
+  /// null when the step has no frame.
+  (ScenarioStepShot, String?) _adopt(ScenarioStepShot shot) {
+    var rgba = shot.rgba;
+    if (rgba == null) return (shot, null);
+    var frameKey = _frameKey(rgba, shot.width, shot.height);
+    var left = switch (shot.frame?.path) {
+      var path? when File(path).existsSync() => File(path),
+      _ => null,
+    };
+    if (cache.has(frameKey)) {
+      // Already filed, by another step or another side or another push. The
+      // run's own copy is litter now.
+      try {
+        left?.deleteSync();
+      } on FileSystemException {
+        // Left for the scratch directory's own deletion.
+      }
+    } else {
+      var record = ShotRecord(
+        format: 'raw',
+        width: shot.width,
+        height: shot.height,
+        entryId: shot.step.label,
+      );
+      if (left != null) {
+        cache.adopt(frameKey, left, rgba, record);
+      } else {
+        cache.write(frameKey, rgba, record);
+      }
+    }
+    return (
+      ScenarioStepShot(
+        step: shot.step,
+        rgba: rgba,
+        width: shot.width,
+        height: shot.height,
+        tree: shot.tree,
+        treeFormat: shot.treeFormat,
+        texts: shot.texts,
+        events: shot.events,
+        failure: shot.failure,
+        // Kept: a side with hazards is adopted and never filed, and whether it
+        // has any is asked of these very steps afterwards.
+        guessed: shot.guessed,
+        frame: FrameRef(
+          path: cache.pathOf(frameKey),
+          width: shot.width,
+          height: shot.height,
+        ),
+      ),
+      frameKey,
+    );
   }
 
   String _listOf(String key) => '${cache.pathOf(key)}.replay.json';

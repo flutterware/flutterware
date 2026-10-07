@@ -566,8 +566,8 @@ class ScenariosRunner {
       side: base ? 'the base' : 'this branch',
     );
     var replay = side.replay;
-    if (replay == null ||
-        key == null ||
+    if (replay == null) return side;
+    if (key == null ||
         // A hang that reproduced is a result to report and not one to serve:
         // the harness abandoned the rest of the file with it.
         !replay.complete ||
@@ -577,15 +577,23 @@ class ScenariosRunner {
         replay.hazards.isNotEmpty ||
         replay.steps.isEmpty ||
         replay.steps.any(_reachedNetwork)) {
-      return side;
+      // A result to report and not to serve again, whose frames the artifact
+      // names by path all the same: they go to the store like a filed side's,
+      // and the scratch they were written to goes with the run. See
+      // [ReplayStore.adoptFrames].
+      return ConfirmedSide.result(
+        replay.withSteps(
+          _filing.time<List<ScenarioStepShot>>(
+            () => _store.adoptFrames(replay.steps),
+          ),
+        ),
+      );
     }
     return ConfirmedSide.result(
-      ScenarioReplay(
+      replay.withSteps(
         _filing.time<List<ScenarioStepShot>>(
           () => _store.write(key, replay.steps, errors: replay.errors),
         ),
-        errors: replay.errors,
-        ms: replay.ms,
       ),
     );
   }
@@ -840,6 +848,11 @@ class ScenariosRunner {
   /// `Future.wait` rather than a record's `.wait`: a side that fails is
   /// usually a compile error, and the message a reader needs is that error
   /// itself rather than a `ParallelWaitError` wrapping it.
+  ///
+  /// [outDir] is scratch for the replays' frames. Every frame a row names has
+  /// been moved into the store by the time this returns — a filed side's by
+  /// the filing, any other's by [ReplayStore.adoptFrames] — so the caller
+  /// deletes it, and both surfaces do.
   Future<ScenarioResults> run({
     required String outDir,
     ScenariosPlan? from,

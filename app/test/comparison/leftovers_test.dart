@@ -58,6 +58,28 @@ void main() {
       expect(kept.existsSync(), isTrue);
     });
 
+    // Frames were written under the worktree's directory by every run and
+    // cleared by none; they go to the store now, and the tree an earlier
+    // version left is reclaimed the first time a sweep meets it.
+    test('a frames tree an earlier version left is dropped', () {
+      var now = DateTime(2026, 9, 11);
+      var kept = dir('mine', written: now.subtract(const Duration(days: 2)));
+
+      sweepComparisonDirs(root.path, now: now);
+
+      expect(kept.existsSync(), isTrue);
+      expect(Directory(p.join(kept.path, 'scenarios')).existsSync(), isFalse);
+    });
+
+    test('one an older flutterware is writing this moment is left', () {
+      var now = DateTime(2026, 9, 11);
+      var kept = dir('mine', written: now.subtract(const Duration(hours: 1)));
+
+      sweepComparisonDirs(root.path, now: now);
+
+      expect(Directory(p.join(kept.path, 'scenarios')).existsSync(), isTrue);
+    });
+
     test('a cache with no comparisons in it is nothing to sweep', () {
       expect(sweepComparisonDirs(root.path), 0);
     });

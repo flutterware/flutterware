@@ -124,6 +124,17 @@ class ScenarioReplay {
     for (var shot in steps)
       if (shot.guessed != null) shot,
   ];
+
+  /// This replay with [steps] in place of its own: the same outcome, as the
+  /// store hands it back with the frames moved in.
+  ScenarioReplay withSteps(List<ScenarioStepShot> steps) => ScenarioReplay(
+    steps,
+    complete: complete,
+    errors: errors,
+    ms: ms,
+    unsettled: unsettled,
+    stillTicking: stillTicking,
+  );
 }
 
 /// Whether two replays of one side did the same thing: both finished or both

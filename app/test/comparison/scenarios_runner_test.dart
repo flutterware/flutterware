@@ -713,6 +713,32 @@ void main() {
       expect(source.replayed, hasLength(2));
     });
 
+    test('the frames of a side never filed point into the store too', () async {
+      source.events = [
+        {
+          'channel': 'network',
+          'title': 'GET https://example.com/avatar.png',
+          'data': {'answered': 'live'},
+        },
+      ];
+      source.writesFrames = true;
+      var scratch = Directory(p.join(root.path, 'scratch'))..createSync();
+
+      var results = await runnerFor(
+        base: base,
+        head: head,
+      ).run(outDir: scratch.path);
+
+      var frames = results.items.single.frames.values.single;
+      expect(p.isWithin(cache.root, frames.base!.path), isTrue);
+      expect(p.isWithin(cache.root, frames.head!.path), isTrue);
+      expect(
+        scratch.listSync(recursive: true).whereType<File>(),
+        isEmpty,
+        reason: 'moved into the store, so the scratch can go with the run',
+      );
+    });
+
     test('a replay whose requests went out is never filed', () async {
       source.events = [
         {
@@ -1189,6 +1215,10 @@ class _FakeSource implements ScenarioSource {
   /// The pixel value a side draws, by `<id>:<side>`; 0 when not named.
   final pixels = <String, int>{};
 
+  /// Whether a replay leaves its frame on disk under `outDir`, as a harness
+  /// does, and names it from the step.
+  var writesFrames = false;
+
   @override
   Future<ScenarioReplay> shots(
     String id, {
@@ -1220,13 +1250,22 @@ class _FakeSource implements ScenarioSource {
         : abandoned
         ? 'did not finish within 30s'
         : null;
+    var rgba = Uint8List(4 * 4 * 4)..fillRange(0, 4 * 4 * 4, value);
+    FrameRef? frame;
+    if (writesFrames) {
+      var file = File(p.join(outDir, base ? 'base' : 'head', '$id.raw'))
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(rgba);
+      frame = FrameRef(path: file.path, width: 4, height: 4);
+    }
     return ScenarioReplay(
       [
         ScenarioStepShot(
           step: const AlignableStep(index: 1, position: '#1', name: 'Open'),
-          rgba: Uint8List(4 * 4 * 4)..fillRange(0, 4 * 4 * 4, value),
+          rgba: rgba,
           width: 4,
           height: 4,
+          frame: frame,
           events: switch (sequences[side]) {
             var sequence? when sequence.isNotEmpty =>
               sequence.length == 1 ? sequence.single : sequence.removeAt(0),

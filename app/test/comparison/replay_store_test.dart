@@ -62,6 +62,21 @@ void main() {
     );
   }
 
+  // A side that is a result to report but not to serve again — its requests
+  // went out, say — has frames the artifact names by path all the same, and
+  // a frame left in the run's scratch is a scratch nothing can delete.
+  test('the frames of a side that is not filed still move into the store', () {
+    var steps = [replayed(1), replayed(2, value: 9)];
+    var written = steps.first.frame!.path;
+
+    var adopted = store.adoptFrames(steps);
+
+    expect(p.isWithin(cache.root, adopted.first.frame!.path), isTrue);
+    expect(File(adopted.first.frame!.path).existsSync(), isTrue);
+    expect(File(written).existsSync(), isFalse, reason: 'moved, not copied');
+    expect(store.has(key), isFalse);
+  });
+
   test('a filed replay reads back as it was replayed', () {
     store.write(key, [replayed(1), replayed(2, value: 9)]);
 
