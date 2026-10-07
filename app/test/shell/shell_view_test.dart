@@ -13,6 +13,7 @@ import 'package:flutterware_app/src/changes/change_set.dart';
 import 'package:flutterware_app/src/changes/changes_controller.dart';
 import 'package:flutterware_app/src/changes/changes_screen.dart';
 import 'package:flutterware_app/src/changes/patch_index.dart';
+import 'package:flutterware_app/src/constants.dart';
 import 'package:flutterware_app/src/context.dart';
 import 'package:flutterware_app/src/plugins/manifest_loader.dart';
 import 'package:flutterware_app/src/plugins/native_plugin.dart';
@@ -30,6 +31,7 @@ import 'package:flutterware_app/src/shell/shell_view.dart';
 import 'package:flutterware_app/src/ui/command_palette.dart';
 import 'package:flutterware_app/src/shell/worktree_discovery.dart';
 import 'package:flutterware_app/src/shell/config_load.dart';
+import 'package:flutterware_app/src/shell/about_screen.dart';
 import 'package:flutterware_app/src/shell/config_screen.dart';
 import 'package:flutterware_app/src/utils/daemon/device.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
@@ -1248,6 +1250,43 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(configScreenKey), findsOneWidget);
+    });
+
+    group('the about screen', () {
+      Finder inAbout(String text) => find.descendant(
+        of: find.byKey(aboutScreenKey),
+        matching: find.textContaining(text),
+      );
+
+      testWidgets("is the rail's last row, and says where to write", (
+        tester,
+      ) async {
+        var shell = await _pumpShell(tester);
+
+        await tester.tap(find.byKey(aboutRowKey));
+        await tester.pumpAndSettle();
+
+        expect(shell.isAboutScreen, isTrue);
+        expect(shell.isHome, isFalse);
+        expect(shell.selectedPluginId, isNull, reason: 'about is not a plugin');
+        expect(shell.address.plugin, 'about');
+        expect(inAbout(contactEmail), findsOneWidget);
+        expect(inAbout(flutterwareVersion), findsOneWidget);
+      });
+
+      testWidgets('renders for a worktree that is not open, without opening '
+          'it', (tester) async {
+        var shell = await _pumpShell(tester);
+        var closed = shell.closedWorktrees.first;
+
+        shell.go(Address(worktree: closed.name, plugin: Address.shellAbout));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(aboutScreenKey), findsOneWidget);
+        // It reads nothing of the checkout, so naming one must not spend a
+        // config subprocess on it.
+        expect(shell.isOpen(closed), isFalse);
+      });
     });
 
     testWidgets('a reload that changed nothing still says so', (tester) async {

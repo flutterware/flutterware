@@ -436,6 +436,16 @@ class ShellController extends ChangeNotifier {
   /// True while the address names the shell's own changes screen.
   bool get isChangesScreen => address.plugin == Address.shellChanges;
 
+  /// True while the address names the shell's own about screen.
+  bool get isAboutScreen => address.plugin == Address.shellAbout;
+
+  /// Moves to `fw:///worktrees/<worktree>/about`.
+  void selectAbout() {
+    if (address.worktree case var name?) {
+      go(Address(worktree: name, plugin: Address.shellAbout));
+    }
+  }
+
   /// The worktree the address names, open or not.
   ///
   /// [selected] deliberately resolves `among: openWorktrees`, because every
@@ -551,7 +561,10 @@ class ShellController extends ChangeNotifier {
 
   /// True while the selected worktree is showing its home screen.
   bool get isHome =>
-      !isConfigScreen && !isChangesScreen && selectedPluginId == null;
+      !isConfigScreen &&
+      !isChangesScreen &&
+      !isAboutScreen &&
+      selectedPluginId == null;
 
   /// Whether the plugin rail is showing.
   ///

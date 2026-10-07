@@ -188,7 +188,6 @@ class _FwActionButtonState extends State<FwActionButton> {
         // was the one control in a form row that sat below the field, the
         // picker and the themed Material buttons.
         height: FwControlSize.height,
-        alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: FwSpacing.lg),
         decoration: BoxDecoration(
           color: switch (_phase) {
@@ -199,35 +198,46 @@ class _FwActionButtonState extends State<FwActionButton> {
           borderRadius: BorderRadius.circular(context.radii.radius),
           border: Border.all(color: border),
         ),
-        child: switch ((
-          _phase == _Phase.idle || _phase == _Phase.running
-              ? widget.icon
-              : null,
-          _phase == _Phase.idle ? widget.trailingIcon : null,
-        )) {
-          (null, null) => Text(
-            label,
-            style: context.type.caption.copyWith(color: fg),
-          ),
-          (var icon, var trailing) => Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: FwIconSize.sm,
-                  color: _phase == _Phase.idle ? widget.iconColor ?? fg : fg,
-                ),
-                const SizedBox(width: FwSpacing.xs),
+        // As wide as its words, however wide the room is. The container's own
+        // `alignment` would centre the label by growing to whatever width it
+        // is offered, which in a `Row` is nothing and in a `Wrap` is the whole
+        // line — four links stacked as four full-width bars.
+        child: Align(
+          widthFactor: 1,
+          child: switch ((
+            _phase == _Phase.idle || _phase == _Phase.running
+                ? widget.icon
+                : null,
+            _phase == _Phase.idle ? widget.trailingIcon : null,
+          )) {
+            (null, null) => Text(
+              label,
+              style: context.type.caption.copyWith(color: fg),
+            ),
+            (var icon, var trailing) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: FwIconSize.sm,
+                    color: _phase == _Phase.idle ? widget.iconColor ?? fg : fg,
+                  ),
+                  const SizedBox(width: FwSpacing.xs),
+                ],
+                Text(label, style: context.type.caption.copyWith(color: fg)),
+                if (trailing != null) ...[
+                  const SizedBox(width: FwSpacing.xxs),
+                  Icon(
+                    trailing,
+                    size: FwIconSize.sm,
+                    color: context.colors.mut,
+                  ),
+                ],
               ],
-              Text(label, style: context.type.caption.copyWith(color: fg)),
-              if (trailing != null) ...[
-                const SizedBox(width: FwSpacing.xxs),
-                Icon(trailing, size: FwIconSize.sm, color: context.colors.mut),
-              ],
-            ],
-          ),
-        },
+            ),
+          },
+        ),
       ),
     );
 

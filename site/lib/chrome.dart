@@ -14,6 +14,10 @@ const site = 'https://flutterware.dev/';
 
 const pub = 'https://pub.dev/packages/flutterware';
 
+/// Where to write. The README's contact region links it too; this one is for
+/// the nav and the footer of every page.
+const mail = 'hello@flutterware.dev';
+
 /// The head of the page at [path]: what it is called, and where it finds the
 /// stylesheet and the fonts from where it is.
 Component pageHead({
@@ -62,6 +66,7 @@ Component pageTop({required String root, bool docs = false}) =>
           [
             a(href: '$root#tools', classes: 'in-page', [.text('Tools')]),
             a(href: '$root#agents', classes: 'in-page', [.text('Agents')]),
+            a(href: '$root#contact', classes: 'in-page', [.text('Contact')]),
             a(
               href: '${root}docs/',
               attributes: {if (docs) 'aria-current': 'true'},
@@ -90,6 +95,7 @@ Component pageFooter({required String root}) => footer([
         a(href: '$repository/blob/master/CONTRIBUTING.md', [
           .text('Contributing'),
         ]),
+        a(href: 'mailto:$mail', [.text(mail)]),
       ],
     ),
   ]),

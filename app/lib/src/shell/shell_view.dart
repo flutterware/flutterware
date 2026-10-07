@@ -21,6 +21,7 @@ import '../plugins/plugin_core.dart';
 import '../teardown/dialog.dart';
 import '../teardown/plan.dart';
 import '../worktrees/facts.dart';
+import 'about_screen.dart';
 import 'address_bar.dart';
 import 'config_load.dart';
 import 'config_screen.dart';
@@ -1375,6 +1376,10 @@ class _SwitcherRow extends StatelessWidget {
 /// the rail.
 const sidebarKey = ValueKey('shell.sidebar');
 
+/// The rail's last row, the one that is about flutterware rather than the
+/// checkout.
+const aboutRowKey = ValueKey('shell.about-row');
+
 class _Sidebar extends StatelessWidget {
   const _Sidebar(this.shell);
 
@@ -1412,59 +1417,97 @@ class _Sidebar extends StatelessWidget {
       ),
       child: worktree == null
           ? null
-          : ListView(
-              padding: const EdgeInsets.symmetric(vertical: FwSpacing.lg),
+          : Column(
               children: [
-                SidebarRow(
-                  // Not the worktree's name: the tab above already says that,
-                  // and this row is a destination, not a label.
-                  label: 'Overview',
-                  selected: shell.isHome,
-                  onTap: shell.selectHome,
-                  icon: Icons.home_outlined,
-                  // The config error lives on that screen, so the row has to
-                  // say so — otherwise it is invisible from any plugin panel.
-                  status: shell.errorFor(worktree) == null
-                      ? Status.none
-                      : const Status.error('config'),
-                ),
-                // Above the plugin list, because it is not one: it reads git
-                // rather than the project, and it is the one destination here
-                // that works before a config has resolved.
-                SidebarRow(
-                  label: 'Changes',
-                  selected: shell.isChangesScreen,
-                  onTap: shell.selectChanges,
-                  icon: Icons.difference_outlined,
-                ),
-                const Gap(FwSpacing.lg),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    FwSpacing.xl,
-                    0,
-                    FwSpacing.xl,
-                    FwSpacing.md,
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: FwSpacing.lg),
+                    children: [
+                      SidebarRow(
+                        // Not the worktree's name: the tab above already says
+                        // that, and this row is a destination, not a label.
+                        label: 'Overview',
+                        selected: shell.isHome,
+                        onTap: shell.selectHome,
+                        icon: Icons.home_outlined,
+                        // The config error lives on that screen, so the row
+                        // has to say so — otherwise it is invisible from any
+                        // plugin panel.
+                        status: shell.errorFor(worktree) == null
+                            ? Status.none
+                            : const Status.error('config'),
+                      ),
+                      // Above the plugin list, because it is not one: it reads
+                      // git rather than the project, and it is the one
+                      // destination here that works before a config has
+                      // resolved.
+                      SidebarRow(
+                        label: 'Changes',
+                        selected: shell.isChangesScreen,
+                        onTap: shell.selectChanges,
+                        icon: Icons.difference_outlined,
+                      ),
+                      const Gap(FwSpacing.lg),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          FwSpacing.xl,
+                          0,
+                          FwSpacing.xl,
+                          FwSpacing.md,
+                        ),
+                        child: Text('PLUGINS', style: context.type.micro),
+                      ),
+                      if (session == null)
+                        const _SidebarSkeleton()
+                      else if (session.plugins.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: FwSpacing.xl,
+                          ),
+                          child: Text(
+                            'No plugins declared.\n'
+                            'Add them in tool/flutterware.dart.',
+                            style: context.type.caption,
+                          ),
+                        )
+                      else
+                        for (var plugin in session.plugins)
+                          _PluginRow(shell, plugin),
+                    ],
                   ),
-                  child: Text('PLUGINS', style: context.type.micro),
                 ),
-                if (session == null)
-                  const _SidebarSkeleton()
-                else if (session.plugins.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FwSpacing.xl,
-                    ),
-                    child: Text(
-                      'No plugins declared.\nAdd them in tool/flutterware.dart.',
-                      style: context.type.caption,
-                    ),
-                  )
-                else
-                  for (var plugin in session.plugins) _PluginRow(shell, plugin),
+                _AboutRow(shell),
               ],
             ),
     );
   }
+}
+
+/// The one row of the rail that is not about this checkout, at its foot and
+/// under its own line so it does not read as a plugin that sorts last.
+///
+/// Where a desktop app keeps the door to its own name. It stays put while the
+/// plugin list scrolls, because a row that is on every worktree's rail should
+/// be in the same place on every worktree's rail.
+class _AboutRow extends StatelessWidget {
+  const _AboutRow(this.shell);
+
+  final ShellController shell;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: FwSpacing.md),
+    decoration: BoxDecoration(
+      border: Border(top: BorderSide(color: context.colors.line)),
+    ),
+    child: SidebarRow(
+      key: aboutRowKey,
+      label: 'About flutterware',
+      selected: shell.isAboutScreen,
+      onTap: shell.selectAbout,
+      icon: Icons.info_outline,
+    ),
+  );
 }
 
 /// The rail's own edge: pull it to resize, and it is where the toggle lives.
@@ -1702,6 +1745,11 @@ class _Panel extends StatelessWidget {
     Widget body;
     if (shell.isExplorer) {
       body = _Explorer(shell);
+    } else if (shell.isAboutScreen) {
+      // Before the session check for the same reason the changes screen is:
+      // it needs none, and it is the same screen whichever checkout it is
+      // reached from.
+      body = const AboutScreen();
     } else if (changesFor != null) {
       // **Three renderings of one delta, and the file diff is the first of
       // them.** `ComparisonTabs` owns the strip and the two halves that need a

@@ -74,12 +74,21 @@ class Address {
   /// spend a config subprocess — see `ShellController.go`.
   static const shellChanges = 'changes';
 
+  /// `fw:///worktrees/<worktree>/about` — flutterware itself: its version,
+  /// where it lives, and how to get in touch.
+  ///
+  /// Reserved on the same terms as [shellConfig]. It is about the studio, not
+  /// the checkout, so it reads neither git nor the project and renders for a
+  /// worktree that is not open; it still sits under one because every screen
+  /// the rail reaches does, and the rail is where it is found.
+  static const shellAbout = 'about';
+
   /// Every id in the plugin slot the shell owns rather than a plugin.
   ///
   /// A set rather than a list of comparisons, because the reservation has to be
   /// enforced in three places and the failure mode of adding a fourth screen and
   /// forgetting one of them is silent: the plugin is simply unreachable.
-  static const shellOwned = {shellConfig, shellChanges};
+  static const shellOwned = {shellConfig, shellChanges, shellAbout};
 
   /// The shell-owned ids that need **no session** to render, and therefore
   /// resolve for a worktree that is not open.
@@ -88,7 +97,7 @@ class Address {
   /// property of the screen — *this one reads git, not the project* — at the one
   /// place that acts on it, `ShellController.go`, which otherwise opens
   /// everything it is pointed at.
-  static const shellSessionless = {shellChanges};
+  static const shellSessionless = {shellChanges, shellAbout};
 
   /// Which project this address belongs to, or null for "the one the session
   /// reading it was launched in" — which is every address anything emits today,

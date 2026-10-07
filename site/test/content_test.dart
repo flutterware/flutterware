@@ -16,6 +16,7 @@ void main() {
       expect(content.snippet('add').isShell, isTrue);
       expect(content.html('first-launch'), isNotEmpty);
       expect(content.html('requirements'), isNotEmpty);
+      expect(content.html('contact'), contains('href="mailto:'));
     });
 
     test('lists its tools the way the page reads them', () {
