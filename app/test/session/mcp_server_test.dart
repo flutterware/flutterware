@@ -974,9 +974,29 @@ void main() {
   });
 }
 
+/// A client that lists its roots in the order they were added.
+///
+/// The mixin keeps them in a hash set, whose order moves with the roots'
+/// names — and the order is the one thing the server reads a client's roots
+/// for. The measured client lists the directory its session works in first;
+/// with the set's order, the test asserting that passed or failed with the
+/// name of its temp directory.
 final class _RootsClient extends MCPClient with RootsSupport {
   _RootsClient()
     : super(Implementation(name: 'roots client', version: '1.0.0'));
+
+  final _ordered = <Root>[];
+
+  @override
+  bool addRoot(Root root) {
+    var added = super.addRoot(root);
+    if (added) _ordered.add(root);
+    return added;
+  }
+
+  @override
+  FutureOr<ListRootsResult> handleListRoots([ListRootsRequest? request]) =>
+      ListRootsResult(roots: List.of(_ordered));
 }
 
 String _text(CallToolResult result) =>
