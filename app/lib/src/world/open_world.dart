@@ -120,6 +120,9 @@ class OpenWorld {
   late final _dart = p.join(flutterSdkRoot, 'bin', 'dart');
   late final _compiler = WorldCompiler(_dart);
   final _clock = Stopwatch();
+
+  /// How long since this opening — or restart — began.
+  Duration get sinceOpening => _clock.elapsed;
   final _builds = <String, _Build>{};
   WorldScriptProcess? _script;
   var _nextRun = 1;

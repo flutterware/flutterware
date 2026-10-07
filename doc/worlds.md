@@ -195,17 +195,17 @@ buttons in the corner, a pinch or ⌘-scroll, and the stage pans; a scroll
 over a phone scrolls its app. Use them as phones: an order placed on one
 shows up on another.
 
-The toolbar holds the world's knobs and actions, and on the right who is in
-view: **Everyone**, or one person — their name on the stage does the same.
+The toolbar holds the world's knobs and an **Actions** menu with every action
+its script declares, and on the right who is in view: **Everyone**, or one
+person — their name on the stage does the same.
 One person is in focus with their device as large as the room allows, and
 beside it their panel: who they are and what their app runs on, and
 
-- **Messages** — the texts, pushes and mails the servers sent that person,
-  each saying what caused it, in the words of its step (`action "Rush
-  hour"`, `Leo: tap "Order a flat white"`), and with the button that hands
-  it to their app: **Type it** for a code, **Open** or **Tap it** for a
-  link, **Read it** for a mail. A push the app showed a notification for is
-  marked *shown*.
+- **Messages** — the texts, pushes and emails the servers sent that
+  person, each saying what caused it (`Rush hour`, `Leo tapped "Order a flat
+  white"`), with buttons that hand it to their app: **Enter code**, **Open
+  link**, **Open notification**, and **View email** for an email. A push the
+  app showed a notification for is marked *shown by the app*.
 - **Network**, **App** and **Logs** — Run's own views of that app: every
   request it made, its devbar panels (its database, when it exposes one —
   `doc/database_watch.md`), and its log.
@@ -413,9 +413,10 @@ lists a bucket only once it holds something.
 
 What a server sends outside — an SMS, a push, a mail — reaches its person
 through the world. Each message is listed under its person — open their
-phone in focus — and **Type it** puts a code into the field that has
-focus in their app, as an autofill would, and **Open** or **Tap it** opens a
-message's link in their app. Tap the field the code goes in first.
+phone in focus — and **Enter code** puts a code into the field that has
+focus in their app, as an autofill would, and **Open link** or **Open
+notification** opens a message's link in their app. Tap the field the code
+goes in first.
 
 ```shell
 fw run worlds outbox --person=Leo
@@ -463,7 +464,7 @@ reporting server's, when its event says so: `'from': 'identity'`. A service
 that is not Dart carries no step, so what it sent joins the newest step
 heard in the three seconds before it, and says it joined by time.
 
-A mail with `html` is read as its recipient would see it: **Read it** opens
+A mail with `html` is read as its recipient would see it: **View email** opens
 it in the person's panel, beside their app, as a picture WebKit draws, with
 each link clickable where it sits. A link goes where a phone would send it:
 into the app when the app opens it — a scheme of its own, a web host it
@@ -562,7 +563,8 @@ nobody. Give the app, in a world, a stand-in behind a knob: it asks for
 permission through `permission_handler` and registers a token of its own
 making. Have your push adapter report a push to such a token, with the link
 tapping it opens, instead of sending it. The push then reaches its person
-through your server's real push path, and **Tap it** opens it in their app.
+through your server's real push path, and **Open notification** opens it in
+their app.
 
 ## Reference
 

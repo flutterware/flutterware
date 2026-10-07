@@ -253,12 +253,11 @@ class _WorldTimelineViewState extends State<WorldTimelineView> {
 
   String _empty(List<TimelineColumn> columns, String? focus) {
     if (focus == null) {
-      return 'Nothing yet. A row is something someone did in the world — a '
-          "tap on one of the apps, a run of one of the world's actions — or "
-          'something it caused.';
+      return 'Nothing yet. Taps in the apps and actions you run appear here, '
+          'with what they caused.';
     }
     var name = columns.firstWhere((column) => column.id == focus).name;
-    return 'Nothing at ${_level.name.capitalized} level touches $name.';
+    return 'Nothing for $name at the ${_level.name.capitalized} level.';
   }
 
   /// What the rows mean, what is shown alone, and how far into the system.
@@ -283,9 +282,8 @@ class _WorldTimelineViewState extends State<WorldTimelineView> {
         children: [
           Expanded(
             child: Text(
-              'Time runs down. A pill is something someone did; an arrow is '
-              'something that reached someone, in the colour of whoever '
-              'caused it.',
+              'Newest at the bottom. A pill is something someone did; an '
+              'arrow is something that reached someone.',
               style: context.type.bodySmall.copyWith(color: colors.mut),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -306,7 +304,7 @@ class _WorldTimelineViewState extends State<WorldTimelineView> {
                   border: Border.all(color: colors.accent),
                 ),
                 child: Text(
-                  'Only ${focused.name} · show everything',
+                  'Only ${focused.name} · Show all',
                   style: context.type.bodySmall.copyWith(
                     color: colors.accent,
                     fontWeight: FontWeight.w600,
@@ -336,12 +334,10 @@ class _WorldTimelineViewState extends State<WorldTimelineView> {
 
   static const _levelTips = {
     TraceLevel.product:
-        'What people did, and what reached someone else: messages, updates, '
-        'records arriving on their phone',
-    TraceLevel.system:
-        'Adds the calls, the jobs, and updates back to whoever '
-        'acted',
-    TraceLevel.wire: 'Adds the writes, the statements and the sync',
+        'What people did and what reached others: messages, updates, '
+        'records arriving on a phone',
+    TraceLevel.system: 'Also server calls and background jobs',
+    TraceLevel.wire: 'Also database writes, SQL and sync',
   };
 }
 
@@ -453,8 +449,8 @@ class _Header extends StatelessWidget {
                 opacity: layout.opacity(column.id),
                 child: Tooltip(
                   message: column.id == focus
-                      ? 'Show everything'
-                      : 'Only what touches ${column.name}',
+                      ? 'Show all'
+                      : 'Show only ${column.name}',
                   child: Tappable(
                     onTap: () => onFocus(column.id),
                     borderRadius: BorderRadius.circular(
@@ -757,7 +753,7 @@ class _LineRow extends StatelessWidget {
         Tooltip(
           message: line.folded
               ? 'Show all ${line.alike.length}'
-              : 'Fold them into one row',
+              : 'Collapse into one row',
           child: Tappable(
             onTap: onFold,
             borderRadius: BorderRadius.circular(context.radii.pill),
@@ -769,7 +765,7 @@ class _LineRow extends StatelessWidget {
                 border: Border.all(color: colors.line),
               ),
               child: Text(
-                line.folded ? '×${line.alike.length}' : 'fold',
+                line.folded ? '×${line.alike.length}' : 'collapse',
                 style: context.type.micro.copyWith(
                   color: colors.ink2,
                   fontWeight: FontWeight.w600,
