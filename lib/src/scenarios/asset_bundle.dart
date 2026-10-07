@@ -55,8 +55,9 @@ class ScenarioAssetBundle extends AssetBundle {
   /// Everything an app reads through the bundle passes here, so an
   /// `SvgPicture.asset` or a `Lottie.asset` is counted for as long as its bytes
   /// are on the way — the part of those loads that costs the most and announces
-  /// the least. The decode on the other end is not in it; that is what the
-  /// guessed turns are still for.
+  /// the least. The decode on the other end is not in it. A quick one lands on
+  /// a guessed turn; a parse in an isolate — Lottie's `backgroundLoading` — can
+  /// outlast every turn, and is the app's to announce through `RealWork`.
   int get readsInFlight => _readsInFlight;
   var _readsInFlight = 0;
 

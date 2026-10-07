@@ -1355,7 +1355,7 @@ class ScenarioTester {
     settle,
     () => watchRunAsync(() => tester.runAsync(callback)),
     verb: 'runAsync',
-    autoShotNeedsFrames: true,
+    autoShotNeedsChange: true,
   );
 
   /// Lets whatever the app started on its first frame actually happen.
@@ -1666,7 +1666,7 @@ class ScenarioTester {
     },
     verb: 'unhover',
     target: _mouse.hovering,
-    autoShotNeedsFrames: true,
+    autoShotNeedsChange: true,
   );
 
   /// Taps [target] twice in the same place, close enough together to read as
@@ -2042,7 +2042,7 @@ class ScenarioTester {
     },
     verb: 'scrollTo',
     target: describeTarget(target),
-    autoShotNeedsFrames: true,
+    autoShotNeedsChange: true,
   );
 
   /// The platform's back gesture — Android's button, iOS's edge swipe, the
@@ -2068,12 +2068,20 @@ class ScenarioTester {
   /// no frames, so a splash screen that navigates after three seconds needs
   /// the clock moved rather than settled. Instant either way — the clock is
   /// fake.
+  ///
+  /// A wait that leaves the screen as it found it takes no automatic shot:
+  /// whatever it let happen — a debounce firing, a timer the screen does not
+  /// show — is not in the picture, and the step before it already is. Kept,
+  /// it was that step again under another name: a consumer's helper waited
+  /// `Duration.zero` before every `screen`, and 447 of the suite's 1,591 steps
+  /// were those waits, each byte for byte the picture before it.
   Future<void> wait(Duration duration, {Shot? shot, Settle? settle}) => _step(
     shot,
     settle,
     () => tester.pump(duration),
     verb: 'wait',
     target: '$duration',
+    autoShotNeedsChange: true,
   );
 
   /// Waits per the scenario's [Settle] policy — or [policy] — and captures
@@ -2706,7 +2714,7 @@ class ScenarioTester {
     String? verb,
     String? target,
     bool adopt = false,
-    bool autoShotNeedsFrames = false,
+    bool autoShotNeedsChange = false,
   }) async {
     // Frames since the previous verb finished: nothing this scenario's verbs
     // drew, so they came from `s.tester` — and whatever they showed is not in
@@ -2823,7 +2831,7 @@ class ScenarioTester {
       target: target,
       aim: _aim,
       adopt: adopt,
-      autoShotNeedsFrames: autoShotNeedsFrames,
+      autoShotNeedsChange: autoShotNeedsChange,
     );
     // After the capture rather than before it, so the film changes neither
     // what the step's picture is of nor whether a verb that drew nothing is
@@ -2905,7 +2913,7 @@ class ScenarioTester {
     String? target,
     ScenarioAim? aim,
     bool adopt = false,
-    bool autoShotNeedsFrames = false,
+    bool autoShotNeedsChange = false,
   }) async {
     // Nothing captures, so nothing drains: what the app did during this verb
     // belongs to whichever step captures next, which is the transition a
@@ -2928,8 +2936,13 @@ class ScenarioTester {
       // An explicit shot still captures: the author asked for a picture.
       noopSkip:
           shot == null &&
-          autoShotNeedsFrames &&
+          autoShotNeedsChange &&
           _frames == _framesAtLastCapture,
+      // The same verb having drawn frames — a `wait` on a screen that still
+      // asks for one draws it — and the render it pays anyway is the
+      // evidence, as it is for a `screen`: see [_emit]. Not across frames
+      // drawn outside the verbs: the step is where the flow reports those.
+      skipIfUnchanged: shot == null && autoShotNeedsChange && stray == 0,
     );
   }
 
@@ -3121,8 +3134,25 @@ class ScenarioTester {
     return pending;
   }
 
+  /// The capture a no-op verb's render may be proven to repeat, or null.
+  ///
+  /// [_adoptablePending] without the rules about names, which this puts on
+  /// nothing: the held capture is this replay's own and in this segment, so
+  /// the stretch merged onto it happened after it on this path and no other.
+  /// And nothing may have been emitted after it: a beat in between is the
+  /// chain's head, and a stretch merged back past it would file what happened
+  /// after the beat under the step before it.
+  _PendingEmit? _repeatablePending() {
+    var pending = _pending;
+    if (pending == null || pending.format == 'none') return null;
+    if (pending.failure != null || _pendingBeats.isNotEmpty) return null;
+    if (!_lastCaptureFresh || pending.segment != _segment) return null;
+    return pending;
+  }
+
   /// Puts [shot]'s name on the capture waiting to be handed over, with
-  /// everything the flow produced on the way to it.
+  /// everything the flow produced on the way to it — or, with no [shot], only
+  /// the stretch: a verb whose render was proven to repeat the held capture.
   ///
   /// [drained] is the event buffer's contents, drained by the caller — the
   /// frame-exact path drains at the door, and the byte-proven path in [_emit]
@@ -3134,7 +3164,7 @@ class ScenarioTester {
   /// so, stray frames stay counted, and overflows raised on the way are
   /// filed here rather than on whatever captures next.
   void _adoptOntoPending(
-    Shot shot,
+    Shot? shot,
     (List<AppEvent>, int) drained, {
     required bool settled,
     required bool waited,
@@ -3143,8 +3173,13 @@ class ScenarioTester {
     ScenarioMotionFrames? motion,
   }) {
     var pending = _pending!;
-    pending.name = shot.name;
-    pending.tags = shot.tags;
+    if (shot != null) {
+      pending.name = shot.name;
+      pending.tags = shot.tags;
+    }
+    // The picture is the screen as of now — proven so, by the frame count or
+    // by the render — so a `screen` that follows measures from here.
+    pending.frames = _frames;
     // `waited` is only ever read beside a false `settled`, and there it has to
     // name the half that *produced* the false: two halves that each did what
     // they were told do not add up to a settle that gave up. So the merge is
@@ -3298,6 +3333,7 @@ class ScenarioTester {
     ScenarioAim? aim,
     bool adopt = false,
     bool noopSkip = false,
+    bool skipIfUnchanged = false,
   }) async {
     // Where this capture sits in the scenario's shape: the split choices
     // taken so far plus the count since the last one. Replays of a shared
@@ -3390,6 +3426,7 @@ class ScenarioTester {
         aim: aim,
         position: position,
         adoptByPixels: adoptByPixels,
+        skipByPixels: skipIfUnchanged,
       )) {
         // The render threw and the binding swallowed it (reported, run
         // continues): the index [_emit] burned keeps this position from
@@ -3401,8 +3438,9 @@ class ScenarioTester {
         return;
       }
     }
-    // One tail for both: after an emit `stepCount` is the fresh step's
-    // index; after an adoption it is the chain's head.
+    // One tail for all three: after an emit `stepCount` is the fresh step's
+    // index; after an adoption, or a render proven to repeat the held one,
+    // it is the chain's head.
     _state.emitted[position] = _state.stepCount;
     _lastPosition = position;
     _lastCaptureFresh = true;
@@ -3527,6 +3565,13 @@ class ScenarioTester {
   /// the adopted step instead. Never on a pixel-less probe pass: every
   /// probe capture holds the same empty bytes, which prove nothing.
   ///
+  /// [skipByPixels] is the same comparison for a verb whose no-op is a
+  /// success, where the frame count said frames were drawn: proven equal, the
+  /// verb's own capture is dropped the way [adoptByPixels] drops a second
+  /// picture, and the stretch merges onto the held step with no name put on
+  /// it — so a `wait` that redrew an identical frame is no more a step than
+  /// one that drew none.
+  ///
   /// Answers false when the render threw and the binding swallowed it
   /// (reported, run continues): the held capture is still handed over, and
   /// an index is burned so the caller's position map cannot alias a live
@@ -3545,6 +3590,7 @@ class ScenarioTester {
     required String position,
     String? failure,
     bool adoptByPixels = false,
+    bool skipByPixels = false,
   }) async {
     var listener = scenarioRunListener;
     // Drained here rather than inside `runAsync`: the capture itself sends
@@ -3620,7 +3666,11 @@ class ScenarioTester {
       // dimensions, a test binding with no real font rasters two different
       // strings of one length as identical filled boxes, and a change the
       // shutter read sees — a semantics label, a flag — may touch no pixel.
-      var pending = adoptByPixels ? _adoptablePending() : null;
+      var pending = adoptByPixels
+          ? _adoptablePending()
+          : skipByPixels
+          ? _repeatablePending()
+          : null;
       if (pending != null &&
           format != 'none' &&
           pending.width == width &&
@@ -3696,7 +3746,7 @@ class ScenarioTester {
     });
     if (adopted) {
       _adoptOntoPending(
-        shot!,
+        shot,
         (events, dropped),
         settled: settled,
         waited: waited,
@@ -3809,11 +3859,12 @@ class _PendingEmit {
   final int? parent;
   final String? branch;
 
-  /// The frame count when this picture was taken — the baseline a following
-  /// `screen` proves nothing has been drawn since. Not the count at the end of
-  /// the last *step*: a step whose shot was skipped captures nothing and still
-  /// draws.
-  final int frames;
+  /// The frame count when this picture was last known to be the screen —
+  /// taken, or proven again by an adoption or a repeating render — and the
+  /// baseline a following `screen` proves nothing has been drawn since. Not
+  /// the count at the end of the last *step*: a step whose shot was skipped
+  /// captures nothing and still draws.
+  int frames;
 
   /// Null while the frame is anonymous — which is what makes it adoptable.
   /// A name arriving here from a later `screen` is indistinguishable

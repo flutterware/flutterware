@@ -347,6 +347,27 @@ watchdog names it after eight. `s.runAsync` is for work that needs the real
 clock and nothing else — a database, a socket — never for a future the app
 already created.
 
+An asset read through `s.assets` is counted as a read and no further. A
+package that then parses the bytes in an isolate — Lottie with
+`backgroundLoading: true` — has a second half nothing counts, and that half is
+the app's to announce. Lottie also keeps each load for the life of the process,
+so a load one scenario started would be awaited from the next one's zone, where
+it never completes. `RealWork.run` starts the work outside every scenario's
+zone and tracks it:
+
+```dart
+final _intro = AssetLottie('assets/intro.json', backgroundLoading: true);
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  RealWork.run(() => _intro.load(context: context), label: 'intro');
+}
+
+@override
+Widget build(BuildContext context) => LottieBuilder(lottie: _intro);
+```
+
 ### Work on the fake clock
 
 A future that waits on the *fake* clock — a `Future.delayed`, a debounce, a
@@ -371,6 +392,14 @@ own and the act only awaits it.
 
 By default every verb captures. `Shot('name')` names the picture; the unnamed
 ones are collapsed as detail steps in the flow.
+
+A flow never holds the same picture twice by accident. `screen(name)` straight
+after a verb puts the name on that verb's picture rather than taking a second
+one of the same frame. A verb that is there to let something happen — `wait`,
+`runAsync`, `scrollTo`, `unhover` — takes no step when the screen ends where it
+started, whether it drew nothing or redrew the same pixels. Any other verb that
+changes nothing keeps its step, marked identical to the one before it: a `tap`
+that moved nothing is what a stalled flow looks like.
 
 ```dart
 scenario('Long flow', shots: Shots.manual, (s) async {

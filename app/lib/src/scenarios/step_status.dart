@@ -25,6 +25,13 @@ String? scenarioStepTransition(ScenarioRunStep step) {
   return step.target == null ? step.verb : '${step.verb} ${step.target}';
 }
 
+/// The verb a notice says ran, as the flow names it: which verb changed
+/// nothing is the first thing to know about a step that repeats its parent.
+String _whatRan(ScenarioRunStep step) => switch (scenarioStepTransition(step)) {
+  var did? => '`$did`',
+  null => 'the verb',
+};
+
 /// The colour a step's label wears: the error tone for a failure, the warn
 /// tone for a screen that never stopped animating, and nothing special
 /// otherwise.
@@ -90,11 +97,11 @@ class ScenarioStepNotice extends StatelessWidget {
       ScenarioRunStep(unchanged: true) => (
         colors.amber,
         Icons.copy_all_outlined,
-        'Identical to the step before it — the verb ran and nothing on '
-            'screen changed. In a walking scenario that usually means a '
-            'stalled flow: a tap that landed on a control that ignored it, '
-            "repeated until the loop's bound. It is harmless if you parked "
-            'the capture mid-flight on purpose.',
+        'Identical to the step before it — ${_whatRan(step)} ran and '
+            'nothing on screen changed. In a walking scenario that usually '
+            'means a stalled flow: a tap that landed on a control that '
+            "ignored it, repeated until the loop's bound. It is harmless if "
+            'you parked the capture mid-flight on purpose.',
       ),
       ScenarioRunStep(:var strayFrames) when strayFrames > 0 => (
         colors.mut2,

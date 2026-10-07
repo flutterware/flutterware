@@ -8,4 +8,4 @@
 library;
 
 export 'src/drive/guest_drive.dart' show GuestDrive;
-export 'src/drive/run_guest.dart' show runGuest;
+export 'src/drive/run_guest.dart' show RunGuestBinding, runGuest;

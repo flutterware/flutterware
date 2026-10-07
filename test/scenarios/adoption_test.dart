@@ -338,6 +338,82 @@ void main() {
       expect(shape(), ['pumpWidget', 'tap', 'Added']);
     });
   });
+
+  // Reported by a consumer: a helper that waited `Duration.zero` before every
+  // `screen` turned each screen into two steps, the second a byte-for-byte
+  // repeat of the first. Their app still had a frame scheduled, so the wait's
+  // pump drew it — the frame count cannot say the wait changed nothing, and
+  // the render has to.
+  group('a wait that redraws the same frame', () {
+    scenario('takes no step, and the screen after it names the tap’s', (
+      s,
+    ) async {
+      await s.pumpWidget(const _App());
+      await s.tap('Add');
+      s.tester.binding.scheduleFrame();
+      await s.wait(Duration.zero, settle: Settle.none);
+      expect(s.tester.binding.hasScheduledFrame, isFalse);
+      await s.screen('Added', settle: Settle.none);
+    });
+    tearDown(() {
+      expect(shape(), ['pumpWidget', 'Added']);
+      expect(captures.last.verb, 'tap');
+    });
+  });
+
+  group('a wait that moves the screen', () {
+    scenario('captures as ever', (s) async {
+      await s.pumpWidget(const _SplashApp());
+      await s.wait(const Duration(seconds: 2));
+    });
+    tearDown(() {
+      expect(shape(), ['pumpWidget', 'wait']);
+      expect(captures.last.texts, contains('Home'));
+    });
+  });
+
+  // The skip is for verbs whose no-op is a success. A tap that changed
+  // nothing is what a stalled walk looks like, and keeps its step for the
+  // harness to flag.
+  group('a tap that changes nothing', () {
+    scenario('keeps its step', (s) async {
+      await s.pumpWidget(const _App());
+      await s.tap('Ignore');
+    });
+    tearDown(() => expect(shape(), ['pumpWidget', 'tap']));
+  });
+
+  // A beat emitted since the held capture is the chain's head: merging the
+  // wait back onto the screen before it would file what happened after the
+  // beat under the step that came first.
+  group('a wait that redraws the same frame after a beat', () {
+    scenario('still captures', (s) async {
+      await s.pumpWidget(const _App());
+      await s.tap('Add');
+      await s.document('note', const [1, 2, 3]);
+      s.tester.binding.scheduleFrame();
+      await s.wait(Duration.zero);
+    });
+    tearDown(() => expect(shape(), ['pumpWidget', 'tap', 'note', 'wait']));
+  });
+
+  group('a skipped wait on a shared prefix', () {
+    scenario('leaves the replay aligned', (s) async {
+      await s.pumpWidget(const _App());
+      await s.tap('Add');
+      s.tester.binding.scheduleFrame();
+      await s.wait(Duration.zero);
+      await s.split({
+        'left': () => s.screen('Left'),
+        'right': () => s.screen('Right'),
+      });
+    });
+    tearDown(() {
+      expect(shape(), ['pumpWidget', 'tap', 'Left', 'Right']);
+      expect(captures[2].parent, captures[1].index);
+      expect(captures[3].parent, captures[1].index);
+    });
+  });
 }
 
 class _App extends StatefulWidget {
@@ -362,11 +438,38 @@ class _AppState extends State<_App> {
               onPressed: () => setState(() => _count++),
               child: const Text('Add'),
             ),
+            TextButton(onPressed: () {}, child: const Text('Ignore')),
           ],
         ),
       ),
     ),
   );
+}
+
+/// Splash, then home on a timer — which schedules no frame, so only moving
+/// the clock reaches it.
+class _SplashApp extends StatefulWidget {
+  const _SplashApp();
+
+  @override
+  State<_SplashApp> createState() => _SplashAppState();
+}
+
+class _SplashAppState extends State<_SplashApp> {
+  var _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(
+      const Duration(seconds: 2),
+      () => setState(() => _done = true),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      MaterialApp(home: Scaffold(body: Text(_done ? 'Home' : 'Splash')));
 }
 
 /// An app whose tap plays a flash — an overlay fading in and straight back
