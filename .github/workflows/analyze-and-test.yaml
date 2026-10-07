@@ -128,7 +128,7 @@ jobs:
 
 
   pub_score:
-    name: pub.dev score
+    name: pub.dev score (${{ matrix.sdk }})
     # **Full marks, enforced.** The published 0.5.1 sat at 50/160 for two years
     # — it failed static analysis against a Flutter that had moved under it, so
     # pana could not infer platform support and the pub.dev page showed no
@@ -140,11 +140,20 @@ jobs:
     # A number hard-coded here would be a number to forget; "lose no points" is
     # the actual policy and it survives the rubric changing.
     #
+    # Twice, like *Install from the archive*: on the pin, and on the newest
+    # stable, because stable is what pub.dev grades with and the pin is a
+    # beta. An analyzer a release ahead can report a diagnostic the other
+    # does not, and the score that counts is the one pub.dev computes.
+    #
     # Ubuntu, not macOS: pana compiles nothing and renders nothing, so the
     # expensive runner buys it nothing.
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [pin, stable]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       # The same pin every other job reads, for the same reason.
       - name: Read the pinned Flutter version
         id: pin
@@ -156,8 +165,8 @@ jobs:
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ steps.pin.outputs.version }}
-          channel: ${{ steps.pin.outputs.channel }}
+          flutter-version: ${{ matrix.sdk == 'pin' && steps.pin.outputs.version || '' }}
+          channel: ${{ matrix.sdk == 'pin' && steps.pin.outputs.channel || 'stable' }}
       - run: flutter --version
       # Pinned on purpose. pana is the grader, and an unpinned grader means a
       # release on somebody else's schedule can turn this repo red on a morning
