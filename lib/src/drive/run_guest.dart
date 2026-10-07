@@ -30,7 +30,7 @@ FutureOr<void> runGuest(FutureOr<void> Function() appMain) {
     // nothing retroactively, and startup requests are the ones a host can
     // never catch by enabling over the wire.
     armHttpCapture();
-    WidgetsFlutterBinding.ensureInitialized();
+    RunGuestBinding.ensureInitialized();
     // Framework errors, on stdout *and* kept where they can be asked for —
     // the bundle's `errors` field is the diff of this buffer.
     GuestErrors.instance.install();
@@ -70,4 +70,52 @@ FutureOr<void> runGuest(FutureOr<void> Function() appMain) {
     GuestChannels.install();
     return appMain();
   });
+}
+
+/// The binding a guest makes before the app's own `main` runs.
+///
+/// An app that wraps `main` in a zone of its own — `runZonedGuarded` around
+/// the lot, which is how a crash reporter is set up — calls `runApp` from that
+/// zone, and Flutter checks it is the zone the binding was made in. Without
+/// flutterware it is: the app's own `ensureInitialized` made the binding
+/// there. Under a guest the binding is the guest's, made in the zone that
+/// wraps the app's, so every such launch printed "Zone mismatch" as though the
+/// app had got it wrong, and every drive step carried it under `errors`.
+///
+/// So a zone inside the one the binding was made in passes. That nesting is
+/// the guest's doing, never the app's; a zone that is *not* inside it still
+/// gets Flutter's own error. What the message warns about does hold here, and
+/// is the price of a binding made before the app runs: frames run in the
+/// guest's zone, so an error a build throws asynchronously reaches
+/// `PlatformDispatcher.onError` rather than the app's zone handler.
+/// `FlutterError.onError`, where the framework reports what it catches, is
+/// unaffected.
+class RunGuestBinding extends WidgetsFlutterBinding {
+  /// Makes the guest's binding, unless a guest already made one — the world
+  /// guest makes its own subclass first, for what only a binding can do.
+  static WidgetsBinding ensureInitialized() {
+    if (_made == null) RunGuestBinding();
+    return WidgetsBinding.instance;
+  }
+
+  static RunGuestBinding? _made;
+
+  late final Zone _zone;
+
+  @override
+  void initInstances() {
+    super.initInstances();
+    // The zone the binding records for its own check, which is the one this
+    // constructor runs in.
+    _zone = Zone.current;
+    _made = this;
+  }
+
+  @override
+  bool debugCheckZone(String entryPoint) {
+    for (Zone? zone = Zone.current; zone != null; zone = zone.parent) {
+      if (identical(zone, _zone)) return true;
+    }
+    return super.debugCheckZone(entryPoint);
+  }
 }

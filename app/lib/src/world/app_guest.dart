@@ -201,7 +201,7 @@ ${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/$
 /// `runApp` is its own: give it a device's safe areas. They reach a guest as
 /// view *insets* — `FlutterWindowMetricsEvent` has no padding field — so they
 /// are turned back into padding under the root `View`.
-class _GuestBinding extends WidgetsFlutterBinding {
+class _GuestBinding extends RunGuestBinding {
   /// Every gesture — a person's or an agent's — is dispatched inside its
   /// step, so the requests it causes say which tap they came from.
   @override
@@ -231,7 +231,9 @@ final _steps = WorldSteps(
 // The binding is created before `runGuest` makes its own, and inside the log
 // zone `runGuest` would open: `install` does not nest, so `runGuest` runs in
 // this same zone, finds the binding, and the zone the binding captured is the
-// one `runApp` is called in. Any flutterware with the guest plumbing has this.
+// one `runApp` is called in — or holds it, when the app calls `runApp` from a
+// zone of its own, which `RunGuestBinding` lets pass. Any flutterware with the
+// guest plumbing has this.
 void main() => GuestLogs.instance.install<Object?>(() {
   _steps.install();
   _GuestBinding();
