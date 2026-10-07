@@ -27,6 +27,7 @@ import '../inspect/guest_inspect.dart';
 import '../real_work/tracker.dart';
 import 'app_axes.dart';
 import 'async_watchdog.dart';
+import 'document_digest.dart';
 import '../app_events/events.dart';
 import 'fake_timers.dart';
 import 'film.dart';
@@ -1677,7 +1678,7 @@ Future<Map<String, Object?>> _runOne(
             payloadFile: path,
             mimeType: capture.mimeType,
             payloadBytes: capture.payload!.length,
-            digest: _digest(capture.payload!),
+            digest: documentDigest(capture.payload!),
           ),
         );
         return;

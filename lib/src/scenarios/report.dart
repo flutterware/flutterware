@@ -1147,6 +1147,10 @@ class ScenarioRunStep {
   /// What this step captured, hashed — the pixels for a screen, the payload
   /// for a document. Null where the step wrote no bytes.
   ///
+  /// A PDF's file identifier is left out of it: the format asks for a fresh
+  /// one in every file, and `package:pdf` draws it at random, so a report the
+  /// app wrote identically twice would otherwise never digest the same.
+  ///
   /// The whole reason it is recorded: two runs of one suite are comparable
   /// without keeping either run's images. A suite can be entirely green while
   /// a third of its screenshots move every pass — a fixture chosen by hashing
