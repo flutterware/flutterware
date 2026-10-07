@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import '../changes/review_agent.dart';
 import '../shell/repo_layout.dart';
+import '../shell/worktree_discovery.dart';
 import '../constants.dart';
 import '../plugins/plugin_core.dart';
 import 'action_shapes.generated.dart';
@@ -159,9 +160,9 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
     _reviewTool,
   ];
 
-  /// Where to resolve the project from when the client names no root that
-  /// holds one. A session walks up to the repo root, so any directory inside
-  /// the project works.
+  /// Where to resolve the project from, unless the client's roots name
+  /// another checkout of its repository. A session walks up to the repo root,
+  /// so any directory inside the project works.
   ///
   /// It is also where the server was built from: `dart run flutterware mcp`
   /// resolved flutterware here, whichever checkout the client is working in.
@@ -174,7 +175,7 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// was measured starting them in the main checkout, and a server that took
   /// the project from its own directory then answered every call about a tree
   /// nobody was editing — while saying so only in a `root` field nobody reads.
-  /// The roots are where the client says it is working, so they win.
+  /// The roots say which checkout the client is working in.
   Future<List<Root>>? _clientRoots;
 
   @override
@@ -190,12 +191,6 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
     onError: (Object _) => <Root>[],
   );
 
-  /// The first of the client's roots that is inside a flutterware project, or
-  /// else [workingDirectory].
-  ///
-  /// Only a root holding a `tool/flutterware.dart` is taken: a client lists
-  /// every directory the session may touch, and an unrelated repository among
-  /// them would otherwise open as a project with no plugins.
   Future<Directory> _projectDirectory() async {
     var roots =
         await _clientRoots?.timeout(
@@ -203,15 +198,60 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
           onTimeout: () => <Root>[],
         ) ??
         const <Root>[];
+    var paths = [
+      for (var root in roots)
+        if (Uri.tryParse(root.uri) case var uri? when uri.isScheme('file'))
+          _canonical(uri.toFilePath()),
+    ];
+    if (paths.isEmpty) return workingDirectory;
+    var start = _canonical(_startRoot);
+    var checkouts = await WorktreeDiscovery().discover(start);
+    var project = checkoutIn(
+      roots: paths,
+      start: start,
+      checkouts: [for (var checkout in checkouts) _canonical(checkout.path)],
+    );
+    return project == null ? workingDirectory : Directory(project);
+  }
+
+  /// Where [start] sits in the first of [roots] that is one of [checkouts],
+  /// or null when none is.
+  ///
+  /// [checkouts] are the worktrees of the repository [start] is in, so the
+  /// answer is never another project: a client lists every directory its
+  /// session may touch, and the server was started for this one. Among two
+  /// checkouts of it the client's order decides — the measured client lists
+  /// the directory its session works in first, and the protocol promises no
+  /// order at all.
+  @visibleForTesting
+  static String? checkoutIn({
+    required List<String> roots,
+    required String start,
+    required List<String> checkouts,
+  }) {
+    String? checkoutOf(String path) => checkouts
+        .where(
+          (checkout) => p.equals(checkout, path) || p.isWithin(checkout, path),
+        )
+        .firstOrNull;
+    var home = checkoutOf(start);
+    if (home == null) return null;
     for (var root in roots) {
-      var uri = Uri.tryParse(root.uri);
-      if (uri == null || !uri.isScheme('file')) continue;
-      var repo = findRepoRoot(uri.toFilePath());
-      if (repo != null && File(p.join(repo, configFileName)).existsSync()) {
-        return Directory(repo);
+      if (checkoutOf(root) case var checkout?) {
+        return p.normalize(p.join(checkout, p.relative(start, from: home)));
       }
     }
-    return workingDirectory;
+    return null;
+  }
+
+  /// [path] with its symlinks resolved, because git reports a worktree by its
+  /// real path and a client may name it through a link.
+  static String _canonical(String path) {
+    try {
+      return Directory(path).resolveSymbolicLinksSync();
+    } on FileSystemException {
+      return p.normalize(path);
+    }
   }
 
   /// Which cores this server exposes. Null means the default set.
@@ -292,7 +332,9 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
     return staleResolutionNote(
       seen: seen,
       resolved: resolved,
-      startedIn: p.equals(root, _startRoot) ? null : _startRoot,
+      startedIn: p.equals(_canonical(root), _canonical(_startRoot))
+          ? null
+          : _startRoot,
     );
   }
 

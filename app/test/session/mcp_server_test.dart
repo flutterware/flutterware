@@ -833,10 +833,8 @@ void main() {
   // A client starts a project's servers where its config lives, which is not
   // always where its session works: measured, a session in a linked worktree
   // had them started in the main checkout, and every answer described a tree
-  // nobody was editing. The client's roots say where it works.
-  group('the project is where the client says it works', () {
-    var repo = findRepoRoot('..')!;
-
+  // nobody was editing. The client's roots say which checkout it works in.
+  group('the project is the checkout the client says it works in', () {
     Future<Map<String, Object?>> status(ServerConnection connection) async =>
         _decode(
           await connection.callTool(
@@ -846,13 +844,13 @@ void main() {
 
     Future<ServerConnection> connect(
       _RootsClient client, {
-      required Directory startedIn,
+      required String startedIn,
     }) async {
       var toServer = StreamController<String>();
       var toClient = StreamController<String>();
       FlutterwareMcpServer(
         StreamChannel<String>(toServer.stream, toClient.sink),
-        workingDirectory: startedIn,
+        workingDirectory: Directory(startedIn),
         registry: PluginCoreRegistry(),
       );
       var connection = client.connectServer(
@@ -874,51 +872,104 @@ void main() {
       return connection;
     }
 
-    Directory elsewhere() {
-      var directory = Directory.systemTemp.createTempSync('fw_roots');
-      addTearDown(() => directory.deleteSync(recursive: true));
-      return directory;
+    /// A repository with one linked worktree on branch `feature`.
+    ({String main, String linked}) repository() {
+      var base = Directory.systemTemp.createTempSync('fw_roots');
+      addTearDown(() => base.deleteSync(recursive: true));
+      var main = p.join(base.resolveSymbolicLinksSync(), 'main');
+      var linked = p.join(base.resolveSymbolicLinksSync(), 'linked');
+      Directory(main).createSync();
+      void git(List<String> arguments) {
+        var result = Process.runSync('git', [
+          '-c',
+          'user.name=test',
+          '-c',
+          'user.email=test@example.com',
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'core.hooksPath=/dev/null',
+          ...arguments,
+        ], workingDirectory: main);
+        expect(result.exitCode, 0, reason: '${result.stderr}');
+      }
+
+      git(['init', '-q', '-b', 'main']);
+      git(['commit', '-q', '--allow-empty', '-m', 'start']);
+      git(['worktree', 'add', '-q', '-b', 'feature', linked]);
+      return (main: main, linked: linked);
     }
 
-    test(
-      'a root holding a project beats the directory it was started in',
-      () async {
-        var client = _RootsClient()
-          ..addRoot(Root(uri: Uri.directory(repo).toString()));
-        var connection = await connect(client, startedIn: elsewhere());
+    Root rootAt(String path) => Root(uri: Uri.directory(path).toString());
 
-        expect((await status(connection))['root'], repo);
-      },
-    );
-
-    // A client lists every directory the session may touch. An unrelated
-    // repository among them is a project with no plugins, not this one.
-    test('a root with no flutterware project in it is passed over', () async {
-      var unrelated = elsewhere();
-      Directory(p.join(unrelated.path, '.git')).createSync();
+    test('a linked worktree the client works in beats the checkout the '
+        'server was started in', () async {
+      var repo = repository();
       var client = _RootsClient()
-        ..addRoot(Root(uri: Uri.directory(unrelated.path).toString()));
-      var connection = await connect(client, startedIn: Directory(repo));
+        ..addRoot(rootAt(repo.linked))
+        ..addRoot(rootAt(repo.main));
+      var payload = await status(await connect(client, startedIn: repo.main));
 
-      expect((await status(connection))['root'], repo);
+      expect(payload['root'], repo.linked);
+      expect(payload['worktree'], 'feature');
+    });
+
+    // A client lists every directory its session may touch, and the server
+    // was started for one project. Another one among the roots — even one
+    // with a tool/flutterware.dart — is not it.
+    test('another repository among the roots is passed over', () async {
+      var repo = repository();
+      var client = _RootsClient()..addRoot(rootAt(findRepoRoot('..')!));
+      var payload = await status(await connect(client, startedIn: repo.main));
+
+      expect(payload['root'], repo.main);
     });
 
     test('roots that change are followed', () async {
+      var repo = repository();
       var client = _RootsClient();
-      var connection = await connect(client, startedIn: elsewhere());
-      expect(
-        _text(
-          await connection.callTool(
-            CallToolRequest(name: 'flutterware_status'),
-          ),
-        ),
-        contains('Not inside a flutterware project'),
-      );
+      var connection = await connect(client, startedIn: repo.main);
+      expect((await status(connection))['root'], repo.main);
 
-      client.addRoot(Root(uri: Uri.directory(repo).toString()));
+      client.addRoot(rootAt(repo.linked));
       await pumpEventQueue();
 
-      expect((await status(connection))['root'], repo);
+      expect((await status(connection))['root'], repo.linked);
+    });
+
+    group('which checkout a root names', () {
+      // Built rather than written, so the Windows run reads them its own way.
+      String at(String path) => p.joinAll([p.separator, ...path.split('/')]);
+      var checkouts = [at('repo/main'), at('worktrees/feature')];
+
+      String? checkoutIn(List<String> roots, {String start = 'repo/main'}) =>
+          FlutterwareMcpServer.checkoutIn(
+            roots: [for (var root in roots) at(root)],
+            start: at(start),
+            checkouts: checkouts,
+          );
+
+      // A repository can keep its tool/flutterware.dart below the top, and
+      // the server was started there: the other checkout has it in the same
+      // place.
+      test('the same place in the other checkout', () {
+        expect(
+          checkoutIn(['worktrees/feature'], start: 'repo/main/app'),
+          at('worktrees/feature/app'),
+        );
+      });
+
+      test('a root inside a checkout names that checkout', () {
+        expect(checkoutIn(['worktrees/feature/lib']), at('worktrees/feature'));
+      });
+
+      test("between two checkouts, the client's order decides", () {
+        expect(checkoutIn(['repo/main', 'worktrees/feature']), at('repo/main'));
+      });
+
+      test('a start in none of the checkouts takes no root', () {
+        expect(checkoutIn(['worktrees/feature'], start: 'elsewhere'), isNull);
+      });
     });
   });
 }
