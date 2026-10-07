@@ -13,7 +13,7 @@ Live previews, widget tests that picture every step, store screenshots, and
 your app on a device you can drive. All of it also runs from the terminal.
 <!-- /site -->
 
-**[Open the web demo](https://flutterware.github.io/flutterware/)** to look
+**[Open the web demo](https://flutterware.dev/demo/)** to look
 around before installing anything. It is the studio itself, compiled for the
 web and opened on the demo app, a small coffee shop: the previews run live in
 the page, and every other tool shows what it found on a recorded run of the
@@ -147,6 +147,7 @@ runs plain `dart` from your `PATH`, so if a version manager picks your SDK, edit
 that entry to go through it (`fvm dart run flutterware mcp`). The first launch
 creates `tool/flutterware.dart`, where you pick your tools:
 
+<!-- site:config -->
 ```dart
 import 'package:flutterware/plugins.dart';
 
@@ -159,12 +160,15 @@ void main() => Flutterware.configure((fw) {
   fw.use(Assets(packages: [.new(app)]));
 });
 ```
+<!-- /site -->
 
+<!-- site:config-note -->
 It's a plain Dart file, so the analyzer checks it and your editor completes it.
 For a monorepo, declare one `Pkg` per package and give each tool the ones it
 applies to. The [demo's config](examples/brewline/tool/flutterware.dart) is
 one app's; [this repo's](tool/flutterware.dart) covers a workspace of several
 packages.
+<!-- /site -->
 
 ## Libraries
 

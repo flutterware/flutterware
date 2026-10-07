@@ -22,7 +22,7 @@ class Home extends StatelessComponent {
   @override
   Component build(BuildContext context) => .fragment([
     _top(),
-    main_([_hero(), _scenarios(), _tools(), _agents(), _tryIt()]),
+    main_([_hero(), _tools(), _config(), _scenarios(), _agents(), _tryIt()]),
     _footer(),
     script(src: 'copy.js', defer: true),
   ]);
@@ -89,7 +89,7 @@ class Home extends StatelessComponent {
     ]);
   }
 
-  Component _scenarios() => section(id: 'scenarios', classes: 'band', [
+  Component _scenarios() => section(id: 'scenarios', [
     div(classes: 'wrap', [
       div(classes: 'split', [
         div([
@@ -144,9 +144,7 @@ class Home extends StatelessComponent {
     div(classes: 'wrap', [
       h2([.text("What's in it")]),
       p(classes: 'sub', [
-        .text('You pick the tools you want in one Dart file, '),
-        code([.text('tool/flutterware.dart')]),
-        .text('. Each one has a guide.'),
+        .text('Each tool has a guide, and you turn on only the ones you want.'),
       ]),
       div(classes: 'cards', [
         for (var tool in content.tools('tools'))
@@ -169,6 +167,23 @@ class Home extends StatelessComponent {
             dt([RawText(row.name)]),
             dd([RawText(row.description)]),
           ]),
+      ]),
+    ]),
+  ]);
+
+  Component _config() => section(id: 'config', classes: 'band', [
+    div(classes: 'wrap', [
+      div(classes: 'split code-wide', [
+        div([
+          h2([.text('Pick your tools in one Dart file')]),
+          p([
+            .text('The first launch creates '),
+            code([.text('tool/flutterware.dart')]),
+            .text('. Each line turns a tool on for a package.'),
+          ]),
+          p([RawText(content.html('config-note'))]),
+        ]),
+        _code(content.snippet('config')),
       ]),
     ]),
   ]);
@@ -320,7 +335,7 @@ class Home extends StatelessComponent {
 String _highlight(Snippet snippet) {
   var escaped = const HtmlEscape(.element).convert(snippet.code);
   var token = switch (snippet.language) {
-    'dart' => RegExp(r"('[^'\n]*')|\b(async|await|const)\b"),
+    'dart' => RegExp(r"('[^'\n]*')|\b(async|await|const|import|void)\b"),
     'json' => RegExp('("[^"\n]*")'),
     _ => null,
   };

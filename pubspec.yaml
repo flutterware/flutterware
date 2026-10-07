@@ -1,8 +1,7 @@
 name: flutterware
 description: 'Development tooling for Flutter projects: a desktop app, a command line and an MCP server over one set of tools you declare once.'
 version: 0.6.0 # Keep it sync with flutterware_app
-# Point this at https://flutterware.dev once something is served there.
-homepage: https://github.com/flutterware/flutterware
+homepage: https://flutterware.dev
 repository: https://github.com/flutterware/flutterware
 issue_tracker: https://github.com/flutterware/flutterware/issues
 

@@ -10,6 +10,8 @@ void main() {
       expect(content.text('tagline'), isNot(contains('*')));
       expect(content.html('lede'), isNotEmpty);
       expect(content.snippet('scenario').language, 'dart');
+      expect(content.snippet('config').code, contains('Flutterware.configure'));
+      expect(content.html('config-note'), contains('$repository/blob/master/'));
       expect(content.snippet('sample').code, contains('git clone'));
     });
 
