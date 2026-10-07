@@ -47,7 +47,15 @@ class Home extends StatelessComponent {
       image: content.picture('hero').url,
     ),
     pageTop(root: ''),
-    main_([_hero(), _tools(), _config(), _scenarios(), _agents(), _tryIt()]),
+    main_([
+      _hero(),
+      _tools(),
+      _config(),
+      _scenarios(),
+      _agents(),
+      _tryIt(),
+      _contact(),
+    ]),
     pageFooter(root: ''),
     script(src: 'copy.js', defer: true),
   ]);
@@ -351,6 +359,14 @@ class Home extends StatelessComponent {
           '${content.html('first-launch')} ${content.html('requirements')}',
         ),
       ]),
+    ]),
+  ]);
+
+  Component _contact() => section(id: 'contact', classes: 'band', [
+    div(classes: 'wrap', [
+      _label(6, 'Contact'),
+      h2([.text('Get in touch')]),
+      p(classes: 'contact', [RawText(content.html('contact'))]),
     ]),
   ]);
 
