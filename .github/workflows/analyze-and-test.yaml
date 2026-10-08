@@ -525,7 +525,9 @@ jobs:
         # words are regions of README.md, and the docs are the guides in
         # `doc/`: a README that no longer has a region the page renders, a
         # guide `doc/README.md` does not list, or a link between guides that
-        # lands on no heading fails here, and says which.
+        # lands on no heading fails here, and says which. So does a page the
+        # build left out: it writes `/` and what the pages ask for while they
+        # render, and an ask it did not hear is a page missing in silence.
         #
         # The Jaspr tool is installed rather than depended on, and pinned as
         # pana is: its own code needs analyzer 12, and the workspace holds 13
