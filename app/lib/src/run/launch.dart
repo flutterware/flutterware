@@ -106,9 +106,7 @@ Future<RunHandle> launchApp({
     // trick below needs a shell that is not there. Said plainly rather than
     // failing somewhere less legible.
     throw UnsupportedError(
-      'Launching is implemented for macOS and Linux hosts. The child has to '
-      'outlive this process with its output going to a file, and that is done '
-      'with a shell redirect this platform has no equivalent of yet.',
+      'Launching an app works only on macOS and Linux hosts for now.',
     );
   }
 

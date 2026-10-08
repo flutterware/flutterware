@@ -153,7 +153,7 @@ class ScreenRead {
       var y = parts.length == 2 ? double.tryParse(parts[1].trim()) : null;
       if (x == null || y == null) {
         var refused =
-            'at: "$point" is not a point — give it as "x,y" in logical '
+            'at: "$point" is not a point. Give it as "x,y" in logical '
             'pixels, the same space every box in this reply is in.';
         note = [?note, refused].join(' ');
       } else {

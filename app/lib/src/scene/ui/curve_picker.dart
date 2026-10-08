@@ -92,7 +92,7 @@ class SceneCurveBox extends StatelessWidget {
               name == null
                   ? 'Default'
                   : curve == null
-                  ? '$name — not a curve this editor writes'
+                  ? '$name (not a curve this editor writes)'
                   : 'Curves.$name',
               style: context.type.caption.copyWith(
                 color: curve == null && name != null

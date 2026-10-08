@@ -69,7 +69,7 @@ String paramKindTypeName(SceneParamKind kind) => switch (kind) {
 
 /// What a library carrying a value it may not hold is told.
 String notADesignValue(String typeName) =>
-    'a library holds a design system — a colour, a number or a text style. '
+    'a library holds a design system: a colour, a number or a text style. '
     "A $typeName is content or configuration: make it this scene's "
     "parameter, or export it from the group's $sceneGroupFileName as the "
     "app's own.";
@@ -78,7 +78,7 @@ String notADesignValue(String typeName) =>
 /// differs is a `SceneTokens` the app constructs and passes to a scene's
 /// tokens formal — the editor no longer holds one.
 const modesRemovedReason =
-    'modes are gone from a library — build the other set in your app as '
+    'modes are gone from a library: build the other set in your app as '
     'SceneTokens(…) and pass it to the scene, which the generated class '
     'already takes';
 
@@ -163,7 +163,7 @@ List<SceneTokenDecl> describeTokens(List<Token<Object>> tokens) => [
         SceneColor() => SceneParamKind.color,
         num() => SceneParamKind.number,
         var v => throw ArgumentError(
-          'a token is a String, double, bool or SceneColor — '
+          'a token is a String, double, bool or SceneColor: '
           '"${t.name}" is a ${v.runtimeType}',
         ),
       }, _number(t.value)),
@@ -318,7 +318,7 @@ SceneTokenDecl? _token(
     refuse(
       e.offset,
       'token type',
-      'a token is typed by its type argument — '
+      'a token is typed by its type argument: '
           "Token<SceneColor>('brand', SceneColor(0xFF…)) for a value the "
           "editor renders, Token<ButtonStyle>('cta', …) for one it only names",
     );
@@ -336,7 +336,7 @@ SceneTokenDecl? _token(
     refuse(
       e.offset,
       'arguments',
-      "a token is Token<double>('radius', 16) — a name and its value",
+      "a token is Token<double>('radius', 16): a name and its value",
     );
     return null;
   }
@@ -346,7 +346,7 @@ SceneTokenDecl? _token(
       named.first.name.lexeme == 'modes' ? 'modes' : 'arguments',
       named.first.name.lexeme == 'modes'
           ? modesRemovedReason
-          : "a token is Token<double>('radius', 16) — a name and its value",
+          : "a token is Token<double>('radius', 16): a name and its value",
     );
     return null;
   }
@@ -369,7 +369,7 @@ SceneTokenDecl? _token(
     refuse(
       e.offset,
       'token type',
-      "a $typeName is the app's own — a library holds values the editor "
+      "a $typeName is the app's own: a library holds values the editor "
           "draws; export it from the group's $sceneGroupFileName instead",
     );
     return null;
@@ -459,7 +459,7 @@ SceneTextStyle? _style(
   var values = <String, Object?>{};
   for (var arg in args.arguments) {
     if (arg is! NamedArgument) {
-      refuse(arg.offset, 'style', 'a style names each field — fontSize: 54');
+      refuse(arg.offset, 'style', 'a style names each field: fontSize: 54');
       return null;
     }
     var v = arg.argumentExpression;
@@ -472,7 +472,7 @@ SceneTextStyle? _style(
       refuse(
         v.offset,
         'style',
-        'a style sets ${fields.keys.join(', ')} — "$name" is not one of '
+        'a style sets ${fields.keys.join(', ')}: "$name" is not one of '
             'them, or not a literal of its kind',
       );
       return null;

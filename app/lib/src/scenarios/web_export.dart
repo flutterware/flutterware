@@ -27,8 +27,6 @@ import 'web_report.dart';
 /// `report.json` and every artifact relative to itself, and a browser refuses
 /// those on a `file://` page. `CatalogWebServer` is what the GUI and
 /// `--serve` put in front of it.
-///
-/// See `2026-08-11-scenario-web-export-design.md`.
 class ScenarioWebExporter {
   ScenarioWebExporter({
     required String flutterExecutable,

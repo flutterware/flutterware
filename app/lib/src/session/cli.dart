@@ -64,153 +64,151 @@ const fwCommands = [
   FwCommand(
     'status',
     usage: 'status [<plugin>] [--brief] [--json]',
-    summary: 'what every plugin says about itself',
+    summary: 'what every plugin reports about this project',
     details:
-        'Loads what each plugin has not loaded yet, then reports. A `fw` '
-        'process\nstarts cold every time, so a run that reported only cached '
-        'state would\nsay "not computed" for everything, every time.\n\n'
-        'Loading is parsing — pubspecs, demo files. Nothing here compiles, '
-        'spawns\na daemon or touches the network; that work lives behind '
-        '`fw run`.\n\n'
-        'Name a plugin — a full id or its last dotted segment — and only '
-        'that\none is loaded and reported. `--brief` keeps the status line '
-        'and the\nper-package entries and drops the panel projection, which '
-        'is nine\ntenths of the reply.',
+        'Loads every plugin, then prints what each one reports. Loading only\n'
+        'reads files such as pubspecs and previews: nothing is compiled, no\n'
+        'daemon starts and nothing goes to the network. `fw run` does that\n'
+        'work.\n'
+        '\n'
+        'Name a plugin, by its full id or the part after its last dot, to\n'
+        'load and report only that one. `--brief` keeps the status line and\n'
+        'the per-package entries and leaves out the panel view, which is most\n'
+        'of the output.',
   ),
   FwCommand(
     'worktrees',
     usage: 'worktrees [--refresh] [--json]',
     summary: 'every checkout of this repo, and what is going on in each',
     details:
-        'The CLI rendering of the explorer. Runs no project code — it reads '
-        'git,\nagent session files and `gh`/`glab` — so a worktree you have '
-        'never\nopened reports as fully as one you are looking at.\n\n'
-        'Batched where the tools allow it: one `for-each-ref` covers every '
-        'branch,\none `pr list` covers every pull request, and a branch diff '
-        'is cached\nunder ~/.flutterware by its two commits, which cannot '
-        'change once written.\n\n'
-        'Pull requests are the one answer that lives on a server, so they are '
-        'kept\nfor five minutes. `--refresh` asks again.\n\n'
-        'A column every worktree leaves empty is not printed: no `gh`, no '
-        'agent,\nor a format that stopped parsing all read as one column less.',
+        'Lists every checkout of this repository, like the Worktrees screen\n'
+        'in the GUI. It runs no project code: it reads git, agent session\n'
+        'files and `gh` or `glab`, so a worktree you have never opened shows\n'
+        'as much as the one you are in.\n'
+        '\n'
+        'One `git for-each-ref` covers every branch and one `pr list` covers\n'
+        'every pull request. A branch diff is cached under ~/.flutterware by\n'
+        'its two commits. Pull requests are kept for five minutes;\n'
+        '`--refresh` fetches them again.\n'
+        '\n'
+        'A column that is empty for every worktree is left out, for example\n'
+        'when `gh` is not installed, no agent has run here, or the agent\n'
+        'session files could not be read.',
   ),
   FwCommand(
     'changes',
     usage: 'changes [<worktree>] [--file=<path>] [--json]',
-    summary: 'what a checkout has changed, ranked',
+    summary: 'what a checkout has changed, important files first',
     details:
-        'The delta from the base branch to the files on disk — committed, '
-        "staged,\nunstaged and untracked together. An agent's most "
-        'interesting work is the\nwork it has not committed yet, so '
-        'committed-ness is a mark on a file rather\nthan what selects one.\n\n'
-        'Runs no project code, so a worktree you have never opened reports as '
-        'fully\nas the one you are standing in. Name one by directory or '
-        'branch; with no\nname it reads the checkout you are in.\n\n'
-        "`--file=<path>` prints that file's patch and nothing else — what an "
-        'agent\nwants when it already knows which file it is asking about.\n\n'
-        'The base is inferred from origin/HEAD, then main, then master. When '
-        'none\nof them resolve it says so rather than diffing against a '
-        'guess.',
+        'Lists the files a checkout has changed since its base branch, with\n'
+        'the ones the project marks as important first. Committed, staged,\n'
+        'unstaged and untracked changes are listed together, and each file\n'
+        'shows whether it is committed.\n'
+        '\n'
+        'It runs no project code, so a worktree you have never opened shows\n'
+        'as much as the one you are in. Name a worktree by its directory or\n'
+        'branch; with no name it reads the checkout you are in.\n'
+        '\n'
+        "`--file=<path>` prints only that file's patch.\n"
+        '\n'
+        'The base is origin/HEAD, then main, then master. If none of them\n'
+        'exists, it says so and shows only uncommitted work. Set another base\n'
+        'with `ChangesConfig(base: …)` in tool/flutterware.dart.',
   ),
   FwCommand(
     'review',
     usage:
         'review [--all] [--json] | review resolve <id> [--message=<text>] '
         '| review unresolve <id>',
-    summary: 'the notes a human left on this checkout, and answering them',
+    summary: 'read and resolve the review notes on this checkout',
     details:
-        'A note is written on a line of the diff in the GUI, while you keep\n'
-        'working — it carries the code it was written about, so nothing here\n'
-        'addresses a line that can move.\n'
+        'You write a note on a line of the diff in the GUI. The note keeps\n'
+        'the code it was written about, so it still makes sense after the\n'
+        'line moves.\n'
         '\n'
-        'With no arguments: what is still outstanding, as markdown, each note\n'
-        'headed by the id you answer it by. `--all` includes what has already\n'
-        'been dealt with.\n'
+        'With no arguments, prints the open notes as markdown, each headed by\n'
+        'the id you resolve it with. `--all` includes resolved notes.\n'
         '\n'
         '  fw review resolve <id> --message="did it, see foo_test.dart"\n'
         '\n'
-        'Resolving is recorded as the agent — that is what the human sees\n'
-        'beside the note, and it is the difference between *it says it did\n'
-        'this* and *I ticked this off*. `unresolve` puts one back.\n'
+        'A note resolved here is marked as resolved by the agent, and the GUI\n'
+        'shows that beside the note. `unresolve` reopens a note.\n'
         '\n'
-        'Reads git and a log under ~/.flutterware, so it opens no session and\n'
-        'runs no project code. Name a worktree to read that one instead.',
+        'It reads git and a log under ~/.flutterware, and runs no project\n'
+        'code.',
   ),
   FwCommand(
     'actions',
     usage: 'actions [<plugin> [<action>]] [--json]',
-    summary: 'what can be invoked, and with what',
+    summary: 'the actions you can run, and their parameters',
     details:
-        'The same list the GUI draws buttons from and an agent reads over '
-        'MCP.\nThere is no second source for it.\n\n'
-        'Name a plugin for that one alone; name an action too for that '
-        'action\nin full — parameters documented, and the shape of what '
-        'comes back.',
+        'Lists the actions each plugin offers. The GUI and agents over MCP\n'
+        'read the same list.\n'
+        '\n'
+        'Name a plugin to list only its actions. Name an action too to see it\n'
+        'in full: its parameters and the shape of what it returns.',
   ),
   FwCommand(
     'run',
     usage: 'run <plugin> <action> [--k=v]',
-    summary: 'invoke one action',
+    summary: 'run one action',
     details:
-        '`<plugin>` may be a full id or its last dotted segment.\n'
+        '`<plugin>` is a full id or the part after its last dot.\n'
         '\n'
         '  fw run <plugin>                  the actions that plugin has\n'
         '  fw run <plugin> <action> --help  what it takes, and what it '
         'returns\n'
         '\n'
-        'An artifact prints as its path, so `fw run … | xargs open` works.\n'
-        'Structured results print as JSON. `--json` prints the whole '
-        'artifact:\naddress, resolved axes and all.',
+        'An action that produces a file prints its path, so\n'
+        '`fw run … | xargs open` works. Other results print as JSON.\n'
+        '`--json` prints the whole result, including its address and the\n'
+        'axes it resolved.',
   ),
   FwCommand(
     'init',
     usage: 'init',
     summary: 'write the two files this project needs',
     details:
-        'A starter tool/flutterware.dart if the project has none, and a\n'
-        'flutterware entry in .mcp.json so an agent opening the repo finds '
-        'the\ntools without being told.\n'
+        'Writes a starter tool/flutterware.dart if the project has none, and\n'
+        'adds a flutterware entry to .mcp.json so an agent that opens the\n'
+        'repository finds the tools.\n'
         '\n'
-        'Both are committed, and both describe the project rather than this\n'
-        'machine — nothing about your SDK is recorded anywhere. .mcp.json is\n'
-        'shared, so it is merged rather than written: another server stays, '
-        'and\na flutterware entry someone has edited is left as it is.\n'
+        'Commit both files. Neither records anything about your machine or\n'
+        'your SDK. .mcp.json is merged: other servers stay, and a flutterware\n'
+        'entry you have edited is left as it is.\n'
         '\n'
-        'It runs by itself the first time you use flutterware in a project, '
-        'so\nthis is here for scripts and for CI.',
+        'It runs by itself the first time you use flutterware in a project,\n'
+        'so you only need it in scripts and CI.',
   ),
   FwCommand(
     'app',
     usage: 'app [--release] [--json]',
     summary: 'open the flutterware GUI',
     details:
-        'What `dart run flutterware` with no arguments does, spelled out.\n'
+        'What `dart run flutterware` does with no arguments.\n'
         '\n'
-        "The first run builds the GUI. That build's output goes to\n"
-        '`app/build/gui-build.log` rather than to the terminal; a failure\n'
-        'prints the end of it and where the rest is, and `--json` reports the\n'
-        'same thing as data. `-v` hands the build the terminal instead, which\n'
-        'is the only way to watch it as it goes.\n'
+        'The first run builds the GUI. The build output goes to\n'
+        '`app/build/gui-build.log`. If the build fails, fw prints the end of\n'
+        'the log and its path, and `--json` reports the same as data. `-v`\n'
+        'shows the build output in the terminal as it runs.\n'
         '\n'
-        'The GUI is one renderer of the plugin contract and this is one\n'
-        'command of the CLI — it is not a separate program, and there is no\n'
-        'capability it has that the commands above do not.\n'
+        'Everything the GUI does is also available from the other commands.\n'
         '\n'
-        'When flutterware is a path dependency — when you are working on\n'
-        'flutterware itself — this runs the GUI under `flutter run`, so a\n'
-        'change is `r` away instead of a rebuild. `--release` takes the built\n'
-        'binary instead, which is what an ordinary install always gets.',
+        'When flutterware is a path dependency, as when you work on\n'
+        'flutterware itself, the GUI runs under `flutter run`, so `r` reloads\n'
+        'a change without a rebuild. `--release` runs the built binary\n'
+        'instead, as a normal install always does.',
   ),
   FwCommand(
     'mcp',
     usage: 'mcp',
     summary: 'serve this project to an agent, over stdio',
     details:
-        'Speaks MCP on stdin/stdout, exposing the same plugins and the same\n'
-        'actions as the commands above — an agent can do what you can do here.\n'
+        'Serves MCP on stdin and stdout, with the same plugins and actions as\n'
+        'the commands above, so an agent can do what you can do here.\n'
         '\n'
-        'Not a command to type. It is what an MCP client spawns, and what it\n'
-        'should be pointed at:\n'
+        'You do not type this command: an MCP client starts it. Point the\n'
+        'client at it like this:\n'
         '\n'
         '    {\n'
         '      "mcpServers": {\n'
@@ -220,13 +218,12 @@ const fwCommands = [
         '      }\n'
         '    }\n'
         '\n'
-        '`fw init` writes that entry for you. It names no version manager on\n'
-        'purpose: whichever `dart` your client provides is the SDK, resolved\n'
-        'when the server is spawned. Prefix it — `fvm dart …` — if that is\n'
-        'how your project says which SDK it wants.\n'
+        '`fw init` writes that entry for you. The server uses whichever\n'
+        '`dart` the client starts it with. If your project pins its SDK with\n'
+        'a version manager, prefix the command, as in `fvm dart …`.\n'
         '\n'
-        'stdout is the wire. Everything a human might want to read — logs, and\n'
-        'whatever this has to build before it can answer — goes to stderr.',
+        'stdout carries the protocol. Logs, and the output of anything the\n'
+        'server has to build before it can answer, go to stderr.',
   ),
   FwCommand(
     'compare',
@@ -234,141 +231,124 @@ const fwCommands = [
         'compare [--base=<ref>] [--package=<path>] [--entry=<id>] '
         '[--export[=<dir>]] [--frames=all|changed] [--base-href=<path>] '
         '[--report=<dir>] [--jobs=<n>] [--json]',
-    summary: 'what this worktree did to the pictures, against its base',
+    summary: "compare this worktree's previews and scenarios with its base",
     details:
-        'Renders previews and replays scenarios on both sides of the branch '
-        'and\ndiffs them — pixels, widget tree, visible texts. Nothing is '
-        'blessed:\nthere is no golden and no approve button, both sides are '
-        'computed from\ngit on demand. The skip rule answers most entries '
-        'without rendering\nanything, so a branch that touched no preview '
-        'concludes in milliseconds.\n'
+        'Renders previews and replays scenarios on the base and on this\n'
+        'worktree, then compares them: pixels, widget tree and visible text.\n'
+        'There are no golden files to approve; both sides are computed from\n'
+        'git when you run it. Entries the branch cannot have changed are\n'
+        'skipped without rendering, so a branch that touched no preview\n'
+        'finishes in milliseconds.\n'
         '\n'
-        'The verdict is written to `index.json` (the path prints last) and '
-        'shown\non the changes panel of the GUI.\n'
+        'The result is written to `index.json` (its path prints last) and\n'
+        'shown on the Changes screen in the GUI.\n'
         '\n'
-        'Exits 1 when a half produced no verdict: its harness would not '
-        'build,\nor — on an un-narrowed run — every one of its rows failed '
-        'on both\nsides, or every one failed on the base side alone. '
-        'Findings alone do\nnot change the exit code: a branch that changed '
-        'pictures still exits\n0, a run narrowed with `--entry` to a '
-        'pre-broken flow still exits 0,\nand a job gates on `index.json`.\n'
+        'Exits 1 when the previews or the scenarios produced no result: the\n'
+        'harness would not build or, on a run not narrowed with `--entry`,\n'
+        'every row failed on both sides or every row failed on the base side.\n'
+        'Differences do not change the exit code: a branch that changed\n'
+        'pictures still exits 0, and so does a run narrowed with `--entry` to\n'
+        'a flow that was already broken. To fail a job on differences, read\n'
+        '`index.json`.\n'
         '\n'
-        '`--base` compares against any ref git can name; the default is the '
-        "project's\nconfigured base, then the default branch. `--entry` "
-        'narrows to named\nentries and may repeat.\n'
+        '`--base` compares against any ref git can name. The default is the\n'
+        "project's configured base, then the default branch. `--entry` limits\n"
+        'the run to the named entries and can be repeated.\n'
         '\n'
-        'Every package either half declares is compared, and the whole lot '
-        'lands\nin one `index.json`, one comment and one page. `--package` '
-        'narrows and\nmay repeat. Where a run covers more than one package a '
-        "row's id carries\nits package — "
-        '`packages/gallery/demo/card.dart#card` — and every row '
-        'carries\nthe package as a field either way. A package that will not '
-        "compile is\none package's worth of silence, named in the half's "
-        'note; the others\nstill report.\n'
+        'Every package either side declares is compared, and the results go\n'
+        'into one `index.json`, one comment and one page. `--package` limits\n'
+        'the run and can be repeated. When a run covers more than one\n'
+        "package, a row's id starts with its package\n"
+        '(`packages/gallery/demo/card.dart#card`), and every row has the\n'
+        'package as a field either way. A package that does not compile has\n'
+        'no rows and is named in the note; the other packages still report.\n'
         '\n'
-        '`--export` writes the comparison as a browsable page: a viewer, the\n'
-        '`index.json`, and a PNG per frame. Serve the directory over HTTP — '
-        'a\n`file://` page cannot fetch its own frames. The default directory '
-        'is\n`build/comparison/web` at the repository top level.\n'
+        '`--export` writes the comparison as a page you can browse: a viewer,\n'
+        'the `index.json` and a PNG per frame. Serve the directory over HTTP;\n'
+        'opened as a `file://` page it cannot load its frames. The default\n'
+        'directory is `build/comparison/web` at the top of the repository.\n'
         '\n'
-        'The page resolves everything against its own URL, so it works '
-        'wherever\nit is hosted — a bucket root or a per-pull-request prefix '
-        '— without\nbeing told. Pass `--base-href=/comparisons/42/` only for '
-        'a host that\nserves the directory without redirecting to a trailing '
-        'slash.\n'
+        'The page loads everything relative to its own URL, so it works at a\n'
+        'bucket root or under a per-pull-request prefix. Pass\n'
+        '`--base-href=/comparisons/42/` only for a host that serves the\n'
+        'directory without redirecting to a trailing slash.\n'
         '\n'
-        "`--frames=changed` puts only the findings' pictures in the page. "
-        'The\nverdict is untouched — every row is still there with its state '
-        'and its\nchannels — but an unchanged entry has no picture beside it '
-        'and says so.\nOn a run where the skip rule did not earn its keep '
-        'that is most of the\npage: measured at 18.1MB of unchanged frames '
-        'against 1.5MB of findings.\n'
+        '`--frames=changed` puts only the pictures of changed entries in the\n'
+        'page. Every row is still listed with its state, but an unchanged\n'
+        'entry shows no picture and says so. Unchanged frames are often most\n'
+        'of the page: 18.1MB against 1.5MB of changed ones on one run.\n'
         '\n'
-        '`--report` writes what a pull-request comment needs: `comment.md`, '
-        'a\n`mosaic.png` of the changed entries, and the exported page under '
-        '`web/`.\nThe comment references images by `__MOSAIC_URL__` and '
-        '`__VIEWER_URL__`\nplaceholders for the workflow to substitute after '
-        'it hosts the files.\n'
+        '`--report` writes what a pull-request comment needs: `comment.md`, a\n'
+        '`mosaic.png` of the changed entries, and the exported page under\n'
+        '`web/`. The comment refers to images through the `__MOSAIC_URL__`\n'
+        'and `__VIEWER_URL__` placeholders, which your workflow replaces once\n'
+        'it has uploaded the files.\n'
         '\n'
-        '`--jobs=<n>` renders and replays n at a time on each side, so up to '
-        '2n\n`flutter_tester`s at once. Each side compiles its harness once '
-        'and starts\nthe other guests from it. The default, 1, is one guest '
-        'per side and the\nbase before the head: the shape of a runner '
-        'sized for one build. A\nside replayed again to rule out the machine '
-        'still replays alone, after\nthe others. `index.json` records the '
-        'value under `host`.\n'
+        '`--jobs=<n>` renders and replays n at a time on each side, so up to\n'
+        '2n `flutter_tester` processes run at once. Each side compiles its\n'
+        'harness once and starts the others from it. The default, 1, runs one\n'
+        'per side and the base before the head, which suits a CI runner sized\n'
+        'for one build. A side that is replayed a second time, to check that\n'
+        'the machine did not cause a difference, replays alone after the\n'
+        'others. `index.json` records the value under `host`.\n'
         '\n'
-        'A run ends with a line saying where its time went, and names the '
-        'scenarios\nwhose steps never settled. The same phases, per package '
-        'and side, are in\n`index.json` under `timings`.',
+        'The run ends with a line saying where the time went, and names the\n'
+        'scenarios whose steps never settled. `index.json` has the same\n'
+        'timings, per package and side, under `timings`.',
   ),
   FwCommand(
     'capture',
     usage:
         'capture [<address>] -o <file> [--size=WxH] [--theme=light|dark] '
         '[--pixel-ratio=N] [--timeout=<seconds>]',
-    summary: 'photograph the GUI window itself, at an address',
+    summary: 'screenshot the GUI window at an address',
     details:
         'Opens the GUI, goes to `<address>`, waits until nothing is still\n'
-        'working, writes a PNG and exits. No window is left behind and '
-        'nothing\nhas to be clicked, so this is what a documentation script '
-        'calls.\n'
+        'loading, writes a PNG and exits. No window stays open and nothing\n'
+        'needs to be clicked, so a documentation script can call it.\n'
         '\n'
-        '**This photographs the window, chrome and all** — the rail, the tree,\n'
-        'the tab bar with the branch name in it, and the panel somewhere '
-        'inside.\nThat is the point when the subject *is* flutterware. It is '
-        'the wrong\ntool for looking at a widget you are working on: to '
-        'photograph a preview\nitself, at its own size and nothing else '
-        'around it, use\n\n'
+        'It captures the whole window: the rail, the tree, the tab bar with\n'
+        'the branch name, and the panel. Use it when the subject is\n'
+        'flutterware itself. To capture a preview on its own, at its own\n'
+        'size, use\n'
+        '\n'
         "    fw run previews screenshot --entry='<file.dart#symbol>'\n"
         '\n'
-        'which renders headlessly in about a second and needs no GUI at all.\n'
-        '`fw run previews entries` reports both — the `id` that action takes '
-        'and\nthe `address` this one does — so holding an address is not a '
-        'reason to\nprefer this.\n'
+        'which renders without the GUI in about a second.\n'
+        '`fw run previews entries` lists both the `id` that action takes and\n'
+        'the `address` this command takes.\n'
         '\n'
-        'Give `--size` and `--theme` for anything you intend to commit. '
-        'Without\nthem the picture is whatever size the window opened at, in '
-        "whichever\ntheme the machine's OS is set to — so the same command "
-        'produces a\ndifferent file on a different desk, and every '
-        'regeneration is a diff.\n'
-        '`--size` is the layout size, not the window: it is not bounded by '
-        'the\ndisplay, so 1600x1200 works on a laptop that cannot show it.\n'
-        '`--pixel-ratio` fixes the density the same way — `2` for the retina\n'
-        'screenshots most READMEs want, whatever screen runs the command.\n'
+        'Give `--size` and `--theme` for any picture you commit. Without them\n'
+        "the picture has the window's size and the OS theme, so it changes\n"
+        'from one machine to the next. `--size` is the layout size, not the\n'
+        'window, and the display does not limit it: 1600x1200 works on a\n'
+        'laptop that cannot show it. `--pixel-ratio` sets the density the\n'
+        'same way: `2` gives the retina screenshots most READMEs want, on any\n'
+        'screen.\n'
         '\n'
-        'This always runs the built GUI, never `flutter run`, because it '
-        'needs\nan exit code and nobody is at the keyboard. A built GUI that '
-        'already\nexists is not rebuilt — so if you are working on the GUI '
-        'itself, pass\n`--force-compile` or you will photograph the previous '
-        'build.\n'
+        'It always runs the built GUI, never `flutter run`, because it needs\n'
+        'an exit code and nobody is at the keyboard. An existing build is not\n'
+        'rebuilt, so if you are working on the GUI itself, pass\n'
+        '`--force-compile` or you will capture the previous build.\n'
         '\n'
-        'A panel knows it is being photographed — `CaptureMode.isCapturing` — '
-        'and\ndecides for itself what that means. The catalog drops its '
-        'compile and\nreload timings, because a number sampled from a clock '
-        'is a fact about\nthe run rather than about the project, and a '
-        'committed screenshot that\ncarries one is a diff on every '
-        'regeneration.\n'
+        'A panel can tell it is being captured (`CaptureMode.isCapturing`)\n'
+        'and leave out what changes on every run. The previews panel hides\n'
+        'its compile and reload timings, so a committed screenshot stays the\n'
+        'same when you regenerate it.\n'
         '\n'
-        'An address names the space first, then the worktree, then the '
-        'plugin,\nin full: '
+        'An address names the space, then the worktree, then the plugin, in\n'
+        'full:\n'
         '`fw:///worktrees/<worktree>/flutterware.previews/<package>/<entry>`.\n'
-        'The worktree slot is positional, so it cannot be left out — `~` is '
-        'the\nmain checkout. With no address at all it photographs the home '
-        'screen\n'
-        'of the worktree you ran it in.\n'
+        'The worktree is required; `~` is the main checkout. With no address\n'
+        'it captures the home screen of the worktree you ran it in.\n'
         '\n'
-        'What it waits for is every panel that declares itself busy: a cold\n'
-        'catalog compile is the usual one, and the guest showing the entry '
-        'that\nwas asked for rather than the one before it is part of the '
-        'test.\n'
-        '`--timeout` bounds that wait; reaching it still writes the picture '
-        'and\nsays what was still running.\n'
+        'It waits for every panel that reports itself busy, usually the first\n'
+        'compile of the previews, and for the preview on screen to be the one\n'
+        'that was asked for. `--timeout` limits the wait; when it runs out,\n'
+        'the picture is still written, with a note of what was still running.\n'
         '\n'
-        'Embedded views are included. The guest renders in its own process '
-        "and\nis not in the window's layer tree, so it is captured "
-        'separately and\ncomposited in — see decision 5 of the GUI/CLI/MCP '
-        'architecture.',
+        'Embedded views are included: a preview renders in its own process,\n'
+        'so it is captured separately and drawn into the picture.',
   ),
   FwCommand(
     'render',
@@ -379,55 +359,53 @@ const fwCommands = [
         '| render bundle [--target=lib/renders.dart] '
         '[--out=build/render-bundle] [--platform=<linux-x64|…>] [--json]',
     summary:
-        "one of the app's render points as a file, or all of them "
-        'bundled for a server',
+        "render one of the app's render points to a file, or bundle them all "
+        'for a server',
     details:
-        'A render point is a widget or pw.Document the app binds in a '
-        'function\nmarked `@RenderRegistry()` (default `lib/renders.dart`, '
-        'or `--target=`).\nBoth forms compile the registrar and run it on '
-        'flutter_tester — no\ndevice, no GPU.\n\n'
-        '`fw render charts/monthly --as=svg --size=400x200 '
-        "--args='{...}'`\nrenders one point to a file and prints the path. "
-        'A widget point takes\n`--as=svg|png|pdf` and needs `--size`; a '
-        'document point is always pdf.\n`--text` picks vectorize, embedFont '
-        'or systemFont; `--unsupported`\npicks rasterize, flatten or skip. '
-        'Warnings — raster patches, dropped\neffects — go to stderr, and '
-        'ride the reply under `--json`.\n\n'
-        '`fw render bundle` builds the one directory a Dart server copies '
-        'into\nits image: flutter_tester, the compiled registrar, the asset '
-        'bundle\nwith its fonts, and a manifest binding the versions '
-        'together. Drive it\nwith `RenderPool` from '
-        'package:flutterware/render_client.dart.\n`--platform` crosses, '
-        "fetching engine artifacts from Flutter's own\nstorage.\n\n"
-        'Design: docs/superpowers/specs/2026-08-31-widget-export-design.md.',
+        'A render point is a widget or `pw.Document` that the app registers\n'
+        'in a function marked `@RenderRegistry()` (`lib/renders.dart` by\n'
+        'default, or `--target=`). Both forms compile that function and run\n'
+        'it on flutter_tester, with no device and no GPU.\n'
+        '\n'
+        "`fw render charts/monthly --as=svg --size=400x200 --args='{...}'`\n"
+        'renders one point to a file and prints the path. A widget point\n'
+        'takes `--as=svg|png|pdf` and needs `--size`; a document point is\n'
+        'always pdf. `--text` is vectorize, embedFont (the default) or\n'
+        'systemFont; `--unsupported` is rasterize (the default), flatten or\n'
+        'skip. Warnings, such as rasterized patches or dropped effects, go to\n'
+        'stderr, and into the output under `--json`.\n'
+        '\n'
+        '`fw render bundle` builds the directory a Dart server copies into\n'
+        'its image: flutter_tester, the compiled registry, the asset bundle\n'
+        'with its fonts, and a manifest of the versions they need. Drive it\n'
+        'with `RenderPool` from package:flutterware/render_client.dart.\n'
+        '`--platform` builds for another platform, downloading the engine\n'
+        "files from Flutter's own storage.",
   ),
   FwCommand(
     'version',
     usage: 'version [--json]',
-    summary: 'which flutterware this is, and where it came from',
+    summary: 'the flutterware version, and where it is installed',
     details:
-        'Also `fw --version`. Answered before the project is opened, so it\n'
-        'works in a directory flutterware has never been set up in — which is\n'
-        'where the question is usually asked.\n'
-        '\n'
-        'One number: the package your project resolved, which is the code\n'
-        'that answers your commands. It used to report two, because a\n'
-        'globally installed `fw` drifted from the package it ran. Nothing\n'
-        'sits in front of the package now.',
+        'Also `fw --version`. Works in any directory, including one\n'
+        'flutterware has not been set up in. Prints the version of the\n'
+        'flutterware package your project resolved, and where it runs from:\n'
+        'your checkout for a path dependency, or a copy under ~/.flutterware\n'
+        'for a hosted one.',
   ),
   FwCommand(
     'help',
     usage: 'help [<command>]',
-    summary: 'this, or one command in detail',
+    summary: 'this list, or one command in detail',
   ),
 ];
 
 /// Closes `fw help`, and the document's CLI section.
 const fwHelpFooter =
-    '`-v` on any command shows the output of whatever it has to build, '
-    'instead of\ncapturing it to a log.\n'
+    '`-v` on any command shows the output of whatever it builds, instead of\n'
+    'writing it to a log.\n'
     '\n'
-    'Run `fw help <command>` for detail, or `fw actions` for what this '
+    'Run `fw help <command>` for details, or `fw actions` for what this '
     'project can do.';
 
 /// What an action whose result carries a verdict means for a caller.
@@ -913,9 +891,9 @@ class FwCli {
     // MCP that explains itself rather than a dead one.
     if (await FlutterSdkPath.findSdk() == null) {
       err.writeln(
-        'fw mcp: no Flutter SDK above the dart running flutterware — every '
-        'tool call will answer this until fw is started with the dart from a '
-        'Flutter SDK.',
+        'fw mcp: no Flutter SDK above the dart running flutterware. Every '
+        'tool call will fail with this until fw is started with the dart from '
+        'a Flutter SDK.',
       );
     }
     if (serveMcp case var serve?) {
@@ -932,7 +910,7 @@ class FwCli {
     if (init == null) {
       return fail(
         'not inside a project: ${Directory.current.path}\n'
-        'Run this from a Flutter project — one with a pubspec.yaml.',
+        'Run this from a Flutter project, one with a pubspec.yaml.',
       );
     }
     return init.run(quiet: quiet);
@@ -998,8 +976,8 @@ class FwCli {
     var dartExecutable = Platform.environment[dartExecutableEnvironmentKey];
     if (appToolPath == null || dartExecutable == null) {
       return fail(
-        'the GUI has to be started through the launcher, which is what '
-        'knows\nwhich SDK and which copy to use:\n\n    dart run flutterware',
+        'start the GUI through the launcher, which knows which SDK and '
+        'which\ncopy to use:\n\n    dart run flutterware',
       );
     }
 
@@ -1111,8 +1089,8 @@ class FwCli {
     var dartExecutable = Platform.environment[dartExecutableEnvironmentKey];
     if (appToolPath == null || dartExecutable == null) {
       return fail(
-        'capture has to be started through the launcher, which is what '
-        'knows\nwhich SDK and which copy to use:\n\n    dart run flutterware',
+        'start capture through the launcher, which knows which SDK and '
+        'which\ncopy to use:\n\n    dart run flutterware',
       );
     }
     var sdk = await FlutterSdkPath.tryFind(dartExecutable);
@@ -1167,14 +1145,15 @@ class FwCli {
       if (session.reports.isEmpty) {
         return const [
           'No plugins declared in tool/flutterware.dart.',
-          '`fw help init` to see what that file is for.',
+          'Run `fw help init` to see what that file is for.',
         ];
       }
       return [
         'Tools declared in tool/flutterware.dart:',
         for (var report in session.reports) '  · ${report.label}',
         '',
-        '`fw status` for what each one says · `fw actions` for what they do.',
+        'Run `fw status` to see what each one reports.',
+        'Run `fw actions` to see what they can do.',
       ];
     } finally {
       session.dispose();
@@ -1202,7 +1181,7 @@ class FwCli {
       }
       if (only != null) {
         return fail(
-          'status reports one plugin or all of them — got "$only" and '
+          'status takes one plugin name, and got two: "$only" and '
           '"$argument".',
         );
       }
@@ -1244,8 +1223,8 @@ class FwCli {
           reviewStatusJson(session.worktree.path)['unresolved']! as int;
       if (waiting > 0) {
         out.writeln(
-          '$waiting review ${waiting == 1 ? 'note' : 'notes'} outstanding — '
-          '`fw review`',
+          '$waiting open review ${waiting == 1 ? 'note' : 'notes'}. Run '
+          '`fw review` to read ${waiting == 1 ? 'it' : 'them'}.',
         );
         out.writeln();
       }
@@ -1269,7 +1248,7 @@ class FwCli {
   /// Opens no session, and deliberately. A session is per worktree and
   /// costs running that worktree's config; this command is about all of them,
   /// most of which are not open. The facts layer exists precisely so that a
-  /// checkout nobody has opened still reports — see the explorer design, §1.
+  /// checkout nobody has opened still reports.
   Future<int> _worktrees({required bool json, bool refresh = false}) async {
     var root = findRepoRoot(Directory.current.path);
     if (root == null) {
@@ -1446,8 +1425,8 @@ class FwCli {
       }
       var left = result['unresolved']! as int;
       out.writeln(
-        '${verb ? 'Resolved' : 'Reopened'} ${result['note']} — '
-        '$left outstanding',
+        '${verb ? 'Resolved' : 'Reopened'} ${result['note']}. '
+        '$left still open.',
       );
       return 0;
     }
@@ -1519,7 +1498,7 @@ class FwCli {
     }
     if (positional.length > 2) {
       return fail(
-        'actions takes a plugin and optionally one of its actions — '
+        'actions takes a plugin and, optionally, one of its actions, and '
         'got ${positional.length} arguments. Try `fw help actions`.',
       );
     }
@@ -1740,8 +1719,8 @@ class FwCli {
       parsed[key] = switch (parsed[key]) {
         String earlier when repeatable.contains(key) => '$earlier,$value',
         String earlier => throw FormatException(
-          '--$key given twice ("$earlier" and "$value") and it takes one '
-          'value. Say it once.',
+          '--$key given twice ("$earlier" and "$value"), but it takes one '
+          'value.',
         ),
         _ => value,
       };
@@ -1817,7 +1796,7 @@ class FwCli {
       return 0;
     }
 
-    out.writeln('fw — the CLI renderer of the flutterware plugin contract.');
+    out.writeln('fw: the flutterware command line.');
     out.writeln();
     var width = fwCommands
         .map((c) => c.usage.length)
@@ -2085,7 +2064,9 @@ class FwCli {
       } else if (argument.startsWith('-')) {
         return fail('unknown option "$argument". Try `fw help render`.');
       } else {
-        return fail('render bundle takes no positional, got "$argument".');
+        return fail(
+          'render bundle takes no other arguments, and got "$argument".',
+        );
       }
     }
     var sdk = await FlutterSdkPath.findSdk();

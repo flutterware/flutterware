@@ -63,11 +63,10 @@ class LiveSettleResult {
 /// Pumps the live app until nothing is pending or [budget] runs out, and
 /// never hangs.
 ///
-/// A hidden window is the case that shapes everything here (measured —
-/// `2026-08-11-run-drive-spike-findings.md`): the platform disables frames,
-/// `scheduleFrame` no-ops, transitions wedge mid-flight with their
-/// `IgnorePointer` up, and `hasScheduledFrame` reads false while tickers are
-/// still waiting. So:
+/// A hidden window is the case that shapes everything here: the platform
+/// disables frames, `scheduleFrame` no-ops, transitions wedge mid-flight with
+/// their `IgnorePointer` up, and `hasScheduledFrame` reads false while tickers
+/// are still waiting. So:
 ///
 /// - Pending is `hasScheduledFrame || transientCallbackCount > 0 || images
 ///   still decoding` — tickers are the honest "something animates" probe when

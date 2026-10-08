@@ -20,25 +20,25 @@ cd app && dart run bin/fw.dart <command>
 
 | command | what it does |
 |---|---|
-| `status [<plugin>] [--brief] [--json]` | what every plugin says about itself |
+| `status [<plugin>] [--brief] [--json]` | what every plugin reports about this project |
 | `worktrees [--refresh] [--json]` | every checkout of this repo, and what is going on in each |
-| `changes [<worktree>] [--file=<path>] [--json]` | what a checkout has changed, ranked |
-| `review [--all] [--json] \| review resolve <id> [--message=<text>] \| review unresolve <id>` | the notes a human left on this checkout, and answering them |
-| `actions [<plugin> [<action>]] [--json]` | what can be invoked, and with what |
-| `run <plugin> <action> [--k=v]` | invoke one action |
+| `changes [<worktree>] [--file=<path>] [--json]` | what a checkout has changed, important files first |
+| `review [--all] [--json] \| review resolve <id> [--message=<text>] \| review unresolve <id>` | read and resolve the review notes on this checkout |
+| `actions [<plugin> [<action>]] [--json]` | the actions you can run, and their parameters |
+| `run <plugin> <action> [--k=v]` | run one action |
 | `init` | write the two files this project needs |
 | `app [--release] [--json]` | open the flutterware GUI |
 | `mcp` | serve this project to an agent, over stdio |
-| `compare [--base=<ref>] [--package=<path>] [--entry=<id>] [--export[=<dir>]] [--frames=all\|changed] [--base-href=<path>] [--report=<dir>] [--jobs=<n>] [--json]` | what this worktree did to the pictures, against its base |
-| `capture [<address>] -o <file> [--size=WxH] [--theme=light\|dark] [--pixel-ratio=N] [--timeout=<seconds>]` | photograph the GUI window itself, at an address |
-| `render <point> [--as=svg\|png\|pdf] [--args=<json>\|@file] [--size=<w>x<h>] [-o <file>] [--text=<policy>] [--unsupported=<policy>] \| render bundle [--target=lib/renders.dart] [--out=build/render-bundle] [--platform=<linux-x64\|…>] [--json]` | one of the app's render points as a file, or all of them bundled for a server |
-| `version [--json]` | which flutterware this is, and where it came from |
-| `help [<command>]` | this, or one command in detail |
+| `compare [--base=<ref>] [--package=<path>] [--entry=<id>] [--export[=<dir>]] [--frames=all\|changed] [--base-href=<path>] [--report=<dir>] [--jobs=<n>] [--json]` | compare this worktree's previews and scenarios with its base |
+| `capture [<address>] -o <file> [--size=WxH] [--theme=light\|dark] [--pixel-ratio=N] [--timeout=<seconds>]` | screenshot the GUI window at an address |
+| `render <point> [--as=svg\|png\|pdf] [--args=<json>\|@file] [--size=<w>x<h>] [-o <file>] [--text=<policy>] [--unsupported=<policy>] \| render bundle [--target=lib/renders.dart] [--out=build/render-bundle] [--platform=<linux-x64\|…>] [--json]` | render one of the app's render points to a file, or bundle them all for a server |
+| `version [--json]` | the flutterware version, and where it is installed |
+| `help [<command>]` | this list, or one command in detail |
 
-`-v` on any command shows the output of whatever it has to build, instead of
-capturing it to a log.
+`-v` on any command shows the output of whatever it builds, instead of
+writing it to a log.
 
-Run `fw help <command>` for detail, or `fw actions` for what this project can do.
+Run `fw help <command>` for details, or `fw actions` for what this project can do.
 
 Exit codes:
 
@@ -60,14 +60,14 @@ Point a client at `fw mcp`:
 }
 ```
 
-`fw init` writes that entry. It names no version manager on purpose: whichever
-`dart` the client provides is the SDK, resolved when the server is spawned.
-Prefix it — `fvm dart …` — if that is how the project says which SDK it wants.
+`fw init` writes that entry. The server uses whichever `dart` the client starts
+it with. If the project pins its SDK with a version manager, prefix the
+command, as in `fvm dart …`.
 
 Inside a checkout of flutterware itself, `cd app && dart run bin/mcp.dart` is
 the same server without the launcher in front of it.
 
-Stdout belongs to the protocol — logs and build narration go to stderr.
+Stdout carries the protocol. Logs and build output go to stderr.
 
 ### `flutterware_status`
 

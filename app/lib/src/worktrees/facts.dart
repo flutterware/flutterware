@@ -4,8 +4,7 @@
 /// is open, because it costs a config subprocess; these facts are shell-owned
 /// probes that never run project code, so they read the same for a checkout
 /// that has never been opened. That split is what makes a screen listing *every*
-/// worktree possible at all — see
-/// `docs/superpowers/specs/2026-08-10-worktree-explorer-view-design.md` §1.
+/// worktree possible at all.
 ///
 /// No Flutter in this file: `fw worktrees` renders the same values, and
 /// `test/utils/entry_point_purity_test.dart` holds us to it.
@@ -76,8 +75,7 @@ class Fact<T> {
   final DateTime? computedAt;
 
   /// What this value was computed from. The refresh recomputes *this* first —
-  /// it is cheap — and only re-runs the probe when it moved. See the design
-  /// doc's cache table for which facts this actually saves work on.
+  /// it is cheap — and only re-runs the probe when it moved.
   final String? validityKey;
 
   /// Why it is [FactState.failed], or why it is [FactState.unavailable].

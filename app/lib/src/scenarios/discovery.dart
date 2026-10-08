@@ -127,8 +127,8 @@ class ScenarioScanResult {
 }
 
 /// Finds scenarios by **parsing** the scenario directory, never by resolving
-/// or compiling it — the catalog's discovery posture
-/// (`2026-07-26-ui-catalog-entry-model.md`), applied to the third source.
+/// or compiling it — the catalog's discovery posture, applied to the third
+/// source.
 ///
 /// A `scenario('literal', …)` call is as syntactically discoverable as a
 /// `@Preview` annotation: the call's name and its first argument are all the
@@ -251,8 +251,8 @@ class ScenarioScanner {
       if (refs.length < 2) continue;
       diagnostics.add(
         '$file: scenario "$name" is declared ${refs.length} times '
-        '(lines ${refs.map((r) => r.line).join(', ')}) — running or opening '
-        'one of them addresses them all.',
+        '(lines ${refs.map((r) => r.line).join(', ')}). Running or opening '
+        'one of them runs or opens them all.',
       );
     }
   }

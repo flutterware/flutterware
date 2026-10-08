@@ -142,8 +142,8 @@ class LiveScenarioPool {
           'errors': [
             {
               'error':
-                  '$what The steps are the ones it captured before that, and '
-                  'the scenarios after it ran in a fresh process. '
+                  '$what The steps shown were captured before that, and the '
+                  'scenarios after it ran in a new process. '
                   '${output.isEmpty ? 'It printed nothing.' : 'The last of what it printed:\n\n$output'}',
             },
           ],

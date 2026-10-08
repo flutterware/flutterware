@@ -5,8 +5,6 @@
 /// baseline, one survey per ladder rung, and the evidence passes, and it
 /// answers how long each key's text can get. No IO, so the whole join is
 /// testable against runs that were never written to disk.
-///
-/// Design: `2026-08-19-translation-max-lengths-design.md`.
 library;
 
 import 'package:flutterware/translations.dart';

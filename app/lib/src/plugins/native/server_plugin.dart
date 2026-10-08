@@ -173,9 +173,9 @@ class _ServerPanelState extends State<_ServerPanel> {
               subtitle: [
                 'pid ${server.handle.pid}',
                 if (server.stopped)
-                  'no longer announcing'
+                  'stopped'
                 else if (!server.connected)
-                  'attaching',
+                  'connecting',
               ],
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -775,8 +775,8 @@ class _QueryDetailState extends State<_QueryDetail> {
       // hint names the fix because "no handler for sql.explain" alone reads
       // as our bug rather than a snippet not yet pasted.
       result =
-          '$e\n\nThe server registers command handlers itself — see the '
-          'sql adapter snippets in doc/server_inspection.md.';
+          '$e\n\nThe server has to register this command itself. The sql '
+          'adapter snippets in doc/server_inspection.md do it.';
     }
     if (!mounted) return;
     setState(() {
@@ -794,8 +794,10 @@ class _QueryDetailState extends State<_QueryDetail> {
     if (stats == null) {
       return const EmptyState(
         icon: Icons.history_toggle_off,
-        title: 'Outside the recorded window',
-        message: 'This query shape is no longer being kept.',
+        title: 'No longer recorded',
+        message:
+            'The server has dropped every run of this query from its '
+            'recent history.',
       );
     }
     return ListView(
@@ -843,7 +845,7 @@ class _QueryDetailState extends State<_QueryDetail> {
               ),
             if (!widget.server.connected)
               Text(
-                'not attached',
+                'not connected',
                 style: context.type.caption.copyWith(color: colors.mut2),
               ),
           ],
@@ -1182,7 +1184,7 @@ class _NPlusOneBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     var colors = context.colors;
     return Tooltip(
-      message: 'A query repeats $count× in this request — the N+1 shape.',
+      message: 'One query runs $count× in this request, an N+1 pattern.',
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: FwSpacing.sm,
@@ -1358,8 +1360,8 @@ class _CopyAsCurlButton extends StatelessWidget {
     return Tooltip(
       message: enabled
           ? 'Copy as curl'
-          : 'Copy as curl — needs a published baseUrl '
-                '(FlutterwareServer.info)',
+          : 'Copy as curl (needs a baseUrl published with '
+                'FlutterwareServer.info)',
       child: IconButton(
         icon: const Icon(Icons.terminal, size: FwIconSize.lg),
         onPressed: !enabled
@@ -1473,8 +1475,8 @@ class _RequestSqlTabState extends State<_RequestSqlTab> {
       result = await sqlCommand(widget.server, 'explain', event);
     } on Object catch (e) {
       result =
-          '$e\n\nThe server registers command handlers itself — see the '
-          'sql adapter snippets in doc/server_inspection.md.';
+          '$e\n\nThe server has to register this command itself. The sql '
+          'adapter snippets in doc/server_inspection.md do it.';
     }
     if (!mounted) return;
     setState(() {
@@ -1657,8 +1659,8 @@ class _HttpMessageTab extends StatelessWidget {
             icon: Icons.visibility_off_outlined,
             title: 'Not captured',
             message:
-                'The middleware decides what to record — see the capturing '
-                'version in doc/server_inspection.md.',
+                "This server's middleware does not record headers and bodies. "
+                'doc/server_inspection.md shows the version that does.',
           );
         }
         var headerText = [
@@ -1694,7 +1696,7 @@ class _HttpMessageTab extends StatelessWidget {
             const Gap(FwSpacing.sm),
             body is! String
                 ? Text(
-                    'Not captured — binary, streamed, or over the size cap.',
+                    'Not captured: binary, streamed, or over the size cap.',
                     style: context.type.caption.copyWith(
                       color: context.colors.mut2,
                     ),
@@ -2333,8 +2335,8 @@ class _EventTimelineState extends State<_EventTimeline> {
   Widget build(BuildContext context) {
     if (widget.events.isEmpty) {
       return const LoadingState(
-        title: 'Attached — waiting for events',
-        message: 'Anything this server reports will land here.',
+        title: 'Connected, waiting for events',
+        message: 'Anything this server reports shows up here.',
       );
     }
     var needle = _needle.trim().toLowerCase();
@@ -2525,10 +2527,11 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return const EmptyState(
       icon: Icons.dns_outlined,
-      title: 'No servers are announcing themselves',
+      title: 'No servers reporting',
       message:
-          'Report from one with package:flutterware/server.dart — an event, '
-          'a span or a handler is enough; it publishes on first use.',
+          'Report from a server with package:flutterware/server.dart. One '
+          'event, span or handler is enough, and the server shows up here '
+          'as soon as it reports.',
     );
   }
 }

@@ -611,7 +611,7 @@ class _CatalogViewState extends State<CatalogView> {
         // The entry is still named — it is what is being waited *for* — and the
         // phase is what is being waited *on*.
         return LoadingState(
-          title: 'Building the guest…',
+          title: 'Starting the preview…',
           // Named, because it is reachable only with a selection — the guard
           // above takes every unselected session — and by then the demo being
           // waited for is a better word than "the first entry", which since the
@@ -1085,8 +1085,8 @@ class _KnobPanel extends StatelessWidget {
         child: Text(
           // Says what a knob *is*, because this is the state most entries are
           // in and it is the only moment anybody reads this pane.
-          'This entry declares no knobs.\nA demo gets one by asking while it '
-          'builds — context.knobs.string("label", "Hello").',
+          'This entry declares no knobs.\nA demo adds one by asking for it '
+          'while it builds: context.knobs.string("label", "Hello").',
           textAlign: TextAlign.center,
           style: context.type.caption.copyWith(color: context.colors.mut),
         ),
@@ -3040,7 +3040,7 @@ class _StartupBreakdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Where the start went', style: type.bodyStrong),
+        Text('Where the startup time went', style: type.bodyStrong),
         const Gap(FwSpacing.xs),
         Text(
           session.reusedDaemon
@@ -3048,8 +3048,8 @@ class _StartupBreakdown extends StatelessWidget {
               // numbers would actively mislead about: these are somebody
               // else's phases. This session attached to a compiler that was
               // already up and paid for none of them.
-              ? 'This panel attached to a compiler that was already running. '
-                    'The phases below were paid by whoever started it.'
+              ? 'This panel joined a compiler that was already running. The '
+                    'times below were spent when that compiler started.'
               : session.warmStart
               ? 'The compiler started from the kernel the last run left, so '
                     'nothing below is a compile from scratch.'
@@ -3117,9 +3117,9 @@ class _SeedLine extends StatelessWidget {
         Expanded(
           child: Text(
             seed == null
-                ? 'No shared kernel to start from. One is written on the way '
-                      'out, so the next checkout of this resolution starts '
-                      'ahead.'
+                ? 'No shared kernel to start from. One is saved now, so the '
+                      'next checkout with the same dependencies starts '
+                      'faster.'
                 : 'Started from a shared kernel holding '
                       '${seed.packages} package'
                       '${seed.packages == 1 ? '' : 's'}.',

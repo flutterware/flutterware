@@ -202,8 +202,8 @@ class _RendersPanelState extends State<_RendersPanel> {
           trailing: FwActionButton(
             label: lane.pool == null ? 'Start' : 'Rebuild & restart',
             tooltip:
-                'Compile the registrar and run it on flutter_tester — the '
-                'same guest a server gets from `fw render bundle`',
+                'Compile the registrar and run it on flutter_tester, as '
+                '`fw render bundle` does for a server',
             primary: lane.pool == null,
             onPressed: registrar == null
                 ? null
@@ -233,13 +233,13 @@ class _RendersPanelState extends State<_RendersPanel> {
               : lane.pool == null
               ? EmptyState(
                   icon: Icons.picture_as_pdf_outlined,
-                  title: lane.phase ?? 'The render guest is not running',
+                  title: lane.phase ?? 'The renderer is not running',
                   message:
                       lane.error ??
                       (lane.phase == null
-                          ? 'Points are announced by the running registrar. '
-                                'Start compiles it once; renders after that '
-                                'are instant.'
+                          ? 'Render points are listed once the registrar '
+                                'runs. Start compiles it once, and renders '
+                                'after that are instant.'
                           : null),
                   selectableMessage: lane.error != null,
                 )
@@ -414,8 +414,8 @@ class _RendersPanelState extends State<_RendersPanel> {
           )
         else if (_isDocument && _previewBytes > 0)
           Text(
-            'PDF rendered: ${(_previewBytes / 1024).toStringAsFixed(1)} KB — '
-            'Save PDF… to look at it.',
+            'PDF rendered: ${(_previewBytes / 1024).toStringAsFixed(1)} KB. '
+            'Use Save PDF… to view it.',
             style: context.type.caption,
           ),
         if (_warnings.isNotEmpty) ...[

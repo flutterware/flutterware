@@ -11,8 +11,7 @@ import 'package:path/path.dart' as p;
 /// Encoding a film while the harness is still writing it. The producer here is
 /// a fake — the point is the agreement between the two ends of a directory,
 /// not the pixels — and `manual_film_dump.dart` is where the real one is
-/// watched. Design:
-/// `docs/superpowers/specs/2026-09-08-scenario-video-design.md`.
+/// watched.
 void main() {
   late Directory scratch;
   late String frames;

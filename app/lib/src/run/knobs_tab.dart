@@ -115,9 +115,9 @@ class _KnobsTabState extends State<KnobsTab> {
         // Said rather than left blank, because "no knobs" and "we did not
         // look" are different answers and only one of them is true here.
         '${widget.handle.entrypointLabel} takes no knobs.\n\n'
-        'Give its main() optional named parameters — '
-        "void main({String apiHost = 'localhost'}) — and they appear "
-        'here, changeable with a hot restart instead of a rebuild.',
+        'Give its main() optional named parameters, like '
+        "void main({String apiHost = 'localhost'}), and they appear "
+        'here. Changing one takes a hot restart instead of a rebuild.',
       );
     }
     return Column(

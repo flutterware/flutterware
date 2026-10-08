@@ -252,10 +252,9 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
     setState(() {
       if (raw == null) {
         _error =
-            'This page could not read its own index.json. A comparison page '
-            'has to be served over HTTP — opening index.html from the '
-            'filesystem leaves the browser unable to fetch anything beside '
-            'it.';
+            'This page could not read its index.json. Serve the comparison '
+            'over HTTP: a browser that opens index.html from the filesystem '
+            'cannot fetch the files beside it.';
       } else {
         _apply(raw);
       }

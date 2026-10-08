@@ -107,7 +107,7 @@ Future<Map<String, Object?>> _runScenario(
       await _capture(tester, steps, runId, 'after two taps');
 
       // `enterText` was the "largest API gap" of the LiveWidgetController
-      // route (S1). Here it is just flutter_test working.
+      // route. Here it is just flutter_test working.
       await tester.enterText(find.byType(TextField), 'typed in a scenario');
       await tester.pump();
       await _capture(tester, steps, runId, 'after enterText');

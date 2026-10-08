@@ -201,8 +201,8 @@ flutter:
               ))!
               as AssetDescription;
 
-      // The whole point of §3 of the design: the CLI and an agent get the
-      // interesting half of a Lottie for free, because it is a JSON document.
+      // The CLI and an agent get the interesting half of a Lottie for free,
+      // because it is a JSON document.
       expect(result.kind, 'animation');
       expect(result.animation?.frameRate, 30);
       expect(result.animation?.frames, 60);

@@ -126,7 +126,7 @@ class SplashComposition {
         'background ${formatSplashColor(backgroundColor!)}',
       if (backgroundImage != null) 'background image ${backgroundImage!.path}',
       if (usesLauncherIcon)
-        'no android_12 image — the launcher icon ${image!.path} instead'
+        'the launcher icon ${image!.path} (no android_12 image)'
       else if (image != null)
         'image ${image!.path} ${_placement(image!)}'
       else
@@ -140,7 +140,7 @@ class SplashComposition {
       if (fullscreen) 'fullscreen',
     ];
     if (fallsBackToLight) {
-      parts.add('no dark config — the OS shows the light splash');
+      parts.add('no dark config, so the OS shows the light splash');
     }
     return parts.join('; ');
   }

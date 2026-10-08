@@ -19,10 +19,6 @@ import 'dart:io';
 ///
 /// What they do share is *which device is this, really*, and that is already
 /// solved: `NativeSession` resolves it three ways and hands one of these back.
-///
-/// Measured before it was designed:
-/// `docs/superpowers/specs/2026-08-24-run-device-tab-capability-findings.md`.
-/// Designed in `2026-08-24-run-device-strip-design.md`.
 abstract class DeviceSettings {
   /// `ios-simulator` or `android` — the same spelling `NativeDriver.platform`
   /// uses, so a reply naming one names the same thing on both layers.

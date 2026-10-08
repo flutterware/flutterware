@@ -61,17 +61,17 @@ Future<T> watchRunAsync<T>(Future<T> Function() open) {
 
 /// The sentence a wedged `runAsync` gets instead of silence.
 String runAsyncStallMessage(Duration budget) =>
-    '`runAsync` has been open for ${_readable(budget)} of real time. Under '
-    'fake time that is a deadlock rather than slowness: no pump can run while '
-    '`runAsync` is open, so a future made *outside* it — one only a pump could '
-    'complete — never completes at all. The usual source is an asset. '
-    '`rootBundle` is a `CachingAssetBundle`, which memoizes the *future* of a '
-    'read, so a key the app already read while building hands `runAsync` a '
-    'fake-zone future; a screen showing an SVG and a later step reading the '
-    'same SVG is the whole recipe. Read assets through `s.assets` — a '
-    '`ScenarioAssetBundle`, which caches values instead of futures, and which '
-    '`DefaultAssetBundle.of(context)` already resolves to inside a scenario — '
-    'or move the read out of `runAsync`.';
+    '`runAsync` has been open for ${_readable(budget)} of real time, which '
+    'under fake time means it is stuck. No pump can run while `runAsync` is '
+    'open, so a future made outside it, which only a pump can complete, '
+    'never completes. The usual source is an asset. `rootBundle` is a '
+    '`CachingAssetBundle`, which caches the future of each read, so reading '
+    'a key the app already read while building hands `runAsync` a future '
+    'from the fake zone. A screen that shows an SVG, followed by a step that '
+    'reads the same SVG, is enough. Read assets through `s.assets`, a '
+    '`ScenarioAssetBundle` that caches values instead of futures (inside a '
+    'scenario, `DefaultAssetBundle.of(context)` already returns it), or move '
+    'the read out of `runAsync`.';
 
 /// The budget as a reader would say it — a test may shorten it to
 /// milliseconds, and "open for 0s" reads as a bug in the message.

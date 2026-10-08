@@ -374,8 +374,7 @@ class _Problem extends StatelessWidget {
 /// `print` went to the *host's* console — the terminal running the GUI — so the
 /// panel could not show it, `fw` could not return it, and an agent driving a
 /// demo could not read the first thing a developer reaches for when something
-/// is wrong. That is finding 8 of the panel spec, and this is the half of it
-/// you can look at.
+/// is wrong.
 ///
 /// Scoped to the selected entry, like every other pane here. The guest empties
 /// its buffer when the entry changes, so this shows what *this* demo has said

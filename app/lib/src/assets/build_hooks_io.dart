@@ -58,10 +58,9 @@ typedef BuildHooksResult = ({
 ///   builds them: `flutter test` builds them before it spawns a tester, and
 ///   spawning the tester ourselves means doing the same. Shipping the empty
 ///   map instead does not even fail honestly, because the VM's process-lookup
-///   fallback masks the gap on macOS and only there — the whole story is in
-///   the design doc's piece 3. The target is the host, the way `flutter test`
-///   builds for `TargetPlatform.tester`, because `flutter_tester` *is* a host
-///   binary.
+///   fallback masks the gap on macOS and only there. The target is the host,
+///   the way `flutter test` builds for `TargetPlatform.tester`, because
+///   `flutter_tester` *is* a host binary.
 /// - No data assets is what `flutter_tools` does on beta and stable, where
 ///   `dartDataAssets` is not yet a feature. A well-behaved hook answers by
 ///   writing into its own package directory, which its pubspec declares as an
@@ -76,10 +75,6 @@ typedef BuildHooksResult = ({
 /// `dart test`. A machine where that discovery fails gets the [failure]
 /// sentence and the empty map — which is exactly what it got before this ran
 /// hooks at all.
-///
-/// See `docs/superpowers/specs/2026-08-26-build-hooks-in-the-bundle-design.md`
-/// — this is its piece 3, built the day a real suite needed it; piece 2 (data
-/// assets) still waits on the feature reaching beta.
 ///
 /// Measured on a project that loads a `.glb`: **49.9s the first time on a
 /// checkout, 110–125ms after that**, and neither number is ours to improve —

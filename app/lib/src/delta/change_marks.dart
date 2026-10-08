@@ -110,7 +110,7 @@ class ChangedOnlyButton extends StatelessWidget {
     ];
     var shared = changes.suppressedReach > 0
         ? '\n${changes.suppressedReach} of ${changes.total} read a shared '
-              'file that changed — not marked'
+              'file that changed and are not marked'
         : '';
     return '${on ? 'Showing only' : 'Show only'} what this branch changed · '
         '$base\n${parts.join(', ')}$shared';

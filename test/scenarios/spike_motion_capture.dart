@@ -9,9 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// Spike: can a scenario record the *motion* of a transition, not just its
 /// endpoints?
 ///
-/// The measurement record behind the feature, kept rather than deleted — the
-/// numbers in `2026-08-11-scenario-motion-capture-findings.md` and the
-/// settings in `ScenariosCore.panelMotionInterval` all come from here, and a
+/// The measurement record behind the feature, kept rather than deleted: the
+/// settings in `ScenariosCore.panelMotionInterval` come from here, and a
 /// later change to either should be able to re-run them.
 ///
 /// Not part of the suite — it takes half a minute and asserts almost

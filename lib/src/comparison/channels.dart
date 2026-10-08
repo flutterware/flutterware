@@ -216,8 +216,7 @@ class ComparedItem {
   /// predicates and a walk over four differently-shaped lists.
   ///
   /// Built on demand and never stored: `index.json` keeps the channels, which
-  /// is where the detail belongs, and this is the view over them. See the
-  /// design note §9.
+  /// is where the detail belongs, and this is the view over them.
   List<ChannelDelta> get deltas => [
     // One line, because a pixel diff has no fields — but it must be here or a
     // per-channel count cannot see the channel that fires most often.
@@ -526,8 +525,7 @@ class TextChannel {
 /// The mask survives, promoted to the job it was always good at. Collapsing
 /// digits is how `/cases/case_0` finds `/cases/case_1`; it is not licence to
 /// throw the payload away. Exactly the split [TreeDiff] draws between the
-/// signature that matches and the label that reads. Design:
-/// `docs/superpowers/specs/2026-08-29-comparison-events-channel-design.md`.
+/// signature that matches and the label that reads.
 class EventChannel {
   const EventChannel({
     required this.added,
@@ -650,13 +648,13 @@ class EventChannel {
 
   /// Whether anything outside the `system` subchannel differs.
   ///
-  /// The verdict's half of a rule the read side already applies — *"`system`
-  /// is left out unless `channel` names it: it is most of the volume and none
-  /// of the signal."* The events design note §6 separated the comparison from
-  /// the display and gave the display that default; the verdict kept reading
-  /// [changed], so a step whose only difference was a router's per-process
-  /// `pageKey` still reported itself a finding. Measured on a consumer's
-  /// comment-only diff: 19 of 51 scenarios changed, every delta `system`.
+  /// The verdict's half of a rule the read side already applies — *"`system` is
+  /// left out unless `channel` names it: it is most of the volume and none of
+  /// the signal."* The display got that default when it was separated from the
+  /// comparison; the verdict kept reading [changed], so a step whose only
+  /// difference was a router's per-process `pageKey` still reported itself a
+  /// finding. Measured on a consumer's comment-only diff: 19 of 51 scenarios
+  /// changed, every delta `system`.
   ///
   /// The chatter is still compared and still carried — [deltas] keeps it, so
   /// a reader chasing a focus or keyboard bug has the door — it just cannot
@@ -704,7 +702,7 @@ class EventChannel {
       event['title'] as String? ?? '';
 
   /// Where the app made this event, when it said — never compared, only
-  /// carried, so a filter can exclude by file. See the design note §8.
+  /// carried, so a filter can exclude by file.
   static String? _origin(Map<String, Object?> event) =>
       event['origin'] as String?;
 
@@ -892,14 +890,14 @@ const maxEventDeltas = 50;
 ///
 /// **Uncapped, and that is deliberate.** A cap here would be a second one:
 /// `AppEvent.toJson` already bounds a payload per leaf against a total budget,
-/// at *write* time, before anything compares it. Capping again at read time
-/// put a `'…': 'N more fields'` marker into the compared set — so two payloads
-/// differing by one field reported `… 5 more fields → 6 more fields` instead
-/// of naming the field, and a field inserted early shifted which leaves
-/// survived and produced a screenful of phantom ones. That is the derived-count
-/// failure the design note §7 is about, reappearing one level above where it
-/// was fixed. What bounds the *output* is [maxEventDeltas], which cuts after
-/// the comparison rather than before it.
+/// at *write* time, before anything compares it. Capping again at read time put
+/// a `'…': 'N more fields'` marker into the compared set — so two payloads
+/// differing by one field reported `… 5 more fields → 6 more fields` instead of
+/// naming the field, and a field inserted early shifted which leaves survived
+/// and produced a screenful of phantom ones. That is a derived count compared
+/// as if it were data, the failure already fixed at capture time, reappearing
+/// one level above. What bounds the *output* is [maxEventDeltas], which cuts
+/// after the comparison rather than before it.
 Map<String, String> eventLeaves(Map<String, Object?> event) {
   var out = <String, String>{};
   _flatten('data', event['data'], out);
@@ -957,7 +955,7 @@ void _flatten(String prefix, Object? value, Map<String, String> out) {
 /// Two four-thousand-character bodies printed in full is the brittleness that
 /// made folding the payload into a comparison key unthinkable; a window either
 /// side of where they part is the whole finding. The width is a constant that
-/// wants measuring against a real branch — see the design note §12.3.
+/// wants measuring against a real branch.
 String firstDifference(String value, String other) {
   if (value.length <= _excerptWindow * 2) return value;
   var at = 0;
@@ -990,7 +988,7 @@ enum EventDeltaKind {
 ///
 /// [subchannel], [property] and [origin] are the facets a filter selects on —
 /// the half and the channel are already this delta's position in the document,
-/// so they are not repeated here. See the design note §9.
+/// so they are not repeated here.
 class EventDelta {
   const EventDelta({
     required this.kind,
@@ -1095,7 +1093,7 @@ class ChannelDelta {
   final String? head;
 
   /// Where the app made the event, for an event that said. Never a fact about
-  /// the difference; a fact about where to go and look. See the design note §8.
+  /// the difference; a fact about where to go and look.
   final String? origin;
 
   Map<String, Object?> toJson() => {

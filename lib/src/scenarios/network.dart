@@ -498,8 +498,7 @@ void Function() installScenarioNetwork(ScenarioNetworkPolicy policy) {
 /// and an `https://` image opened from the fake zone never completes at all.
 /// Measured 2026-08-27: a remote https image never lands from the fake zone
 /// and lands in 239ms from the root one, and a local plain-http request is 4×
-/// faster besides. See
-/// `docs/superpowers/specs/2026-08-27-scenario-http-findings.md`.
+/// faster besides.
 HttpClient _newRealClient() {
   var saved = HttpOverrides.current;
   HttpOverrides.global = null;
@@ -790,7 +789,7 @@ class ScenarioNetworkRefusal implements Exception {
         method: method,
         url: url,
         outcome: 'off',
-        short: 'refused — the network is off for this scenario',
+        short: 'refused: the network is off for this scenario',
         rest:
             '$method $url was not made.\n'
             '\n'
@@ -863,7 +862,7 @@ class ScenarioNetworkRefusal implements Exception {
     Uri url,
   ) {
     if (keys.isEmpty) {
-      return 'Nothing has been recorded yet — the store at '
+      return 'Nothing has been recorded yet: the store at '
           '`$defaultScenarioNetworkStore` is empty.\n';
     }
     if (sameHost.isEmpty) {

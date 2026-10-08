@@ -188,7 +188,7 @@ void main() {
       expect(refused.state, StackState.unavailable);
       // Not "no probe is declared": one *is*, and the sentence saying
       // otherwise about a working config was the consumer-reported symptom.
-      expect(refused.failure, contains('shape this build can read'));
+      expect(refused.failure, contains('flutterware cannot read'));
       core.dispose();
     });
   });

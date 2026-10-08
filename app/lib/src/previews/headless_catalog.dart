@@ -188,7 +188,7 @@ class HeadlessCatalog extends CatalogRenderer {
       throw ArgumentError.value(
         request.steps,
         'steps',
-        'the guest engine does not run steps yet — the harness does. Drop '
+        'the guest engine does not run steps yet; the harness does. Drop '
             '`engine: guest`, and `logs`, which only the guest collects.',
       );
     }
@@ -196,7 +196,7 @@ class HeadlessCatalog extends CatalogRenderer {
       throw ArgumentError.value(
         request.full,
         'full',
-        'the guest engine does not grow its screen yet — the harness does. '
+        'the guest engine does not grow its screen yet; the harness does. '
             'Drop `engine: guest`, and `logs`, which only the guest collects.',
       );
     }
@@ -232,8 +232,8 @@ class HeadlessCatalog extends CatalogRenderer {
         throw ArgumentError.value(
           t,
           'motionT',
-          'the embedder guest cannot park a playhead — render on the tester '
-              'lane',
+          'the guest engine cannot stop at a point in a motion. Render with '
+              'the harness instead.',
         );
       }
 
@@ -705,8 +705,7 @@ class _GuestSession {
   /// registered by the binding whether anything builds or not — but the *VM
   /// service* learns about them asynchronously, and a call that lands between
   /// connect and registration comes back "method not found". Measured: every
-  /// flag failed that way until a frame went first, and the spike missed it
-  /// only because it happened to render before asking.
+  /// flag failed that way until a frame went first.
   /// Tells the guest which device it *is*, where the resize told it how big.
   Future<void> stageAs(DevicePlatform? platform) async {
     await _renderScratchFrame();

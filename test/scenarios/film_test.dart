@@ -12,7 +12,6 @@ import 'package:flutterware/src/scenarios/run_args.dart';
 
 /// Rendering a scenario as a **film**: every pumped frame kept, the beats a
 /// viewer needs pumped between the verbs, and a cursor drawn over the lot.
-/// Design: `docs/superpowers/specs/2026-09-08-scenario-video-design.md`.
 ///
 /// Like `motion_test.dart`, these tests stand in for the harness: they set the
 /// run args the runner would set and read what landed on disk.

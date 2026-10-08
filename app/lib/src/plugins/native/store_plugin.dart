@@ -40,12 +40,12 @@ typedef StoreImage = ImageProvider Function(String path);
 /// and a full one: a set with no export draws the same card with placeholders
 /// where its shots will be.
 ///
-/// That asymmetry is decision 11 made visible. A source scan would have filled
-/// those placeholders with real shot names before the first export, at the cost
-/// of a parser tracking two naming spellings forever. What it would have bought
-/// is the difference between a card that says *five shots, not yet exported*
-/// and one that says *not yet exported* — and the declaration alone already
-/// says everything else on the card.
+/// A source scan would have filled those placeholders with real shot names
+/// before the first export, at the cost of a parser tracking two naming
+/// spellings forever. What it would have bought is the difference between a
+/// card that says *five shots, not yet exported* and one that says *not yet
+/// exported* — and the declaration alone already says everything else on the
+/// card.
 class StorePlugin extends NativePlugin<StoreCore> {
   StorePlugin(super.core, {StoreImage? image}) : image = image ?? _fileImage;
 
@@ -406,9 +406,8 @@ class _StorePanelState extends State<_StorePanel> {
 
 /// Which locale every card on the screen is showing.
 ///
-/// A switch rather than a fourth level of nesting, per §6: changing it changes
-/// every image at once, where nesting it turns four screenshots into sixteen
-/// rows.
+/// A switch rather than a fourth level of nesting: changing it changes every
+/// image at once, where nesting it turns four screenshots into sixteen rows.
 ///
 /// A **dropdown**, and the same one the Translations panel uses. It was a row
 /// of pills first, which is the right control for two or three choices and the
@@ -554,9 +553,9 @@ class _ListingBlock extends StatelessWidget {
 /// dimmed with nothing on screen saying why.
 ///
 /// So the cap is stated in words, once, under the strip, and only when it
-/// actually bites. Nothing here judges the screenshots: decision 1. A store
-/// publishing ten of fifteen is arithmetic against a published limit, and it
-/// is the one thing on this card that changes what gets shipped.
+/// actually bites. Nothing here judges the screenshots. A store publishing ten
+/// of fifteen is arithmetic against a published limit, and it is the one thing
+/// on this card that changes what gets shipped.
 class _SetCard extends StatelessWidget {
   const _SetCard({
     required this.listing,
@@ -627,7 +626,7 @@ class _SetCard extends StatelessWidget {
             tone: colors.amber,
             icon: Icons.info_outline,
             text:
-                'Only the first ${listing.maxShots} are published — '
+                'Only the first ${listing.maxShots} are published. That is '
                 "${listing.storeLabel}'s limit per display class.",
           ),
         ],
@@ -654,7 +653,7 @@ class _SetCard extends StatelessWidget {
             icon: Icons.error_outline,
             text:
                 '${set!.failed} scenario${set!.failed == 1 ? '' : 's'} '
-                'failed while producing this set — it may be short.',
+                'failed while producing this set, so it may be missing shots.',
           ),
         ],
         // Its own note rather than a number added to the one above: the two
@@ -670,7 +669,8 @@ class _SetCard extends StatelessWidget {
                 '${set!.framesFailed} shot'
                 '${set!.framesFailed == 1 ? '' : 's'} could not be composed '
                 'onto this canvas and ${set!.framesFailed == 1 ? 'was' : 'were'} '
-                'not written — the capture would not decode. Export again.',
+                'not written because the capture would not decode. Export '
+                'again.',
           ),
         ],
       ],

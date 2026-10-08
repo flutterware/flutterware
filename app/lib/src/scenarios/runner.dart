@@ -188,8 +188,7 @@ abstract interface class ScenarioRunSource {
   Future<void> dispose();
 }
 
-/// Runs a package's scenarios in a directly-spawned `flutter_tester`, exactly
-/// as spike S4 proved (`2026-07-30-s4-flutter-tester-findings.md`): our own
+/// Runs a package's scenarios in a directly-spawned `flutter_tester`: our own
 /// resident `frontend_server`, the SDK's tester binary, FakeAsync inside,
 /// driven over the VM service.
 ///

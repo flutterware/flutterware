@@ -3,11 +3,11 @@ import 'plugin_result.dart';
 
 /// What a job hands back.
 ///
-/// The overhaul plan's revised thesis is that the real asks are *commands that
-/// produce artifacts* — "screenshot this entry", "run this suite", "give me the
-/// widget tree". So an artifact is the return type of doing work, not a side
-/// effect of it: the CLI prints [path], MCP returns an image block, the GUI
-/// shows a thumbnail. One object, three renderings.
+/// The real asks are *commands that produce artifacts* — "screenshot this
+/// entry", "run this suite", "give me the widget tree". So an artifact is the
+/// return type of doing work, not a side effect of it: the CLI prints [path],
+/// MCP returns an image block, the GUI shows a thumbnail. One object,
+/// three renderings.
 ///
 /// [address] is required. An artifact that cannot say what it is *of* is not
 /// reproducible, and a screenshot without its resolved axes is exactly the

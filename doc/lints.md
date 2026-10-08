@@ -20,7 +20,7 @@ One table with every rule your SDK knows, each sorted into one of four
 groups:
 
 - enabled in one of your files,
-- dismissed: switched off on purpose,
+- dismissed: explicitly switched off,
 - mentioned only in a comment, which usually means someone thought about it,
 - never evaluated: not mentioned anywhere. This is the interesting group.
 

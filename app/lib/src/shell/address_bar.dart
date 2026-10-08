@@ -616,7 +616,7 @@ class _WorktreeSwitcherState extends State<_WorktreeSwitcher> {
         // you to where a worktree was left, this brings where you are to it.
         message: here == null
             ? 'Show this in another worktree'
-            : 'On ${here.displayName} — show this in another worktree',
+            : 'On ${here.displayName}. Show this in another worktree',
         waitDuration: const Duration(milliseconds: 400),
         child: _Part(
           onTap: () => controller.isOpen ? controller.close() : _open(),

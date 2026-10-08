@@ -11,8 +11,6 @@
 /// snapshots as plain data and hands every interaction back as a callback. It
 /// holds no channel and fetches nothing, which is what lets one widget serve a
 /// cockpit attached over a VM service and an overlay inside the app itself.
-///
-/// Design: `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
 library;
 
 export 'src/channels/ui/controls_view.dart'

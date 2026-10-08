@@ -33,7 +33,7 @@ class TranscriptScript extends StatelessWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.all(FwSpacing.lg),
         child: Text(
-          'Nothing is announced on this screen — the reading is silent.',
+          'Nothing on this screen is announced to a screen reader.',
           textAlign: TextAlign.center,
           style: context.type.caption.copyWith(color: context.colors.mut),
         ),

@@ -100,9 +100,9 @@ Future<Reveal> revealNode(
             refused:
                 '${places.length} widgets side by side match "$selector" '
                 'further down the list: $named'
-                '${places.length > 8 ? ', …' : ''}. Their ids would name '
-                'other rows at rest — a lazy list renumbers its rows as it '
-                'scrolls — so narrow the text instead.',
+                '${places.length > 8 ? ', …' : ''}. A lazy list renumbers its '
+                'rows as it scrolls, and their ids would then name other '
+                'rows, so narrow the text instead.',
           );
         }
       }

@@ -82,8 +82,8 @@ String? flutterGpuDiagnosis(
   if (!flags.impeller) {
     return 'This harness is rendering with the software rasterizer, and '
         'Flutter GPU only exists on Impeller. Under `flutter test` that is the '
-        'default and there is no flag combination that fixes it for a project '
-        'whose shaders were built for this host — run the scenario through '
+        'default, and no flag combination fixes it for a project whose '
+        'shaders were built for this host, so run the scenario through '
         'flutterware instead. Under flutterware it means '
         '`FW_SOFTWARE_RENDERING=1` is set.';
   }
@@ -96,7 +96,7 @@ String? flutterGpuDiagnosis(
 
   if (flags.backend == null && macOS) {
     return 'Impeller and Flutter GPU are both on, and no `--impeller-backend` '
-        'was named — so the engine chose Vulkan, which it does on every host '
+        'was named, so the engine chose Vulkan, which it does on every host '
         'when nothing names one. That is almost certainly the problem here: a '
         "package's build hook compiles its shaders for the host's *real* "
         'backend, which on macOS is Metal, and a Metal shader bundle cannot be '
@@ -110,8 +110,8 @@ String? flutterGpuDiagnosis(
   if (flags.backend != null) {
     return 'Impeller is on with the `${flags.backend}` backend. If the shaders '
         'this failed on came from a build hook, check which backend the hook '
-        'compiled them for — a bundle carries one backend and is unreadable by '
-        'the others.';
+        'compiled them for. A bundle carries one backend, and the others '
+        'cannot read it.';
   }
 
   return null;

@@ -63,7 +63,7 @@ enum ObserveLens {
 
   /// The refusal, written to be actable: it lists what there is.
   static String unknown(String name) =>
-      'no lens "$name" — one of ${values.map((l) => l.name).join(', ')}. '
+      'no lens "$name". Use one of ${values.map((l) => l.name).join(', ')}. '
       'act is the screen alone, look adds the picture, design adds the text '
       'styles, raw adds the whole tree and costs about 20,000 tokens.';
 }

@@ -17,7 +17,6 @@
 ///   `tool/flutterware.dart`. Running that file is what "opening a worktree"
 ///   costs, and the changes screen has to rank a worktree that is **not
 ///   open** — so the executed value is remembered rather than approximated.
-///   See the design doc's §5.
 ///
 /// Lives outside the repository: this is machine state, and a cache written
 /// into the checkout would turn up in the dirty count it is there to report.

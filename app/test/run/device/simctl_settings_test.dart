@@ -372,18 +372,18 @@ void main() {
         ).read()).of(DeviceSettingId.boldText);
 
         expect(bold.state, DeviceSettingState.unavailable);
-        expect(bold.refusal, contains('invents a key nothing reads'));
+        expect(bold.refusal, contains('creates a key nothing reads'));
         expect(bold.command, contains('Settings'));
       },
     );
 
-    test('reduce motion cites the measurement rather than asserting', () async {
+    test('reduce motion says why it is unavailable', () async {
       var reduce = (await _settings(
         FakeProcesses(),
       ).read()).of(DeviceSettingId.disableAnimations);
 
       expect(reduce.state, DeviceSettingState.unavailable);
-      expect(reduce.refusal, contains('2026-08-24'));
+      expect(reduce.refusal, contains('even after a relaunch'));
     });
 
     test('writing one throws its own reason, and spawns nothing', () async {

@@ -434,7 +434,7 @@ void main() {
     var error = await _refusal(() => resolver.resolve('Checkout ', 'tap'));
 
     expect('$error', contains('yours has U+0020 SPACE'));
-    expect('$error', contains('nothing — it ends there'));
+    expect('$error', contains('nothing (it ends there)'));
   });
 
   testWidgets('two unrelated words are not reported as a near miss', (
@@ -472,7 +472,7 @@ void main() {
     var error = await _refusal(() => resolver.resolve('5 — Moderate', 'drag'));
 
     expect(error.failure, TargetFailure.notFound);
-    expect('$error', contains('No *rendered* text matches'));
+    expect('$error', contains('No rendered text matches'));
     expect('$error', contains('1 semantics label does'));
     expect('$error', contains(r'{"label": …}'));
     expect('$error', isNot(contains('lazy list')));

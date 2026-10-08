@@ -425,9 +425,9 @@ class TranslationsCore extends PluginCore {
       if (unread.isNotEmpty) {
         return Status.error(
           unread.length == 1
-              ? 'Catalog "${unread.single}" read no keys from its files — '
+              ? 'Catalog "${unread.single}" read no keys from its files; '
                     'check its layout'
-              : '${unread.length} catalogs read no keys from their files — '
+              : '${unread.length} catalogs read no keys from their files; '
                     'check their layout',
         );
       }
@@ -469,7 +469,9 @@ class TranslationsCore extends PluginCore {
                   'of ${rowsFor(path).length} keys',
             )
           else
-            const ViewText('No export yet — run it to add a picture per key.'),
+            const ViewText(
+              'No export yet. Run `export` to add a picture per key.',
+            ),
         ],
       ]),
   ]);
@@ -638,7 +640,7 @@ class TranslationsCore extends PluginCore {
     };
     if (languages.isEmpty) {
       throw ActionRefusal(
-        'No locales to run. The declared catalogs matched no files — check '
+        'No locales to run: the declared catalogs matched no files. Check '
         'their `files:` globs, which are relative to the package.',
       );
     }
@@ -684,8 +686,8 @@ class TranslationsCore extends PluginCore {
     }
     if (maxLengthDevice != null && !measureMaxLengths) {
       throw ArgumentError(
-        '`max-length-device` frames the max-length probe — '
-        'pass `max-lengths: true` with it.',
+        '`max-length-device` only applies when measuring max lengths. '
+        'Pass `max-lengths: true` with it.',
       );
     }
 
@@ -783,7 +785,7 @@ class TranslationsCore extends PluginCore {
         // against the wrong baseline would misread that pre-existing clip as
         // a flip at the first rung. Captured, because it also supplies the
         // `screen` evidence shots.
-        _setBusy(path, 'measuring max lengths — baseline');
+        _setBusy(path, 'measuring max lengths: baseline');
         probeBaseline = ProbeBaseline(await surveyOf(await invoke(probeArgs)));
 
         var remaining = probeBaseline.measurableIds;
@@ -792,7 +794,7 @@ class TranslationsCore extends PluginCore {
           // Every measurable key has clipped: the rest of the ladder can
           // only re-prove it.
           if (remaining.isEmpty) break;
-          _setBusy(path, 'measuring max lengths — +$level%');
+          _setBusy(path, 'measuring max lengths: +$level%');
           var result = await invoke({
             ...probeArgs,
             'format': 'none',
@@ -826,7 +828,7 @@ class TranslationsCore extends PluginCore {
         // first clipped, so every real limit gets a picture of the padded
         // string actually ellipsizing in place.
         for (var level in firstClipLevels.toList()..sort()) {
-          _setBusy(path, 'measuring max lengths — photographing +$level%');
+          _setBusy(path, 'measuring max lengths: photographing +$level%');
           evidencePasses.add((
             level: level,
             survey: await surveyOf(

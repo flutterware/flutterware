@@ -17,9 +17,6 @@
 /// 2. **Only what no project can make deterministic.** A project's own
 ///    `Uuid()` and `DateTime.now()` do not belong here; those are bugs to
 ///    report, not noise to hide.
-///
-/// Design: `docs/superpowers/specs/2026-08-29-comparison-events-channel-design.md`
-/// §7.
 library;
 
 /// `ScrollController#cf895(offset 0.0)` → `ScrollController#(offset 0.0)`,

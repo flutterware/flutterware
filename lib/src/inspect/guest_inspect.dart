@@ -573,8 +573,7 @@ class GuestInspector {
   ///
   /// The known exceptions — the classes that skip the semantics walk while
   /// still painting the child — are exempted by type. All four are public,
-  /// and the list was taken from the SDK's overrides, not guessed (see
-  /// `2026-08-10-inspect-consolidation.md`).
+  /// and the list was taken from the SDK's overrides, not guessed.
   static bool _shown(RenderObject render, {required RenderObject? upTo}) {
     var node = render;
     while (!identical(node, upTo)) {
@@ -1003,8 +1002,8 @@ class GuestInspector {
 /// hand. The rectangle alternative was tried and is wrong in both directions:
 /// a `Checkbox`'s node is smaller than the `CheckboxListTile` that owns it and
 /// a `Tab`'s is 9.5× larger than the `Tab` widget, so a containment test
-/// reported that Flutter publishes no tab selection. It does. Measured 60 of 60
-/// controls matched this way — see the S6 spike findings.
+/// reported that Flutter publishes no tab selection. It does. Measured: 60 of
+/// 60 controls matched this way.
 ///
 /// Null outside debug mode and whenever the app holds no `SemanticsHandle`;
 /// both are absences rather than answers, which is why [InspectNode.selected]

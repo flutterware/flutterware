@@ -309,10 +309,9 @@ Future<CompareOutcome> _runComparison({
       );
     } on ComparisonRefused catch (e) {
       // One package that will not compile is one package's worth of silence,
-      // not the end of the comparison — §11a's argument ("one decision in the
-      // source is one row") one level up. It still ends the comparison when
-      // it is the *only* package, below, which is what keeps `fw compare`'s
-      // exit 64 and its printed diagnostics for a single-package project.
+      // not the end of the comparison. It still ends the comparison when it
+      // is the *only* package, below, which is what keeps `fw compare`'s exit
+      // 64 and its printed diagnostics for a single-package project.
       refusals[packageInWorktree] = '$e';
     }
   }
@@ -496,8 +495,8 @@ String describeTimings(ComparisonTimings timings) {
   }
   if (pooledOnly.isNotEmpty) {
     lines.add(
-      '${scenarios(pooledOnly.length)} differed beside other replays and not '
-      'alone, so replayed serially: '
+      '${scenarios(pooledOnly.length)} differed only when replayed beside '
+      'others, so they were replayed one at a time: '
       '${listed(pooledOnly.take(3).map(nameOf), pooledOnly.length)}',
     );
   }
@@ -774,10 +773,10 @@ String? _scenarioDelta(ScenarioComparison scenario) {
 /// The scenario half of a comparison.
 ///
 /// Separate from the previews half rather than folded into the same runner,
-/// and the design doc argues why at length: a preview is one picture and a
-/// scenario is a *tree* of them. What they share is the kernel — the same
-/// pixel, tree and text channels — and the skip rule, which asks the same
-/// question of a scenario's closure that it asks of an entry's.
+/// because a preview is one picture and a scenario is a *tree* of them. What
+/// they share is the kernel — the same pixel, tree and text channels — and
+/// the skip rule, which asks the same question of a scenario's closure that it
+/// asks of an entry's.
 Future<ScenarioResults?> _compareScenarios({
   required Session session,
   required ScenariosCore? core,

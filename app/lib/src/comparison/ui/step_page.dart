@@ -20,8 +20,7 @@ const stepNextKey = Key('comparison.step-next');
 /// Its own file so it can be a preview entry: the seven shapes of finding it
 /// has to render — pixels, tree only, texts only, events only, unchanged,
 /// broken, one-sided — are seven different screens, and until they were drawn
-/// side by side only the first had ever been looked at. See
-/// `docs/superpowers/specs/2026-08-31-comparison-detail-page-design.md`.
+/// side by side only the first had ever been looked at.
 class StepPage extends StatelessWidget {
   const StepPage({
     super.key,

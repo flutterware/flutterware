@@ -60,9 +60,8 @@ void main() {
     });
 
     test('frames every set either way', () {
-      // The change decision 7 did not originally draw: a status bar is not
-      // marketing, so no set is handed over unframed any more. What varies is
-      // which frame, never whether there is one.
+      // A status bar is not marketing, so no set is handed over unframed any
+      // more. What varies is which frame, never whether there is one.
       for (var target in [...appStore.targets, ...play.targets]) {
         expect(defaultStoreFrame(_shot(target)), isA<StoreFrame>());
       }

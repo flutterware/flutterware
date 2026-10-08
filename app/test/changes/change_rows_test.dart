@@ -131,8 +131,7 @@ diff --git a/lib/b.dart b/lib/b.dart
     test('a pinned untracked file is important, and still in All', () {
       // The case that made this exist: an agent wrote a new migration and has
       // not staged it. A pin that only works after `git add` misses the exact
-      // moment it is for. Found by photographing the screen with a real
-      // `attention: ['docs/superpowers/specs/**']` in the config.
+      // moment it is for.
       var set = setOf(
         index(twoFiles),
         untracked: const [

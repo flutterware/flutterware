@@ -569,7 +569,8 @@ class _OriginCell extends StatelessWidget {
     PathOrigin path =>
       path.relative
           ? path.path
-          : '${path.path}\n(absolute — this will not resolve elsewhere)',
+          : '${path.path}\n(absolute, so it will not resolve on another '
+                'machine)',
     HostedOrigin hosted => hosted.server,
     SdkOrigin sdk => 'Ships with the ${sdk.sdk} SDK',
     WorkspaceOrigin() => 'A member of this workspace',

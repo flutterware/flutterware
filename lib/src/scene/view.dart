@@ -853,8 +853,7 @@ SceneArgs resolveTokenArgs(SceneArgs args, Map<String, Object?> tokens) =>
 /// because it will not always: a run is a string with a style delta, and
 /// when text becomes several of them only this function changes. The
 /// renderer already asks for a list and already puts the node's style above
-/// it, so that landing is a model and a grammar change with no renderer work
-/// (master plan §4.5).
+/// it, so that change is to the model and the grammar, with no renderer work.
 List<InlineSpan> sceneTextRuns(TextNode t) => [
   for (var run in t.runs)
     TextSpan(

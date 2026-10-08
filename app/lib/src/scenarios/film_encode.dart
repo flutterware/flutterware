@@ -114,9 +114,9 @@ class ScenarioFilmEncode {
           if (fed >= timeline.frames) break;
         } else if (over) {
           throw ActionRefusal(
-            'the render ended without writing ${ScenarioFilmNames.timeline} — '
+            'the render ended without writing ${ScenarioFilmNames.timeline}: '
             'it wrote $fed frames and then stopped, so there is no film to '
-            'encode. The scenario failed; its own error says why.',
+            'encode. The scenario failed, and its own error says why.',
           );
         }
         await Future<void>.delayed(poll);
@@ -148,8 +148,8 @@ class ScenarioFilmEncode {
       if (over()) {
         throw ActionRefusal(
           'the render drew no frames at all, so there is nothing to encode. '
-          'The scenario failed before its first screen; its own error says '
-          'why.',
+          'The scenario failed before its first screen, and its own error '
+          'says why.',
         );
       }
       await Future<void>.delayed(poll);

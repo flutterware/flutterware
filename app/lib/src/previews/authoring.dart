@@ -44,8 +44,8 @@ String catalogAuthoringHint(String directory) {
   var example = directory.isEmpty ? defaultAuthoringDirectory : directory;
   return '''
 A preview is an ordinary function returning a Widget, annotated with Flutter's
-own `@Preview`. Nothing of flutterware's is imported, and there is no map to
-register it in — $scanned.
+own `@Preview`. Nothing from flutterware is imported, and there is no list to
+register it in: $scanned.
 
   // $example/buttons.dart
   import 'package:material_ui/material_ui.dart';
@@ -59,16 +59,16 @@ register it in — $scanned.
         ],
       );
 
-- The target must be callable with no arguments — a top-level function, a static
+- The target must be callable with no arguments: a top-level function, a static
   method, or a constructor.
 - `@Preview(group: 'Forms')` groups it; a file holding more than one entry
   derives a group from its own name.
 - Two `@Preview`s on one declaration are two entries, which is how variants are
   spelled.
 - An optional parameter is a knob you can turn from the panel, the CLI and an
-  agent — `Widget buttons({String label = 'Hello'})`. So is
+  agent, as in `Widget buttons({String label = 'Hello'})`. So is
   `context.knobs.string('label', 'Hello')` read from a `BuildContext` inside the
-  preview, which needs `package:flutterware/previews.dart`; nothing above it
+  preview. That one needs `package:flutterware/previews.dart`; nothing above
   does.
 
 `fw run previews new --name='Buttons'` writes that file for you.''';
@@ -234,7 +234,7 @@ String catalogEmptyReason({
   // try `demo/` instead read as the tool not having noticed what they set.
   return 'No previews: $where does not exist.\n'
       "tool/flutterware.dart declares `directory: '$directory'` for this "
-      'package, so that is the only place scanned — the default is to scan the '
-      'whole package. Either the path is wrong, or the previews are somewhere '
-      'else.';
+      'package, so only that directory is scanned. Without `directory:` the '
+      'whole package is scanned. Either the path is wrong, or the previews are '
+      'somewhere else.';
 }

@@ -17,12 +17,11 @@ import 'package:path/path.dart' as p;
 /// and what it buys — specifically whether `@CatalogShell` and the regex import
 /// carrying in `entrypoint_generator.dart` can both be deleted.
 ///
-/// The baseline it argues against is
-/// `docs/superpowers/specs/2026-07-26-widget-previews-integration-findings.md`:
-/// 17.3s for the first resolved unit, ~26ms for each one after. That number was
-/// measured with the default `MemoryByteStore`, so it is the cost of linking a
-/// closure *from nothing*, every time. The question here is what the same work
-/// costs when the linked summaries survive the process.
+/// The baseline it argues against: 17.3s for the first resolved unit, ~26ms for
+/// each one after. That number was measured with the default `MemoryByteStore`,
+/// so it is the cost of linking a closure *from nothing*, every time. The
+/// question here is what the same work costs when the linked summaries survive
+/// the process.
 ///
 /// ```sh
 /// cd app && dart run tool/catalog/resolve_spike.dart ../fixtures/probe_app

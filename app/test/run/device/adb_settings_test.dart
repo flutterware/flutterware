@@ -410,14 +410,14 @@ void main() {
   });
 
   group('the two this platform refuses', () {
-    test('high contrast cites the measurement', () async {
+    test('high contrast says why it is unavailable', () async {
       var contrast = (await _settings(
         FakeProcesses(),
       ).read()).of(DeviceSettingId.highContrast);
 
       expect(contrast.state, DeviceSettingState.unavailable);
       expect(contrast.refusal, contains('no Flutter app sees it'));
-      expect(contrast.refusal, contains('2026-08-24'));
+      expect(contrast.refusal, contains('no high-contrast flag'));
     });
 
     test('bold text is refused on cost, not on reach', () async {
@@ -428,7 +428,7 @@ void main() {
       ).read()).of(DeviceSettingId.boldText);
 
       expect(bold.state, DeviceSettingState.unavailable);
-      expect(bold.refusal, contains('tears the activity down'));
+      expect(bold.refusal, contains('recreates the activity'));
     });
 
     test('writing either one spawns nothing', () async {

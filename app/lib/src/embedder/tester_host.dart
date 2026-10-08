@@ -60,9 +60,7 @@ abstract class TesterProgram {
 }
 
 /// A `flutter_tester` kept warm, with our own resident `frontend_server` behind
-/// it — the arrangement spike S4 proved
-/// (`2026-07-30-s4-flutter-tester-findings.md`): the SDK's tester binary,
-/// FakeAsync inside, driven over the VM service.
+/// it: the SDK's tester binary, FakeAsync inside, driven over the VM service.
 ///
 /// Deliberately Flutter-free: `fw` links this, and the purity guardrail
 /// (`entry_point_purity_test.dart`) holds it to that.

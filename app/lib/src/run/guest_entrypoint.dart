@@ -55,10 +55,9 @@ class GuestEntrypoint {
 /// is the launch that decides, never the file.
 ///
 /// [knobs] are the values to pass `main` as named arguments, keyed by parameter
-/// name — `2026-08-12-run-knobs-design.md` § K3. Rewriting this file and hot
-/// restarting is what makes changing one cost 262ms rather than a rebuild, so
-/// the same function has to produce it at launch *and* on a knob change, or the
-/// two drift.
+/// name. Rewriting this file and hot restarting is what makes changing one cost
+/// 262ms rather than a rebuild, so the same function has to produce it at
+/// launch *and* on a knob change, or the two drift.
 GuestEntrypoint writeGuestEntrypoint({
   required String packageRoot,
   required String entrypoint,

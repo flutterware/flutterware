@@ -17,11 +17,11 @@ import 'preview_setup.dart';
 /// Writes the guest's entrypoint: one wrapper file per entry ever visited, plus
 /// an accumulating `main.dart` that selects the active one.
 ///
-/// Two rules from the spikes are structural here rather than enforced:
+/// Two rules are structural here rather than enforced:
 ///
 /// - **A fresh prefix per switch.** Each entry gets its own wrapper file
 ///   imported under its own prefix, so a prefix is never rebound to a different
-///   library — which S3 measured as silently ignored.
+///   library — which hot reload silently ignores.
 /// - **Getters, never top-level finals.** A top-level `final` is initialised
 ///   once and hot reload does not re-run the initialiser, so the active entry
 ///   would freeze for the life of the session.
@@ -68,8 +68,8 @@ class EntrypointGenerator {
   final _wrapperIndex = <String, int>{};
 
   /// Never reused, even after a [drop]. A recycled index would point a live
-  /// prefix at a wrapper written for a different entry, which S3 measured as
-  /// silently ignored rather than an error.
+  /// prefix at a wrapper written for a different entry, which hot reload
+  /// silently ignores rather than reporting as an error.
   var _nextIndex = 0;
 
   String get entrypointPath => p.join(outputDir, 'main.dart');

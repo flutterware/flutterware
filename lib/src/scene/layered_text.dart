@@ -5,7 +5,7 @@
 // of PASSES over the same paragraph — a drop shadow is a blurred offset fill,
 // an outline is a stroke beneath the fill, sticker type is stroke-stroke-fill,
 // extruded type is a dozen offset fills under a gradient one — and none of
-// those is a code path here (master plan §4.5).
+// those is a code path here.
 //
 // THE LAW: a pass may change paint, never layout. A stroke widens the mark
 // visually without touching the metrics, which is the only reason several

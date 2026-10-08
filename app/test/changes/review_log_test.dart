@@ -376,7 +376,7 @@ void main() {
         drifted: const {'lib/a.dart'},
       );
 
-      expect(text, contains('⚠ this file has changed'));
+      expect(text, contains('⚠ This file has changed'));
       expect(text, contains('old line'));
     });
   });

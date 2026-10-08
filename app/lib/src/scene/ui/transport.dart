@@ -36,8 +36,8 @@ class SceneTransport extends StatelessWidget {
           _Button(
             icon: Icons.stop,
             tooltip:
-                'Stop — back to the start, and the scene as authored, '
-                'with no motion applied',
+                'Stop: go back to the start and show the scene with no '
+                'motion applied',
             onTap: playback.isApplied ? playback.stop : null,
           ),
           Tooltip(

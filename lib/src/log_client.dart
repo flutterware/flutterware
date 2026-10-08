@@ -10,9 +10,8 @@ import 'package:logging/logging.dart';
 /// None of it was reachable. `RemoteLogServer.start` was never called, and
 /// neither `REMOTE_LOGGER_URL` nor `FW_REMOTE_LOGGER_URL` was ever set, so the
 /// "no server reachable" fallback had quietly become the only implementation
-/// there is. `2026-07-28-cli-adoption-story.md` deleted the transport when the
-/// process chain moved to inherited stdio; this deletes the shape it left
-/// behind.
+/// there is. The transport went when the process chain moved to inherited
+/// stdio; this deletes the shape it left behind.
 ///
 /// One method, because there is exactly one caller shape: a `Logger.root`
 /// listener. The verbs that used to be here — `printBox`, `startProgress`,

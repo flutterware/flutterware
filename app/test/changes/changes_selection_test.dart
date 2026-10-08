@@ -142,7 +142,7 @@ void main() {
     // silently back to nothing would look like the app forgetting.
     await pump(tester, initialPath: 'lib/gone.dart');
     expect(find.text('lib/gone.dart'), findsOneWidget);
-    expect(find.textContaining('no longer part of the delta'), findsOneWidget);
+    expect(find.textContaining('no longer among the changes'), findsOneWidget);
   });
 
   testWidgets('an untracked file opens on its header, not on a diff', (

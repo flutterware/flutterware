@@ -28,8 +28,6 @@ const _maxOutput = 8000;
 
 /// The dev stack: docker, the database, whatever the app talks to locally.
 ///
-/// See `docs/superpowers/specs/2026-08-10-dev-stack-design.md`.
-///
 /// It owns no process. Everything here runs one of the project's own
 /// commands and reads what came back — [DevStack.probe] to find out the state,
 /// `start` / `stop` to change it. That is the whole difference from a
@@ -383,12 +381,12 @@ class DevStackCore extends PluginCore {
             state: StackState.unavailable,
             at: DateTime.now(),
             failure: _probeDeclared
-                ? 'The config declares a probe, but not in a shape this '
-                      'build can read — a newer flutterware may have written '
-                      'it. `dart run flutterware` again, or loosen the '
+                ? 'The config declares a probe this version of flutterware '
+                      'cannot read, perhaps one written for a newer version. '
+                      'Run `dart run flutterware` again, or simplify the '
                       'declaration.'
-                : 'No probe is declared, so nothing can say what state this '
-                      'stack is in.',
+                : 'No probe is declared, so flutterware cannot tell what '
+                      'state this stack is in.',
           ),
           cache: false,
         ),
@@ -594,9 +592,7 @@ class DevStackCore extends PluginCore {
     bool thenProbe = false,
   }) async {
     if (_busy != null) {
-      throw ActionRefusal(
-        'The stack is already $_busy. Wait for it to finish.',
-      );
+      throw ActionRefusal('"$_busy" is still running. Wait for it to finish.');
     }
     _busy = busy;
     _busySince = DateTime.now();
@@ -618,10 +614,10 @@ class DevStackCore extends PluginCore {
       _busySince = null;
       _lastExitCode = null;
       _lastOutput =
-          'Still running after ${waited.inSeconds}s, and no longer waited on. '
-          'It was not stopped — check on it yourself if it should have '
-          'finished. A command that is meant to keep running wants a shorter '
-          '`timeout:` on its StackCommand.';
+          'Still running after ${waited.inSeconds}s. flutterware stopped '
+          'waiting but has not stopped the command, so check on it yourself if '
+          'it should have finished. For a command meant to keep running, set a '
+          'shorter `timeout:` on its StackCommand.';
       notifyChanged();
       var reading = thenProbe ? await refresh() : null;
       return DevStackRunResult(
@@ -757,10 +753,10 @@ class DevStackCore extends PluginCore {
   /// A badge only when something needs you.
   ///
   /// A stack that is up is the normal state and gets no dot: a tab lit green
-  /// every day is a tab you stop reading, which is the failure the explorer
-  /// design names about `needsYou`. Down is not a badge either — a checkout you
-  /// are not working in *should* have its stack down. What is left is the probe
-  /// failing, which is the only one you cannot infer and cannot ignore.
+  /// every day is a tab you stop reading. Down is not a badge either — a
+  /// checkout you are not working in *should* have its stack down. What is left
+  /// is the probe failing, which is the only one you cannot infer and cannot
+  /// ignore.
   StatusBadge _badgeFor(StackReading reading) =>
       reading.state == StackState.unavailable
       ? const StatusBadge.dot(Tone.error)
@@ -856,8 +852,8 @@ class DevStackCore extends PluginCore {
     // forever, with nothing in the answer to say how to get a better one.
     if (reading.state == StackState.unknown)
       ViewText(
-        'Nothing has looked yet. `fw run dev_stack status` runs the probe, '
-        'and every surface reads its answer from then on.',
+        'Not checked yet. `fw run dev_stack status` runs the probe, and '
+        'every surface shows its answer from then on.',
       ),
     ViewField('Working directory', workingDirectory),
     if (reading.services.isNotEmpty)

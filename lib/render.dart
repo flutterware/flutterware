@@ -14,8 +14,6 @@
 /// below, and by `package:flutterware/render_client.dart` for the server),
 /// and the app binds implementations to them in a function marked
 /// [RenderRegistry], receiving a [RenderHost].
-///
-/// Design: docs/superpowers/specs/2026-08-31-widget-export-design.md.
 library;
 
 export 'render_contract.dart'

@@ -1,9 +1,7 @@
 /// Turns a list of worktrees into a list of facts.
 ///
-/// The orchestration the design doc's performance section describes, made
-/// literal: batch what git can batch, pay the per-worktree cost only for the
-/// working tree, and never recompute a branch diff whose two shas have not
-/// moved.
+/// Batches what git can batch, pays the per-worktree cost only for the working
+/// tree, and never recomputes a branch diff whose two shas have not moved.
 ///
 /// Pure Dart. `fw worktrees` links this; the GUI wraps it in a controller with
 /// watchers, and both get the same numbers because both call this.

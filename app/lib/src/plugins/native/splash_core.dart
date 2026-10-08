@@ -328,8 +328,9 @@ class SplashCore extends PluginCore {
             ViewText(error, tone: Tone.error),
           if (!scan.isConfigured && scan.configErrors.isEmpty)
             const ViewText(
-              'No flutter_native_splash config — no flutter_native_splash.yaml, '
-              'and no flutter_native_splash: key in the pubspec.',
+              'No flutter_native_splash config: there is no '
+              'flutter_native_splash.yaml and no flutter_native_splash: key in '
+              'the pubspec.',
             )
           else
             for (var config in scan.configs) ..._configNodes(path, config),
@@ -392,7 +393,7 @@ class SplashCore extends PluginCore {
           'Generated',
           scan.isGenerated
               ? '${scan.artifacts.length} files${scan.stale ? ' (stale)' : ''}'
-              : 'never — run `dart run flutter_native_splash:create`',
+              : 'never (run `dart run flutter_native_splash:create`)',
           tone: scan.stale ? Tone.warn : Tone.neutral,
         ),
       ]),

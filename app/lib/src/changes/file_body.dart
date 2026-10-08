@@ -180,7 +180,7 @@ class ImageChangeBody extends StatelessWidget {
       ),
       builder: (context, content) => _ImageCell(
         content: content,
-        label: showNew ? 'base' : 'base — deleted since',
+        label: showNew ? 'base' : 'base (deleted since)',
         missingMessage: 'Not readable at the base revision.',
       ),
     );
@@ -281,7 +281,7 @@ class _ImageCellState extends State<_ImageCell> {
     return switch (widget.content) {
       FileMissing() => Text(widget.missingMessage, style: muted),
       FileTooLarge(:var length) => Text(
-        'This image is ${bytesLabel(length)} — past what the viewer decodes.',
+        'This image is ${bytesLabel(length)}, too large to show here.',
         style: muted,
       ),
       FileBytes(:var bytes) => Column(
@@ -441,7 +441,7 @@ class _MarkdownImage extends StatelessWidget {
         const Gap(FwSpacing.xs),
         Flexible(
           child: Text(
-            alt?.isNotEmpty ?? false ? '${alt!} — $uri' : '$uri',
+            alt?.isNotEmpty ?? false ? '${alt!} ($uri)' : '$uri',
             style: context.type.micro.copyWith(color: context.colors.mut2),
             overflow: TextOverflow.ellipsis,
           ),

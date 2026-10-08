@@ -42,7 +42,7 @@ Future<RenderBundleManifest> buildRenderBundle({
                 'annotation:\n\n'
                 '  @RenderRegistry()\n'
                 '  void registerRenders(RenderHost host) { ... }'
-          : '$target declares no @RenderRegistry() function — mark the '
+          : '$target declares no @RenderRegistry() function. Mark the '
                 'function that binds your render points:\n\n'
                 '  @RenderRegistry()\n'
                 '  void registerRenders(RenderHost host) { ... }',
@@ -183,8 +183,8 @@ Future<void> _run(String executable, List<String> arguments) async {
     result = await Process.run(executable, arguments);
   } on ProcessException catch (e) {
     throw StateError(
-      '`$executable` could not be run ($e) — fetching cross-platform '
-      'engine artifacts needs curl and unzip on this machine',
+      '`$executable` could not be run ($e). Fetching cross-platform engine '
+      'artifacts needs curl and unzip on this machine.',
     );
   }
   if (result.exitCode != 0) {

@@ -1,14 +1,14 @@
 /// The listing's headlines — marketing copy, in a catalog of its own.
 ///
-/// Decision 9. Not in `assets/i18n/`, where the app's own strings live: a
-/// headline is never shown *in* the app, and mixing it in beside `Add to cart`
+/// Not in `assets/i18n/`, where the app's own strings live: a headline is
+/// never shown *in* the app, and mixing it in beside `Add to cart`
 /// would send it to a translator as though it were UI. Its own directory, its
 /// own catalog, declared separately in `tool/flutterware.dart` — which also
 /// gives the Translations panel a second catalog to show.
 ///
-/// This file is one project's answer, not an API. Decision 6 says flutterware
-/// hands a frame `shot.slug` and `shot.locale` and has no opinion about where
-/// the words live; this is what taking it up looks like.
+/// This file is one project's answer, not an API. flutterware hands a frame
+/// `shot.slug` and `shot.locale` and has no opinion about where the words
+/// live; this is what taking it up looks like.
 ///
 /// **Read off disk, synchronously.** A frame's `build` cannot await, and a
 /// composition that resolved its words a frame late would be captured before

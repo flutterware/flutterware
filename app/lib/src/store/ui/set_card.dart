@@ -270,7 +270,7 @@ class StoreShotThumb extends StatelessWidget {
     var colors = context.colors;
     return Tooltip(
       message: _overCap
-          ? "${shot.name} — past $store's limit of $cap, not published"
+          ? "${shot.name}: past $store's limit of $cap, so not published"
           : shot.name,
       child: GestureDetector(
         onTap: onTap,
@@ -307,12 +307,12 @@ class StoreShotThumb extends StatelessWidget {
 /// Ghost canvases at the set's real aspect ratio, filling the strip — which
 /// says more than a sentence can: the shapes on screen are the shapes the
 /// store will receive, so a 2:1 Play phone sitting two cards above a 4:3 iPad
-/// shows what §1's canvas-is-not-a-device argument means without a word of it.
+/// shows that a canvas is not a device without a word of it.
 ///
 /// They fade rightwards because the count is unknown. A fixed number of solid
 /// placeholders would be a claim about how many shots this set has, and the
-/// panel has no idea — that is what the source scan decision 11 declined would
-/// have bought.
+/// panel has no idea: only a scan of the source would know, and nothing scans
+/// it.
 class StoreGhostStrip extends StatelessWidget {
   const StoreGhostStrip({super.key, required this.width});
 

@@ -164,7 +164,7 @@ class _LauncherIconScreenState extends State<LauncherIconScreen> {
               ? const EmptyState(
                   icon: Icons.smartphone_outlined,
                   title: 'Pick an icon',
-                  message: 'Opening one shows it where it is actually seen.',
+                  message: 'Select one to see it as it appears on a device.',
                 )
               : _detail(scan, selectedScan),
         ),
@@ -215,8 +215,8 @@ class _LauncherIconScreenState extends State<LauncherIconScreen> {
     if (widget.flavor == null || role == null || !role.allInherited) {
       return null;
     }
-    return 'Not overridden by ${widget.flavor} — this is the unflavored art, '
-        'which is what a build of that flavor ships.';
+    return 'Not overridden by ${widget.flavor}. This is the unflavored art, '
+        'which a build of that flavor ships.';
   }
 
   List<({Tone tone, String message})> _findingsFor(
@@ -432,7 +432,8 @@ class _Header extends StatelessWidget {
           Text(
             scan.ios == IosCatalog.both
                 ? 'An Icon Composer bundle and a classic asset catalog are both '
-                      'present — Xcode uses one, decided by the target settings.'
+                      'present. Xcode uses only one, chosen by the target '
+                      'settings.'
                 : 'iOS icons come from the Icon Composer bundle '
                       '${scan.iconBundles.join(', ')}; Xcode generates every '
                       'size at build time, so there are no per-size PNGs to '

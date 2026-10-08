@@ -104,7 +104,7 @@ class _NewPreviewDialogState extends State<_NewPreviewDialog> {
           children: [
             Text(
               'Writes a preview that already renders. Replace its placeholder '
-              'with the widget you meant.',
+              'with your own widget.',
               style: context.type.caption.copyWith(color: colors.mut),
             ),
             const Gap(FwSpacing.xl),

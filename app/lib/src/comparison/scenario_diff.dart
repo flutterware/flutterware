@@ -60,9 +60,8 @@ class ScenarioStepShot {
   ///
   /// A [FrameRef] rather than a `ShotCache` key, because a scenario's frames
   /// are written by the replay rather than filed by a renderer — one run
-  /// produces a whole tree of them, which is the granularity the design gives
-  /// scenarios and the reason their key covers the scenario rather than the
-  /// step.
+  /// produces a whole tree of them, which is why their key covers the
+  /// scenario rather than the step.
   final FrameRef? frame;
 }
 
@@ -359,9 +358,9 @@ String unstableHazardSentence(String side, ScenarioReplay replay) {
     for (var shot in replay.hazards)
       '`${shot.step.label}` (turn ${shot.guessed})',
   ];
-  return '$side drew work nothing announced, found only by turning the real '
-      'event loop — at ${steps.join(', ')} — and two replays of it disagreed. '
-      'Its pictures depend on the machine running it. Hand that work to '
+  return '$side drew unannounced work, found only by running the real event '
+      'loop (at ${steps.join(', ')}), and two replays of it disagreed. Its '
+      'pictures depend on the machine running it. Wrap that work in '
       '`RealWork.run` and the scenario waits for it however long it takes.';
 }
 
@@ -603,8 +602,9 @@ ComparedItem _compare(
     // announced, so its picture depended on the machine as well as the code.
     note: guessed.isEmpty
         ? null
-        : 'drew work nothing announced on ${guessed.join(' and ')}: a '
-              'difference here can be the machine rather than the branch',
+        : 'drew unannounced work on ${guessed.join(' and ')}, so a '
+              'difference here may come from the machine rather than the '
+              'branch',
     pixels: base.rgba == null || head.rgba == null
         ? null
         : PixelDiff.of(

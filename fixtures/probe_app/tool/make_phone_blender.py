@@ -8,8 +8,7 @@
 #     /Applications/Blender.app/Contents/MacOS/Blender --background \
 #         --python tool/make_phone_blender.py
 #
-# It follows the surface convention the spec writes down (2026-09-05-scene-3d-
-# view-design.md § 2) and which the walk tests hold:
+# It follows the surface convention the walk tests hold:
 #
 #   * the object's name is the glTF node's name, so `mesh: 'Screen'` finds it;
 #   * a plane facing -Y in Blender faces the viewer after export;

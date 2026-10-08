@@ -350,7 +350,10 @@ void main() {
       await tester.tap(find.text('titleLarge'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('replaced what'), findsOneWidget);
+      expect(
+        find.textContaining('replaced the style in scope'),
+        findsOneWidget,
+      );
       expect(find.text('was in scope'), findsOneWidget);
       expect(find.text('inherited'), findsNothing);
     });

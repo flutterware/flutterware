@@ -31,6 +31,24 @@ where the code sits beside it and every clause is anchored.
 A title needing three comma-joined clauses is a PR asking to be split. When it
 genuinely cannot be, name the largest change and leave the rest to the body.
 
+## Words a user reads are plain
+
+The guides in `doc/`, the README, the studio's UI and every error, warning and
+refusal say what to do and what will happen, in short sentences, with the words
+the UI shows. That rules out em dashes as all-purpose punctuation, "X, not Y"
+contrasts for effect, aphorisms ("is the whole design", "the door"), design
+rationale or history where an instruction belongs, and dates of measurements.
+`doc/run.md` is the reference for a guide. Buttons are a verb and an object.
+
+**Nothing outside `docs/superpowers/` cites what is in it.** The specs, plans
+and findings there are working notes for whoever builds here next. A doc
+comment carries no `Design: docs/superpowers/specs/…` line, a message never
+says "see the design note", and nothing says "spec § 7.6", "decision 4" or
+"the plan says". When a comment needs the reason, write the reason.
+`test/spec_citations_test.dart` fails on a path into the folder, a dated `.md`
+file name, or "design doc"/"design note". This file is exempt: the pointers
+below are for agents.
+
 ## Repository layout
 
 This is a pub workspace (`workspace:` in root `pubspec.yaml`) with two member packages:

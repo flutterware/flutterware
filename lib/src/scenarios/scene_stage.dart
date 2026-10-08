@@ -18,14 +18,11 @@ import 'take.dart';
 /// A stage that is a **scene**: a document built by an edit, with a motion
 /// over it, drawn by the same view the editor draws.
 ///
-/// This is the design's whole bet made concrete. The picture is a scene, so
-/// it lays out, styles and nests the way every scene does; the timing is a
-/// [Playable], so it composes with `Par`, `Seq`, `At` and `Speed` the way
-/// every motion does; and the app is one node in it — [ScreenArgs] — placed
-/// and animated like any other. There is no second animation model and no
-/// second layout model.
-///
-/// Design: `docs/superpowers/specs/2026-09-08-scenario-reel-design.md`.
+/// The picture is a scene, so it lays out, styles and nests the way every
+/// scene does; the timing is a [Playable], so it composes with `Par`, `Seq`,
+/// `At` and `Speed` the way every motion does; and the app is one node in it
+/// — [ScreenArgs] — placed and animated like any other. There is no second
+/// animation model and no second layout model.
 class SceneStage extends ReelStage {
   SceneStage(this.scene, {this.motion});
 

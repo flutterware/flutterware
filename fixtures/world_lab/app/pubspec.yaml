@@ -9,10 +9,9 @@ environment:
 resolution: workspace
 
 # **The plugins are the point.** Each one is here because a real app has one
-# like it, and the guest experiment (docs/superpowers/specs/
-# 2026-09-25-worlds-guest-experiment-plan.md) asks what each costs off a real
-# platform. lib/src/plugin_check.dart touches every one at boot and reports
-# how it went, so a runner that cannot carry one says which.
+# like it, to find out what each costs off a real platform.
+# lib/src/plugin_check.dart touches every one at boot and reports how it went,
+# so a runner that cannot carry one says which.
 dependencies:
   app_links:
   flutter:

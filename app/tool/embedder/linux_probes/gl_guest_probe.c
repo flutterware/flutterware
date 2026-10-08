@@ -4,8 +4,7 @@
 //
 // It answers three questions the port rests on — does Impeller come up on GLES
 // here, does any of it need a display or a GPU, and what does the readback that
-// replaces macOS's zero-copy IOSurface actually cost. Measurements and the
-// answers are in `docs/superpowers/specs/2026-08-28-linux-embedder-guest-findings.md`.
+// replaces macOS's zero-copy IOSurface actually cost.
 //
 //   cc gl_guest_probe.c -I<engine-dir> -L<engine-dir> -lflutter_engine \
 //      -lEGL -lGLESv2 -lpthread -Wl,-rpath,<engine-dir> -o gl_guest_probe

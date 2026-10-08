@@ -705,7 +705,7 @@ class AssetsCore extends PluginCore {
             package: path,
             summary: 'On disk, and not in the bundle.',
             detail:
-                '$relative is under "${declaration.path}", which is declared — '
+                '$relative is under "${declaration.path}", which is declared, '
                 'but a directory declaration reaches only the files directly '
                 'inside it. Declare '
                 '"${p.split(relative).sublist(0, p.split(relative).length - 1).join('/')}/" '

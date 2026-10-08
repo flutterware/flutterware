@@ -565,10 +565,9 @@ class _NotRendered extends StatelessWidget {
             Text('Not re-rendered', style: context.type.bodyStrong),
             const Gap(FwSpacing.sm),
             Text(
-              'Nothing that decides its pixels changed between the two sides '
-              '— not a file in its import closure, not an asset, not a '
-              'lockfile — so both sides would have drawn the same frame and '
-              'neither was rendered.',
+              'Nothing that affects its pixels changed between the two sides '
+              '(no file it imports, no asset, no lockfile), so both would '
+              'draw the same frame. Neither side was rendered.',
               textAlign: TextAlign.center,
               style: context.type.caption.copyWith(color: colors.mut),
             ),

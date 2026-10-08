@@ -9,15 +9,13 @@
 ///     {"ch": "sql", "t": "err",  "id": 7, "p": {"message": "…"}}
 ///
 /// `ch` is a sub-protocol name. New feature = new channel name; the envelope
-/// itself is expected to stay at [protocolVersion] indefinitely — see
-/// `docs/superpowers/specs/2026-07-30-server-inspection-design.md`.
+/// itself is expected to stay at [protocolVersion] indefinitely.
 ///
 /// Pure Dart, and deliberately free of `dart:io`. These frames travel over
 /// a unix socket to a Dart server on the host *and* over the VM service to a
 /// Flutter app on a phone; only the rendezvous half — finding a server on this
 /// machine, `protocol.dart` — needs a filesystem. Splitting the two is what
-/// lets `inspector_core.dart` compile into an app
-/// (`docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`).
+/// lets `inspector_core.dart` compile into an app.
 library;
 
 import 'dart:convert';
@@ -42,8 +40,8 @@ const typeError = 'err';
 /// The built-in channel. `meta/attach` is the handshake that turns a
 /// connection into an attachment; `replay-done` marks the ring/live boundary;
 /// `meta/detail` fetches an event's lazily-held details (headers, bodies) by
-/// event id — spec decision 11: events stay small, the heavy parts are
-/// fetched when someone actually looks.
+/// event id. Events stay small, and the heavy parts are fetched when someone
+/// actually looks.
 const metaChannel = 'meta';
 const metaAttach = 'attach';
 const metaReplayDone = 'replay-done';

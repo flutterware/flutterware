@@ -25,8 +25,7 @@ class EntrypointKnobs {
   /// spelled from the wrapper's directory, prefixes kept.
   ///
   /// Here rather than in the generator because both come from the same parse,
-  /// and because a wrapper that names a value must import whatever declares it
-  /// — `2026-08-12-run-knobs-design.md` § K4.
+  /// and because a wrapper that names a value must import whatever declares it.
   final List<String> imports;
 
   /// Parameters `main` takes that no control can be drawn for, each with the
@@ -62,7 +61,7 @@ class EntrypointKnobs {
 /// Parsed, never resolved. The same posture as the catalog scanner, and for
 /// the measured reason: resolving one unit of a real project costs 17.3s
 /// against 478ms to parse the whole package (`CatalogScanner`), and 5.5s on an
-/// entry point that imports Flutter (`2026-08-12-run-knobs-design.md` § E4).
+/// entry point that imports Flutter.
 ///
 /// Per entry point rather than per package, which is the whole point: a
 /// signature cannot be wrong about what its own `main` accepts, so nothing here

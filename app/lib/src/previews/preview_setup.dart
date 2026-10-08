@@ -65,7 +65,7 @@ class PreviewSetup {
             false);
     if (!declared.any(callable)) {
       return '`$previewSetupFunction` in `$path` has to be a function called '
-          'with no arguments — `Future<void> $previewSetupFunction()`.';
+          'with no arguments: `Future<void> $previewSetupFunction()`.';
     }
     return null;
   }

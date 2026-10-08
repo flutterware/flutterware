@@ -159,7 +159,7 @@ class _UntrackedTextState extends State<_UntrackedText> {
 }
 
 const _markdown = '''
-# A new design note
+# A new guide
 
 This file is **new on the branch**, so its diff would be a wall of `+`
 lines. Rendered, it reads like what it is: prose.

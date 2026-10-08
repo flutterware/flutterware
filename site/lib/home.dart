@@ -295,7 +295,7 @@ class Home extends StatelessComponent {
         ]),
         p(classes: 'same', [
           .text(
-            'Three ways in, one set of tools. Every action and option is '
+            'All three run the same actions. Every action and option is '
             'listed in the ',
           ),
           a(href: '$repository/blob/master/docs/capabilities.md', [

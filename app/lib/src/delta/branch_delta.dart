@@ -356,7 +356,7 @@ class EntryChanges {
     if (delta.isUntracked(entry.file)) {
       return const EntryChange(
         EntryChangeKind.added,
-        'New on this branch — the file is not in git yet',
+        'New on this branch, not in git yet',
       );
     }
     var file = delta.files[entry.file];
@@ -364,7 +364,7 @@ class EntryChanges {
       if (file.status == ChangeStatus.added) {
         return const EntryChange(
           EntryChangeKind.added,
-          'New on this branch — the file was added',
+          'New on this branch: the file was added',
         );
       }
       if (!entry.located) {
@@ -373,7 +373,7 @@ class EntryChanges {
       if (file.wholly(entry.line, entry.endLine)) {
         return const EntryChange(
           EntryChangeKind.added,
-          'New on this branch — every line of it is new',
+          'New on this branch: every line of it is new',
         );
       }
       if (file.touches(entry.line, entry.endLine)) {

@@ -4,8 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/reel.dart';
 
 /// Building a **reel** from a take: the output timeline, and the two clocks
-/// that make one. Design:
-/// `docs/superpowers/specs/2026-09-08-scenario-reel-design.md`.
+/// that make one.
 ///
 /// An edit is pure — a take in, a reel out — so all of this runs with no app,
 /// no pixels and no process to spawn. That is most of the point of the shape.

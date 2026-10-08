@@ -2,8 +2,7 @@
 //
 // `assets/models/probe_rig.glb` (written by `tool/make_probe_rig_glb.dart`)
 // is a device with a `Body`, a `Screen` whose texture coordinates we authored,
-// and a `Lid` with one clip, `Open`. The probe asks what the design spec
-// (`docs/superpowers/specs/2026-09-05-scene-3d-view-design.md` § 7.2) lists:
+// and a `Lid` with one clip, `Open`. The probe checks that:
 //
 //   * the asset loads at run time with no build hook;
 //   * a surface is found by name and a live widget bound to its material;
@@ -14,8 +13,8 @@
 // The camera orbits and dollies as in the first probe; the lid opens over
 // the same two seconds. Loading goes through `RealWork.run`, which is
 // what lets the walk wait for a model unpacked on an isolate instead of
-// photographing the empty frame before it — the readiness door of § 5 — and
-// what keeps a dependency's memoized futures from stranding a later mount.
+// photographing the empty frame before it, and what keeps a dependency's
+// memoized futures from stranding a later mount.
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -34,13 +33,13 @@ import 'package:flutterware_probes/root_zone_scene.dart';
 @Preview(name: 'Model probe', wrapper: wrapInApp)
 Widget modelProbe() => const ModelProbe();
 
-/// The same asset through the build-time path (spec § 7.6): the example's
+/// The same asset through the build-time path: the example's
 /// `hook/build.dart` converted it, and `loadScene` reads the `.fsceneb`.
 @Preview(name: 'Model probe, built', wrapper: wrapInApp)
 Widget modelProbeBuilt() => const ModelProbe(built: true);
 
 /// The same rig built in Blender and exported by Blender's own glTF exporter
-/// (`tool/make_probe_rig_blender.py`, spec § 7.5): names, axes, UVs and the
+/// (`tool/make_probe_rig_blender.py`): names, axes, UVs and the
 /// clip as a modeller's file carries them.
 @Preview(name: 'Model probe, Blender export', wrapper: wrapInApp)
 Widget modelProbeBlender() =>

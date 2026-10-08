@@ -46,8 +46,6 @@ class DependenciesPackage extends PluginPackage {
 /// The app's render points — widgets and documents bound in a
 /// `@RenderRegistry()` registrar, rendered as SVG, PNG or PDF in the studio
 /// and from a server through `fw render bundle`.
-///
-/// Design: docs/superpowers/specs/2026-08-31-widget-export-design.md.
 class Renders extends Plugin {
   Renders({this.packages = const [], String? label})
     : super('flutterware.render', label: label ?? 'Render');
@@ -114,8 +112,8 @@ class Previews extends Plugin {
         throw StateError(
           'Package "${package.path}" declares the canvas '
           '"${prefix.isEmpty ? '<the whole package>' : prefix}" twice. '
-          'Longest prefix wins, so two of one prefix is one rule written '
-          'twice — put its devices in a single PreviewCanvas.',
+          'Longest prefix wins, so two canvases with one prefix are the same '
+          'rule written twice. Put its devices in a single PreviewCanvas.',
         );
       }
       if (package.unknownDevice case var device?) {
@@ -288,8 +286,7 @@ class PreviewsPackage extends PluginPackage {
 }
 
 /// Scenarios — app tests with per-step screenshots, run under FakeAsync in a
-/// directly-spawned `flutter_tester`. See
-/// `docs/superpowers/specs/2026-07-30-scenarios-design.md`.
+/// directly-spawned `flutter_tester`.
 class Scenarios extends Plugin {
   Scenarios({this.packages = const [], String? label})
     : super('flutterware.scenarios', label: label ?? 'Scenarios');
@@ -362,8 +359,6 @@ class ScenariosPackage extends PluginPackage {
 /// which is why the files are declared rather than discovered. Guessing at a
 /// translations directory would be a claim about a project's layout that only
 /// the project can make.
-///
-/// See `docs/superpowers/specs/2026-08-18-translation-index-design.md`.
 class Translations extends Plugin {
   Translations({this.packages = const [], String? label})
     : super('flutterware.translations', label: label ?? 'Translations');
@@ -722,8 +717,7 @@ class NativeSplashPackage extends PluginPackage {
 ///
 /// Deliberately declares no `packages:` — a server announces *itself* at
 /// runtime with a handle under `~/.flutterware/run`, however it was launched,
-/// so there is nothing to configure but the wish to see them. See
-/// `docs/superpowers/specs/2026-07-30-server-inspection-design.md`.
+/// so there is nothing to configure but the wish to see them.
 class ServerInspection extends Plugin {
   ServerInspection({String? label})
     : super('flutterware.server', label: label ?? 'Server');
@@ -752,10 +746,7 @@ class ServerInspection extends Plugin {
 /// costs a hot restart rather than a rebuild, which is the whole difference
 /// from the `--dart-define`s this replaced.
 ///
-/// See `docs/superpowers/specs/2026-08-12-run-knobs-design.md`,
-/// `2026-07-31-app-launcher-cockpit-brainstorm.md`, and
-/// `2026-08-11-computed-define-sources.md` for what a `from:` can work out for
-/// itself.
+/// [ValueSource] lists what a `from:` can work out for itself.
 ///
 /// Offers no `each`, like [LauncherIcon] and for the same reason: only a
 /// package that is an app can be run onto a phone.
@@ -1042,8 +1033,7 @@ enum RunPlatform {
 /// exactly that reason.
 ///
 /// Changing a knob's value rewrites the generated wrapper and hot restarts —
-/// 262ms on desktop, 3s on an Android emulator, against a rebuild. See
-/// `docs/superpowers/specs/2026-08-12-run-knobs-design.md`.
+/// 262ms on desktop, 3s on an Android emulator, against a rebuild.
 ///
 /// The word is back because the cost is. This was `LaunchKnob`, renamed to
 /// `DartDefine` on the grounds that a preview's knob costs a frame while a
@@ -1133,9 +1123,8 @@ class Knob {
 
 /// The new name for [DefineSource], which no longer only feeds defines.
 ///
-/// An alias rather than a rename: `DefineSource` is published, and
-/// `2026-08-11-computed-define-sources.md` describes the same mechanism under
-/// the old noun. Both spell the same class until defines go.
+/// An alias rather than a rename, because `DefineSource` is published. Both
+/// spell the same class until defines go.
 typedef ValueSource = DefineSource;
 
 /// Where a [Knob]'s value or offered values are found.
@@ -1291,8 +1280,6 @@ class LauncherIconPackage extends PluginPackage {
 /// commands** and whose state is polled — the docker stack, the emulator suite,
 /// the database container the app talks to in development.
 ///
-/// See `docs/superpowers/specs/2026-08-10-dev-stack-design.md`.
-///
 /// It owns nothing. flutterware runs [probe] to find out what is going on
 /// and runs [start] / [stop] when told to; the project's own CLI stays the
 /// authority on what those mean. That is the whole difference from a
@@ -1337,9 +1324,10 @@ class LauncherIconPackage extends PluginPackage {
 /// it. A tool you stop with Ctrl-C — `firebase emulators:start`, `tilt up`,
 /// `ngrok http` — cannot be declared this way, because there is no `stop` to
 /// name and nothing to ask whether it is up. That is a second constructor,
-/// `.foreground`, which is designed and deliberately unbuilt; the design
-/// document's §3.3 says why. The constructor is named now so that adding it is
-/// an addition rather than a rename.
+/// `.foreground`, which is designed but not built: no project has needed it
+/// yet, and its readiness check wants a real tool to be designed against.
+/// The constructor is named now so that adding it is an addition rather than
+/// a rename.
 ///
 /// One per project. A second stack needs an id the registry can resolve, and
 /// v1's registry is keyed on the exact id.

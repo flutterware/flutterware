@@ -17,9 +17,7 @@ import 'staging.dart';
 /// No heuristics, because the framework already knows. An `EditableText`
 /// that takes focus asks the platform for a keyboard, and the test binding's
 /// stub records the ask — so [TestTextInput.isVisible] *is* the signal, with
-/// no cooperation from the app and nothing to guess at. The design's evidence
-/// and the SDK line numbers behind it are in
-/// `docs/superpowers/specs/2026-08-21-fake-keyboard-design.md`.
+/// no cooperation from the app and nothing to guess at.
 ///
 /// The numbers go on the view, not on a `MediaQuery`. A widget can only
 /// tell the subtree beneath it; the view tells `MediaQuery.fromView`, which is

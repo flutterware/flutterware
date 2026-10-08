@@ -111,7 +111,7 @@ void main() {
   testWidgets('a picture parked on purpose is not a warning', (tester) async {
     await pump(tester, step(name: 'Loading', settled: false, waited: false));
 
-    expect(find.textContaining('Parked mid-flight'), findsOneWidget);
+    expect(find.textContaining('Captured mid-animation'), findsOneWidget);
     expect(find.textContaining('budget ran out'), findsNothing);
   });
 
@@ -124,7 +124,7 @@ void main() {
     );
 
     expect(find.textContaining('2 frames were drawn'), findsOneWidget);
-    expect(find.textContaining('Parked mid-flight'), findsNothing);
+    expect(find.textContaining('Captured mid-animation'), findsNothing);
   });
 
   testWidgets('a step says when the flow has a gap in it', (tester) async {

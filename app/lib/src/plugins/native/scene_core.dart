@@ -178,14 +178,14 @@ class SceneCore extends PluginCore {
     if (declaration.existsSync()) {
       throw ActionRefusal(
         '${p.relative(declaration.path, from: host.worktree.path)} '
-        'already exists — that folder is a group',
+        'already exists: that folder is already a group',
       );
     }
     if (!p.isWithin(rootFor(package), directory) &&
         p.canonicalize(rootFor(package)) != p.canonicalize(directory)) {
       throw ActionRefusal(
-        '$folder is outside the scanned scope '
-        '(${directoryFor(package)}/) and would not be found',
+        '$folder is outside ${directoryFor(package)}/, where scenes are '
+        'looked for, so they would not be found',
       );
     }
     Directory(directory).createSync(recursive: true);
@@ -468,9 +468,8 @@ class SceneCore extends PluginCore {
     var group = groupFor(package, scenePath);
     if (group == null) {
       throw ActionRefusal(
-        '${p.basename(scenePath)} is in no group — a scene is rendered by '
-        "its group's own entry, and no folder above it has a "
-        '$sceneGroupFileName',
+        '${p.basename(scenePath)} is not in a group: no folder above it has '
+        'a $sceneGroupFileName, and a scene is rendered through its group',
       );
     }
     var opened = parseSceneFile(
@@ -494,16 +493,16 @@ class SceneCore extends PluginCore {
       if (unknown.isNotEmpty) {
         throw ActionRefusal(
           '${p.basename(scenePath)} declares no parameter '
-          '${unknown.join(', ')} — it takes '
-          '${declared.isEmpty ? 'none' : declared.join(', ')}',
+          '${unknown.join(', ')}. It takes '
+          '${declared.isEmpty ? 'none' : declared.join(', ')}.',
         );
       }
       opened.doc!.applyArgs(args);
     }
     if (opened.motions.isEmpty) {
       throw ActionRefusal(
-        '${p.basename(scenePath)} has no motion — a clip of a still scene '
-        'would be one frame repeated',
+        '${p.basename(scenePath)} has no motion, so there is nothing to '
+        'render as a video',
       );
     }
     var entry = _playerEntry(package, group);
@@ -591,8 +590,8 @@ class SceneCore extends PluginCore {
       }
     }
     throw ActionRefusal(
-      'no scene player in $folder/ — the generated $sceneArgsFileName '
-      'declares it; rescan the group',
+      'no scene player in $folder/. The generated $sceneArgsFileName '
+      'declares it; rescan the group to write it.',
     );
   }
 
@@ -875,8 +874,8 @@ class SceneCore extends PluginCore {
       var opened = TokensLibrary.open(target.path, target.readAsStringSync());
       if (!opened.ok) {
         throw ActionRefusal(
-          '${p.relative(target.path, from: host.worktree.path)} is refused '
-          'by the library reader — fix it first: '
+          '${p.relative(target.path, from: host.worktree.path)} cannot be '
+          'read as a token library. Fix it first: '
           '${opened.refusals.join('; ')}',
         );
       }
@@ -946,7 +945,7 @@ class SceneCore extends PluginCore {
       _ => packages.firstOrNull,
     };
     if (package == null) {
-      throw ActionRefusal('this plugin is declared for no package');
+      throw ActionRefusal('this plugin is not declared for any package');
     }
     switch (actionId) {
       case 'list':

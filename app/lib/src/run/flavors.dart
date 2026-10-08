@@ -161,8 +161,9 @@ String? applyFlavorVocabulary({
   if (vocabulary.isEmpty) return null;
   if (vocabulary.contains(flavor)) return flavor;
   throw RunRefusal(
-    '"$flavor" is not a flavor $package declares for $platformLabel — it has '
-    '${vocabulary.join(', ')}. Pass one of those, an empty `flavor` to build '
-    'without one, or add it to the `flavors:` list in tool/flutterware.dart.',
+    '"$flavor" is not a flavor $package declares for $platformLabel. It '
+    'declares ${vocabulary.join(', ')}. Pass one of those, an empty `flavor` '
+    'to build without one, or add it to the `flavors:` list in '
+    'tool/flutterware.dart.',
   );
 }

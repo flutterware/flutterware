@@ -14,8 +14,6 @@
 /// That is the same bargain `package:flutterware/server.dart` already makes,
 /// and it stops at resolution: the deployed image needs nothing but the
 /// bundle directory, which carries its own `flutter_tester`.
-///
-/// Design: docs/superpowers/specs/2026-08-31-widget-export-design.md.
 library;
 
 export 'render_contract.dart';

@@ -30,8 +30,8 @@ export 'aim.dart';
 export 'drift.dart';
 // The one thing near this model that needs a filesystem, behind the one seam
 // that lets the rest of it compile for the web. The exported scenario page
-// renders these very classes in a browser, where there is no `dart:io` to
-// import — see `2026-08-11-scenario-web-export-design.md`.
+// renders these very classes in a browser, where there is no `dart:io`
+// to import.
 import 'notification.dart';
 import 'report_events_web.dart' if (dart.library.io) 'report_events_io.dart';
 

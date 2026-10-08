@@ -884,7 +884,7 @@ void main() {
       expect(
         scenario.inconclusive,
         allOf(
-          startsWith('This branch drew work nothing announced'),
+          startsWith('This branch drew unannounced work'),
           contains('`Open` (turn 9)'),
           contains('RealWork.run'),
         ),
@@ -915,7 +915,7 @@ void main() {
       expect(scenario.state, ComparedState.changed);
       expect(
         scenario.items.single.note,
-        contains('drew work nothing announced on this branch (turn 9)'),
+        contains('drew unannounced work on this branch (turn 9)'),
       );
     });
 

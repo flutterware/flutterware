@@ -12,13 +12,13 @@ import '../ui/empty_state.dart';
 /// The cockpit's bespoke renderer for `db:*` panels — a database browser, not
 /// a descriptor dump.
 ///
-/// The generic [PanelView] renders any panel and stays the surface for `fw`
-/// and agents, but S-DB1's human review was blunt: empty feed panes and a
-/// "Controls" form are not how a person meets a database. This view spends the
-/// same wire — `schema` state, `query`/`watch`/`unwatch`/`execute` actions,
-/// the `changes` and `watch` feeds — on the screen a person expects: tables on
-/// the left with live row counts, a data grid that follows the app's writes,
-/// a SQL editor, and the live activity stream.
+/// The generic [PanelView] renders any panel and stays the surface for `fw` and
+/// agents, but empty feed panes and a "Controls" form are not how a person
+/// meets a database. This view spends the same wire — `schema` state,
+/// `query`/`watch`/`unwatch`/`execute` actions, the `changes` and `watch` feeds
+/// — on the screen a person expects: tables on the left with live row counts, a
+/// data grid that follows the app's writes, a SQL editor, and the live activity
+/// stream.
 class DatabasePanelView extends StatefulWidget {
   const DatabasePanelView({
     super.key,
@@ -599,7 +599,7 @@ class _SqlViewState extends State<_SqlView> {
       setState(() {
         if (action == 'watch') {
           _notice =
-              'Watching as #${reply['watch']} — every change now lands in '
+              'Watching as #${reply['watch']}. Every change now shows in '
               'Activity.';
         } else {
           _reply = reply;
@@ -781,8 +781,8 @@ class _ActivityView extends StatelessWidget {
         icon: Icons.bolt,
         title: 'Nothing yet',
         message:
-            'Writes tick here as the app makes them; a watched query '
-            'reports every result change.',
+            'Writes appear here as the app makes them, and a watched query '
+            'reports every change to its result.',
       );
     }
     return ListView.separated(
@@ -975,7 +975,7 @@ class _SnapshotRowState extends State<_SnapshotRow> {
                 ? Padding(
                     padding: const EdgeInsets.all(FwSpacing.lg),
                     child: Text(
-                      'These rows have been evicted — only recent snapshots '
+                      'These rows are no longer held. Only recent snapshots '
                       'keep their data.',
                       style: context.type.caption.copyWith(
                         color: context.colors.mut,

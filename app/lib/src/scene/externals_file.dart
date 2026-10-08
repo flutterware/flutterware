@@ -207,14 +207,14 @@ List<ExternalWidgetDecl> parseExternalWidgetElements(
       refuse(
         arg.offset,
         'argument',
-        "an ExternalWidget names its entry first — ExternalWidget('DrinkBadge', …)",
+        "an ExternalWidget names its entry first: ExternalWidget('DrinkBadge', …)",
       );
     }
     if (entry == null) {
       refuse(
         element.offset,
         'missing argument',
-        "an ExternalWidget names its entry first — ExternalWidget('DrinkBadge', …)",
+        "an ExternalWidget names its entry first: ExternalWidget('DrinkBadge', …)",
       );
       continue;
     }
@@ -248,7 +248,7 @@ ExternalArgDecl? _arg(Expression e, void Function(int, String, String) refuse) {
     refuse(
       e.offset,
       'argument type',
-      'an argument is typed by its type argument — '
+      'an argument is typed by its type argument: '
           "Arg<double>('size', 56); one of ${externalArgTypes.join(', ')}, "
           "or the app's own type for an argument only a token can fill",
     );
@@ -286,7 +286,7 @@ ExternalArgDecl? _arg(Expression e, void Function(int, String, String) refuse) {
     refuse(
       e.offset,
       'opaque default',
-      "an $typeName argument takes no default here — Arg<$typeName>('$name'), "
+      "an $typeName argument takes no default here: Arg<$typeName>('$name'), "
           'and fall back in build when the scene passes none',
     );
     return null;

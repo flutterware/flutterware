@@ -109,7 +109,7 @@ class SceneArgsResult {
           0,
           1,
           'no declaration',
-          '${group.declarationPath} is gone — the folder is no longer a group',
+          '${group.declarationPath} is gone: the folder is no longer a group',
         ),
       ],
     );

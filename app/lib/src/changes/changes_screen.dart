@@ -1025,7 +1025,7 @@ class _Watching extends StatelessWidget {
     var stale = !isWatching;
     return Tooltip(
       message: stale
-          ? 'This checkout is not being watched — refresh to read it again'
+          ? 'This checkout is not being watched. Refresh to read it again.'
           : 'Re-read whenever this checkout changes'
                 '${readAt == null ? '' : '\nLast read at ${_clock(readAt!)}'}',
       child: Row(
@@ -2231,8 +2231,8 @@ class _FilePaneState extends State<_FilePane> {
           icon: Icons.folder_outlined,
           title: it.path,
           body:
-              'An untracked directory. Nothing here has been scanned — see '
-              'the note on the changes list.',
+              'An untracked directory. Git is not tracking anything in it '
+              'yet, so its files are not listed.',
         );
       }
       return _untrackedPage(context, it);
@@ -2243,8 +2243,8 @@ class _FilePaneState extends State<_FilePane> {
         icon: Icons.search_off,
         title: it,
         body:
-            'This file is no longer part of the delta — it may have been '
-            'committed away, reverted, or renamed.',
+            'This file is no longer among the changes. It may have been '
+            'committed, reverted or renamed.',
       );
     }
 
@@ -2252,8 +2252,8 @@ class _FilePaneState extends State<_FilePane> {
       icon: Icons.difference_outlined,
       title: 'Pick a file',
       body:
-          'All shows every path in this delta, as a tree. Important shows '
-          'what a rule in tool/flutterware.dart pinned.',
+          'All shows every changed path as a tree. Important shows the '
+          'files a rule in tool/flutterware.dart pinned.',
     );
   }
 
@@ -2335,11 +2335,11 @@ class _FilePaneState extends State<_FilePane> {
                 leading: _leadingFor(it.path, composerQuote: _patchQuote(it)),
               ),
               FileMissing() => const FileBodyNotice(
-                'Not on disk any more — Source still shows the diff.',
+                'This file is no longer on disk. Source still shows its diff.',
               ),
               FileTooLarge(:var length) => FileBodyNotice(
-                'This file is ${bytesLabel(length)} — past what the viewer '
-                'renders. Source still shows the diff.',
+                'This file is ${bytesLabel(length)}, too large to render. '
+                'Source still shows its diff.',
               ),
             },
           ),
@@ -2438,8 +2438,8 @@ class _FilePaneState extends State<_FilePane> {
         builder: (context, content) => switch (content) {
           FileMissing() => const FileBodyNotice('No longer on disk.'),
           FileTooLarge(:var length) => FileBodyNotice(
-            'This file is ${bytesLabel(length)} — past what the viewer '
-            'reads. Open it in your editor.',
+            'This file is ${bytesLabel(length)}, too large to show here. '
+            'Open it in your editor.',
           ),
           FileBytes f when faces && view == FileBodyView.rendered =>
             kind == FileBodyKind.svg
@@ -2461,8 +2461,7 @@ class _FilePaneState extends State<_FilePane> {
           // The one sniff worth doing: no patch has classified this file, and
           // a NUL-ridden blob drawn as monospace rows is a screen of tofu.
           FileBytes f when looksBinary(f.bytes) => FileBodyNotice(
-            'Binary file — ${bytesLabel(f.bytes.length)}, and no text to '
-            'draw.',
+            'Binary file (${bytesLabel(f.bytes.length)}), no text to show.',
           ),
           FileBytes f => _untrackedText(context, it.path, f),
         },

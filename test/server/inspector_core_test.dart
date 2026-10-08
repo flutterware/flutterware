@@ -41,8 +41,6 @@ void main() {
   /// anything that does. Checked as an import walk rather than trusted to
   /// review, because the day this regresses is the day the VM-service
   /// transport stops compiling for a reason nobody will connect to this file.
-  ///
-  /// See `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
   test('the core and the frames reach nothing platform-bound', () {
     var forbidden = {'dart:io', 'dart:ffi', 'dart:isolate'};
     var seen = <String>{};

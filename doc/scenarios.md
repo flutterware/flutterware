@@ -39,17 +39,18 @@ fw.use(Scenarios(packages: [.new(app, languages: ['en', 'fr'])]));
 
 `package:flutterware/flutter_test.dart` is `package:flutter_test` with the
 scenario API added, so an existing test file keeps `expect`, `find`,
-`testWidgets` and the rest. Changing the import is the whole migration.
+`testWidgets` and the rest. To use scenarios in a test file, change its import.
 
-Scenarios are found anywhere under `test/`, next to ordinary tests or mixed
-into the same file. `test/scenarios/` is only where `fw run scenarios new`
-writes; set `directory:` to look in one folder only.
+Scenarios are found anywhere under `test/`, next to ordinary tests or in the
+same file. `fw run scenarios new` writes new ones to `test/scenarios/`. Set
+`directory:` to look in one folder only.
 
-Discovery reads the source, it never runs it: it looks for a literal
-`scenario('name', …)` call. A name built at run time is reported. A helper that
-calls `scenario` for you, like `runScenario(name, body)`, leaves no such call
-in the file and is not found, so keep the `scenario(` call and its name in the
-test file.
+Scenarios are found by reading the source, without running it: flutterware
+looks for a literal `scenario('name', …)` call. A name built at run time is
+reported as a problem, and that scenario isn't listed. A helper that calls
+`scenario` for you, like `runScenario(name, body)`, leaves no such call in the
+file, so its scenarios aren't found. Keep the `scenario(` call and its name in
+the test file.
 
 ## Run them
 
@@ -75,16 +76,16 @@ Each one acts, waits for the screen to settle, and captures.
 | `tap(target)` | taps |
 | `doubleTap(target)` | taps twice, close enough to be one gesture |
 | `longPress(target)` | presses and holds |
-| `enterText(target, text)` | fills a field — or types it a key at a time, `typing:` |
+| `enterText(target, text)` | fills a field, or types into it a key at a time with `typing:` |
 | `drag(target, offset)` | drags by an offset |
 | `scrollTo(target)` | scrolls until the target is on screen, then stops |
-| `hover(target)` / `unhover()` | parks the mouse over it and holds — tooltips, hover states |
-| `secondaryTap(target)` | right-clicks — a context menu |
-| `scroll(target, offset)` | turns the mouse wheel over it — scrolls *that* pane |
-| `key('meta+k')` | presses a key or a chord — shortcuts, `escape`, `tab` |
-| `back()` | the Android back button — pops the route |
+| `hover(target)` / `unhover()` | moves the mouse over it and leaves it there, for tooltips and hover states |
+| `secondaryTap(target)` | right-clicks, for a context menu |
+| `scroll(target, offset)` | turns the mouse wheel over it, scrolling that pane |
+| `key('meta+k')` | presses a key or a chord, such as a shortcut, `escape` or `tab` |
+| `back()` | presses the Android back button, which pops the route |
 | `wait(duration)` | moves the fake clock past a timer |
-| `act(description, body)` | a cause that is not a finger — a push, a completer, a backend — named on the step |
+| `act(description, body)` | runs something other than a gesture, such as a push, a completer or a backend call, and names the step after it |
 | `screen(name)` | captures without acting |
 | `split({...})` | forks the flow |
 
@@ -92,129 +93,119 @@ Everything takes a **target**, which can be a `String` (visible text), a `Key`,
 a `Type`, an `IconData`, a `Finder`, or one of:
 
 ```dart
-await s.tap(Target.label('Add to cart'));          // the semantics label — the
-                                                   // handle on an icon that
-                                                   // carries no text
+await s.tap(Target.label('Add to cart'));          // the semantics label, for
+                                                   // an icon with no text
 await s.tap(Target.tooltip('Delete'));
-await s.tap(Target.containing('Buy'));             // text *containing* this,
-                                                   // where a plain String
-                                                   // matches the whole label
-await s.tap(Target.within(ShopKeys.cart, 'Buy'));  // the Buy of *that* card
+await s.tap(Target.containing('Buy'));             // text that contains 'Buy'
+                                                   // (a plain String must match
+                                                   // the whole label)
+await s.tap(Target.within(ShopKeys.cart, 'Buy'));  // the Buy inside the cart
 await s.tap(Target.nth('Buy', 1));                 // the second one
 ```
 
-They compose, because the scope and the index take targets of their own:
+`within` and `nth` take targets too, so they combine:
 `Target.nth(Target.within(ShopKeys.cart, 'Buy'), 0)`.
 
-When a target matches nothing or matches several things, the error says which
-targets *were* on screen and what to reach for instead.
+When a target matches nothing, or several things, the error lists the targets
+that were on screen and what to use instead.
 
-A target that exists but sits below the fold is **scrolled into view first**,
-the way the user the verb stands in for would — so one scenario runs unchanged
-on a small phone and a tablet, whichever side of the fold the button lands on.
-What scrolling cannot fix is refused loudly: a covered widget, or one off
-screen with nothing scrolling to it. (`flutter_test` alone prints a console
-warning on a missed tap and carries on; a flow that silently diverges is the
-one failure a screenshot-per-step tool must not have.) A widget a lazy list
-has not built yet matches nothing — that is what `scrollTo` is for, and
-`find.text('Row 40').first` is walked to the same way as `'Row 40'`.
+A target that exists but is below the fold is scrolled into view first, as a
+user would scroll to it, so one scenario runs unchanged on a small phone and on
+a tablet. A target that scrolling can't reach fails the step: a covered widget,
+or one off screen with nothing to scroll it into view. (Plain `flutter_test`
+only warns on a missed tap, so a test you migrate can start failing here.) A
+widget a lazy list hasn't built yet matches nothing. Use `scrollTo` for it. It
+also takes a positional finder like `find.text('Row 40').first`, and scrolls to
+it the same way as to `'Row 40'`.
 
-`s.tester` is the real `WidgetTester` if you need something the verbs do not
-have. Frames it draws are counted and reported on the next step, so a flow with
-a gap in it says so rather than quietly missing a screen.
+`s.tester` is the real `WidgetTester`, for anything the verbs don't cover.
+Frames drawn through it are counted and reported on the next step, so the flow
+shows where it skipped screens.
 
 ### The mouse and the keyboard
 
-`hover`, `secondaryTap` and `scroll` move one mouse, and it stays where it was
-put, as a real one does: a `tap` after a `hover` still finds the control
-hovered, and `unhover()` takes the mouse away. `hover` holds for 600ms of the
-fake clock (`hold:` to change it), because what a hover starts is usually a
-timer — `Tooltip.waitDuration` — and a tooltip is then in the step's picture
-and its texts like any other widget. Every scenario, and every branch of a
-`split`, starts with no mouse on the screen.
+`hover`, `secondaryTap` and `scroll` share one mouse, and it stays where it was
+left, like a real one. A `tap` after a `hover` still finds the control hovered,
+and `unhover()` takes the mouse away. `hover` holds for 600ms of the fake clock
+(change it with `hold:`), which is long enough for a tooltip's
+`Tooltip.waitDuration`. The tooltip then appears in the step's picture and its
+texts like any other widget. Every scenario, and every branch of a `split`,
+starts with no mouse on the screen.
 
-`scroll`'s offset is a wheel's, not a finger's: a positive `dy` moves *down*
-the list, where `drag` needs a negative one. The wheel reaches the pane under
-the mouse, so on a page with several lists it scrolls the one you name.
+`scroll` takes a mouse wheel's offset: a positive `dy` moves down the list,
+where `drag` needs a negative one. The wheel scrolls the pane under the mouse,
+so on a page with several lists it scrolls the one you target.
 
-`doubleTap` puts 80ms of the fake clock between its taps (`gap:`), because a
-double-tap recognizer ignores a second tap that arrives sooner than 40ms.
+`doubleTap` puts 80ms of the fake clock between its taps (change it with
+`gap:`), because a double-tap recognizer ignores a second tap within 40ms.
 
-**A desktop is pointed at.** On a desktop device — every `Devices.*Window` —
-`tap`, `tapAt`, `doubleTap`, `longPress` and `drag` press with that same
-mouse, and it stays where it clicked, so the control is hovered in the next
-picture as it would be on the desktop. Everywhere else, a run staged on no
-device included, they are a finger. Widgets that adapt to the pointer — a text
-field's selection handles, a tooltip's trigger, a slider's value label — show
-the layout their users see. One consequence to know: a mouse drag does not
-scroll a list, on the desktop or here, so reach for `scroll` or `scrollTo`
-there.
+On a desktop device (every `Devices.*Window`), `tap`, `tapAt`, `doubleTap`,
+`longPress` and `drag` use that same mouse, and it stays where it clicked, so
+the control is still hovered in the next picture. On any other device, and on a
+run with no device, they use a finger. Widgets that adapt to the pointer, such
+as a text field's selection handles, a tooltip's trigger or a slider's value
+label, show the layout their users see. A mouse drag doesn't scroll a list, on
+a desktop or here, so use `scroll` or `scrollTo` for that.
 
-`key` is for shortcuts and navigation, never for typing — a character reaches
-a field through text input, not through a key event, so `enterText` is the
-verb that types. The last name in a chord fires and the ones before it are
-held: `meta+k`, `shift+tab`, `ctrl+s`. A keystroke goes to whatever holds
-focus, so one pressed while nothing does, and taken by nothing, fails the step
-rather than passing without having reached the app: `tap` something first, or
-give the widget the shortcut belongs to `autofocus: true`.
+`key` is for shortcuts and navigation; to type into a field, use `enterText`.
+In a chord, the last key is pressed and the ones before it are held: `meta+k`,
+`shift+tab`, `ctrl+s`. A key goes to whatever has focus. If nothing has focus
+and nothing handles the key, the step fails. `tap` something first, or give the
+widget the shortcut belongs to `autofocus: true`.
 
-`enterText` puts the whole value in one edit, the way a paste arrives. A field
-that listens to its edits — a search that debounces its query, a code input
-that moves to the next box — needs them the way keystrokes arrive, and
-`typing:` types one character at a time with that much of the fake clock after
-each:
+`enterText` puts the whole value in with one edit, the way a paste does. A field
+that reacts to each edit, such as a search that debounces its query or a code
+input that moves to the next box, needs one keystroke at a time. `typing:`
+types one character at a time and moves the fake clock that much after each:
 
 ```dart
 await s.enterText(Keys.search, 'flat white',
     typing: const Duration(milliseconds: 100));
-await s.wait(const Duration(milliseconds: 300));   // the debounce's own wait
+await s.wait(const Duration(milliseconds: 300));   // the debounce's own delay
 ```
 
-The step settles as usual afterwards, and a pending timer schedules no frame,
-so the debounce's own delay is yours to `wait` out.
+The step then settles as usual. A pending timer doesn't schedule a frame, so
+`wait` out the debounce's delay yourself.
 
 ## Settling
 
 Every verb takes a `settle:`.
 
 ```dart
-await s.tap(button);                          // Settle.standard — up to 5 seconds
+await s.tap(button);                          // Settle.standard: up to 5 seconds
 await s.tap(button, settle: Settle.none);     // don't wait
 await s.tap(button, settle: Settle.frames(3));
 await s.tap(button, settle: Settle.upTo(Duration(seconds: 30)));
 ```
 
-The default gives up after five (fake) seconds instead of throwing. This
-matters: a screen with a spinner on it **never** settles, and
-`pumpAndSettle` throws on one. A scenario that reaches a loading state records
-`settled: false` on that step — the GUI says *"still animating"* — and carries
-on.
+The default gives up after five seconds of fake time instead of throwing. A
+screen with a spinner on it never settles, and `pumpAndSettle` throws on one.
+A scenario that reaches a loading state records `settled: false` on that step,
+the studio shows *"still animating"*, and the scenario carries on.
 
-`s.settle()` is the wait without a step: the same policy (or the one you
-pass), no capture. It is what a suite ported from raw widget tests maps a
-legacy `pumpAndSettle()` onto, and the wait to reach for after work you
-pumped through `s.tester` yourself.
+`s.settle()` waits the same way without taking a step: the default policy, or
+the one you pass, and no capture. Use it in place of `pumpAndSettle()` in a
+test ported from plain widget tests, and after pumping through `s.tester`.
 
-`Settle.strict` is the default made red: the same five seconds, the same
-landing of real work afterwards, and a screen *still* asking for frames when
-both are done fails the step instead of recording a flag. Reach for it where a
-spinner in a picture is a bug — `settled: false` is a number in a report, and
-a scenario whose assertion finds its widget passes with a spinner in every
-frame for as long as nobody reads that number. Say it once for a folder:
+`Settle.strict` waits the same way as the default (five seconds, then the wait
+for real work), but if the screen still asks for frames after that, it fails
+the step instead of flagging it. Use it where a spinner in a picture is a bug:
+`settled: false` is only a number in a report, and a scenario whose assertions
+pass keeps passing with a spinner in every picture. Set it once for a folder:
 
 ```dart
 Future<void> testExecutable(FutureOr<void> Function() testMain) =>
     runScenarios(testMain, settle: Settle.strict);
 ```
 
-A scenario's own `settle:` still wins, and so does a verb's — `settle:
-Settle.standard` on the one `tap` whose picture is meant to show the spinner.
+A scenario's own `settle:` still wins, and so does a verb's. Pass
+`settle: Settle.standard` to the one `tap` that should show the spinner.
 
-`Settle.until(target)` waits for something instead of for quiet. Data that
-arrives without announcing itself looks exactly like an app with nothing left
-to do: a row down a sync stream that opened long ago, or a list that reads its
-local database after the tap that opened it. The default settles on the empty
-state and photographs that. Name what the step is waiting for:
+`Settle.until(target)` waits for something to appear instead of for the screen
+to go quiet. Data that arrives without scheduling a frame looks the same as an
+app with nothing left to do: a row from a sync stream that opened long ago, or
+a list that reads its local database after the tap that opened it. The default
+settles on the empty state and photographs it. Name what the step waits for:
 
 ```dart
 await s.tap('Orders', settle: Settle.until('Order #1042'));
@@ -226,23 +217,23 @@ await s.act(
 ```
 
 It pumps until the target is on screen, then settles the way the default does.
-The target is anything a verb takes, and a positional one waits like the rest:
-`find.text('Order #1042').first` over nothing, or a `Target.nth` past the
-rows so far, is simply not there yet. The `timeout` is ten seconds by default,
-on the lane's own clock. A target that never appears fails the step, and the
-step's picture is the screen at the moment the wait gave up.
+The target can be anything a verb takes, including a positional one:
+`find.text('Order #1042').first` with no match yet, or a `Target.nth` past the
+rows so far, counts as not there yet. The `timeout` is ten seconds by default,
+on the scenario's clock. A target that never appears fails the step, and the
+step's picture is the screen when the wait gave up.
 
-### Motion that says nothing
+### Loaders that never settle
 
-A step that never settles runs its whole budget on every replay, and the
-run names what kept it going: `settled: false` on the step comes with
-`stillTicking`, and the GUI's *"still animating"* notice lists the same —
-`CircularProgressIndicator (lib/src/orders/status_cell.dart:42)` for a
-framework widget, by the line of the app that built it, or the frame that
-started an animation of the app's own.
+A step that never settles uses its whole settle time on every run, and the run
+names what kept it busy: `settled: false` on the step comes with
+`stillTicking`, and the studio's *"still animating"* notice lists the same
+things. A framework widget is named with the line of your app that built it,
+such as `CircularProgressIndicator (lib/src/orders/status_cell.dart:42)`. An
+animation of your own is named by the frame that started it.
 
-Most of it is a spinner, a shimmer or a pulsing dot, and the phase it is at
-carries no information. Say so in the app, once, where the loader is built:
+Usually it's a spinner, a shimmer or a pulsing dot, and the phase it's at
+doesn't matter. Mark it in the app, once, where the loader is built:
 
 ```dart
 import 'package:flutterware/ambient.dart';
@@ -250,38 +241,35 @@ import 'package:flutterware/ambient.dart';
 Ambient(child: CircularProgressIndicator())
 ```
 
-Outside a scenario `Ambient` builds its child and nothing else. Inside one,
-nothing under it schedules a frame, and every Material progress indicator
-without a controller of its own is drawn at one fixed phase — so the step
-settles, and the picture is the same on every run and every machine. Anything
-else under it freezes at its own start.
+Outside a scenario, `Ambient` just builds its child. Inside one, nothing under
+it schedules a frame, and every Material progress indicator without its own
+controller is drawn at one fixed phase. The step settles, and the picture is
+the same on every run and every machine. Any other animation under it stays at
+its start.
 
-`Settle.strict` is not relaxed by it: a step that ends with an `Ambient` on
-screen still fails there. Freezing makes the picture deterministic; it does
-not make a loader on screen acceptable where the suite says it is not.
+`Settle.strict` still fails a step that ends with an `Ambient` on screen.
 
-### A post-frame callback nothing schedules a frame for
+### A post-frame callback that never runs
 
-`WidgetsBinding.instance.addPostFrameCallback` does not request a frame — it
-appends to a list and waits for the next one, "whenever that may be, if ever"
-in the SDK's own words. And the test binding draws no frame at all for a pump
-with nothing scheduled. Put the two together and a callback registered while
-the tree is quiet **never runs**: not on the next verb, not on `s.settle()`,
-not on a raw `s.tester.pumpAndSettle()`, which loops on the same flag.
+`WidgetsBinding.instance.addPostFrameCallback` doesn't request a frame. It adds
+the callback to a list that the next frame runs, whenever that comes. The test
+binding draws no frame for a pump with nothing scheduled. So a callback
+registered while the tree is idle never runs: not on the next verb, not on
+`s.settle()`, and not on `s.tester.pumpAndSettle()`.
 
-Registered during a build it is fine — the frame in progress runs it at its
-end. Registered *outside* a frame it is stranded, and the shape that bites is
-an `initState` that awaits first:
+A callback registered during a build is fine, because the frame in progress
+runs it at its end. One registered outside a frame is stuck. The usual case is
+an `initState` that awaits something first:
 
 ```dart
 Future<void> _load() async {
-  await repository.fetch();                    // the frame is long over here
+  await repository.fetch();                    // the frame has ended by now
   WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
 }
 ```
 
-The fix belongs in the app, because on a device that callback is equally
-waiting on somebody else to schedule a frame — it just usually gets one:
+Fix it in the app, since on a device the callback also depends on something
+else scheduling a frame:
 
 ```dart
 var binding = WidgetsBinding.instance;
@@ -289,28 +277,26 @@ binding.addPostFrameCallback((_) => _reveal());
 binding.ensureVisualUpdate();                  // schedules one unless one is coming
 ```
 
-Where the app is not yours to change, ask for the frame from the scenario:
+If you can't change the app, ask for the frame from the scenario:
 
 ```dart
 s.tester.binding.scheduleFrame();
 await s.settle();
 ```
 
-Nothing here is a scenario's doing — a plain widget test strands it the same
-way. What scenarios changes is that it strands it *reliably*: `tester.pumpWidget`
-leaves a frame scheduled and the stranded callback catches a ride on it, while
-every verb here settles to a quiet tree, so there is never a ride going. Put a
-`pumpAndSettle()` before the registration in a raw widget test and it stops
-firing there too.
+A plain widget test has the same problem, but `tester.pumpWidget` leaves a
+frame scheduled and the callback runs on it. Every scenario verb settles to an
+idle tree, so no frame is coming. Put a `pumpAndSettle()` before the
+registration in a plain widget test and the callback stops running there too.
 
 ### Work on the real event loop
 
-A settle follows frames, and work that resolves on the *real* event loop — an
-asset read, a decode on an engine thread, a file, an isolate — schedules none
-while it is in flight. Every verb lands what it can see for itself: a pending
-`ImageProvider`, an asset read through `s.assets`, and a dozen guessed turns
-of the real loop for the rest, which is enough for an SVG and nowhere near
-enough for a 6 MB model import. For the rest, the app says so:
+Settling follows frames. Work that finishes on the real event loop (an asset
+read, an image decode on an engine thread, a file, an isolate) schedules no
+frame while it runs. Every verb waits for what it can detect by itself: a
+pending `ImageProvider`, an asset read through `s.assets`, and a dozen turns of
+the real event loop for anything else. That is enough for an SVG, but not for
+importing a 6 MB model. For longer work, tell flutterware about it in the app:
 
 ```dart
 import 'package:flutterware/real_work.dart';
@@ -322,14 +308,14 @@ void initState() {
 }
 ```
 
-`RealWork.track` hands the future straight back; outside a scenario it costs a
-set insert and a listener on the future, nothing more. Inside one, every verb that follows waits — real milliseconds, a
-pump between turns so the continuations run and the `setState` at the end is
-drawn — until it has completed, then photographs. A tracked future that never
-completes runs into the scenario's deadline, whose message names the label.
+`RealWork.track` returns the future unchanged. Outside a scenario it costs a
+set insert and a listener on the future. Inside one, every verb that follows
+waits in real time until the future completes, pumping between turns so its
+continuations run and the final `setState` is drawn, and then takes its
+picture. A tracked future that never completes runs into the scenario's
+deadline, and the error names its label.
 
-Without it, the shape by hand is poll-and-pump, and the pump is the whole
-point:
+Without it, poll and pump by hand. The pump is what lets the continuations run:
 
 ```dart
 while (!scene.ready) {
@@ -338,22 +324,20 @@ while (!scene.ready) {
 }
 ```
 
-What does **not** work is awaiting the app's future bare, or inside
-`s.runAsync`. A future made under fake time completes through a fake
-microtask, and only a pump runs those; the body suspended on that future is
-the one thing that could have pumped. Bare, that is thirty seconds of nothing
-and then a deadline; inside `s.runAsync`, no pump can run at all and the
-watchdog names it after eight. `s.runAsync` is for work that needs the real
-clock and nothing else — a database, a socket — never for a future the app
-already created.
+Don't await the app's future directly, or inside `s.runAsync`. A future created
+under fake time completes through a fake microtask, which only a pump runs, and
+the body awaiting it can't pump. Awaited directly, it waits until the
+scenario's 30-second deadline. Inside `s.runAsync`, no pump can run at all, and
+the watchdog reports it after eight seconds. Use `s.runAsync` only for work
+that needs the real clock and nothing else, such as a database or a socket, and
+never for a future the app already created.
 
-An asset read through `s.assets` is counted as a read and no further. A
-package that then parses the bytes in an isolate — Lottie with
-`backgroundLoading: true` — has a second half nothing counts, and that half is
-the app's to announce. Lottie also keeps each load for the life of the process,
-so a load one scenario started would be awaited from the next one's zone, where
-it never completes. `RealWork.run` starts the work outside every scenario's
-zone and tracks it:
+An asset read through `s.assets` counts as done once its bytes are read. A
+package that then parses them in an isolate, like Lottie with
+`backgroundLoading: true`, needs the app to track that second half. Lottie also
+caches each load for the life of the process, so a load one scenario started
+would be awaited from the next scenario's zone, where it never completes.
+`RealWork.run` starts the work outside every scenario's zone and tracks it:
 
 ```dart
 final _intro = AssetLottie('assets/intro.json', backgroundLoading: true);
@@ -370,36 +354,35 @@ Widget build(BuildContext context) => LottieBuilder(lottie: _intro);
 
 ### Work on the fake clock
 
-A future that waits on the *fake* clock — a `Future.delayed`, a debounce, a
-repository that answers behind a timer — is the opposite case, and has the
-same symptom. Only a pump moves the clock, so awaited bare between verbs it
-never completes; the deadline says so, and names the timer and the line that
-started it. Await it inside `s.act`, which moves the clock for its body:
+A future that waits on the fake clock, such as a `Future.delayed`, a debounce
+or a repository that answers after a timer, gets stuck the same way. Only a
+pump moves the fake clock, so if you await it directly between verbs it never
+completes. The deadline error names the timer and the line that started it.
+Await it inside `s.act`, which moves the clock for its body:
 
 ```dart
 await s.act('The search debounce fires', () => search.query('latte'));
 ```
 
-While the body waits on a timer or a frame, the act pumps at the settle
-interval until the body completes, up to `timeout:` of fake time (ten seconds
-by default); a body still waiting then fails the step with what the clock
-still held. A body that needs no time moves none, and a verb called inside the
-body moves the clock itself, so the act waits for it rather than pumping under
-it. On the real clock (`ScenarioTime.real`) the body's timers fire on their
-own and the act only awaits it.
+While the body waits on a timer or a frame, `act` pumps at the settle interval
+until the body completes, for up to `timeout:` of fake time (ten seconds by
+default). A body still waiting after that fails the step, and the error lists
+what the clock still held. A body that needs no time doesn't move the clock. A
+verb called inside the body moves the clock itself, and `act` waits for it
+instead of pumping at the same time. On the real clock (`ScenarioTime.real`),
+the body's timers fire on their own and `act` just awaits it.
 
 ## Shots
 
-By default every verb captures. `Shot('name')` names the picture; the unnamed
-ones are collapsed as detail steps in the flow.
+By default every verb captures. `Shot('name')` names the picture. Unnamed ones
+are shown collapsed, as detail steps, in the flow.
 
-A flow never holds the same picture twice by accident. `screen(name)` straight
-after a verb puts the name on that verb's picture rather than taking a second
-one of the same frame. A verb that is there to let something happen — `wait`,
-`runAsync`, `scrollTo`, `unhover` — takes no step when the screen ends where it
-started, whether it drew nothing or redrew the same pixels. Any other verb that
-changes nothing keeps its step, marked identical to the one before it: a `tap`
-that moved nothing is what a stalled flow looks like.
+A flow doesn't keep the same picture twice. `screen(name)` straight after a
+verb puts the name on that verb's picture instead of taking a second one of the
+same frame. `wait`, `runAsync`, `scrollTo` and `unhover` take no step when the
+screen ends up as it started, whether they drew nothing or redrew the same
+pixels. Any other verb that changes nothing keeps its step, marked identical to
+the one before, since a `tap` that changes nothing means the flow is stuck.
 
 ```dart
 scenario('Long flow', shots: Shots.manual, (s) async {
@@ -411,10 +394,12 @@ await s.tap(next, shot: Shot.skip);        // skip just this one
 await s.tap(next, shot: Shot('Home', tags: ['store']));
 ```
 
-Tags are how the store lane picks its screenshots — see below.
+Tags pick which shots get exported. With `fw run scenarios shots --tag=store`
+([Named shots, as files](#named-shots-as-files)) or a `tag:` in
+[store screenshots](store_screenshots.md), only shots with that tag are kept.
 
-`s.act` names its step with its description, which makes every act a shot.
-`shot: false` keeps the step and drops the name: the flow still shows it, as
+`s.act` names its step with its description, so every act is a named shot.
+`shot: false` keeps the step but drops the name: the flow still shows it, as
 `act "…"`, and `shots` and the store export leave it out.
 
 ```dart
@@ -423,7 +408,7 @@ await s.act('The backend is seeded', shot: false, () => backend.seed());
 
 ## Splitting a flow
 
-One scenario, every path through it:
+One scenario can cover every path through a screen:
 
 ```dart
 scenario('Around the shop', (s) async {
@@ -449,22 +434,22 @@ scenario('Around the shop', (s) async {
 });
 ```
 
-The body **replays once per path**, so each branch starts from exactly the
-state the fork was reached with. Steps before the fork are captured once and
-shared; the flow graph fans out where the app does. Splits nest, and a failure
+The body is replayed once per path, so each branch starts from exactly the
+state the fork was reached in. Steps before the fork are captured once and
+shared, and the flow fans out where the app does. Splits nest, and a failure
 inside one names the branch that reached it.
 
-Each replay starts the pinned clock where the first run did, so a record the
-body dates with `clock.now()` has the same date in every branch, however long
-the branches before it took.
+Each replay starts the pinned clock at the same time as the first run, so a
+record the body dates with `clock.now()` has the same date in every branch,
+however long the earlier branches took.
 
-Because the body replays, anything a branch needs freshly built belongs in the
-body — `setUp` runs once per scenario, not once per path.
+Because the body replays, build anything a branch needs fresh inside the body:
+`setUp` runs once per scenario, not once per path.
 
 ## Devices and languages
 
-A folder says what it is for, once, in the file `flutter test` already looks
-for:
+A folder declares its devices and languages once, in the file `flutter test`
+already looks for:
 
 ```dart
 // test/scenarios/mobile/flutter_test_config.dart
@@ -481,22 +466,21 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) =>
     runScenarios(testMain, profile: phones);
 ```
 
-**The list is the offered set, and its head is the default.** No scenario
-mentions a device. `test/scenarios/desktop/` can name a different profile, and
-opening a scenario from either folder frames it the way that folder says — the
-GUI remembers a device *per folder*, so picking an iPhone on a phone scenario
-never follows you to a desktop one.
+The first entry of each list is the default, and the whole list is what the
+studio offers. Scenarios don't name devices. `test/scenarios/desktop/` can
+declare a different profile, and a scenario opened from either folder is framed
+the way its folder says. The studio remembers the device you picked per folder,
+so picking an iPhone for a phone scenario doesn't carry over to a desktop one.
 
-The folder is the unit, and that is structural, not a preference: devices are
-selected **per folder**, never per scenario. A suite whose phone and desktop
-scenarios interleave in one directory has to split into folders before it can
-say so. `orientations` is likewise an axis, **crossed** with `devices` — two
-devices × two orientations declares four matrix points, not two — so a suite
-that used to name `iPadLandscape` as its own device names the device once and
-the orientation beside it. (A device that cannot rotate contributes one point,
-not two.)
+Devices are chosen per folder. If phone and desktop scenarios share a
+directory, split them into two folders. `orientations` is a list of its own,
+crossed with `devices`: two devices and two orientations make four points. Name
+an iPad once and add `ScreenOrientation.landscape` to `orientations`, instead
+of declaring a landscape iPad as a separate device. A device that can't rotate
+adds only one point.
 
-`flutter test` runs one pass at the head of each list. CI brings its own:
+`flutter test` runs one pass, at the first entry of each list. To run more, in
+CI for example, pass the lists:
 
 ```sh
 flutter test test/scenarios/mobile \
@@ -504,34 +488,33 @@ flutter test test/scenarios/mobile \
   --dart-define=fw.languages=en,fr
 ```
 
-That declares one real test per combination — `Counter [iPhone SE · en]` … —
-from a single invocation and a single compile. `FW_DEVICES` / `FW_LANGUAGES`
-do the same for a CI job that would rather set an environment block.
+That declares one test per combination (`Counter [iPhone SE · en]`, and so on)
+from a single invocation and a single compile. The environment variables
+`FW_DEVICES` and `FW_LANGUAGES` do the same.
 
-Under the runner, don't restate the lists at all: `fw run scenarios run
-matrix=declared` reads the folder profiles and runs every point they declare
-— each folder's devices, languages, orientations and [app axes](#the-apps-own-axes),
-crossed the same way explicit lists are. A point runs only the files whose folder declares it, so
-the phone folder runs on its phones and the desktop folder on its windows,
-never on each other's; a point two folders both declare runs both in one
-pass, and a folder with no profile runs once, as a run naming no device
-would. `file=`, `scenario=` and `tag=` narrow it as they narrow any run.
-Adding a device to the declaration then adds it to CI, instead of silently
-not.
+With flutterware's runner you don't repeat the lists:
+`fw run scenarios run --matrix=declared` reads the folder profiles and runs
+every point they declare: each folder's devices, languages, orientations and
+[app axes](#the-apps-own-axes), crossed the same way as explicit lists. Each
+point runs only the files whose folder declares it, so the phone folder runs on
+its phones and the desktop folder on its windows. A point two folders both
+declare runs both in one pass, and a folder with no profile runs once, like a
+run that names no device. `--file`, `--scenario` and `--tag` narrow it as they
+narrow any run. A CI job that uses `--matrix=declared` runs on a new device as
+soon as you add it to a profile.
 
-Explicit `devices=` and `languages=` lists are different: they name the
-devices for the whole run, every file on every one of them, whatever the
-folders declare.
+Explicit `--devices` and `--languages` lists work differently: every file runs
+on every device and language listed, whatever the folders declare.
 
 Inside a body, `s.assignment` reports what this pass is running as, so an
 expectation can adapt to the screen it is on.
 
 ## The app's own axes
 
-Devices, languages and orientations are axes flutterware knows. An app usually
-has a few of its own — two brand themes, a high-contrast mode, a feature
-flag's variant — and a folder declares those beside its devices, each with the
-values worth running:
+Devices, languages and orientations are axes flutterware knows about. An app
+usually has a few of its own, such as two brand themes, a high-contrast mode or
+a feature flag's variants. A folder declares those next to its devices, each
+with the values worth running:
 
 ```dart
 // test/scenarios/mobile/flutter_test_config.dart
@@ -545,7 +528,7 @@ const phones = ScenarioProfile(
 );
 ```
 
-A scenario reads the value it is running in and builds its app for it:
+A scenario reads the value it is running with and builds its app for it:
 
 ```dart
 scenario('Order a cappuccino', (s) async {
@@ -559,14 +542,14 @@ scenario('Order a cappuccino', (s) async {
 });
 ```
 
-The values are words, because a profile is `const` and a theme is not: turning
-`tea` into a `ThemeData` is the scenario's job, or a helper's its folder
-shares. As with devices, **the first value is the default** — `flutter test`,
-the studio and a run that names none all build the coffee app. `s.axis` refuses
-a name the folder does not declare, so a typo fails rather than photographing
+The values are strings because a profile is `const` and a theme is not, so
+turning `tea` into a `ThemeData` is up to the scenario, or a helper its folder
+shares. As with devices, the first value is the default: `flutter test`, the
+studio and a run that names no value all build the coffee app. `s.axis` throws
+on a name the folder doesn't declare, so a typo fails instead of photographing
 the default twice under two names.
 
-Running across them is the same as running across the other lists:
+Run across them the same way as the other lists:
 
 ```shell
 fw run scenarios run --axes=brand=tea                # one value
@@ -576,30 +559,29 @@ fw run scenarios shots --axes=brand=coffee,tea       # en/iphone-16-coffee/, en/
 flutter test test/scenarios/mobile --dart-define=fw.axes=brand=coffee,tea
 ```
 
-Several axes are comma-separated too — `--axes=brand=coffee,tea,contrast=high`
-— and `FW_AXES` is the environment form of `fw.axes`. An axis is run only
-where it is declared: a folder without `brand` ignores `--axes=brand=tea`, a
-folder that declares `brand` without `tea` fails its scenarios saying so, and a
-name or a value no folder declares is refused before anything runs. The web
-export and the video take `--axes` as well.
+Several axes are comma-separated too, as in
+`--axes=brand=coffee,tea,contrast=high`, and `FW_AXES` is the environment form
+of `fw.axes`. An axis only applies where it is declared: a folder without
+`brand` ignores `--axes=brand=tea`, a folder that declares `brand` without
+`tea` fails its scenarios with a message saying so, and a name or value no
+folder declares is refused before anything runs. The web export and the video
+take `--axes` as well.
 
-Unlike portrait and light, a value is always written down — in a matrix
-directory (`iphone-16-fr-tea`), a test name (`Counter [iPhone 16 · fr · tea]`),
-a step's address (`?axis.brand=tea`) and `s.assignment?.axes` — the default
-included. The first value is only the order somebody listed them in, and a
-directory that left it out would change meaning when the list was reordered.
-A folder that declares no axes writes exactly what it wrote before.
+Unlike portrait and light, an axis value is always written out, including the
+default: in a matrix directory (`iphone-16-fr-tea`), a test name
+(`Counter [iPhone 16 · fr · tea]`), a step's address (`?axis.brand=tea`) and
+`s.assignment?.axes`. A folder without axes adds nothing to these names.
 
-In the studio, each axis the open scenario's folder declares gets a picker
-beside Device and Language, offering that folder's values.
+In the studio, each axis the open scenario's folder declares gets a picker next
+to Device and Language, offering that folder's values.
 
 ## Real-time folders
 
 A folder can run on the wall clock instead of the fake one, against a real
-backend: the same `scenario()`, the same verbs, the same report. It is how an
-integration suite that used to need a device becomes a folder of scenarios.
-The folder says so in its config, and the declaration says it again, because
-the runner has to know before it builds anything:
+backend, with the same `scenario()`, the same verbs and the same report. An
+integration suite that needed a device can run this way as a folder of
+scenarios. Declare it in the folder's config and in `tool/flutterware.dart`,
+since the runner needs to know before it builds anything:
 
 ```dart
 // integration_test/scenarios/flutter_test_config.dart
@@ -613,41 +595,41 @@ fw.use(Scenarios(packages: [
 ]));
 ```
 
-A package can declare a fake-time folder and a real-time one side by side, and
-the second one is addressed by its directory: `app/integration_test/scenarios`.
-Under real time, the network is live by default. Animations run at a tenth of
-their duration (`ScenarioTime.real(animations: 1.0)` to film them). Each
-scenario gets its own process, several at once (`--jobs`).
+A package can have a fake-time folder and a real-time one side by side. Address
+the second by its directory: `app/integration_test/scenarios`. Under real time
+the network is live by default, and animations run at a tenth of their
+duration (`ScenarioTime.real(animations: 1.0)` to film them at full length).
+Each scenario gets its own process, and several run at once (`--jobs`).
 
-**It runs when you ask for it.** A real-time scenario creates an account,
-sends an email, texts a phone, so nothing runs it by accident:
+A real-time scenario can create an account, send an email or text a phone, so
+it only runs when you ask for it:
 
 - The studio runs it when you press **Run**, not when you open its page.
 - `fw run scenarios run` with no `--package` runs the fake-time folders only,
-  and names the ones it left out under `notRun`.
+  and lists the ones it skipped under `notRun`.
 - `--package=app/integration_test/scenarios` runs the real-time folder.
 - A comparison never runs one.
 
-**What a step waits for.** A live request is waited for until its headers are
-in, so no scenario needs a hand-written wait for an HTTP call. What arrives
-after that is not announced: a sync stream's rows, or a list that reads its
-local database once the tap has opened it. Those need
+Each step waits for live requests until their response headers arrive, so no
+scenario needs a hand-written wait for an HTTP call. Data that arrives after
+that, such as a sync stream's rows or a list that reads its local database once
+the tap has opened it, gives no signal. Wait for it with
 [`Settle.until`](#settling).
 
-Work before the flow goes in a setup beat: `await s.setup('a fresh account',
-() => api.signUp(...))` is one step, with its duration and its exchanges, and
-no picture.
+Put work that comes before the flow in a setup step:
+`await s.setup('a fresh account', () => api.signUp(...))` is one step, with its
+duration and its requests, and no picture.
 
-If a scenario takes its process down with it (an error that escapes every
-zone it owns), that scenario is reported red. The report keeps the steps it
-captured and the last of what the process printed, and the rest of the run
+If a scenario takes its process down (an error that escapes every zone it
+owns), that scenario is reported as failed. The report keeps the steps it
+captured and the last lines the process printed, and the rest of the run
 carries on in a fresh process.
 
 ### Traps
 
 - **`split` replays real side effects.** The body runs once per branch, so an
-  account made before the fork is made once per branch, and so is every email
-  and text. In a real-time folder, prefer separate scenarios.
+  account created before the fork is created once per branch, and so is every
+  email and text. In a real-time folder, prefer separate scenarios.
 - **Pump a second device as a new widget.** When two apps share their root
   widget types, a second `pumpWidget` updates the first app's `State` instead
   of mounting a new app, and the screen still shows the first device's data.
@@ -664,48 +646,48 @@ six flows, two apps, and 127 steps in 20 seconds.
 
 - **One object per device.** It holds its own credentials, links and
   database directory, and knows how to build each app that device can run.
-- **Check the stack before the first request.** Use a raw socket connect, so
-  the check is not an exchange recorded on the step. When nothing answers,
+- **Check the stack before the first request.** Use a raw socket connection,
+  so the check isn't recorded as a request on the step. When nothing answers,
   fail on the first line and name the command that starts the stack.
 - **Fresh accounts only, made through the API in `s.setup`.** Nothing depends
   on seed data, so the same folder runs on a developer's stack and on CI's
   empty one.
 - **Read mail and texts over HTTP**, from whatever catches them in the dev
   stack.
-- **Point every guest at the stack through the environment.** A one-shot `fw`
-  passes its environment down to the scenarios, so CI can aim a whole run at
-  an isolated stack with one variable.
+- **Point every app at the stack through environment variables.**
+  `fw run scenarios run` passes its environment on to the scenarios, so CI can
+  aim a whole run at an isolated stack with one variable.
 
-## Fonts: the lane decides how text measures
+## Fonts
 
-`flutter test` launches its tester with `--use-test-fonts
---disable-asset-fonts`, hardcoded — no flag turns it off. Any family nobody
-loads real bytes for draws every glyph as an identical filled box **and
-measures at the box's width**, roughly double a real glyph. That is the wrong
-kind of wrong: the suite still passes, layouts still resolve, and every
-screenshot is lying about where text ends. Headings that name a bundled
-family look fine while the body text beside them lies.
+`flutter test` always starts its tester with `--use-test-fonts` and
+`--disable-asset-fonts`, and no flag turns that off. A font family with no real
+font files loaded draws every glyph as the same filled box, and measures each
+one at the box's width, roughly double a real glyph. Tests still pass and
+layouts still resolve, but the screenshots show text wider than it is.
+Headings in a bundled font can look right while the body text next to them, in
+the default font, is a row of boxes.
 
-Flutterware closes this in both lanes. Every family in your
-`FontManifest.json` is loaded before anything runs — under the runner and
-under bare `flutter test` alike — and under `flutter test` the
-platform-default families (`Roboto`, the Apple and Windows system names) get
-real Roboto from the SDK's own cache, so text that names *no* family measures
-real too. A family you bundle yourself is always left to your bytes.
+Flutterware loads every family in your `FontManifest.json` before anything
+runs, under its own runner and under plain `flutter test`. Under
+`flutter test`, the platform's default families (`Roboto`, and the Apple and
+Windows system font names) also get real Roboto from the SDK's cache, so text
+that names no family measures correctly too. A family you bundle yourself
+always uses your font files.
 
-The residue is why the runner is the lane for pictures: under `flutter test`
-an iOS-profile scenario measures its default text as Roboto — close, not SF.
-`fw run scenarios run` spawns the tester without those flags, so it renders
-and measures the real thing; treat its captures as the authoritative ones,
-and bare `flutter test` as the assertion lane it is.
+One difference remains: under `flutter test`, a scenario on an iOS device draws
+its default text in Roboto, which is close to the iOS system font but not the
+same. `fw run scenarios run` starts the tester without those flags, so it uses
+the platform's real fonts. Treat its pictures as the reference, and use plain
+`flutter test` for assertions.
 
 ## What a run leaves behind
 
 ![One step of a run: the screen it captured, and the widget tree, semantics,
 texts and events recorded with it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/scenarios-step.webp)
 
-In the GUI, opening a scenario runs it and draws the flow. From the CLI or an
-agent — the same actions, the same shapes:
+In the studio, opening a scenario runs it and draws the flow. The command line
+and an agent use the same actions and get the same results:
 
 ```sh
 fw run scenarios list
@@ -714,68 +696,71 @@ fw run scenarios run --devices=iphone-se,android-tall --languages=en,fr
 fw run scenarios run --tag=smoke
 ```
 
-A matrix writes one directory per point — `<output>/<device>-<language>/` —
-with an `index.json` beside them mapping each assignment to its directory and
-result. Each step leaves a PNG, a `.tree.json`, a `.semantics.json` — the
-merged semantics tree in reading order, labels and flags and actions by name —
-and its texts; a failing scenario reports the error **with the frame captured
-at the failure**, not the one before it. A scenario that raised more than one
-exception reports each with its own message and its own stack — never
-`flutter_test`'s "Multiple exceptions (2)" counter, which is the sentence it
-prints after discarding both.
+A matrix writes one directory per point, `<output>/<device>-<language>/`, with
+an `index.json` next to them that maps each point to its directory and result.
+Each step leaves a PNG, a `.tree.json`, a `.semantics.json` (the merged
+semantics tree in reading order, with labels, flags and actions by name) and
+its texts. A failing scenario reports its error with the frame captured at the
+moment it failed. A scenario that raised more than one exception reports each
+one with its own message and stack, where `flutter_test` only says
+"Multiple exceptions (2)".
 
-Beside the artifacts sits `run.json`: the whole run in the result's own
-shape, every step of every scenario. The reply the action hands back
-summarises — by default only each failure's frame rides along (`steps=`
-chooses) — so a script that counts steps reads `stepCount`, or the file. A
-relative `--output` resolves against the worktree root, and `run.json` lands
-in the same directory as the images it names. A red run carries a flat
-`failed` list at the top — package, file, scenario, first line of the error
-— so a script finds the red one without walking every package.
+Next to the artifacts is `run.json`: the whole run, every step of every
+scenario, in the same shape as the result. The reply the action returns is a
+summary. By default it includes only the frame each failing scenario stopped on
+(`--steps=all` for every step, `--steps=none` for the summary alone), so a
+script that counts steps should read `stepCount`, or the file. A relative
+`--output` resolves against the worktree root, and `run.json` is written in the
+same directory as the images it names. A failed run has a flat `failed` list at
+the top, with the package, file, scenario and first line of the error for each,
+so a script can find the failure without walking every package.
 
-Several files run in one process, in the order given — `--file=a,b` or
-`--file=a --file=b` — which is how to reproduce a failure that only happens
-after another file has run: a future one scenario leaves in its fake zone only
-bites the scenario after it. Each selector must match something; a typo in
-the second is refused, not run green on the strength of the first.
+Several files run in one process, in the order given: `--file=a,b` or
+`--file=a --file=b`. Use this to reproduce a failure that only happens after
+another file has run, such as a future one scenario leaves behind in its fake
+zone that breaks the scenario after it. Each selector must match something, so
+a typo in the second one is refused instead of the run passing on the first.
 
-What the app printed rides the steps: `print` and `debugPrint` are events on
-the `print` channel, `package:logging` records on `log`, platform traffic on
-`platform` — on the step that followed them, in the `eventTitles` digest and
-whole in `scenarios read --events` (`--channel=print` for just the prints).
-`dart:developer`'s `log` goes to the VM's logging stream and nowhere else,
-here as under `flutter test`. A scenario that runs out its deadline ends on a
-**failed step** it never took: no picture, the events since the last capture,
-and a diagnosis as its failure — which verb the body was inside and the line
-that called it, whether a completion is queued behind a pump nothing runs
-(hand it to `RealWork.track`) or nothing is queued at all (a future from an
-earlier scenario's fake zone, or real-time work; the previous scenario is
-named), and which platform messages went out and were never seen answered,
-with the app frames that sent them.
+What the app printed is attached to the steps: `print` and `debugPrint` are
+events on the `print` channel, `package:logging` records are on `log`, and
+platform messages are on `platform`. Each event is on the step that followed
+it, summarized in `eventTitles` and in full with `scenarios read --events`
+(`--channel=print` for just the prints). `dart:developer`'s `log` goes only to
+the VM's logging stream, here as under `flutter test`.
 
-`scenarios read` takes a step by any leg `run` reported — the `tree` path, the
-`image` path, or the `fw://` address every step carries — so a step has one
-identity across `run`, `read` and the GUI.
+A scenario that runs past its deadline ends on a failed step it never took.
+That step has no picture, holds the events since the last capture, and its
+failure explains what happened:
 
-`scenario(skip: true)` is honoured the way `flutter test` honours it: the
-body never runs, the run stays green, and the outcome says `skipped` instead
-of pretending it passed — the same file answers the same way on both lanes.
+- which verb the body was in, and the line that called it;
+- whether a completion is waiting for a pump that nothing runs (track it with
+  `RealWork.track`), or nothing is waiting at all (a future from an earlier
+  scenario's fake zone, or real-time work; the previous scenario is named);
+- which platform messages were sent and never answered, with the app frames
+  that sent them.
 
-Content that is in the tree but not on the screen — the route you navigated
-away from, an `Offstage` — is marked `offstage` in the `.tree.json`, and the
-Elements tab folds it away so what you read is what the screenshot shows.
+`scenarios read` takes a step by anything `run` reported for it: the `tree`
+path, the `image` path, or the `fw://` address every step carries. All three
+name the same step in `run`, `read` and the studio.
 
-In the GUI, the step page's **Semantics** tab shows that tree: the words
-bright and the structure dim, roles badged, each row lighting its rectangle
-up on the screenshot. It is the projection a screenshot cannot show — an icon
-button with no label is invisible pixels and an obvious gap in this list —
-and it is where the strings for `Target.label(…)` come from.
+`scenario(skip: true)` works as it does under `flutter test`: the body never
+runs, the run stays green, and the outcome says `skipped` rather than passed.
 
-`--tag` filters scenarios by `scenario(tags: [...])`, the same tag
+Content that is in the tree but not on screen, such as the route you navigated
+away from or an `Offstage`, is marked `offstage` in the `.tree.json`, and the
+Elements tab folds it away so the tree matches the screenshot.
+
+In the studio, the step page's **Semantics** tab shows the semantics tree: the
+words bright and the structure dim, roles as badges, and each row highlighting
+its rectangle on the screenshot. It shows what a screenshot can't, such as an
+icon button with no label, and it's where to find the strings for
+`Target.label(…)`.
+
+`--tag` filters scenarios by `scenario(tags: [...])`, the same tags
 `flutter test --tags` uses.
 
-Runs share a warm harness, so the second one skips the compile. `restart`
-drops it when you want a cold start.
+Runs share a warm harness, so the second one skips the compile.
+`fw run scenarios restart` drops it when you want a cold start.
 
 ## Named shots, as files
 
@@ -787,7 +772,8 @@ shots of a run, written as plain PNGs.
 fw run scenarios shots --languages=en,fr --tag=store
 ```
 
-Keeps only the **named** shots, at each device's own pixel ratio, into
+This keeps only the named shots (here, those tagged `store`), at each device's
+own pixel ratio, in:
 
 ```
 <output>/<language>/<device>/around-the-shop/01-welcome.png
@@ -796,41 +782,39 @@ Keeps only the **named** shots, at each device's own pixel ratio, into
                              checkout/01-cart.png
 ```
 
-A directory per scenario, named after it, and the shots numbered in flow
-order within it. Adding a shot renumbers only the rest of its own scenario,
-so an export's diff is the screens that changed rather than every file after
-the first new one. Two files that each have a scenario of the same name get
-their file names in front — `cart-happy-path/`, `checkout-happy-path/`. The
-scenario name is the order: prefix names (`01 Login`) rather than files if
-the directories should sort a particular way.
+Each scenario gets a directory named after it, with its shots numbered in flow
+order. Adding a shot renumbers only the rest of its own scenario, so the diff
+of an export shows only the screens that changed. When two files each have a
+scenario with the same name, the file names go in front: `cart-happy-path/`,
+`checkout-happy-path/`. Directories sort by scenario name, so prefix the names
+(`01 Login`) if they should sort in a particular order.
 
-With no `--devices`, each folder's profile answers, so one invocation produces
-a phone tree for the mobile folder and a window tree for the desktop one. The
-output directory is emptied first: what is in it afterwards is exactly this
-run.
+Without `--devices`, each folder's profile decides, so one command writes a
+phone tree for the mobile folder and a window tree for the desktop one. The
+output directory is emptied first, so afterwards it holds exactly this run.
 
 `--orientations=portrait,landscape` and `--brightness=light,dark` cross with
-the devices and languages. A turned or dark point gets its own directory
-beside the device's — `iphone-16-landscape/`, `iphone-16-dark/`,
-`iphone-16-landscape-dark/` — while portrait and light, the defaults, add
-nothing.
+the devices and languages. A turned or dark point gets its own directory next
+to the device's (`iphone-16-landscape/`, `iphone-16-dark/`,
+`iphone-16-landscape-dark/`). Portrait and light are the defaults and add
+nothing to the name.
 
-A scenario that fails keeps the shots it took before it broke, and the answer
-says why, per set: each entry in `failures` names the scenario, the first
-lines of its error, and the `run` command that reproduces it at that device
-and language — the run `shots` does is scratch, and deleted. `fw` exits 1, so
-a pipeline stops before it uploads half a set.
+A scenario that fails keeps the shots it took before it failed, and the reply
+says why for each set: each entry in `failures` names the scenario, the first
+lines of its error, and the `run` command that reproduces it at that device and
+language. Use that command to look into it, since the run `shots` does itself
+is deleted when it finishes. `fw` exits with 1, so a pipeline stops before it
+uploads half a set.
 
 ## Standalone captures
 
-No runner, no GUI — a bare `flutter test` writes the pictures itself:
+Plain `flutter test` can write the pictures too, with no runner or studio:
 
 ```sh
 flutter test --dart-define=screenshots-destination=build/shots
 ```
 
-(`SCREENSHOTS_DESTINATION` works too.) Files land under
-`<destination>/<assignment>/<file>/<scenario>/<index>-<name>.png` — the file
-the scenario was declared in, flattened (`test_scenarios_shop_test.dart`), as
-the runner spells it. A scenario name is unique per file, not per suite, so
-without it two files naming the same screen write over each other.
+`SCREENSHOTS_DESTINATION` works too. Files go to
+`<destination>/<assignment>/<file>/<scenario>/<index>-<name>.png`, where
+`<file>` is the file the scenario was declared in, flattened
+(`test_scenarios_shop_test.dart`) the same way the runner does it.

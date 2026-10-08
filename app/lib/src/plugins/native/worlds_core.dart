@@ -18,8 +18,7 @@ import 'worlds_results.dart';
 
 const worldsPluginId = 'flutterware.worlds';
 
-/// Worlds: several people on your real server, set up by a script
-/// (`docs/superpowers/specs/2026-09-25-worlds-design.md`).
+/// Worlds: several people on your real server, set up by a script.
 ///
 /// **Whoever opens a world owns it,** as with a Run launch. The script, the
 /// compiler and every person's guest live in the process that opened it —
@@ -501,7 +500,9 @@ class WorldsCore extends PluginCore {
         when actionId != 'open' && actionId != 'list') {
       var open = _open?.file.id ?? openElsewhere()?.world;
       if (open == null) {
-        throw WorldRefusal('No world is open, so not $named either.');
+        throw WorldRefusal(
+          'No world is open. `worlds open $named` opens this one.',
+        );
       }
       if (open != named) {
         throw WorldRefusal(
@@ -607,7 +608,9 @@ class WorldsCore extends PluginCore {
       'invoke',
       'close',
     }.contains(action)) {
-      throw WorldRefusal('"$action" is not asked of a world across processes.');
+      throw WorldRefusal(
+        '"$action" cannot be sent to a world open in another process.',
+      );
     }
     var result = await invoke(action, arguments: arguments);
     return (result! as PluginResult).toJson();
@@ -626,8 +629,9 @@ class WorldsCore extends PluginCore {
     if (open != null) {
       if (open.file.id == world) return open;
       throw WorldRefusal(
-        '${open.file.name} is open. Close it first: one world at a time, '
-        'since two would give two people the same device in Run.',
+        '${open.file.name} is open. Close it first: a worktree has one world '
+        'open at a time, because two would give two people the same device in '
+        'Run.',
       );
     }
     if (_worlds.isEmpty) await computeAll();
@@ -642,9 +646,8 @@ class WorldsCore extends PluginCore {
     if (openElsewhere() case var other?) {
       throw WorldRefusal(
         '${other.name} is open in another process on this worktree (pid '
-        '${other.pid}), and one world at a time is open on a worktree: its '
-        'people hold their devices. `worlds status`, `invoke`, `restart` and '
-        '`close` reach it from here.',
+        '${other.pid}), and a worktree has one world open at a time. '
+        '`worlds status`, `invoke`, `restart` and `close` reach it from here.',
       );
     }
     var opened = _open = OpenWorld(
@@ -717,8 +720,8 @@ class WorldsCore extends PluginCore {
       '${arguments['world']}',
       knobs: parseWorldKnobs(arguments['knobs'] as String?),
       onCreated: (open) => open.say(
-        'Opened for another process${asker == null ? '' : ' (pid $asker)'} '
-        '— `fw` or the MCP server — which reaches it from there',
+        'Opened for another process${asker == null ? '' : ' (pid $asker)'}, '
+        'such as `fw` or the MCP server, which reaches it from there',
       ),
     );
     return WorldStateResult.of(opened).toJson();
@@ -835,7 +838,7 @@ class WorldsCore extends PluginCore {
         stdout.writeln(
           '  ${person.name}${identity.isEmpty ? '' : ' ($identity)'}: '
           '${person.phase}${person.device == null ? '' : ' on ${person.device}'}'
-          '${person.problem == null ? '' : ' — ${person.problem}'}',
+          '${person.problem == null ? '' : ' (${person.problem})'}',
         );
       }
       // Ctrl-C, or a `worlds close` from another process. The signal is
@@ -912,7 +915,8 @@ class WorldsCore extends PluginCore {
         String named =>
           TraceLevel.values.asNameMap()[named] ??
               (throw WorldRefusal(
-                'There is no level $named: product, system or wire.',
+                'There is no level $named. The levels are product, system '
+                'and wire.',
               )),
         _ => TraceLevel.wire,
       },
@@ -981,7 +985,7 @@ class WorldsCore extends PluginCore {
     var html = message.html;
     if (html == null) {
       throw WorldRefusal(
-        'The ${message.kind} has no page to draw; its words are all of it: '
+        'The ${message.kind} has no page to draw. All it says is '
         '"${message.body ?? message.text}".',
       );
     }

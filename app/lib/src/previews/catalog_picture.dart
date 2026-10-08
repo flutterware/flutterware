@@ -86,8 +86,9 @@ class PictureFraming {
         selector,
         'node',
         'nothing in $entryId is called that, and it is not the id of a node '
-            'either. `node` takes a widget name — `SplitButton`, `Save` — '
-            'matched against every type, description and label on screen, or '
+            'either. `node` takes a widget name, such as `SplitButton` or '
+            '`Save`, matched against every type, description and label on '
+            'screen, or '
             'an id from a tree read. Read the entry without `node` to see '
             'what is there.',
       );

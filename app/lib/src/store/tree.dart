@@ -143,9 +143,9 @@ bool storeShotMatches(String stem, String query) {
 /// Whether this set is *composed* — given a ground and a device body — rather
 /// than handed over close to how the app drew it.
 ///
-/// The rule decision 7 settles, in one place because it is the difference
-/// between two quite different outputs and reading it off two call sites would
-/// eventually make them disagree.
+/// The rule, in one place because it is the difference between two quite
+/// different outputs and reading it off two call sites would eventually make
+/// them disagree.
 ///
 /// A declared frame applies to **every** set: a project that has chosen a
 /// composition has chosen it for its listing. With none declared, the app's own

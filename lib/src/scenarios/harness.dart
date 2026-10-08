@@ -105,7 +105,7 @@ List<String>? inlineEventTitles(List<AppEvent> events) {
   if (titles.length <= _maxInlineTitles) return titles;
   return [
     ...titles.take(_maxInlineTitles),
-    '… ${titles.length - _maxInlineTitles} more — scenarios read events: true',
+    '… ${titles.length - _maxInlineTitles} more (scenarios read events: true)',
   ];
 }
 
@@ -127,8 +127,7 @@ String _capTitle(String title) => title.length <= _maxInlineTitleChars
 /// ```
 ///
 /// Runs under `AutomatedTestWidgetsFlutterBinding` — FakeAsync, instantaneous
-/// — in a directly-spawned `flutter_tester` (S4,
-/// `2026-07-30-s4-flutter-tester-findings.md`). The host drives it over the VM
+/// — in a directly-spawned `flutter_tester`. The host drives it over the VM
 /// service:
 ///
 /// - `ext.flutterware.scenarios.list` → every declared scenario, by file.
@@ -327,15 +326,14 @@ class _HarnessBinding extends AutomatedTestWidgetsFlutterBinding {
 /// becomes visible with no cooperation from the app. What it does *not* see is
 /// traffic that never happens: a plugin whose platform interface is gated on
 /// the dart plugin registrant (sqflite) throws before sending, and an ffi
-/// implementation never sends at all
-/// (`2026-08-11-scenario-events-spike-findings.md`).
+/// implementation never sends at all.
 class _SpyMessenger extends TestDefaultBinaryMessenger {
   /// The configured messenger becomes the **delegate**, not the donor.
   ///
   /// It carries outbound handlers the binding installed — `flutter/keyboard`
   /// among them — and those are private. Rebuilding around its `delegate`
   /// instead drops them, `getKeyboardState` then goes to the engine, is never
-  /// answered, and every run hangs. Measured, at length, by the spike.
+  /// answered, and every run hangs.
   _SpyMessenger(super.inner);
 
   @override
@@ -370,8 +368,8 @@ class _SpyMessenger extends TestDefaultBinaryMessenger {
     if (system) return result;
     // Replies are recorded only when they say something went wrong. A
     // successful envelope in a widget test is either empty or a mock's canned
-    // value — the spike measured nine identical 6-byte success envelopes from
-    // one `enterText` — and a channel with nobody on the other end is the
+    // value — one `enterText` produced nine identical 6-byte success
+    // envelopes — and a channel with nobody on the other end is the
     // "your fake is not wired" diagnostic worth keeping.
     result?.then(
       (reply) {
@@ -379,7 +377,7 @@ class _SpyMessenger extends TestDefaultBinaryMessenger {
           recordAppEvent(
             AppEvent.custom(
               channel: AppChannel.platform,
-              title: '$channel — no implementation',
+              title: '$channel: no implementation',
               detail: call?.method,
               error: true,
             ),
@@ -646,8 +644,9 @@ String _timeMismatchRefusal(
   return 'Scenario folder `$folder` runs on ${folderTime.name} time '
       '(`$config` says `runScenarios(time: $folderSays)`), but '
       "this package's scenarios run on ${laneTime.name} time ($packageSays). "
-      'A lane is one process on one clock: move the folder out of this '
-      "package's scenario directory, or make the two agree.";
+      "All of a package's scenarios run in one process on one clock. Move the "
+      "folder out of this package's scenario directory, or make the two "
+      'agree.';
 }
 
 /// The profile whose folder contains [file] — the nearest one above it, which
@@ -960,8 +959,8 @@ FilmSettings? _parseFilm(
   if (directory == null) return null;
   if (args['recordIntervalMs'] != null) {
     throw ArgumentError(
-      'a run renders a film or records motion, not both: `filmDir` asks for '
-      "every frame of the scenario at the film's own pace, and "
+      'a run can render a film or record motion, but not both: `filmDir` '
+      "asks for every frame of the scenario at the film's own pace, and "
       '`recordIntervalMs` asks for the frames of each transition at the '
       "panel's. Drop one.",
     );
@@ -1903,8 +1902,8 @@ Future<Map<String, Object?>> _runOne(
   // split replay. Inside the body they would be under FakeAsync, where
   // `await subscription.cancel()` never returns — cancel hands back a
   // root-zone future and the fake clock does not drain the real microtask
-  // queue. That hangs the whole run, silently, including scenarios that log
-  // nothing (`2026-08-11-scenario-events-spike-findings.md`).
+  // queue. That hangs the whole run, silently, including scenarios that
+  // log nothing.
   appEventBuffer = AppEventBuffer();
   scenarioCaughtErrors = [];
   var records = Logger.root.onRecord.listen(

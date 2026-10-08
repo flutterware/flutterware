@@ -7,9 +7,7 @@ import 'enum_lookup.dart';
 ///
 /// The signature is the declaration. A catalog demo and a run entry point
 /// ask the identical question of the identical AST — *what can somebody vary
-/// here, and how should it be drawn* — so they ask it in one place.
-/// `docs/superpowers/specs/2026-07-27-knobs-static-and-runtime.md` left this
-/// open for demos, `2026-08-12-run-knobs-design.md` § K7 decided it, and two
+/// here, and how should it be drawn* — so they ask it in one place. Two
 /// implementations would be two behaviours for one word.
 ///
 /// Produces [KnobDescriptor]s rather than a model of its own, which is what
@@ -182,7 +180,7 @@ class ParameterKnob {
 /// nothing to edit it with. `KnobKind` is the whole vocabulary a panel can
 /// draw, so it is the whole vocabulary a knob can have.
 const _drawable =
-    'A knob is a String, bool, int, double, num, or an enum — those are the '
+    'A knob can be a String, bool, int, double, num or an enum; those are the '
     'controls a panel can draw.';
 
 /// Whether a `key` parameter's written type is Flutter's own.

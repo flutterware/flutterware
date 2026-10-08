@@ -2,10 +2,10 @@
 
 Experimental Flutter engine embedder, part of `flutterware_app`.
 
-**Step 3b (current):** an out-of-process Flutter-engine guest renders an
-animated, interactive scene and the flutterware desktop GUI displays it live in
-an external `Texture`. The panel is resizable and forwards pointer, keyboard,
-scroll-wheel and trackpad pan/zoom input (`input_region.dart`).
+An out-of-process Flutter-engine guest renders an animated, interactive scene
+and the flutterware desktop GUI displays it live in an external `Texture`. The
+panel is resizable and forwards pointer, keyboard, scroll-wheel and trackpad
+pan/zoom input (`input_region.dart`).
 
 How the frame crosses the process boundary is the one thing that is not the
 same on every host, and it is confined to `native/surface.{m,c}` plus one
@@ -23,10 +23,8 @@ this directory: `OffscreenRaster` (`package:flutterware`) takes every guest
 texture out of the widget tree for the frame a `toImage` photographs. macOS
 draws that rectangle transparent; the pinned Linux engine **segfaults the
 process** on the raster thread instead, because it hands the external texture
-a null graphics context and resolves against it unchecked. Both faults, and the
-disassembly that named them, are in
-`docs/superpowers/specs/2026-08-28-linux-embedder-guest-findings.md`. The
-workaround is temporary and should go when the engine stops needing it.
+a null graphics context and resolves against it unchecked. The workaround is
+temporary and should go when the engine stops needing it.
 
 ## Run the GUI harness
 
@@ -43,12 +41,12 @@ the `app/` package root and Flutter SDK root are passed via `--dart-define`.
 ## Capturing a panel that shows a guest
 
 `EmbeddedEngine.capture` asks the live guest for its next composited frame, as
-a raw file `decodeRawFrame` reads (the header says which byte order). It exists because **the guest is not in
-the host's layer tree**: `Texture(textureId:)` is resolved by the platform
-compositor at raster time, so `RenderRepaintBoundary.toImage()` of the window
-returns a fully transparent rectangle where the panel is. A picture of the
-window *and* its guest is two captures composited — measured, see decision 5 of
-`docs/superpowers/specs/2026-07-27-gui-cli-mcp-architecture.md`.
+a raw file `decodeRawFrame` reads (the header says which byte order). It exists
+because **the guest is not in the host's layer tree**: `Texture(textureId:)` is
+resolved by the platform compositor at raster time, so
+`RenderRepaintBoundary.toImage()` of the window returns a fully transparent
+rectangle where the panel is. A picture of the window *and* its guest is two
+captures composited.
 
 That rectangle is now emptied deliberately rather than by the compositor's
 default: `GuestTexture` withholds the `Texture` for the frame the raster reads,
@@ -137,5 +135,5 @@ exactly how keyboard input looked fine while every key sat queued.
 
 ## Not yet implemented
 
-Hot reload (step 4), IME composition (dead keys, CJK), guest clipboard,
-multiple embedded engines, Windows, and dmabuf zero-copy on Linux.
+Hot reload, IME composition (dead keys, CJK), guest clipboard, multiple
+embedded engines, Windows, and dmabuf zero-copy on Linux.

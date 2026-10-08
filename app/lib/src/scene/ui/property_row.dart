@@ -95,7 +95,7 @@ class PropertyOriginMark extends StatelessWidget {
       );
     }
     return Tooltip(
-      message: 'Typed over $name — click to take its value back',
+      message: 'Overrides $name. Click to use its value again.',
       child: Tappable(
         onTap: onReset,
         child: Icon(

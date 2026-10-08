@@ -181,8 +181,8 @@ class TeardownPlan {
     ],
     if (facts.agent.value?.state == AgentState.working)
       const Guard.warn(
-        'An agent session is still working in this worktree. You may know '
-        'better.',
+        'An agent session is still working in this worktree. Make sure it is '
+        'done before you remove it.',
       ),
   ];
 

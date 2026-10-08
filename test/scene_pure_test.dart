@@ -1,9 +1,8 @@
-// The purity wall from the graduation decision
-// (2026-09-01-scene-graduation-plan.md): the scene authoring core and both
-// grammars must stay importable by a plain `dart` process — the fw CLI, the
-// MCP server, a codemod. One Flutter (or dart:ui) import anywhere in their
-// graphs and every headless touch of a scene file starts paying a
-// flutter_tester boot. In the ambient_sdk_test mould: a static walk, offline.
+// The scene authoring core and both grammars must stay importable by a plain
+// `dart` process — the fw CLI, the MCP server, a codemod. One Flutter (or
+// dart:ui) import anywhere in their graphs and every headless touch of a scene
+// file starts paying a flutter_tester boot. In the ambient_sdk_test mould: a
+// static walk, offline.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

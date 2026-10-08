@@ -45,8 +45,7 @@ enum ScreenOrientation { portrait, landscape }
 ///
 /// An axis applied on top of a [Device], like [ScreenOrientation] — and like it
 /// in the way that matters: a phone with its keyboard up is the same phone,
-/// with less screen. See
-/// `docs/superpowers/specs/2026-08-21-fake-keyboard-design.md`.
+/// with less screen.
 ///
 /// Auto is not "off". It is the whole feature: the app asks for a keyboard
 /// when a field takes focus and lets go of it when the view dismisses one, and
@@ -221,8 +220,7 @@ class Device {
   /// number includes whatever the platform puts under the keys.
   ///
   /// The height *with* the predictive bar, which is what a phone shows out of
-  /// the box. See `docs/superpowers/specs/2026-08-21-fake-keyboard-design.md`
-  /// for how each of these was taken, and on what.
+  /// the box.
   final double keyboard;
 
   /// The keyboard's height with the device on its side, or null when it has no
@@ -249,8 +247,7 @@ class Device {
   /// as [keypadKeyboard] — no shrink, use the landscape letters height.
   ///
   /// Two of the table's phones have this unset because their reading failed
-  /// its control; see the design's *the keypad column, as far as it is
-  /// verified*.
+  /// its control.
   final double? landscapeKeypadKeyboard;
 
   /// How tall this device's keyboard is when a field asks for [variant].
@@ -411,9 +408,8 @@ abstract final class Devices {
     landscape: DeviceInsets(left: 47, right: 47, bottom: 21),
     keyboard: 335,
     landscapeKeyboard: 248,
-    // No `landscapeKeypadKeyboard`: the reading for it failed its control —
-    // see the design's *the keypad column, as far as it is verified* — so this
-    // phone keeps its letters height for a keypad on its side rather than
+    // No `landscapeKeypadKeyboard`: the reading for it failed its control, so
+    // this phone keeps its letters height for a keypad on its side rather than
     // shrinking by a number nobody has stood behind.
     keypadKeyboard: 308,
   );
@@ -432,9 +428,8 @@ abstract final class Devices {
     landscape: DeviceInsets(left: 44, right: 44, bottom: 21),
     keyboard: 345,
     landscapeKeyboard: 248,
-    // No `landscapeKeypadKeyboard`: the reading for it failed its control —
-    // see the design's *the keypad column, as far as it is verified* — so this
-    // phone keeps its letters height for a keypad on its side rather than
+    // No `landscapeKeypadKeyboard`: the reading for it failed its control, so
+    // this phone keeps its letters height for a keypad on its side rather than
     // shrinking by a number nobody has stood behind.
     keypadKeyboard: 318,
   );

@@ -108,7 +108,7 @@ void main() {
     );
     expect(
       comment,
-      contains('Nothing changed — 3 entries compared · 1 skipped'),
+      contains('Nothing changed: 3 entries compared · 1 skipped'),
     );
     expect(comment, contains('1 scenario not compared'));
     expect(
@@ -245,7 +245,7 @@ void main() {
 
     expect(
       File(report.commentPath).readAsStringSync(),
-      contains('on linux · 8 CPUs · impeller-vulkan —'),
+      contains('on linux · 8 CPUs · impeller-vulkan.'),
     );
   });
 
@@ -304,8 +304,8 @@ void main() {
     // The marker is how a workflow finds its own comment to update, and the
     // head sha is how a reader tells an updated comment from a stale one.
     expect(comment, startsWith('$commentMarker\n'));
-    expect(comment, contains('`fw compare` @abc123d —'));
-    expect(comment, contains('against `master` — **1 changed**'));
+    expect(comment, contains('`fw compare` @abc123d.'));
+    expect(comment, contains('against `master`: **1 changed**'));
     // The entry cell is a door into the page, aimed by the viewer's own
     // fragment grammar — the id's `/` and `#` spelled as escapes so they
     // survive both the URL and the markdown.
@@ -399,7 +399,10 @@ void main() {
     expect(report.mosaicPath, isNull);
     var comment = File(report.commentPath).readAsStringSync();
     expect('| changed |'.allMatches(comment).length, commentRowCap);
-    expect(comment, contains('…and 4 more — the page has them all.'));
+    expect(
+      comment,
+      contains('…and 4 more. The full comparison lists them all.'),
+    );
   });
 
   test('the mosaic leads with what moved on screen, whatever the cap', () {

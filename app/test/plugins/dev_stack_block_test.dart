@@ -21,12 +21,11 @@ import 'package:flutterware_app/src/utils/run_dir.dart';
 
 /// The block's layout rules, as behaviour.
 ///
-/// See `docs/superpowers/specs/2026-08-11-dev-stack-ui-study.md` and its second
-/// pass, `2026-08-12-dev-stack-ui-study-2.md`. What is asserted here is the
-/// handful of rules that were *decided* rather than drawn: which slot a failure
-/// lands in, when a control is emphatic, what the strip is allowed to carry, and
-/// what a cold start says when it has a cache. Colours and gaps are not asserted
-/// — a test that pins those only makes the next visual change expensive.
+/// What is asserted here is the handful of rules that were *decided* rather
+/// than drawn: which slot a failure lands in, when a control is emphatic, what
+/// the strip is allowed to carry, and what a cold start says when it has a
+/// cache. Colours and gaps are not asserted — a test that pins those only makes
+/// the next visual change expensive.
 void main() {
   late Directory runDir;
   late Directory project;

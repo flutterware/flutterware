@@ -7,8 +7,7 @@ import 'package:flutterware/src/scenarios/run_args.dart';
 import 'package:flutterware/src/scenarios/run_listener.dart';
 
 /// Recording what a transition *looked* like — the frame sink on the settle
-/// loop, and the frames it lands on the step. Design and measurements:
-/// `docs/superpowers/specs/2026-08-11-scenario-motion-capture-findings.md`.
+/// loop, and the frames it lands on the step.
 ///
 /// Like `events_test.dart`, the test is standing in for the harness: it sets
 /// the listener and the run args the runner would set, and reads what the

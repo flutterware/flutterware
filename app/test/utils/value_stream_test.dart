@@ -69,7 +69,7 @@ void main() {
     await subscription.cancel();
   });
 
-  group('laziness — the rule from 2026-07-26-packages-and-laziness.md', () {
+  group('laziness', () {
     test(
       'work starts on the first subscriber and stops after the last',
       () async {

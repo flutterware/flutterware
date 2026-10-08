@@ -108,6 +108,6 @@ class FlutterCache {
   String get _hostEngineDir => p.join(_engine, hostPlatform);
 
   /// The headless test shell `flutter test` runs — and the scenario runner
-  /// spawns directly (S4, `2026-07-30-s4-flutter-tester-findings.md`).
+  /// spawns directly.
   String get flutterTester => p.join(_hostEngineDir, 'flutter_tester$_exe');
 }

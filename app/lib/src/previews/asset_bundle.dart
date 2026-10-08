@@ -210,12 +210,12 @@ void resetShaderReportsForTesting() {
 ///
 /// In place, and never delete-and-recreate. The engine opens every asset
 /// relative to a file descriptor of this directory, so replacing the
-/// directory makes a *running* guest unable to load anything — measured in
-/// the 2026-07-30 mid-session spike as `Unable to load asset:
-/// "AssetManifest.bin"` from a guest that kept innocently rendering its old
-/// scene. A rebuild therefore updates the existing inode: manifests are
-/// rewritten only when their bytes moved, links only when their target moved,
-/// and whatever a previous build owned that this one does not is pruned.
+/// directory makes a *running* guest unable to load anything — measured as
+/// `Unable to load asset: "AssetManifest.bin"` from a guest that kept
+/// innocently rendering its old scene. A rebuild therefore updates the
+/// existing inode: manifests are rewritten only when their bytes moved, links
+/// only when their target moved, and whatever a previous build owned that this
+/// one does not is pruned.
 /// `kernel_blob.bin` is the one entry the builder never owns — the daemon
 /// puts it there, and deleting it would leave every attaching session a
 /// dangling kernel.

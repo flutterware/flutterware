@@ -119,8 +119,8 @@ class _LintsPanelState extends State<_LintsPanel> {
                 label: 'Count issues',
                 primary: true,
                 tooltip:
-                    'One dart analyze run with every rule that is off '
-                    'enabled — counts what each would flag today',
+                    'Runs dart analyze once with every rule that is off turned '
+                    'on, and counts what each would flag today',
                 onPressed: classification.hasCatalog && !_core.isCounting
                     ? () async {
                         await _core.countIssues();
@@ -134,9 +134,10 @@ class _LintsPanelState extends State<_LintsPanel> {
         if (!classification.hasCatalog)
           _Advisory(
             message:
-                'No rule catalog for Dart ${_core.dartVersion ?? '?'} yet — '
-                'the first fetch needs the network. Local buckets still '
-                'stand; nothing can be called unevaluated without it.',
+                'No rule catalog for Dart ${_core.dartVersion ?? '?'} yet, and '
+                'the first fetch needs a network connection. Enabled, '
+                'dismissed and mentioned rules still show; finding the '
+                'unevaluated ones needs the catalog.',
           ),
         _Stats(classification: classification, core: _core),
         _FilesStrip(
@@ -455,7 +456,7 @@ class _FilesStrip extends StatelessWidget {
           children: [
             _FileCard(
               title: 'Whole repo',
-              detail: '${files.length} options files · union view',
+              detail: '${files.length} options files combined',
               selected: selected == null,
               onTap: () => onSelect(null),
             ),
@@ -468,8 +469,8 @@ class _FilesStrip extends StatelessWidget {
                     : 'no include',
                 tooltip: file.hasInclude
                     ? 'includes ${file.includeChain.join(' → ')}'
-                    : 'No include: this file inherits nothing — every rule an '
-                          'ancestor enabled is off underneath it.',
+                    : 'No include: this file inherits nothing, so every rule '
+                          'an ancestor enabled is off under it.',
                 warn: !file.hasInclude ? 'inherits nothing' : null,
                 error: file.includeErrors.isNotEmpty
                     ? 'unresolved include'
@@ -502,7 +503,7 @@ class _FileDetailLine extends StatelessWidget {
       TextSpan(
         text: file.hasInclude
             ? '  →  ${file.includeChain.join('  →  ')}'
-            : '  ·  no include — inherits nothing',
+            : '  ·  no include, inherits nothing',
         style: context.type.caption,
       ),
       TextSpan(
@@ -864,7 +865,7 @@ class _RuleRow extends StatelessWidget {
             child: Text(
               row.comment != null
                   ? '# ${row.comment}'
-                  : 'no comment — dismissed without a why',
+                  : 'no comment: dismissed without a reason',
               style: context.type.caption.copyWith(fontStyle: FontStyle.italic),
               overflow: TextOverflow.ellipsis,
             ),
@@ -915,18 +916,18 @@ class _CountsFoot extends StatelessWidget {
     var counts = core.issueCounts;
     String text;
     if (core.isCounting) {
-      text = 'Counting — one dart analyze run over the repo…';
+      text = 'Counting issues with one dart analyze run over the repo…';
     } else if (counts == null) {
       text =
-          'Not counted yet — "Count issues" reports what every rule that is '
-          'off would flag today, in one analyzer run.';
+          'Not counted yet. "Count issues" runs the analyzer once and reports '
+          'what every rule that is off would flag today.';
     } else {
       var elapsed = (counts.elapsed.inMilliseconds / 1000).toStringAsFixed(1);
       text =
           'Counted ${_ago(counts.at)} · ${elapsed}s · '
           '${core.unevaluatedWithoutIssues} unevaluated rules report nothing '
           'today'
-          '${core.countsAreStale ? ' · stale — the rule set changed' : ''}';
+          '${core.countsAreStale ? ' · stale: the rule set changed' : ''}';
     }
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -1452,8 +1453,8 @@ class _Incompatible extends StatelessWidget {
                     if (conflicts)
                       TextSpan(
                         text:
-                            '  — enabled in this repo: turning this rule on '
-                            'means turning that one off',
+                            '  ·  enabled in this repo, so turning this rule '
+                            'on means turning that one off',
                         style: context.type.caption.copyWith(color: colors.red),
                       ),
                   ],

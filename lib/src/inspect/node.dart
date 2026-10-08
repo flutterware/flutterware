@@ -791,8 +791,7 @@ class InspectNode {
   /// mismatch goes both ways: a `Checkbox`'s node is smaller than the
   /// `CheckboxListTile` that owns it, and a `Tab`'s is **9.5× larger** than the
   /// `Tab` widget, which is only its label. Matching by rect reported "Flutter
-  /// does not publish tab selection", which is false — see
-  /// `2026-08-13-screen-handback-spike-findings.md` § S6.
+  /// does not publish tab selection", which is false.
   ///
   /// It carries more than the words: Flutter writes its own positional hints in
   /// here, so a tab reads `"Tab A\nTab 1 of 2"`. Null off the VM-service path
@@ -1592,9 +1591,9 @@ class InspectTree {
       var found = nodeAt(id);
       if (found == null) {
         throw ArgumentError(
-          'no node "$id" in this tree — ids are positions in the tree as it '
-          'was when you read it, so one from an older screen names nothing '
-          'here. Observe again and take the id from that reply.',
+          'no node "$id" in this tree. Ids are positions in the tree as it was '
+          'when you read it, so an id from an older screen names nothing here. '
+          'Observe again and take the id from that reply.',
         );
       }
       from = found;

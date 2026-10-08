@@ -29,16 +29,16 @@ List<String> appAxisProblems(Map<String, List<String>> axes) {
   const carried =
       'letters, digits, `.`, `_` and `-`, starting with a letter or a digit';
   const noValues =
-      'declares no values; an axis is the values it runs in, and its first '
-      'is the default';
+      'declares no values. An axis needs at least one value, and the first is '
+      'the default';
   return [
     for (var MapEntry(key: name, value: values) in axes.entries) ...[
       if (!_token.hasMatch(name))
-        'axis `$name` has a name a directory cannot carry — $carried',
+        'axis `$name` cannot be a directory name. Use $carried',
       if (values.isEmpty) 'axis `$name` $noValues',
       for (var value in values)
         if (!_token.hasMatch(value))
-          'axis `$name` has a value a directory cannot carry, `$value` — $carried',
+          'axis `$name`: `$value` cannot be a directory name. Use $carried',
       if (values.toSet().length != values.length)
         'axis `$name` names a value twice: ${values.join(', ')}',
     ],
@@ -83,7 +83,7 @@ Map<String, List<String>> parseAppAxes(String raw) {
     if (equals < 0) {
       if (current == null) {
         throw FormatException(
-          'expected name=value, got `$item` — an axis is named before its '
+          'expected name=value, got `$item`. Name the axis before its '
           'values: `brand=coffee,tea`',
         );
       }

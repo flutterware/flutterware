@@ -136,8 +136,8 @@ class SplashVariantTile extends StatelessWidget {
           'No dark config',
           warn: true,
           tooltip:
-              'The dark keys are a chain of their own and never fall through '
-              'to the light ones, so the OS shows the light splash.',
+              'No dark keys are set, so the OS shows the light splash. Dark '
+              'keys never fall back to the light ones.',
         ),
       if (composition.usesLauncherIcon)
         _Note(

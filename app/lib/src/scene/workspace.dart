@@ -376,14 +376,14 @@ class SceneWorkspace extends SceneListenable implements SceneSaveSource {
   void enter(SceneNode node) {
     if (resolveNested == null) {
       throw StateError(
-        'this workspace cannot enter nested scenes — it was built without a '
+        'this workspace cannot enter nested scenes: it was built without a '
         'resolver, so nothing can say which file "${node.name}" stands for',
       );
     }
     var file = _fileFor(node);
     if (file == null) {
       throw ArgumentError(
-        '"${node.name}" is not a nested scene — only a node standing for '
+        '"${node.name}" is not a nested scene: only a node standing for '
         'another scene file can be entered',
       );
     }

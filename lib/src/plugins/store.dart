@@ -1,8 +1,6 @@
 /// The store listing a project ships: which stores, which device classes,
 /// which locales — and the screenshots that go in it.
 ///
-/// Design: `docs/superpowers/specs/2026-08-26-store-screenshots-design.md`.
-///
 /// The whole of this file exists to make a rejected set **unwritable** rather
 /// than reported. There is no validator anywhere in this plugin and there must
 /// not be: a listing declares which store it is, the store's sizes arrive with
@@ -246,7 +244,7 @@ sealed class Listing {
 
   /// The most screenshots this store accepts in one set.
   ///
-  /// A fact about the set, not a warning about it — see §6. Ten for Apple, per
+  /// A fact about the set, not a warning about it. Ten for Apple, per
   /// display family; eight for Play, per image type. Not enforced anywhere and
   /// deliberately so: an over-full set is a thing to see in the panel, and the
   /// count comes from the scenarios rather than from anything a declaration

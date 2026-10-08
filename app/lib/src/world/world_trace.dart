@@ -429,9 +429,9 @@ class NodeContents {
 /// ways a record arrives with no write to join it.
 String unwrittenNote(int count) =>
     '${count == 1 ? '1 more record' : '$count more records'} arrived that no '
-    'server here reported writing under that key: written before the world '
-    'opened, where no adapter reports, or reported without the key — one the '
-    'database generated and the adapter never read back.';
+    'server here reported writing under that key. It was written before the '
+    'world opened, or where no adapter reports, or reported without the key '
+    'because the database generated it and the adapter never read it back.';
 
 /// One thing a node holds — a call, a record, a message — or, in a record's
 /// [life], one moment of it.

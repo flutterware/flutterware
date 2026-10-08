@@ -14,13 +14,9 @@ import 'device/device_settings.dart';
 /// down — which is what makes every state below renderable in the catalog
 /// without a device anywhere.
 ///
-/// Drawn as a strip over the Screen pane rather than as a seventh tab, and the
-/// reason is the second dev-stack study's finding 12: a tab strip is exclusive,
-/// so opening *Device* would close *Screen* and put a control on one page whose
-/// only visible result is on another. Designed in
-/// `docs/superpowers/specs/2026-08-24-run-device-strip-design.md`; the
-/// capability table it draws is
-/// `2026-08-24-run-device-tab-capability-findings.md`.
+/// Drawn as a strip over the Screen pane rather than as a seventh tab, because
+/// a tab strip is exclusive: opening *Device* would close *Screen* and put a
+/// control on one page whose only visible result is on another.
 class DeviceStrip extends StatelessWidget {
   const DeviceStrip({
     super.key,
@@ -184,8 +180,7 @@ class DeviceChip {
 /// The chips [settings] amounts to, in the order the backend reported them.
 ///
 /// Pure, so the strip's rendering and the demo's cases derive identically and
-/// the count in the chip cannot disagree with the picker under it — the fifth
-/// entry in the design's list of where the bugs would come from.
+/// the count in the chip cannot disagree with the picker under it.
 List<DeviceChip> deviceChips(List<DeviceSetting> settings) {
   var byNoun = <String, List<DeviceSetting>>{};
   for (var setting in settings) {
@@ -325,7 +320,7 @@ class _Chip extends StatelessWidget {
         borderRadius: BorderRadius.circular(context.radii.radiusSmall),
         child: _HoverTip(
           message: unavailable
-              ? '${chip.name} — no mechanism on this target'
+              ? '${chip.name}: not available on this device'
               : '${chip.name}: ${chip.value}',
           waitDuration: const Duration(milliseconds: 400),
           child: Container(
@@ -718,8 +713,8 @@ class _DevicePickerState extends State<DevicePicker> {
         'This goes through the device window’s own menu, so it takes your '
             'keyboard focus for a moment.',
       DeviceCost.relaunchesApp =>
-        'The device takes it and the running app will not see it until it is '
-            'launched again.',
+        'The device applies it, but the running app will not see it until it '
+            'is launched again.',
       DeviceCost.restartsApp =>
         'The platform tears the app down and starts it again to apply this.',
     };
@@ -846,7 +841,7 @@ class _Refusal extends StatelessWidget {
       spacing: FwSpacing.xs,
       children: [
         Text(
-          setting.refusal ?? 'No mechanism on this target.',
+          setting.refusal ?? 'Not available on this device.',
           style: context.type.caption.copyWith(color: colors.mut2),
         ),
         if (setting.command case var command?)

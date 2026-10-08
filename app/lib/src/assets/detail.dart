@@ -270,8 +270,8 @@ class AssetDetailEmpty extends StatelessWidget {
       icon: Icons.image_outlined,
       title: 'Pick an asset',
       message:
-          'Opening one shows where it came from, what densities it has, '
-          'and the Dart that loads it.',
+          'Select one to see where it comes from, its densities and the '
+          'Dart that loads it.',
     );
   }
 }

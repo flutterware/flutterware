@@ -305,8 +305,8 @@ class _ScenarioStepPageState extends State<ScenarioStepPage>
       if (step.semantics == null) {
         // Absence has two honest readings and only one file to tell them by.
         _semanticsError =
-            'No semantics captured for this step — the run predates the '
-            'capture, or the app disabled semantics.';
+            'No semantics captured for this step. The run is older than '
+            'semantics capture, or the app turned semantics off.';
       } else if (semantics == null) {
         _semanticsError =
             'The semantics tree is gone: ${step.semantics} is not there.';
@@ -344,12 +344,12 @@ class _ScenarioStepPageState extends State<ScenarioStepPage>
         _eventsPlaceholder = step.hasEvents
             ? 'This step recorded ${step.eventCount} events, but the '
                   'file is gone. Run the scenario again.'
-            : 'Nothing happened on the way to this step — no logs, no '
+            : 'Nothing happened on the way to this step: no logs, no '
                   'requests, no platform calls.\n\n'
-                  'Work that never leaves the isolate has to say so: call '
-                  'recordAppEvent(AppEvent.request(…)) from your fakes, or '
-                  'wrap your http.Client in DevbarHttpClient. A mounted '
-                  'devbar shows the same reports on its own tabs.';
+                  'Work that stays inside the app is not recorded by '
+                  'itself. Call recordAppEvent(AppEvent.request(…)) from your '
+                  'fakes, or wrap your http.Client in DevbarHttpClient. A '
+                  'mounted devbar shows the same reports on its own tabs.';
       }
     });
   }
@@ -731,8 +731,8 @@ class _MotionTransport extends StatelessWidget {
               // was still moving when the recorder stopped, so the last frame
               // is not where the animation ended.
               message:
-                  'The recording stopped at its frame cap with $dropped more '
-                  'frames to go — the app was still animating.',
+                  'The recording stopped at its frame limit with $dropped '
+                  'more frames to go, because the app was still animating.',
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

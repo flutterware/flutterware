@@ -102,8 +102,8 @@ class _NewScenarioDialogState extends State<_NewScenarioDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Writes a scenario that already runs — a stub app and a walk '
-              'through it. Replace the stub with the widget you meant.',
+              'Writes a scenario that already runs: a stub app and a walk '
+              'through it. Replace the stub with your own widget.',
               style: context.type.caption.copyWith(color: colors.mut),
             ),
             const Gap(FwSpacing.xl),

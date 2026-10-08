@@ -128,7 +128,7 @@ class _Watch extends StatelessWidget {
     var watching = shell.watchingFor(worktree);
     return Text(
       watching == null
-          ? 'Nothing to watch — this worktree has no $configFilePath'
+          ? 'Nothing to watch: this worktree has no $configFilePath'
           : 'Reloads on save · watching $watching',
       style: context.type.caption.copyWith(color: context.colors.mut),
     );

@@ -390,7 +390,7 @@ class _LogsTabState extends State<LogsTab> {
         icon: Icons.phonelink,
         title: _readingNative
             ? 'Asking the platform…'
-            : 'The native half of this app has logged nothing',
+            : 'The platform side of this app has logged nothing',
         message: _readingNative ? null : _native?.note,
       ),
       _ => const EmptyState(icon: Icons.notes, title: 'Nothing logged yet'),
@@ -494,8 +494,8 @@ class _EarlierLines extends StatelessWidget {
             child: Text(
               path == null
                   ? '$dropped earlier lines are no longer held here.'
-                  : '$dropped earlier lines are no longer held here — all of '
-                        'it is in $path',
+                  : '$dropped earlier lines are no longer held here. The '
+                        'full log is in $path',
               style: context.type.caption.copyWith(color: colors.mut3),
             ),
           ),

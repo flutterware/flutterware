@@ -15,11 +15,9 @@ import 'app_theme.dart';
 /// the size it is drawn. And it has to hold up at four combinations, which in
 /// the running studio is four device picks and two theme switches away.
 ///
-/// The heights are the measured ones — see
-/// `docs/superpowers/specs/2026-08-21-fake-keyboard-design.md`. Drawn against
-/// the *widths* of the phones they were measured on, because the painter is
-/// proportional to its box: an iPhone SE's 260 points over 375 is not the same
-/// picture as an iPad's 405 over 1024.
+/// The heights are measured ones. Drawn against the *widths* of the phones they
+/// were measured on, because the painter is proportional to its box: an iPhone
+/// SE's 260 points over 375 is not the same picture as an iPad's 405 over 1024.
 
 @Preview(
   name: 'Fake keyboard',

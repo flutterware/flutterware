@@ -225,9 +225,9 @@ class TesterRenderer extends CatalogRenderer {
 
   /// The frame the harness drew, framed and written where the caller asked.
   ///
-  /// **The framing is host-side and shared**, which is the whole of §5.4: the
-  /// same `PictureFraming` resolves `--node` against the same kind of tree,
-  /// and the same `writePicture` encodes it, whichever engine drew the pixels.
+  /// **The framing is host-side and shared**: the same `PictureFraming`
+  /// resolves `--node` against the same kind of tree, and the same
+  /// `writePicture` encodes it, whichever engine drew the pixels.
   /// What differs is one decode — packed rgba here against the embedder's BGRA
   /// behind a header.
   ///

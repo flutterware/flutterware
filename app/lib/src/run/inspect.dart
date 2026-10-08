@@ -53,9 +53,9 @@ class AppNotStarted implements ProjectFault {
 
   static const summary =
       'the app has not called runApp, so there is no widget tree yet. '
-      'Either it is still starting, or its `main` threw before `runApp` — '
-      'the launcher log tells you which, and `inspect {errors: true}` '
-      'prints the lines that matter.';
+      'Either it is still starting, or its `main` threw before `runApp`. '
+      'The launcher log says which, and `inspect {errors: true}` prints the '
+      'relevant lines.';
 
   @override
   String toString() => [summary, ?detail].join('\n\n');
@@ -66,13 +66,10 @@ class AppNotStarted implements ProjectFault {
 /// Nothing here needs code in the user's app. `WidgetInspectorService` is
 /// registered by `package:flutter` in debug mode, so this works against any
 /// Flutter app the cockpit can reach a VM service for — including one that has
-/// never depended on flutterware. That is the reason the guest runtime came off
-/// slice 3's critical path; see
-/// `docs/superpowers/specs/2026-07-31-sl3-inspect-surface-findings.md`.
+/// never depended on flutterware.
 ///
-/// It is also app-side rather than tool-side, which puts it on the surviving
-/// half of the S-L1 split: an app whose `flutter run` has died keeps its tree
-/// and its screenshots and loses only hot reload.
+/// It is also app-side rather than tool-side: an app whose `flutter run` has
+/// died keeps its tree and its screenshots and loses only hot reload.
 class RunInspector {
   RunInspector(this.connection);
 
@@ -182,8 +179,7 @@ class RunInspector {
   /// the service extension has no way to part with: the boxes, the widget's
   /// own properties, the resolved text style and the ambient style underneath
   /// it. The last of those is not a matter of nobody having wired it —
-  /// `RenderParagraph`'s resolved span never leaves the app on any RPC. See
-  /// `docs/superpowers/specs/2026-08-18-node-detail-enrichment.md` §5.
+  /// `RenderParagraph`'s resolved span never leaves the app on any RPC.
   ///
   /// It never throws, and the fallback is not a degraded mode. An app with
   /// no guest is the ordinary case here — this class exists to work against

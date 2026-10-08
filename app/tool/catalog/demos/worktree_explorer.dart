@@ -17,8 +17,7 @@ import 'command_palette.dart' show wrapInAppTheme;
 /// dots are meant to form a column. A gallery showing one row at a time could
 /// not catch any of those going wrong.
 ///
-/// No Figma behind this — it is flutterware's own chrome. The design is
-/// `docs/superpowers/specs/2026-08-10-worktree-explorer-view-design.md`.
+/// No Figma behind this — it is flutterware's own chrome.
 
 /// Fixed, so a screenshot of this entry is the same picture tomorrow.
 final _now = DateTime(2026, 8, 10, 14, 30);
@@ -238,7 +237,7 @@ Widget explorerList() => _LiveExplorer(entries: _repo);
 /// A repo that uses worktrees for release branches: no agents, no PRs, and two
 /// of the six columns permanently empty.
 ///
-/// Here to keep open question 5 visible — whether that case wants a denser
+/// Here to keep an open question visible — whether that case wants a denser
 /// single-line mode, or whether the empty columns are an honest "nothing here".
 @Preview(
   name: 'A repo without agents',

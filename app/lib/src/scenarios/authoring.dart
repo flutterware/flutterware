@@ -18,8 +18,8 @@ library;
 import '../utils/source_code/escape_dart_string.dart';
 
 String scenarioAuthoringIntro(String directory) =>
-    'A scenario is an ordinary widget test with a screenshot per step — '
-    '`flutter test $directory` runs it with no daemon and no GUI.';
+    'A scenario is an ordinary widget test that takes a screenshot at each '
+    'step. `flutter test $directory` runs it, with no daemon and no GUI.';
 
 /// The example, as Dart source — no indent, so the panel can highlight it and
 /// the terminal can indent it itself.
@@ -39,9 +39,9 @@ void main() {
 }''';
 
 const scenarioAuthoringImportNote =
-    'The import is `package:flutterware/flutter_test.dart` — a strict superset '
-    'of `package:flutter_test`, so an existing test compiles with only its '
-    'import changed.';
+    'The import is `package:flutterware/flutter_test.dart`. It includes all '
+    'of `package:flutter_test`, so an existing test compiles once you change '
+    'its import.';
 
 /// The API worth knowing, each as `(what it is, what it does)`. Backticks mark
 /// code either reader renders as code.
@@ -58,26 +58,28 @@ const scenarioAuthoringPoints = <(String, String)>[
   ),
   (
     'scenario(..., shots: Shots.manual)',
-    'captures only where a Shot asks — or `runScenarios(shots: ...)` in the '
-        "folder's `flutter_test_config.dart`, for every scenario under it.",
+    'captures only where a Shot asks. For every scenario in a folder, pass '
+        "`runScenarios(shots: ...)` in the folder's "
+        '`flutter_test_config.dart`.',
   ),
   (
     "s.split({'pays': () async {…}, 'declines': () async {…}})",
-    'forks: every branch runs, the shared prefix is captured once.',
+    'forks the scenario: every branch runs, and the steps before the fork '
+        'are captured once.',
   ),
   (
     's.tester',
-    'is the real WidgetTester — the whole flutter_test surface, no capture.',
+    'is the real WidgetTester: all of flutter_test, with no captures.',
   ),
   (
     'recordAppEvent(AppEvent.request(…))',
-    'reports what a fake did onto the transition between two steps — '
-        '`.request`, `.query`, `.analytics`, `.log`, `.custom`. Import '
-        '`package:flutterware/app_events.dart` from the fake itself; outside a '
-        'run it is a no-op, and a mounted devbar shows the same report on its '
-        'own tabs. Prints, logging records, platform channel messages and '
-        'anything a `DevbarHttpClient` carried are captured with no code at '
-        'all.',
+    'reports what a fake did, shown between two steps: `.request`, '
+        '`.query`, `.analytics`, `.log` or `.custom`. Import '
+        '`package:flutterware/app_events.dart` in the fake itself. Outside a '
+        'run it does nothing, and a mounted devbar shows the same report on '
+        'its own tabs. Prints, logging records, platform channel messages and '
+        'anything sent through a `DevbarHttpClient` are captured without any '
+        'code.',
   ),
 ];
 
@@ -96,7 +98,7 @@ String scenarioAuthoringHint(String directory) {
   // into a terminal, and a wrap through `--name="..."` costs the reader the
   // paste.
   var closing = _wrap(
-    "writes a runnable one to edit — as does the panel's New scenario button.",
+    "writes a runnable one to edit, as does the panel's New scenario button.",
   );
   return [
     _wrap(scenarioAuthoringIntro(directory)),
@@ -165,7 +167,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/flutter_test.dart';
 
 /// Replace `_Stub` with the app you want to walk through; the scenario below
-/// is the shape. Every action screenshots itself — `Shot('Name')` names one,
+/// is the shape. Every action takes a screenshot: `Shot('Name')` names one,
 /// `Shot.skip` drops one, `s.screen('Name')` captures without acting.
 void main() {
   scenario(${escapeDartString(name)}, (s) async {

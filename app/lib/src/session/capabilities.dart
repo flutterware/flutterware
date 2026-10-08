@@ -131,14 +131,14 @@ Point a client at `fw mcp`:
 }
 ```
 
-`fw init` writes that entry. It names no version manager on purpose: whichever
-`dart` the client provides is the SDK, resolved when the server is spawned.
-Prefix it — `fvm dart …` — if that is how the project says which SDK it wants.
+`fw init` writes that entry. The server uses whichever `dart` the client starts
+it with. If the project pins its SDK with a version manager, prefix the
+command, as in `fvm dart …`.
 
 Inside a checkout of flutterware itself, `cd app && dart run bin/mcp.dart` is
 the same server without the launcher in front of it.
 
-Stdout belongs to the protocol — logs and build narration go to stderr.
+Stdout carries the protocol. Logs and build output go to stderr.
 
 ''');
   for (var tool in FlutterwareMcpServer.tools) {

@@ -9,8 +9,7 @@
 // named — or, with no asset at all, on a plain quad floating in the view.
 // The renderer that turns them into pixels is registered on the view by the
 // app (it needs a 3D engine the core never imports); without one the view
-// draws a named placeholder, the way an external node does. Design:
-// `docs/superpowers/specs/2026-09-05-scene-3d-view-design.md`.
+// draws a named placeholder, the way an external node does.
 //
 // Every row is a number or a string, so the file, the wire and the timeline
 // need nothing new: the camera and the transforms are keyed like opacity.

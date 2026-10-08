@@ -8,7 +8,7 @@ void main() {
   test('every phase of a cold start has a word', () {
     expect(
       scenarioRunnerPhase('[scenarios] compiling the harness'),
-      'Compiling the harness',
+      'Compiling the scenarios',
     );
     expect(
       scenarioRunnerPhase('[scenarios] the asset bundle changed'),
@@ -19,14 +19,14 @@ void main() {
         '[tester] The Dart VM service is listening on '
         'http://127.0.0.1:59309/',
       ),
-      'Starting the harness',
+      'Starting the scenario runner',
     );
     expect(
       scenarioRunnerPhase(
         '[tester] flutterware scenarios harness ready — fonts: Roboto, '
         'MaterialIcons',
       ),
-      'Starting the harness',
+      'Starting the scenario runner',
     );
     expect(scenarioRunnerPhase('[scenarios] running'), 'Running the scenario');
   });
@@ -47,17 +47,17 @@ void main() {
       scenarioRunnerPhase(
         '[scenarios] hot reload refused, restarting the harness',
       ),
-      'Restarting the harness',
+      'Restarting the scenario runner',
     );
     expect(
       scenarioRunnerPhase(
         '[scenarios] a scenario timed out — restarting the harness',
       ),
-      'Restarting the harness',
+      'Restarting the scenario runner',
     );
     expect(
       scenarioRunnerPhase('[scenarios] the harness exited (255)'),
-      'Restarting the harness',
+      'Restarting the scenario runner',
     );
   });
 

@@ -9,8 +9,8 @@
 /// > that ranks — the screen, `fw changes`, an open worktree, a closed one —
 /// > reads that one cache.
 ///
-/// Which collapses the design's four cases into one code path, and makes the
-/// first row of its table true by construction rather than by a second
+/// Which collapses the four situations below into one code path, and makes the
+/// first row of the table true by construction rather than by a second
 /// mechanism: an open worktree is fresh because opening it is what wrote the
 /// entry.
 ///
@@ -68,8 +68,8 @@ class ResolvedChangesConfig {
   /// Only the stale case gets a sentence: a screen that narrates its cache on
   /// every load is a screen whose one important message goes unread.
   String? get notice => state == ChangesConfigState.stale
-      ? 'Ranking by the last $configFilePath that ran here — the file has '
-            'changed since. Open this worktree to run it again.'
+      ? 'Ranking by the last $configFilePath that ran here. The file has '
+            'changed since; open this worktree to run it again.'
       : null;
 }
 

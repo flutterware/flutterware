@@ -209,7 +209,7 @@ class IconPlate extends StatelessWidget {
     IconTreatment.whiteSilhouette =>
       'The status bar keeps the alpha channel and nothing else.',
     IconTreatment.alphaTinted =>
-      'Shape only — the wallpaper decides both colours.',
+      'Shape only. The wallpaper decides both colours.',
     IconTreatment.luminanceTinted =>
       'Desaturated, then tinted; light and dark regions survive.',
   };
@@ -314,7 +314,7 @@ class _Swatch extends StatelessWidget {
           child: Text(
             color == null
                 ? 'Nothing on disk for this role.'
-                : 'A colour, not an image — $color.',
+                : 'A colour instead of an image: $color.',
             style: context.type.caption.copyWith(color: colors.mut),
           ),
         ),

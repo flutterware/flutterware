@@ -8,8 +8,6 @@ import 'take.dart';
 /// filming run. It is a **structure, not a stream** — every decision is made
 /// before a pixel is drawn, which is what lets a camera start moving *before*
 /// the tap it is moving toward.
-///
-/// Design: `docs/superpowers/specs/2026-09-08-scenario-reel-design.md`.
 class Reel {
   Reel({
     required this.shots,

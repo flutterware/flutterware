@@ -38,10 +38,9 @@ class EnumValues {
 /// Finds an `enum`'s constants by parsing, without resolving the program.
 ///
 /// Why not the analyzer. Asking for a resolved unit answers this perfectly
-/// and costs 5.5s on an entry point that imports Flutter, 9.9s on this GUI's own
-/// (measured 2026-08-12, `2026-08-12-run-knobs-design.md` § E4). A launch form
-/// cannot pay that, and neither can a catalog scan that has deliberately stayed
-/// syntactic.
+/// and costs 5.5s on an entry point that imports Flutter, 9.9s on this GUI's
+/// own. A launch form cannot pay that, and neither can a catalog scan that has
+/// deliberately stayed syntactic.
 ///
 /// The bound is what makes it honest. The search covers the file itself and
 /// the *exported namespace* of each of its direct imports — `export` followed
@@ -59,10 +58,8 @@ class EnumValues {
 /// the one somebody is trying to put a knob on.
 ///
 /// Shared deliberately: entry-point knobs and catalog demos ask the identical
-/// question of the identical AST, and
-/// `docs/superpowers/specs/2026-07-27-knobs-static-and-runtime.md` left it open
-/// for demos before entry points existed. Two answers would be two behaviours
-/// for one word.
+/// question of the identical AST. Two answers would be two behaviours for one
+/// word.
 class EnumLookup {
   EnumLookup({this.packageConfig, this.selfPackage, this.selfPackageRoot});
 

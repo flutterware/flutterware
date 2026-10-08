@@ -161,7 +161,7 @@ PluginManifest recordedManifest() {
           StackRun.command(['dart', 'tool/stack.dart', 'hit']),
           argument: 'path',
           description:
-              'Requests a path — /menu, /slow, /error — so the Server panel '
+              'Requests a path (/menu, /slow or /error) so the Server panel '
               'has traffic to show. Defaults to /menu.',
         ),
       ],

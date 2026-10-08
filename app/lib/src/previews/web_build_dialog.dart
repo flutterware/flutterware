@@ -217,7 +217,7 @@ class _WebBuildDialogState extends State<_WebBuildDialog> {
       title: Text(
         widget.package == '.'
             ? 'Build a web page'
-            : 'Build a web page — ${widget.package}',
+            : 'Build a web page for ${widget.package}',
       ),
       content: SizedBox(
         width: 560,
@@ -226,8 +226,8 @@ class _WebBuildDialogState extends State<_WebBuildDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Compiles every demo into a page you can browse — the widgets '
-              'themselves, with their knobs, not pictures of them.',
+              'Compiles every demo into a web page you can browse. The page '
+              'runs the widgets themselves, with their knobs.',
               style: context.type.caption.copyWith(color: colors.mut),
             ),
             const Gap(FwSpacing.xl),
@@ -242,7 +242,7 @@ class _WebBuildDialogState extends State<_WebBuildDialog> {
               label: 'Base href',
               controller: _baseHref,
               enabled: !_running,
-              hint: '$defaultBaseHref — serves from anywhere it is hosted',
+              hint: '$defaultBaseHref works wherever the page is hosted',
             ),
             const Gap(FwSpacing.lg),
             _CommandLine(command: _command),
@@ -270,7 +270,7 @@ class _WebBuildDialogState extends State<_WebBuildDialog> {
                 // dialog, and without the URL written down the only way back to
                 // a page you closed is to build it again.
                 _Message(
-                  text: 'Serving at $url — until this worktree is closed.',
+                  text: 'Serving at $url until this worktree is closed.',
                   color: colors.mut,
                 ),
               ],

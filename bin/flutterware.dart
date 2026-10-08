@@ -36,7 +36,7 @@ void main(List<String> arguments) async {
   if (pubPackage == null) {
     stderr.writeln(
       'flutterware: could not resolve its own package.\n'
-      'This entry point has to be run through pub:\n\n'
+      'Run it through pub:\n\n'
       '    dart run flutterware',
     );
     exit(70);
@@ -153,7 +153,8 @@ Future<ProcessLog?> _work(
   var built = await withBuildLock(
     buildLockPath(root),
     onWait: () => out.writeln(
-      'flutterware: another process is building the same tools; waiting for it.',
+      'flutterware: waiting for another process that is building the same '
+      'tools.',
     ),
     () => _prepare(
       arguments,
@@ -277,7 +278,7 @@ Future<ProcessLog?> _prepare(
     title: 'flutterware · ${p.basename(Directory.current.path)}',
     subtitle: buildGui == null
         ? null
-        : 'Building the tools — once per flutterware version.',
+        : 'Building the tools. This happens once per flutterware version.',
   )..start();
 
   if (unpack != null) {

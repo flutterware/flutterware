@@ -20,10 +20,10 @@ import 'scenario_alignment.dart';
 
 /// Running one checkout's scenarios and reading back what they captured.
 ///
-/// The scenario twin of `PreviewsSide`, and shaped differently for a reason
-/// the design doc argues at length: a preview is one picture and a scenario is
-/// a *tree* of them, so there is nothing here that fits the entry-shaped
-/// runner. What it produces is what [ScenarioComparison] aligns.
+/// The scenario twin of `PreviewsSide`, and shaped differently because a
+/// preview is one picture and a scenario is a *tree* of them, so there is
+/// nothing here that fits the entry-shaped runner. What it produces is what
+/// [ScenarioComparison] aligns.
 class ScenariosSide {
   ScenariosSide({
     required this.flutterSdkRoot,

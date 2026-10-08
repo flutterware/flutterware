@@ -1,7 +1,6 @@
 // The scene document — a deliberately *uniform* node: every node carries the
 // same styling bag (fill, corner, opacity) and the same geometry slots.
-// Graduated from the canvas-toy spike 2026-09-01; pure Dart by decision
-// (2026-09-01-scene-graduation-plan.md) so the headless surface can hold it.
+// Pure Dart, so the headless surface can hold it.
 import 'kind.dart';
 import 'listenable.dart';
 import 'props.dart';
@@ -874,7 +873,7 @@ class TextNode extends SceneNode {
   /// style (`tokens.title.copyWith(fontSize: 60)`), which is what keeps this
   /// constructor the same size whether the table carries six style
   /// properties or thirty. What a text does spell for itself is its
-  /// PARAGRAPH — [align] and [maxLines] (master plan §4.5).
+  /// PARAGRAPH — [align] and [maxLines].
   String get text => runs.map((r) => r.text).join();
 
   set text(String value) => runs = [TextRun(value)];

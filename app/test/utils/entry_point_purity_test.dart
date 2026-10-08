@@ -6,16 +6,16 @@ import 'package:test/test.dart';
 
 /// Entry points that must never reach Flutter.
 ///
-/// Master-plan decision 9: *purity is a property of the entry point's import
-/// closure, not of the package*. `flutterware_app` is a Flutter package that
-/// also holds pure-Dart entry points, and the only thing keeping them pure is
-/// that nobody adds the wrong import.
+/// Purity is a property of the entry point's import closure, not of the
+/// package. `flutterware_app` is a Flutter package that also holds pure-Dart
+/// entry points, and the only thing keeping them pure is that nobody adds the
+/// wrong import.
 ///
 /// The stated guardrail is that `dart compile exe` fails. That is true but
 /// late: it fires at distribution time, only for the entry points that get
-/// compiled, and — as `2026-07-27-gui-slice-findings.md` records — the symptom
-/// of getting this wrong was a compiler fork bomb that filled the machine in
-/// seconds. This runs the same check in milliseconds, and prints the chain.
+/// compiled, and the symptom of getting this wrong was a compiler fork bomb
+/// that filled the machine in seconds. This runs the same check in
+/// milliseconds, and prints the chain.
 const _pureEntryPoints = [
   // `fw` — the CLI renderer. The one that matters most day to day: a plugin's
   // panel returns a `Widget`, so reaching one from here makes `fw` unlinkable.

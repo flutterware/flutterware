@@ -2,15 +2,13 @@
 /// is built from, plus the pure document models and the motion runtime that
 /// evaluates them.
 ///
-/// This library is pure Dart by decision (see
-/// `docs/superpowers/specs/2026-09-01-scene-graduation-plan.md`): a plain
-/// `dart` process — the `fw` CLI, the MCP server, a codemod — can import it
-/// and parse, edit, emit and evaluate without a Flutter engine. A test
-/// guards the import graph. The Flutter half (players, widget bridges)
-/// lives in `package:flutterware/scene.dart`.
+/// This library is pure Dart, so a plain `dart` process (the `fw` CLI, the MCP
+/// server, a codemod) can import it and parse, edit, emit and evaluate without
+/// a Flutter engine. A test guards the import graph. The Flutter half (players,
+/// widget bridges) lives in `package:flutterware/scene.dart`.
 ///
-/// Spike-grade surface: graduated from the canvas-toy spike 2026-09-01 and
-/// still moving with the editor; not yet a supported consumer API.
+/// **Experimental.** This surface still moves with the editor and is not yet
+/// a supported API.
 library;
 
 export 'src/scene/core/curves.dart';

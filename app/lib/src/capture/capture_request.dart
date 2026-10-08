@@ -284,6 +284,6 @@ String? landingError({
     return null;
   }
   return 'the window landed on "${landedSegments.join('/')}" rather than '
-      '"${wanted.segments.join('/')}". The panel opened, but on something '
-      'else — usually because what was asked for is not there.';
+      '"${wanted.segments.join('/')}". The panel opened on something else, '
+      'usually because what was asked for is not there.';
 }

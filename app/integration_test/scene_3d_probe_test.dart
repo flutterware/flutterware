@@ -15,8 +15,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-/// Experiment 4 of `docs/superpowers/specs/2026-09-05-scene-3d-view-design.md`:
-/// the model probe rendered through the **embedder** guest — the editor's
+/// The model probe rendered through the **embedder** guest — the editor's
 /// canvas lane, Metal on macOS — rather than the tester lane the walk tests
 /// use. One frame at the playhead's rest, which the probe draws with a red
 /// screen (hue 0°) on the imported asset.

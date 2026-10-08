@@ -219,8 +219,8 @@ class LintsCore extends PluginCore {
     }
     if (!classification.hasCatalog) {
       throw ActionRefusal(
-        'No rule catalog for Dart $_dartVersion — the first fetch needs the '
-        'network. Nothing to count without a universe to compare to.',
+        'No rule catalog for Dart $_dartVersion, and counting needs one. The '
+        'first fetch needs a network connection.',
       );
     }
     if (_counting) {
@@ -405,7 +405,7 @@ class LintsCore extends PluginCore {
       return _pending != null ? const Status.info('scanning…') : Status.none;
     }
     if (!classification.hasCatalog) {
-      return const Status.warn('no rule catalog — first fetch needs network');
+      return const Status.warn('no rule catalog: first fetch needs network');
     }
     var unevaluated = classification.count(LintBucket.unevaluated);
     if (unevaluated == 0) return const Status.good('every rule evaluated');
@@ -440,7 +440,7 @@ class LintsCore extends PluginCore {
         ViewField(
           'Issue counts',
           '$unevaluatedWithoutIssues unevaluated rules report nothing'
-              '${countsAreStale ? ' (stale — the rule set changed)' : ''}',
+              '${countsAreStale ? ' (stale: the rule set changed)' : ''}',
         ),
       if (classification.unknownNames.isNotEmpty)
         ViewField(

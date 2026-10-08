@@ -50,7 +50,7 @@ class ScenarioHelpPage extends StatelessWidget {
               const Gap(FwSpacing.xl),
               _Prose(scenarioAuthoringImportNote),
               const Gap(FwSpacing.xl),
-              Text('The surface', style: context.type.sectionLabel),
+              Text('The API', style: context.type.sectionLabel),
               const Gap(FwSpacing.md),
               for (var (term, what) in scenarioAuthoringPoints) ...[
                 _Point(term: term, what: what),
@@ -60,8 +60,8 @@ class ScenarioHelpPage extends StatelessWidget {
               Divider(color: colors.line, height: 1),
               const Gap(FwSpacing.xl),
               _Prose(
-                'Both of these write a runnable scenario to edit — the button '
-                'then opens it, which runs it.',
+                'Both of these write a runnable scenario for you to edit. The '
+                'button also opens it, which runs it.',
               ),
               const Gap(FwSpacing.md),
               _CommandLine(scenarioAuthoringCommand(directory)),

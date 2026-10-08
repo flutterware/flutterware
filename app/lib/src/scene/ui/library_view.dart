@@ -300,8 +300,8 @@ class _SceneLibraryViewState extends State<SceneLibraryView> {
           Padding(
             padding: const EdgeInsets.only(bottom: FwSpacing.lg),
             child: Text(
-              'No token yet. The + on a section adds one — a colour, a '
-              'number or a type style.',
+              'No token yet. The + on a section adds a colour, a number or a '
+              'type style.',
               style: context.type.micro.copyWith(color: context.colors.mut2),
             ),
           ),

@@ -680,7 +680,7 @@ class DaemonConfig {
   /// The cost was measured before this defaulted to true: +4% on a cold
   /// compile, +0.7% on the kernel, and **no measurable change to a hot reload**
   /// — the first-pass median was identical to the millisecond over 19 entry
-  /// switches. See `2026-07-29-ui-catalog-inspection-design.md`.
+  /// switches.
   ///
   /// It is a field rather than a constant so the daemon address forks on it: a
   /// kernel compiled one way must never prime a compiler running the other.

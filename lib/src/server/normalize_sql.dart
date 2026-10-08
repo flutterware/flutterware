@@ -3,7 +3,7 @@
 ///
 /// This is what makes N+1 detection possible at all — the queries of an N+1
 /// differ *precisely* in their literals (`user_id = 1`, `= 2`, `= 3`), so
-/// exact-string grouping sees N distinct queries (spec decision 12). The
+/// exact-string grouping sees N distinct queries. The
 /// ruleset is the well-trodden one: literals become `?`, `IN` lists collapse,
 /// whitespace folds.
 ///

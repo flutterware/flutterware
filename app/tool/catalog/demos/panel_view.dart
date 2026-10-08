@@ -15,10 +15,8 @@ import 'shell.dart';
 /// launch, one navigation and one lucky moment away.
 ///
 /// One renderer serves the cockpit and the in-app devbar overlay, so what these
-/// show is what both surfaces show
-/// (`docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`, § Decision
-/// 1). Colours come from the ambient theme — flip the shell's axes and these
-/// follow.
+/// show is what both surfaces show. Colours come from the ambient theme — flip
+/// the shell's axes and these follow.
 
 const _networkFields = [
   FieldDescriptor('path', 'Path', primary: true),

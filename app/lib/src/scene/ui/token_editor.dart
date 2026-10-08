@@ -88,8 +88,8 @@ class _SceneTokenEditorState extends State<SceneTokenEditor> {
         const Gap(FwSpacing.lg),
         if (decl.isExport)
           Text(
-            'A ${decl.type} the app exports — its own value, drawn by the '
-            'canvas. Nothing to edit here: change it in the app.',
+            'A ${decl.type} the app exports. The canvas draws it with the '
+            "app's own value, so change it in the app.",
             style: context.type.body,
           )
         else if (widget.library == null)
@@ -237,7 +237,7 @@ class _SceneTokenEditorState extends State<SceneTokenEditor> {
         const Gap(FwSpacing.xs),
         if (readers.isEmpty)
           Text(
-            'Nothing binds to it yet — a property takes it from the '
+            'Nothing uses it yet. Pick it for a property from the '
             "inspector's token menu.",
             style: context.type.micro.copyWith(color: colors.mut2),
           )

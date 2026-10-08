@@ -8,7 +8,7 @@
 /// Kept apart from the capture pass on purpose, and the reason is a loop rather
 /// than a layer: **changing a headline or a background must not re-run the
 /// app.** The captures are on disk, this reads them, and a recompose is
-/// seconds where a re-run is a minute. See the design's §3.
+/// seconds where a re-run is a minute.
 library;
 
 import 'dart:async';

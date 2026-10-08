@@ -1,4 +1,4 @@
 worktree /recording
-HEAD c331430a70994b7cf3344d011faf734e7f7d1710
+HEAD ba3b562b76c40572322ec4943165b6ad78d47da3
 branch refs/heads/loyalty-stamps
 

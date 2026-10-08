@@ -14,11 +14,10 @@ import 'package:flutterware_app/src/previews/tester_renderer.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
-/// The 3D probes (`docs/superpowers/specs/2026-09-05-scene-3d-view-design.md`
-/// § 7): each is an entry in the example package's `demo/` with a live widget
-/// on a surface showing the playhead's own hue. The walk samples the centre of
-/// every frame — a frame carrying the previous stop's screen shows up as the
-/// previous stop's hue — and checks the walk repeats and is order-free.
+/// The 3D probes: each is an entry in the example package's `demo/` with a live
+/// widget on a surface showing the playhead's own hue. The walk samples the
+/// centre of every frame — a frame carrying the previous stop's screen shows up
+/// as the previous stop's hue — and checks the walk repeats and is order-free.
 ///
 /// Prints its measurements; the expectations at the end are the findings.
 void main() {

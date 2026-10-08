@@ -74,7 +74,7 @@ class ScanDiagnostic {
 /// parse the whole package, and buys nothing here: nobody — not us, not
 /// Flutter's own previewer — interprets a preview annotation statically. The
 /// annotation's source text is carried through to the guest and evaluated as
-/// Dart there. See `2026-07-26-widget-previews-integration-findings.md`.
+/// Dart there.
 class CatalogScanner {
   CatalogScanner({
     required this.projectRoot,
@@ -248,7 +248,7 @@ class CatalogScanner {
   /// Flutter SDK — 17,163 `.dart` files against this repository's own 1,127.
   /// Ignores are honoured from the enclosing repository down, so a workspace
   /// member with no `.gitignore` of its own still skips what the repository
-  /// ignores. See `2026-08-01-root-scan-listing-findings.md`.
+  /// ignores.
   Iterable<File> _dartFiles() sync* {
     for (var root in roots) {
       var directory = p.join(projectRoot, root);
@@ -414,11 +414,9 @@ class CatalogScanner {
       return;
     }
 
-    // The signature *is* the declaration — `2026-07-27-knobs-static-and-runtime.md`
-    // § The static idea, decided in `2026-08-12-run-knobs-design.md` § K7 and
-    // implemented once for demos and entry points alike. Costs a parse of this
-    // file's direct imports, and only for a parameter whose type is not a
-    // built-in one.
+    // The signature *is* the declaration, implemented once for demos and entry
+    // points alike. Costs a parse of this file's direct imports, and only for a
+    // parameter whose type is not a built-in one.
     var declared = knobsFromParameters(
       parameters,
       file: p.join(projectRoot, path),
@@ -529,9 +527,9 @@ class CatalogScanner {
       diagnostics.add(
         ScanDiagnostic.error(
           '$name extends MultiPreview, which declares its previews at run '
-          'time — the catalog resolves entries from the source, so it cannot '
-          'know what one expands to. Remove it from previewAnnotations and '
-          'write one @Preview per entry.',
+          'time. Previews are found by reading the source, so flutterware '
+          'cannot know what one expands to. Remove it from previewAnnotations '
+          'and write one @Preview per entry.',
           location: path,
         ),
       );

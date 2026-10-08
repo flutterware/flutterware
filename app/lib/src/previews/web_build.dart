@@ -106,7 +106,7 @@ class WebCatalogBuilder {
     if (exitCode != 0) {
       throw ActionRefusal(
         'flutter build web failed (exit $exitCode). The generated sources are '
-        'in $sourceDir — the error above points into them.',
+        'in $sourceDir, and the error above points into them.',
       );
     }
 

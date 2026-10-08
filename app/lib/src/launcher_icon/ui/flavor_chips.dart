@@ -91,7 +91,7 @@ class FlavorChips extends StatelessWidget {
         ),
         const Gap(FwSpacing.sm),
         Text(
-          'Named by the files on disk — Gradle and Xcode decide which build '
+          'Named after the files on disk. Gradle and Xcode decide which build '
           'uses which.',
           style: context.type.caption.copyWith(color: colors.mut2),
         ),
@@ -102,8 +102,8 @@ class FlavorChips extends StatelessWidget {
 
 /// What the unflavored chip stands for.
 const mainHint =
-    'android/app/src/main/res/ and the AppIcon asset catalog — what a build '
-    'that overrides neither uses.';
+    'android/app/src/main/res/ and the AppIcon asset catalog, used by any '
+    'build that overrides neither.';
 
 /// What is behind a set, for the chip's tooltip.
 ///
@@ -133,8 +133,9 @@ String? flavorHint(IconFlavor flavor) {
       'no AppIcon-${flavor.name}.appiconset',
   ];
   if (missing.isEmpty) return evidence;
-  return '$evidence Generated for one platform only — ${missing.join(' and ')}. '
-      'The other platform falls back to the unflavored set.';
+  return '$evidence Generated for one platform only '
+      '(${missing.join(' and ')}). The other platform falls back to the '
+      'unflavored set.';
 }
 
 class _Chip extends StatelessWidget {

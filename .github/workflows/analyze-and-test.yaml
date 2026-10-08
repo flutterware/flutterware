@@ -378,16 +378,15 @@ jobs:
     # Nothing ran either test suite on Windows before this job, and a Windows
     # checkout could not even format: `prepare_submit` looped forever on a
     # path git spells `C:/…` and `dart:io` spells `C:\…`, and Git for Windows'
-    # CRLF checkout left every tool-rewritten file looking modified. See
-    # `docs/superpowers/specs/2026-09-14-windows-support-plan.md`.
+    # CRLF checkout left every tool-rewritten file looking modified.
     #
     # The formatter and the root suite block: both are green on Windows now,
     # and a checkout is all they need. The app suite does not block yet —
     # measured 2026-09-14 on a Windows laptop, 210 of the tests that ran
     # failed, most on shell fakes (`true`, `sleep`, `chmod`) and on process
-    # handling that assumes POSIX signals — the plan's steps 2 and 4. It runs
-    # here so that number is visible on every PR and its JSON is one download
-    # away, and it blocks once the plan's steps 2–4 have brought it to zero.
+    # handling that assumes POSIX signals. It runs here so that number is
+    # visible on every PR and its JSON is one download away, and it will block
+    # once that number reaches zero.
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -433,14 +432,13 @@ jobs:
 
   studio_demo:
     name: Studio demo
-    # The studio over a recording — `docs/superpowers/specs/
-    # 2026-09-10-studio-over-a-fake-project-design.md`. Three things this job
-    # keeps true, each of which broke silently before it existed: the
-    # recording in `app/demo/fixture/` is what `tool/demo/record.dart` produces
-    # from `fixtures/probe_app` today (a scan format that moved without the
-    # recording moving would otherwise read as a fixture bug); the studio's own
-    # scenario walks the shell under the harness; and the shell still compiles
-    # for the web, which one `dart:ffi` import anywhere in its closure ends.
+    # The studio over a recording. Three things this job keeps true, each of
+    # which broke silently before it existed: the recording in
+    # `app/demo/fixture/` is what `tool/demo/record.dart` produces from
+    # `fixtures/probe_app` today (a scan format that moved without the recording
+    # moving would otherwise read as a fixture bug); the studio's own scenario
+    # walks the shell under the harness; and the shell still compiles for the
+    # web, which one `dart:ffi` import anywhere in its closure ends.
     #
     # Ubuntu, because none of it needs a GPU or a macOS toolchain: the
     # recording is a directory listing, the scenario runs on `flutter_tester`

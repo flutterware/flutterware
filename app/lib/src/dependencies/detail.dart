@@ -423,7 +423,7 @@ class _VersionsSection extends StatelessWidget {
             label: 'Constraint',
             child: Text(
               dependency.constraint ??
-                  'not declared here — pulled in transitively',
+                  'not declared here (pulled in by another package)',
               style: dependency.constraint == null
                   ? context.type.bodyMuted
                   : context.type.body,
@@ -587,8 +587,8 @@ class _UsageSectionState extends State<_UsageSection> {
                   // through its native side. Saying what was searched for is
                   // honest; concluding it is dead weight is not.
                   ? 'No Dart file imports it and no asset declaration names '
-                        'it. That does not always mean it is unused — build '
-                        'tooling, lint sets and native-only plugins are never '
+                        'it. That does not always mean it is unused: build '
+                        'tools, lint sets and native-only plugins are never '
                         'referenced from source.'
                   : 'Not imported directly; it arrives through another package.',
               style: context.type.bodyMuted,
@@ -617,7 +617,7 @@ class _UsageSectionState extends State<_UsageSection> {
               if (imports.isTestOnly(name) &&
                   widget.dependency.kind == DependencyKind.direct)
                 _Chip(
-                  label: 'test-only — could be a dev dependency',
+                  label: 'used only by tests, could be a dev dependency',
                   tone: context.colors.amber,
                 ),
             ],
@@ -826,7 +826,7 @@ class _DocumentSectionState extends State<_DocumentSection> {
                 if (document == null) return const Text('…');
                 if (document.reason case var reason?) {
                   return Text(
-                    'No ${widget.title.toLowerCase()} — $reason.',
+                    'No ${widget.title.toLowerCase()}: $reason.',
                     style: context.type.bodyMuted,
                   );
                 }
@@ -1045,7 +1045,7 @@ class _OriginDetail extends StatelessWidget {
           Text(path.path),
           if (!path.relative)
             Text(
-              'Absolute — this will not resolve on another machine.',
+              'Absolute path, so it will not resolve on another machine.',
               style: context.type.bodyMuted.copyWith(color: context.colors.red),
             ),
         ],

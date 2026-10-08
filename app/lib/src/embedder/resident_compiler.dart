@@ -38,8 +38,7 @@ class CompileOutcome {
 /// and every later one is an incremental recompile of just what changed.
 ///
 /// This is the difference between a catalog that recompiles the world per entry
-/// and one that switches in milliseconds; see
-/// `docs/superpowers/specs/2026-07-26-s3-hot-switch-findings.md`.
+/// and one that switches in milliseconds.
 ///
 /// The *first* compile is warm too when a `warmDill` is given: the compiler
 /// loads a kernel an earlier session produced. Measured against

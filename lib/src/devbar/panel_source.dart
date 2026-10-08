@@ -6,9 +6,6 @@
 /// plugin that does not implement it is widget mode: it draws its own tab with
 /// its own widgets and is invisible to everything outside the app, which is
 /// the escape hatch for anything the vocabulary cannot express.
-///
-/// One place to declare, one place to disagree — Decision 1 of
-/// `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
 library;
 
 import '../channels/panels.dart';

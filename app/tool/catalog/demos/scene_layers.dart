@@ -5,14 +5,14 @@ import 'package:flutterware/scene_authoring.dart';
 
 /// A text's paint stack, in the shapes it is actually reached for.
 ///
-/// Each of these is the same one list with different numbers in it — an
-/// outline is a stroke beneath the fill, a sticker is stroke-stroke-fill, a
-/// shadow is a blurred offset fill, an extrusion is a run of offset fills
-/// under a gradient one. That combinatorial reach is the argument for a list
-/// over a `shadows` property and a `stroke` property, which are two points in
-/// it and do not compose (master plan §4.5). The last four are paint rather
-/// than structure: a radial, a sweep, a gradient laid across each line of a
-/// two-line title, and a gloss that fades to nothing so it sits on any colour.
+/// Each of these is the same one list with different numbers in it — an outline
+/// is a stroke beneath the fill, a sticker is stroke-stroke-fill, a shadow is a
+/// blurred offset fill, an extrusion is a run of offset fills under a gradient
+/// one. That combinatorial reach is the argument for a list over a `shadows`
+/// property and a `stroke` property, which are two points in it and do not
+/// compose. The last four are paint rather than structure: a radial, a sweep, a
+/// gradient laid across each line of a two-line title, and a gloss that fades
+/// to nothing so it sits on any colour.
 ///
 /// It is a picture rather than a test because that is what it answers: does a
 /// 14px stroke survive a tight counter, does an extrusion read as depth, is

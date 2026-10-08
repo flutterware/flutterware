@@ -387,7 +387,7 @@ case "click":
   }
   // A synthetic click only lands when the target app owns the front window,
   // and only when it carries a click count — all three ingredients were found
-  // the hard way (S-N2, 2026-08-12).
+  // the hard way.
   app.activate()
   if let window = roots.first {
     AXUIElementPerformAction(window, "AXRaise" as CFString)

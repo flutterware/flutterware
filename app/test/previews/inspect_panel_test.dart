@@ -258,7 +258,7 @@ void main() {
         params: const {'inspect.node': '0'},
       );
       expect(
-        find.textContaining('offstage — in the tree, not on the screen'),
+        find.textContaining('offstage: in the tree but not on screen'),
         findsOneWidget,
       );
     });

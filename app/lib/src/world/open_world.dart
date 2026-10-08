@@ -232,9 +232,9 @@ class OpenWorld {
       refuse(
         failure.exited != null
             ? '${failure.message}\nNothing was reloaded, and what it hosted '
-                  'went with it. Two reloads at once — a hot reloader of your '
-                  'own inside the script, say — can take it down. Restart '
-                  'starts it again.'
+                  'went with it. Two reloads at once can take it down, for '
+                  'example when the script runs a hot reloader of its own. '
+                  'Restart starts it again.'
             : failure.reloaded
             ? 'The script reloaded, but a reassemble callback failed; what '
                   'it was rebuilding serves as it was.\n${failure.message}'

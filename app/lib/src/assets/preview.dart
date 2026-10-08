@@ -36,8 +36,8 @@ enum PreviewBackground {
 /// `LottieComposition.fromBytes`, `FontLoader`) from being the odd ones out.
 ///
 /// Renders with the *GUI's* decoders, not the project's. For an SVG or a Lottie
-/// that is a real difference, and the design doc's D6 records it: the guest
-/// renderer is where fidelity comes from, and this is what ships before it.
+/// that is a real difference: the guest renderer is where fidelity comes from,
+/// and this is what ships before it.
 class AssetPreview extends StatelessWidget {
   const AssetPreview({
     super.key,

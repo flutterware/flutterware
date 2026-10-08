@@ -1,14 +1,13 @@
 // A 3D view as an external widget: version zero of the scene plugin's 3D
 // offer, with no change to the scene model.
 //
-// The spec (`docs/superpowers/specs/2026-09-05-scene-3d-view-design.md` § 3)
-// describes a view node with placements, an orbit camera and surfaces. This
+// A full 3D view node would have placements, an orbit camera and surfaces. This
 // is the part of it an external widget can carry today: one asset, the orbit
 // camera, and one clip scrubbed by a number — every argument a `double` or a
 // `String`, so the timeline keyframes the orbit and the clip time the way it
 // keyframes any external argument, the canvas shows it live, and the video
-// action walks it. What it cannot carry is a surface slot, because content
-// is not an argument; that is the node kind's reason to exist.
+// action walks it. What it cannot carry is a surface slot, because content is
+// not an argument; that is the node kind's reason to exist.
 //
 // Loading goes through `RealWork.run`, so a walk waits for the model, and
 // the asset is the build-time `.fsceneb` the app's hook wrote.

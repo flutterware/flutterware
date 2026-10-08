@@ -9,8 +9,7 @@
 /// a CI runner shared by three jobs, and the failure read as the scenario's.
 ///
 /// So the timeout is **how long a scenario may go without progress**, which is
-/// what an author means when they write one. See
-/// `docs/superpowers/specs/2026-09-15-comparison-determinism-design.md` § 3.
+/// what an author means when they write one.
 library;
 
 import 'dart:async';

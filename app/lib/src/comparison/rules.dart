@@ -2,12 +2,11 @@ import 'package:flutterware/comparison_report.dart';
 
 /// One thing a reader has said they do not want to see.
 ///
-/// A **conjunction** from the start, though v1.5 only ever builds rules of one
-/// constraint. That is the seam the staging rests on: clicking the `system`
+/// A **conjunction** from the start, though the UI only ever builds rules of
+/// one constraint. That is the seam the staging rests on: clicking the `system`
 /// chip and authoring *db events out of `cache.dart`* produce the same record
 /// with a different number of constraints, so the second is a longer rule
-/// rather than a different feature. Design:
-/// `docs/superpowers/specs/2026-08-30-comparison-ui-pass-design.md` §3, §3a.
+/// rather than a different feature.
 class ComparisonRule {
   const ComparisonRule(this.constraints);
 
@@ -53,9 +52,9 @@ class RuleConstraint {
   const RuleConstraint(this.facet, this.value);
 
   /// `channel`, `subchannel`, `subject`, `property` or `origin` — the facets
-  /// the model records. See the events design note §9. `subject` is what a
-  /// *shape*-level rule pins — the fold groups on subchannel, subject and
-  /// property, so hiding one shape is a three-constraint rule.
+  /// the model records. `subject` is what a *shape*-level rule pins — the fold
+  /// groups on subchannel, subject and property, so hiding one shape is a
+  /// three-constraint rule.
   final String facet;
   final String value;
 

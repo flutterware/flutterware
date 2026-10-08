@@ -10,11 +10,10 @@
 //
 //   cc dmabuf_probe.c -lEGL -lGLESv2 -o dmabuf_probe && ./dmabuf_probe
 //
-// Two things it does not prove, both noted in
-// `docs/superpowers/specs/2026-08-28-linux-embedder-guest-findings.md`: the
-// importing display here is ours rather than Flutter's, and the export half is
-// a Mesa extension that NVIDIA's proprietary EGL does not have — which is why
-// the shared-memory path has to exist whatever this says.
+// Two things it does not prove: the importing display here is ours rather than
+// Flutter's, and the export half is a Mesa extension that NVIDIA's proprietary
+// EGL does not have — which is why the shared-memory path has to exist
+// whatever this says.
 #define _GNU_SOURCE
 #include <EGL/egl.h>
 #include <EGL/eglext.h>

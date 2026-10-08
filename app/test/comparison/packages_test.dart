@@ -265,8 +265,8 @@ void main() {
       '1 scenario had steps that never settled, each running its whole '
       'settle budget: Spinning fox (4, still ticking: '
       'CircularProgressIndicator (lib/den.dart:12))\n'
-      '1 scenario differed beside other replays and not alone, so replayed '
-      'serially: Unread badge',
+      '1 scenario differed only when replayed beside others, so they were '
+      'replayed one at a time: Unread badge',
     );
   });
 }

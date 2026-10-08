@@ -9,10 +9,8 @@
 /// the real re-read — which is the protocol worth looking at: the reply is what
 /// the device says *now*, never an echo of what was asked.
 ///
-/// Designed in `docs/superpowers/specs/2026-08-24-run-device-strip-design.md`,
-/// measured first in `2026-08-24-run-device-tab-capability-findings.md`. The
-/// scripted outputs below are the real bytes those measurements captured on
-/// 2026-08-24, against an iPhone 17 Pro on iOS 26.2 and an API 35 emulator.
+/// The scripted outputs below are real bytes captured on 2026-08-24, against an
+/// iPhone 17 Pro on iOS 26.2 and an API 35 emulator.
 library;
 
 import 'dart:async';

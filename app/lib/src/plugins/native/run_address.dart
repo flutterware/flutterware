@@ -24,13 +24,12 @@
 /// The tab list is open on purpose. `Screen` and `Logs` arrive with the inspect
 /// slice; `Data` is a devbar plugin reporting into the cockpit later. `Network`
 /// was reserved for one too, and became native instead — the VM's http profile
-/// answers with no app cooperation, and that reach beat the plugin route
-/// (`2026-08-12-http-profile-spike-findings.md`).
+/// answers with no app cooperation, and that reach beat the plugin route.
 ///
-/// There is no `tree` tab, and there was one for a day. The design's Screen
-/// tab is a split — the picture on the left, the widget tree filling the rest —
-/// and pulling the tree out into a third tab separated the two things you look
-/// at together. An address written against that build reads back as the screen,
+/// There is no `tree` tab, and there was one for a day. The Screen tab is a
+/// split — the picture on the left, the widget tree filling the rest — and
+/// pulling the tree out into a third tab separated the two things you look at
+/// together. An address written against that build reads back as the screen,
 /// which is where the tree now is.
 ///
 /// [RunViewKind.byName] answers null for a tab this build has never heard of,

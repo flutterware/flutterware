@@ -112,8 +112,8 @@ class AxNativeDriver extends NativeDriver {
         message = switch (code) {
           'noApp' =>
             '$message: Simulator is not running, so this device has no window '
-                'for the native layer to read — and an app on it sits '
-                '`inactive`, drawing nothing. `act {verb: foreground, layer: '
+                'for the native layer to read, and an app on it stays '
+                '`inactive` and draws nothing. `act {verb: foreground, layer: '
                 'native}` opens it.',
           'noWindow' =>
             '$message\nThe device is booted without a window, so the native '
@@ -147,10 +147,9 @@ class AxNativeDriver extends NativeDriver {
     var owner = Platform.environment['TERM_PROGRAM'] ?? 'the app running this';
     return 'macOS has not granted accessibility permission, so the native '
         'layer cannot see or touch anything. Grant it in System Settings › '
-        'Privacy & Security › Accessibility — the entry to enable is $owner '
-        '(the permission belongs to the program that started flutterware, not '
-        'to a helper of its own). Then retry; nothing needs restarting but '
-        'the granted app.';
+        'Privacy & Security › Accessibility, on the entry for $owner (the '
+        'program that started flutterware holds the permission). Then retry; '
+        'only the app you granted needs restarting.';
   }
 
   @override
@@ -177,15 +176,15 @@ class AxNativeDriver extends NativeDriver {
           ? _windows
           : null,
       note: platform == 'macos'
-          ? 'On macOS this layer is for native chrome — menus, dialogs, save '
-                "panels, other applications. A Flutter app's own widgets "
-                'usually do not appear: the framework builds a semantics tree '
-                'only when the *platform* asks, and nothing flutterware does '
-                'asks it. A tree that is just a window title is expected here '
-                '— address the app by dropping `layer`. '
-                'Some apps do publish (an assistive client or VoiceOver '
-                'turned it on for that process); if you see Flutter content '
-                'below, it is real and you can use it. '
+          ? 'On macOS this layer is for native chrome: menus, dialogs, save '
+                "panels and other applications. A Flutter app's own widgets "
+                'usually do not appear, because the framework builds a '
+                'semantics tree only when the platform asks, and flutterware '
+                'never asks. A tree that is just a window title is expected '
+                'here; address the app by dropping `layer`. '
+                'Some apps do publish their tree (an assistive client or '
+                'VoiceOver turned it on for that process); if you see Flutter '
+                'content below, it is real and you can use it. '
                 '${_pictureSentence(wanted: screenshot, got: picture != null)}'
           : null,
     );
@@ -196,10 +195,11 @@ class AxNativeDriver extends NativeDriver {
   static String _pictureSentence({required bool wanted, required bool got}) {
     if (!wanted) return "The picture is this app's own windows.";
     return got
-        ? "The picture is this app's own windows, not the desktop around them."
+        ? "The picture is this app's own windows, without the desktop around "
+              'them.'
         : 'There is no picture: this app has no window on screen to '
-              'photograph, and the desktop behind it is not this layer to '
-              'show.';
+              'photograph, and this layer does not show the desktop behind '
+              'it.';
   }
 
   /// `screencapture -R`'s rectangle: `x,y,w,h` in the same top-left-origin
@@ -374,14 +374,13 @@ class AxNativeDriver extends NativeDriver {
   @override
   Future<void> enterText(String text) async {
     // Measured, and the reason this is a refusal rather than a TODO:
-    // `AXSetValue` on a focused field returns success and writes nothing
-    // (S-N2). A verb that reports a lie is worse than one that admits it
-    // cannot.
+    // `AXSetValue` on a focused field returns success and writes nothing. A
+    // verb that reports a lie is worse than one that admits it cannot.
     throw NativeUnsupported(
       'The native layer cannot type on $platform: the accessibility API '
-      'accepts the text and silently discards it, which is worse than '
-      'refusing. Use the drive layer — drop `layer` and use enterText — which '
-      'types through the app itself and keeps the platform keyboard in step.',
+      'accepts the text and then discards it. Use the drive layer instead '
+      '(drop `layer` and use enterText), which types through the app itself '
+      'and keeps the platform keyboard in step.',
     );
   }
 
@@ -418,7 +417,7 @@ class AxNativeDriver extends NativeDriver {
         throw NativeRefusal(
           'Pressed Home, but no icon on this screen belongs to an app '
           'installed here (${installed.join(', ')}). The app may be on '
-          'another home page — tap its icon by name once it is visible.',
+          'another home page; tap its icon by name once it is visible.',
           failure: 'notFound',
         );
       }
@@ -630,8 +629,8 @@ class AxNativeDriver extends NativeDriver {
     } on SwiftHelperError catch (error) {
       throw NativeRefusal(
         error.missingTools
-            ? 'Could not build the accessibility helper — this needs the '
-                  'Xcode command line tools (${error.message}).'
+            ? 'Could not build the accessibility helper. It needs the Xcode '
+                  'command line tools (${error.message}).'
             : 'Could not build the accessibility helper: ${error.message}',
         failure: 'unavailable',
       );

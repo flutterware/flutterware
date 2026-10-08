@@ -43,8 +43,8 @@ class TargetMessages {
     this.coveredEscapeHatch = '',
     this.blankScreenHint = '',
     this.narrowHint =
-        'Narrow it: give the widget a Key and use that, or pass a Finder — '
-        '`finder.first`, `find.descendant(of: …, matching: …)`.',
+        'To pick one, give the widget a Key and use that, or pass a Finder '
+        'such as `finder.first` or `find.descendant(of: …, matching: …)`.',
   });
 
   /// Goes in front of verb names in messages — `'s.'` for scenarios, where
@@ -91,11 +91,11 @@ class TargetMessages {
     var guess = blank && blankScreenHint.isNotEmpty
         ? blankScreenHint
         : scrolls
-        ? 'Either a widget further down a lazy list is not built yet — '
-              '`${prefix}scrollTo` walks to it — or the list that would hold '
-              'it is empty; the visible text says which.'
-        : 'Nothing on this screen scrolls, so it is not hiding further down '
-              '— it was never built. The visible text is the whole screen.';
+        ? 'Either it is further down a lazy list and not built yet '
+              '(`${prefix}scrollTo` walks to it), or the list that would hold '
+              'it is empty. The visible text shows which.'
+        : 'Nothing on this screen scrolls, so the widget was never built. '
+              'The visible text is everything on the screen.';
     return 'nothing matches $described, which `$prefix$verb` needs. '
         '$prelude${hint ?? guess}'
         '${screen == null ? '' : '\nVisible text: $screen'}';
@@ -110,7 +110,7 @@ class TargetMessages {
   /// the index when the index is the one part that was fine.
   String outOfRange(String inner, int count, int index) =>
       '$inner matches $count widget${count == 1 ? '' : 's'}, so `nth` index '
-      '$index is out of range — '
+      '$index is out of range: '
       '${count == 1 ? 'the only index is 0' : 'valid indices are 0–${count - 1}'}.';
 
   /// An `nth` over a target that matches nothing at all.
@@ -118,8 +118,8 @@ class TargetMessages {
   /// Said first and on its own: the index is not what needs fixing, so the
   /// reader should stop looking at it and read the miss underneath.
   String nthOverNothing(String inner) =>
-      '`nth` has nothing to index — $inner matches nothing, so the index is '
-      'not the problem. ';
+      '`nth` has nothing to index, because $inner matches nothing. Fix that '
+      'target first. ';
 
   /// A rendered string that is *nearly* the one asked for.
   ///
@@ -158,10 +158,11 @@ class TargetMessages {
     required String noun,
     required String form,
   }) =>
-      'No *rendered* text matches, but $count $noun${count == 1 ? '' : 's'} '
-      'do${count == 1 ? 'es' : ''} — target it with `{"$form": …}`. A bare '
-      "target matches rendered text only, while `screen` reports a control's "
-      '`w` from its semantics label or its tooltip wherever it has one.';
+      'No rendered text matches, but $count $noun${count == 1 ? '' : 's'} '
+      'do${count == 1 ? 'es' : ''}. Target it with `{"$form": …}`. A bare '
+      'target matches rendered text only, and the `w` that `screen` reports '
+      'for a control comes from its semantics label or tooltip when it has '
+      'one.';
 
   /// How to get from many matches to one, flavored per host.
   ///
@@ -197,9 +198,9 @@ class TargetMessages {
   /// nothing.
   String covered(String verb, String described, {String? landsOn}) =>
       '$described is on screen, but `$prefix$verb` at its center would not '
-      'reach it — '
-      '${landsOn == null ? 'another widget covers it, or an IgnorePointer/'
-                'AbsorbPointer swallows the pointer' : 'the pointer there lands on $landsOn instead'}'
+      'reach it: '
+      '${landsOn == null ? 'another widget covers it, or an IgnorePointer or '
+                'AbsorbPointer takes the pointer' : 'the pointer there lands on $landsOn instead'}'
       '.$coveredEscapeHatch';
 
   /// The covered refusal for the one covering that is not a mistake: a text
@@ -223,9 +224,9 @@ class TargetMessages {
     required String? label,
     required Offset center,
   }) =>
-      "$described belongs to a text field's decoration — its label, its hint, "
-      'a prefix — and `$prefix$verb` at its centre lands on the field rather '
-      'than on it. Act on the field: '
+      "$described belongs to a text field's decoration (its label, hint or "
+      'prefix), so `$prefix$verb` at its centre lands on the field. Act on '
+      'the field: '
       '`{"at": {"x": ${center.dx.round()}, "y": ${center.dy.round()}}}`, its '
       'centre'
       '${label == null ? '' : ', or `{"label": ${jsonEncode(label)}}`'}.';
@@ -242,8 +243,8 @@ class TargetMessages {
 
   String scrollExhausted(int maxScrolls, double step, String described) =>
       'scrolled $maxScrolls times by $step without reaching $described. '
-      'Wrong direction (try a negative step), wrong scrollable (name one '
-      'with `within:`), or it is not in this list at all.';
+      'If it is the other way, use a negative step. If another list holds '
+      'it, name that list with `within:`. Otherwise it is not in this list.';
 }
 
 /// Resolves a verb's target and insists it names exactly one widget the
@@ -457,7 +458,7 @@ class TargetResolver {
       yours: yoursRuns ? _nameChar(wanted, bestPrefix) : null,
       theirs: renderedRuns
           ? _nameChar(best, bestPrefix)
-          : 'nothing — it ends there',
+          : 'nothing (it ends there)',
     );
   }
 
@@ -700,8 +701,8 @@ class TargetResolver {
     if (view == null) return true;
     var at = point ?? render.localToGlobal(render.size.center(Offset.zero));
     // The viewId is passed explicitly: `hitTestOnBinding`'s default comes
-    // from the controller's test-typed `view` getter, which throws on a live
-    // binding (measured — see 2026-08-11-run-drive-spike-findings.md).
+    // from the controller's test-typed `view` getter, which throws on a
+    // live binding.
     var result = controller.hitTestOnBinding(
       at,
       viewId: view.flutterView.viewId,

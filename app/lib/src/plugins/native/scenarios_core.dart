@@ -55,8 +55,7 @@ const _pluginDescription =
 /// dialog and the command the dialog echoes cannot drift apart.
 const webExportActionId = 'export';
 
-/// `video` — one scenario, rendered as a film. See
-/// `docs/superpowers/specs/2026-09-08-scenario-video-design.md`.
+/// `video` — one scenario, rendered as a film.
 const videoActionId = 'video';
 
 /// What `axes` is, on every action that runs scenarios as a matrix.
@@ -152,12 +151,13 @@ class ScenarioPanelRun {
 String? scenarioRunnerPhase(String line) {
   if (readTesterPhase(line) case var reading?) {
     return switch (reading.phase) {
-      TesterPhase.compiling => 'Compiling the harness',
+      TesterPhase.compiling => 'Compiling the scenarios',
       // The harness answering is still the start of the run from here: the
       // caption moves on when the first step lands, not when the guest is up.
-      TesterPhase.starting || TesterPhase.ready => 'Starting the harness',
+      TesterPhase.starting ||
+      TesterPhase.ready => 'Starting the scenario runner',
       TesterPhase.bundling => 'Rebuilding the asset bundle',
-      TesterPhase.restarting => 'Restarting the harness',
+      TesterPhase.restarting => 'Restarting the scenario runner',
       TesterPhase.reloading =>
         'Reloading ${reading.files} edited file'
             '${reading.files == 1 ? '' : 's'}',
@@ -179,7 +179,7 @@ typedef _Baseline = ({String dir, ScenarioRunResult run});
 /// Scenarios for each declared package: the syntactic scan projected into the
 /// report and the `list` action, the `run` action in a warm
 /// [ScenarioRunner], and the panel's per-scenario run state on the same
-/// runner; see `docs/superpowers/specs/2026-07-30-scenarios-design.md`.
+/// runner.
 ///
 /// Follows the dependencies core's rule: nothing here starts work. The
 /// constructor allocates nothing and [report] only reads what a previous call
@@ -533,8 +533,6 @@ class ScenariosCore extends PluginCore {
   /// it stops is worse than the work it saves. What that costs is memory —
   /// 1.29MB a frame decoded, on a phone — and that is bounded by
   /// `ScenarioMotionResidency` rather than by recording something smaller.
-  ///
-  /// See `docs/superpowers/specs/2026-08-11-scenario-motion-capture-findings.md`.
   static const panelMotionInterval = Duration(milliseconds: 33);
   static const panelMotionMaxFrames = 90;
 
@@ -646,8 +644,8 @@ class ScenariosCore extends PluginCore {
           steps: _panelRuns[key]?.steps ?? const [],
           output: outDir,
           error:
-              'The harness ran nothing named "$scenario" in $file — '
-              'renamed since this page was opened?',
+              'No scenario named "$scenario" ran in $file. Was it renamed '
+              'since this page was opened?',
         );
         return;
       }
@@ -2109,7 +2107,7 @@ class ScenariosCore extends PluginCore {
       throw ArgumentError.value(
         language,
         'language',
-        'not a locale tag — expected e.g. `fr` or `fr-CA`',
+        'not a locale tag; expected one like `fr` or `fr-CA`',
       );
     }
     double? textScale;
@@ -2358,7 +2356,7 @@ class ScenariosCore extends PluginCore {
         var noScreen =
             'This step has no screen: the scenario stopped before anything '
             'could be photographed. Its failure says why, and `events: true` '
-            'is what the app did on the way there.';
+            'shows what the app did on the way there.';
         return ScenarioReadResult(
           step: _relative(picked.base),
           lens: lens.name,
@@ -2376,9 +2374,9 @@ class ScenariosCore extends PluginCore {
       throw ArgumentError.value(
         _relative(picked.base),
         'step',
-        'that capture has a picture but no widget tree beside it — a `raw` '
-            'run or a `shots` run keeps only pixels. Re-run it with `run` to '
-            'get a step this can read.',
+        'that capture has a picture but no widget tree, because a `raw` or '
+            '`shots` run keeps only pixels. Re-run it with `run` to get a '
+            'step this can read.',
       );
     }
     InspectTree tree;
@@ -2502,7 +2500,7 @@ class ScenariosCore extends PluginCore {
       return (
         events: null,
         eventsNote:
-            'This step recorded no events — nothing was reported on '
+            'This step recorded no events: nothing was reported on '
             'the way to it.',
       );
     }
@@ -2540,7 +2538,7 @@ class ScenariosCore extends PluginCore {
           'No event matched. This step recorded ${all.length} on '
           '${channelsSeen.join(', ')}'
           '${errorsOnly ? ', none of them flagged as an error' : ''}'
-          '${channels == null && channelsSeen.contains(AppChannel.system) ? " — `system` is hidden unless `channel` names it" : ''}.',
+          '${channels == null && channelsSeen.contains(AppChannel.system) ? "; `system` is hidden unless `channel` names it" : ''}.',
     );
   }
 
@@ -2628,9 +2626,9 @@ class ScenariosCore extends PluginCore {
       throw ArgumentError.value(
         raw,
         'step',
-        'no such file. Give a step as `run` reported it — its `tree` or its '
-            '`image` path — or an index into the run, or nothing at all for '
-            'the step a scenario failed on.',
+        'no such file. Give a step as `run` reported it (its `tree` or '
+            '`image` path), an index into the run, or nothing for the step a '
+            'scenario failed on.',
       );
     }
 
@@ -2663,8 +2661,8 @@ class ScenariosCore extends PluginCore {
         'step',
         hits.isEmpty
             ? 'no step $index in that run. ${_listing(Directory(runDir))}'
-            : 'step $index exists in ${hits.length} scenarios of that run — '
-                  'an index counts within a scenario, so name the capture '
+            : 'step $index exists in ${hits.length} scenarios of that run. '
+                  'An index counts within a scenario, so name the capture '
                   'itself. ${_listing(Directory(runDir))}',
       );
     }
@@ -2696,9 +2694,9 @@ class ScenariosCore extends PluginCore {
   /// a reader has in hand is the one it just took the address from.
   _PickedStep _pickAddressed(String raw, Map<String, Object?> arguments) {
     var grammar =
-        'an address here names one step of one scenario — '
-        '`fw:///worktrees/<worktree>/${host.id}/<package>/<file>/<scenario>/<n>`, '
-        'as `run` reports it on every step.';
+        'an address here names one step of one scenario: '
+        '`fw:///worktrees/<worktree>/${host.id}/<package>/<file>/<scenario>/<n>`. '
+        '`run` reports one for every step.';
     Address address;
     try {
       address = Address.parse(raw);
@@ -2737,11 +2735,12 @@ class ScenariosCore extends PluginCore {
       'step',
       hits.isEmpty
           ? 'no step ${place.step} of `${place.scenario}` (${place.file}) in '
-                '${_relative(runDir)}. A matrix point lives in its own '
-                'directory — name it with `output`. ${_listing(Directory(runDir))}'
+                '${_relative(runDir)}. Each matrix point has its own '
+                'directory; name it with `output`. '
+                '${_listing(Directory(runDir))}'
           : 'step ${place.step} of `${place.scenario}` exists ${hits.length} '
-                'times in that run — two scenarios in one file share that '
-                'name — so name the capture itself. '
+                'times in that run, because two scenarios in one file share '
+                'that name. Name the capture itself. '
                 '${_listing(Directory(runDir))}',
     );
   }
@@ -2770,8 +2769,8 @@ class ScenariosCore extends PluginCore {
       throw ArgumentError.value(
         null,
         parameter,
-        'this package has no scenario run on disk. Run one first — `run '
-        'scenarios run` — or give `$parameter` a directory that holds a '
+        'this package has no scenario run on disk. Run one first with `run '
+        'scenarios run`, or give `$parameter` a directory that holds a '
         '$scenarioRunReportFile.',
       );
     }
@@ -2794,9 +2793,9 @@ class ScenariosCore extends PluginCore {
         parameter,
         '${candidates.length} capture '
         'director${candidates.length == 1 ? 'y' : 'ies'} on disk, but '
-        'none holds a $scenarioRunReportFile — panel sessions write '
-        'captures without one. Run `run scenarios run` first, or give '
-        '`$parameter` a directory that holds one.',
+        'none holds a $scenarioRunReportFile (runs from the panel do not '
+        'write one). Run `run scenarios run` first, or give `$parameter` a '
+        'directory that holds one.',
       );
     }
     runs.sort((a, b) => p.basename(a.path).compareTo(p.basename(b.path)));
@@ -2841,9 +2840,9 @@ class ScenariosCore extends PluginCore {
         point == null
             ? 'no $scenarioRunReportFile there, so there is no run to compare '
                   'against. ${_listing(Directory(given))}'
-            : 'this run fanned out, and that baseline holds no '
-                  '$scenarioRunReportFile for the point `$point` — one point '
-                  'is never compared against another, so there is nothing '
+            : 'this run covers several points, and that baseline holds no '
+                  '$scenarioRunReportFile for the point `$point`. A point is '
+                  'only compared with the same point, so there is nothing '
                   'here to compare it with. ${_pointsIn(given)}',
       );
     }
@@ -2943,7 +2942,7 @@ class ScenariosCore extends PluginCore {
               step.index,
               'step',
               'step ${step.index} of `${outcome.name}` left nothing on disk to '
-                  'read — a beat with no frame, or a scenario that stopped '
+                  'read: it is a beat with no frame, or the scenario stopped '
                   'before anything could be captured. Its failure and errors '
                   'are in $scenarioRunReportFile.',
             )),
@@ -2978,9 +2977,9 @@ class ScenariosCore extends PluginCore {
           p.basename(entry.path),
     ]..sort();
     if (points.isEmpty) {
-      return 'It holds no points at all, so it is the output of a run that '
-          'did not fan out. Compare against a matrix run, or run this one '
-          'without `devices=`/`languages=`/`orientations=`.';
+      return 'It holds no points at all, so it comes from a run without a '
+          'matrix. Compare against a matrix run, or run this one without '
+          '`devices=`/`languages=`/`orientations=`.';
     }
     return 'It holds ${points.length} '
         'point${points.length == 1 ? '' : 's'}: ${points.join(', ')}.';
@@ -3056,7 +3055,7 @@ class ScenariosCore extends PluginCore {
         throw ArgumentError.value(
           locale,
           'languages',
-          'not a locale tag — expected e.g. `fr` or `fr-CA`',
+          'not a locale tag; expected one like `fr` or `fr-CA`',
         );
       }
     }
@@ -3382,7 +3381,7 @@ class ScenariosCore extends PluginCore {
 
     var name = arguments['name'];
     if (name is! String || name.trim().isEmpty) {
-      throw ArgumentError.value(name, 'name', 'required — the scenario name');
+      throw ArgumentError.value(name, 'name', 'required: the scenario name');
     }
     name = name.trim();
 
@@ -3413,8 +3412,8 @@ class ScenariosCore extends PluginCore {
       throw ArgumentError.value(
         relative,
         'file',
-        'must end in `_test.dart` — `flutter test` collects nothing else, and '
-            'a scenario CI never runs is worse than one that does not exist',
+        'must end in `_test.dart`, because `flutter test` only runs those '
+            'files',
       );
     }
 
@@ -3528,8 +3527,8 @@ class ScenariosCore extends PluginCore {
         for (var path in paths)
           if (timeFor(path) != null)
             path:
-                'runs in real time, against a backend, so only when named: '
-                'package=$path',
+                'runs in real time against a backend, so it runs only when '
+                'named: package=$path',
     };
     paths = [
       for (var path in paths)
@@ -3537,8 +3536,8 @@ class ScenariosCore extends PluginCore {
     ];
     if (paths.isEmpty) {
       throw ArgumentError(
-        'every declared folder runs in real time, against a backend, and a '
-        'run that names no package runs none of those. Name the one to run: '
+        'every declared folder runs in real time against a backend, and '
+        'those run only when named. Name the one to run: '
         '${notRun.keys.map((path) => 'package=$path').join(' or ')}.',
       );
     }
@@ -3553,8 +3552,8 @@ class ScenariosCore extends PluginCore {
     var scenario = arguments['scenario'] as String?;
     if (scenario != null && file == null) {
       throw ArgumentError(
-        '`scenario` needs `file` too — names are unique per file, '
-        'not per package.',
+        '`scenario` needs `file` too: scenario names are only unique within '
+        'a file.',
       );
     }
     // Resolved here, once, worktree-relative unless absolute — because a
@@ -3594,7 +3593,7 @@ class ScenariosCore extends PluginCore {
         throw ArgumentError.value(
           tag,
           'languages',
-          'not a locale tag — expected e.g. `fr` or `fr-CA`',
+          'not a locale tag; expected one like `fr` or `fr-CA`',
         );
       }
     }
@@ -3615,7 +3614,7 @@ class ScenariosCore extends PluginCore {
       throw ArgumentError.value(
         matrix,
         'matrix',
-        'accepted: declared — every point the folder profiles declare',
+        'accepted: declared (every point the folder profiles declare)',
       );
     }
     if (matrix != null &&
@@ -3625,7 +3624,7 @@ class ScenariosCore extends PluginCore {
             appAxes.isNotEmpty)) {
       throw ArgumentError(
         '`matrix=declared` reads devices, languages, orientations and app '
-        'axes from the declaration — drop the explicit lists, or keep them '
+        'axes from the declaration. Drop the explicit lists, or keep them '
         'and drop `matrix`.',
       );
     }
@@ -3721,8 +3720,8 @@ class ScenariosCore extends PluginCore {
         throw ArgumentError.value(
           raw,
           'clock',
-          'not an ISO-8601 timestamp — expected e.g. `2026-01-01T09:00:00Z`, '
-              'or `now` for the wall clock',
+          'not an ISO-8601 timestamp; expected one like '
+              '`2026-01-01T09:00:00Z`, or `now` for the wall clock',
         );
       }
     }
@@ -3823,8 +3822,8 @@ class ScenariosCore extends PluginCore {
           throw ArgumentError(
             'two points of this matrix would both be written to `$slug`: '
             '${other.toParams()} and ${point.toParams()}. Two folders declare '
-            'different app axes that share a value — give the values names '
-            'of their own.',
+            'different app axes that share a value; give each value its own '
+            'name.',
           );
         }
         bySlug[slug] = point;
@@ -4041,7 +4040,7 @@ class ScenariosCore extends PluginCore {
       var other => throw ArgumentError.value(
         other,
         'before',
-        'required — the run to compare against, as a directory holding a '
+        'required: the run to compare against, as a directory holding a '
             '$scenarioRunReportFile',
       ),
     };
@@ -4299,11 +4298,10 @@ class ScenariosCore extends PluginCore {
       durationMs: written.duration.inMilliseconds,
       failed: failed,
       serve:
-          'Serve it with any static server — `cd ${_relative(written.output)} '
-          '&& python3 -m http.server`. Opening index.html as a file leaves the '
-          'browser unable to fetch the report beside it, and the page says so '
-          'rather than appearing empty. (The GUI serves it for you: "Export a '
-          'web page…" on the package, then Open in browser.)',
+          'Serve it with any static server: `cd ${_relative(written.output)} '
+          '&& python3 -m http.server`. Opened as a file, index.html cannot '
+          'load the report beside it. The studio can serve it for you: '
+          '"Export a web page…" on the package, then Open in browser.',
     );
   }
 
@@ -4312,8 +4310,7 @@ class ScenariosCore extends PluginCore {
   /// A second run of the same body, paced for a viewer: the harness keeps
   /// every frame it pumps and spends fake time on beats no scenario contains —
   /// the cursor's travel to a button, the pause after a screen arrives — and
-  /// this end encodes those frames *while they are being drawn*. See
-  /// `docs/superpowers/specs/2026-09-08-scenario-video-design.md`.
+  /// this end encodes those frames *while they are being drawn*.
   ///
   /// Nothing it produces is evidence: it captures no screenshots, no trees and
   /// no semantics, and its report is thrown away. The panel's step pictures
@@ -4341,7 +4338,7 @@ class ScenariosCore extends PluginCore {
     var paths = _requested(arguments);
     if (paths.length > 1) {
       throw ArgumentError(
-        'Which package? A film is one scenario. Declared: '
+        'Which package? A video is of one scenario. Declared: '
         '${packages.join(', ')}',
       );
     }
@@ -4349,15 +4346,15 @@ class ScenariosCore extends PluginCore {
     var file = _fileArgument(arguments['file']);
     if (file == null || file.isEmpty) {
       throw ArgumentError(
-        '`file` names the scenario file to film — as `list` reports it. A '
-        'film is one scenario, so there is no "all of them" here.',
+        '`file` is required: the scenario file to make a video of, as '
+        '`list` reports it.',
       );
     }
     if (fileSelectors(file).length > 1) {
       throw ArgumentError.value(
         file,
         'file',
-        'names several files, and a film is one scenario. Name one',
+        'names several files, and a video is of one scenario. Name one',
       );
     }
     var scenario = switch (arguments['scenario']) {
@@ -4406,7 +4403,7 @@ class ScenariosCore extends PluginCore {
     };
 
     var watch = Stopwatch()..start();
-    _setBusy(path, const Status.info('rendering the film…'));
+    _setBusy(path, const Status.info('rendering the video…'));
     try {
       var running = _runnerFor(path).run(
         outDir: p.join(scratch.path, 'run'),
@@ -4442,7 +4439,7 @@ class ScenariosCore extends PluginCore {
       if (_filmFailure(report) case var failed?) {
         File(output).deleteSync();
         throw ActionRefusal(
-          '`$scenario` did not finish, so there is no film:\n\n$failed',
+          '`$scenario` did not finish, so there is no video:\n\n$failed',
         );
       }
       watch.stop();
@@ -4500,7 +4497,7 @@ class ScenariosCore extends PluginCore {
     throw ArgumentError.value(
       file,
       'scenario',
-      'that file holds ${found.length} scenarios, and a film is one of them. '
+      'that file holds ${found.length} scenarios, and a video is of one. '
           'Name it: ${found.map((ref) => '`${ref.name}`').join(', ')}',
     );
   }
@@ -4606,7 +4603,7 @@ class ScenariosCore extends PluginCore {
           'scan that would say what does failed: ${_errors[path]}';
     }
     if (result.scenarios.isEmpty) {
-      return 'Nothing matched ${_describeSelector(file, scenario, tag)} — this '
+      return 'Nothing matched ${_describeSelector(file, scenario, tag)}: this '
           'package has no scenarios at all.\n\n'
           '${scenarioAuthoringHint(newScenarioDirectoryFor(path))}';
     }
@@ -4641,14 +4638,14 @@ class ScenariosCore extends PluginCore {
           if (p.isWithin(p.dirname(directory), declared))
             p.split(p.relative(declared, from: p.dirname(directory))).first,
       };
-      return 'No scenarios under "$file". The directory is there and declares '
-          'none — nothing below it calls `scenario(…)`'
-          '${siblings.isEmpty ? '' : ', where its siblings do: '
+      return 'No scenarios under "$file". The directory exists but declares '
+          'none: nothing below it calls `scenario(…)`'
+          '${siblings.isEmpty ? '' : '. Its siblings do: '
                     '${(siblings.toList()..sort()).join(', ')}'}.';
     }
-    return 'No scenarios in "$file" — and no such file or directory in this '
-        'package, which declares them in: ${files.join(', ')}. `file` takes a '
-        'directory too, and runs everything under it.';
+    return 'No scenarios in "$file": there is no such file or directory in '
+        'this package. Its scenarios are in: ${files.join(', ')}. `file` '
+        'takes a directory too, and runs everything under it.';
   }
 
   static String _describeSelector(String? file, String? scenario, String? tag) {
@@ -4706,7 +4703,7 @@ class ScenariosCore extends PluginCore {
       var other => throw ArgumentError.value(
         other,
         'axes',
-        'name=value pairs — `brand=tea`, or `brand=coffee,tea` for both',
+        'name=value pairs, like `brand=tea`, or `brand=coffee,tea` for both',
       ),
     };
     if (text == null) return const {};
@@ -4727,8 +4724,8 @@ class ScenariosCore extends PluginCore {
             : throw ArgumentError.value(
                 arguments['axes'],
                 'axes',
-                'names ${values.join(', ')} for `$name`, and a film is one '
-                    'point. Name one',
+                'names ${values.join(', ')} for `$name`, and a video is of '
+                    'one point. Name one',
               ),
     };
   }
@@ -4750,7 +4747,7 @@ class ScenariosCore extends PluginCore {
     var other => throw ArgumentError.value(
       other,
       'file',
-      'a package-relative path, or several — as a list or comma-separated',
+      'a package-relative path, or several as a list or comma-separated',
     ),
   };
 

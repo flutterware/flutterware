@@ -113,8 +113,8 @@ Future<T> withRunInspector<T>(
 String _serviceOf(RunHandle handle) =>
     handle.vmService ??
     (throw RunRefusal(
-      '${handle.entrypointLabel} has no VM service yet — it is still '
-      'building. Watch ${handle.logPath}.',
+      '${handle.entrypointLabel} is still building. Its progress is in '
+      '${handle.logPath}.',
     ));
 
 /// The app's channels: the panels its devbar reports, their state and feeds.

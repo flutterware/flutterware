@@ -9,11 +9,8 @@
 /// [recordAppEvent], and a fake that lives in `lib/` must not drag
 /// `flutter_test` into production code. `identity_hash.dart` is plain Dart for
 /// the same reason, and is here because an event carries the framework's
-/// identity hashes exactly the way a widget's properties do. That is also why the devbar registers
-/// *into* here rather than being called from here. Design:
-/// `docs/superpowers/specs/2026-08-11-scenario-transition-events.md` for the
-/// model and the lanes, `2026-08-21-app-events-unification.md` for the
-/// fan-out.
+/// identity hashes exactly the way a widget's properties do. That is also why
+/// the devbar registers *into* here rather than being called from here.
 library;
 
 import 'dart:async';
@@ -176,7 +173,7 @@ class AppEvent {
   /// line number moves whenever anything above it does, so an origin inside
   /// the compared set would report every event as changed on any edit. That is
   /// also why it keeps the file and the symbol and drops the `line:col` the
-  /// frame came with. See the design note §8.
+  /// frame came with.
   final String? origin;
 
   /// What a step's `.events.json` records — **normalised, then capped.**
@@ -345,7 +342,7 @@ void recordAppEvent(AppEvent event, {Object? source}) {
   // 78.6 µs, so resolving every event at the run cap would be ~390 ms a
   // scenario. Captured here and resolved in [AppEventBuffer.drain], the
   // expensive half is paid only for the events that survive the per-step cap
-  // and reach a file. Design note §8.
+  // and reach a file.
   //
   // Behind the buffer's null check, which is already the first thing this
   // function does: a production app and a plain `flutter test` have no buffer
@@ -443,8 +440,8 @@ void Function() addAppEventListener(
 
 /// What has been recorded since the last capture.
 ///
-/// The design's central mechanic: whatever is in here when a step captures is
-/// what happened on the way to it.
+/// Whatever is in here when a step captures is what happened on the way
+/// to it.
 class AppEventBuffer {
   final _events = <(AppEvent, StackTrace)>[];
 

@@ -325,7 +325,7 @@ class _KeyboardSegment extends StatelessWidget {
       message: switch (mode) {
         KeyboardMode.auto =>
           up
-              ? 'Keyboard up — the demo has a field focused'
+              ? 'Keyboard up: the demo has a field focused'
               : 'Keyboard follows the demo',
         KeyboardMode.up => 'Keyboard held up (${height.round()}\u2009pt)',
         KeyboardMode.down => 'Keyboard held down',

@@ -13,7 +13,6 @@ library;
 /// video: it captures every frame it pumps, not only the frames of a
 /// transition, and it spends fake time on beats no scenario contains — the
 /// travel of a cursor toward a button, the pause after a screen arrives.
-/// Design: `docs/superpowers/specs/2026-09-08-scenario-video-design.md`.
 class FilmSettings {
   const FilmSettings({
     required this.directory,
