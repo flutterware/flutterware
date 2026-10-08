@@ -1,49 +1,51 @@
-# Server inspection — adapter snippets
+# Server inspection
 
-**This is for Dart servers, and the reason is the import.** A server announces
-itself by importing `package:flutterware/server.dart` in its own process and
-calling into it, so what it inspects is whatever runs Dart. A backend written
-in anything else — a .NET or Go API beside your Flutter app, which is an
-ordinary shape for a repo to have — gets nothing from this and cannot be made
-to: there is no out-of-process shipper, no agent and no log format to point at
-it, and none is planned. A mixed-stack repo should expect to inspect its Dart
-services here and its others wherever it already does.
-
-`package:flutterware/server.dart` ships **primitives only**: `event`,
-`span`/`spanSync`, `handle`, and zone correlation. Everything that binds them
-to a specific framework or driver is a snippet on this page that you paste
-into your server and own — deliberately, so the package stays dependency-free
-and the redaction and capture policy is code you can read and edit (design
-doc: `docs/superpowers/specs/2026-07-30-server-inspection-design.md`,
-decisions 5 and 11).
-
-A live, runnable version of the shelf + logging snippets is
-[`fixtures/probe_app/bin/example_server.dart`](../fixtures/probe_app/bin/example_server.dart).
-
-Everything below is inert in release builds (`dart compile` / `dart build`)
-and on machines without `~/.flutterware/run`; there is no init call — the
-first event publishes the server.
+Watch the requests your Dart server handles as they happen. Open one to see the
+queries and outgoing calls it made on a waterfall, and the lines it logged. A
+query that runs once per row is flagged as an N+1. The studio shows all this in
+the **Server** panel, and the command line and agents read the same data.
 
 ![The Server panel: the demo's requests, one open on its waterfall, with the
 query it runs once per row flagged as an N+1](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/server.webp)
 
+This works only for servers written in Dart. A server takes part by importing
+`package:flutterware/server.dart` and calling it from its own process. A
+backend in another language, such as a .NET or Go API next to your Flutter
+app, can't take part: there is no agent or log format to point at it, and none
+is planned. In a repository with both, inspect the Dart services here and the
+others with the tools you already use.
+
+`package:flutterware/server.dart` has the building blocks only: `event`,
+`span`/`spanSync`, `handle`, and correlation through zones. The code that
+connects them to a framework or a database driver is a snippet on this page,
+which you paste into your server and adapt. That keeps the package free of
+dependencies, and keeps the redaction and capture rules in code you can read
+and change.
+
+[`fixtures/probe_app/bin/example_server.dart`](../fixtures/probe_app/bin/example_server.dart)
+is a server you can run with the shelf and logging snippets in place.
+
+Everything below does nothing in release builds (`dart compile`, `dart build`)
+or on a machine without `~/.flutterware/run`. There is no init call: the
+server announces itself with the first event it reports.
+
 ## Describe the server: `FlutterwareServer.info`
 
-The one piece that is typed API rather than a snippet, because both halves
-speak it: where the server listens, which environment, what it talks to,
-and the pages worth a click. The GUI's **Details** popover on the panel header
-renders it — reachable from every pane, because which database you are pointed
-at is context for all of them — the environment chip and base URL sit beside
-the title, and `flutterware_invoke`'s `info` action returns it to agents.
+This part is an API rather than a snippet. It tells the studio where the server
+listens, which environment it runs in, what it connects to, and which of its
+pages are worth opening. The studio shows the environment and base URL beside
+the panel's title and the rest under **Details** in the panel header, whichever
+tab is open. An agent gets the same through the `info` action of
+`flutterware_invoke`.
 
 ```dart
 var server = await shelf_io.serve(handler, InternetAddress.loopbackIPv4, 8080);
 
 FlutterwareServer.info(ServerInfo(
-  baseUrl: 'http://localhost:${server.port}',   // after serve — the real port
+  baseUrl: 'http://localhost:${server.port}',   // after serve: the real port
   environment: 'dev',
   links: [
-    ServerLink('Health', '/health'),            // relative resolves via baseUrl
+    ServerLink('Health', '/health'),            // relative to baseUrl
     ServerLink('API docs', '/docs', description: 'OpenAPI UI'),
   ],
   connections: [
@@ -55,23 +57,24 @@ FlutterwareServer.info(ServerInfo(
 ));
 ```
 
-Call it again any time — each call replaces only the sections it names, so
-re-publishing `config:` after a flag flips leaves the links alone.
-Passwords in a DSN and secret-shaped config keys (`apiKey`, `token`, …) are
-masked wherever they are displayed, with click-to-reveal in the GUI; still,
-publish only what you are willing to have on a developer's screen.
+You can call it again at any time. Each call replaces only the sections it
+names, so publishing `config:` again after a flag changes leaves the links as
+they were. Passwords in a connection string and config keys that look like
+secrets (`apiKey`, `token`, …) are masked wherever they are shown, and the
+studio has a **Reveal** button for each. Still, publish only what you are happy
+to have on a developer's screen.
 
-`baseUrl` and `environment` are also mirrored into the server's handle
-file, so `fw status` and the GUI's sidebar can say
-`pid 4242 · http://localhost:8080 · dev` without attaching — and a request
-in the GUI gains a **copy as curl** button, built from `baseUrl` plus the
+`baseUrl` and `environment` are also saved where `fw status` and the studio's
+sidebar can read them without connecting to the server, so they show
+`pid 4242 · http://localhost:8080 · dev`. With a `baseUrl`, each request in the
+studio also gets a **Copy as curl** button, built from the base URL and the
 captured headers and body.
 
 ## HTTP in: shelf middleware
 
-One `runZoned` is the whole correlation story: every query and log line
-emitted below it is stamped with this request's id, which is what builds the
-per-request waterfall and the N+1 badge.
+The middleware runs each request in a zone that carries the request's id. Every
+query and log line reported inside that zone is tagged with the id, which is
+how the studio builds the request's waterfall and spots an N+1.
 
 ```dart
 import 'dart:async';
@@ -94,11 +97,10 @@ Middleware inspect() {
         });
         return response;
       } on HijackException {
-        // Shelf signals a hijack — a websocket upgrade, an SSE stream taking
-        // the socket — by *throwing* past the middleware. It is the success
-        // path. Caught below as an error, every websocket connection posts a
-        // phantom 500 to the timeline, and the one it posts for is the
-        // connection that worked.
+        // Shelf signals a hijack (a websocket upgrade, an SSE stream taking
+        // the socket) by throwing past the middleware, and it means success.
+        // Caught below as an error, every websocket connection would show up
+        // as a 500.
         rethrow;
       } catch (e) {
         FlutterwareServer.event('http', {
@@ -112,7 +114,7 @@ Middleware inspect() {
       }
     }, zoneValues: {
       FlutterwareServer.requestIdKey: id,
-      // The tap, in a world, that this request came from.
+      // In a world, the tap that sent this request.
       FlutterwareServer.stepKey: ?request.headers['x-fw-step'],
     });
   };
@@ -121,11 +123,12 @@ Middleware inspect() {
 // var handler = const Pipeline().addMiddleware(inspect()).addHandler(router);
 ```
 
-A world that hosts the server hot-reloads it on **Reload**, and a hot reload
-gives every function its new code, but not a closure made before it, and a
-router's handlers are closures made when it was built. Build it again after
-each reload with `FlutterwareServer.onReassemble`, which the world calls once
-the new code is in. The state it is built over stays:
+When a world hosts the server, **Reload** hot-reloads it. A hot reload gives
+every function its new code, but a closure made before the reload keeps its old
+body, and a router's handlers are closures made when the router was built. So
+rebuild the router after each reload with `FlutterwareServer.onReassemble`,
+which the world calls once the new code is loaded. The state you build it from
+stays as it is:
 
 ```dart
 late App app;
@@ -137,8 +140,8 @@ FlutterwareServer.onReassemble(() {
 });
 ```
 
-A server whose handler is all it rebuilds has a shorter form,
-`FlutterwareServer.reloadable`, built on the same call:
+If the handler is all your server rebuilds, `FlutterwareServer.reloadable` is a
+shorter way to write the same thing:
 
 ```dart
 var handler = FlutterwareServer.reloadable(() => routes(store));
@@ -150,40 +153,40 @@ Handler routes(Store store) => const Pipeline()
     .addHandler((Router()..get('/orders', store.list)).call);
 ```
 
-Keep counters and caches out of what is rebuilt, in the state or a
-top-level variable: a rebuilt middleware starts from nothing. An entry point
-with its own hot reload, a file watcher calling back to rebuild the app, can
-hand the same callback to `onReassemble`.
+Keep counters and caches in the state or in a top-level variable, outside what
+is rebuilt: a rebuilt middleware starts from nothing. If your entry point has a
+hot reload of its own, such as a file watcher that rebuilds the app, it can
+pass the same callback to `onReassemble`.
 
-The step lasts as long as the zone does. Work the request hands off — a job
-a worker runs later, a storage callback — keeps it only if you carry it:
-store `FlutterwareServer.step` with the work, and run a job through
-`FlutterwareServer.job(name, body, step:, id:)`, which also runs it as a
-request of its own and reports when it starts and ends; other work under
-`FlutterwareServer.inStep(step, body)`. The [worlds
+The step (the tap a request came from) is known only inside the request's
+zone. Work the request hands off, such as a job a worker runs later or a
+storage callback, keeps the step only if you pass it along. Store
+`FlutterwareServer.step` with the work. Run a job through
+`FlutterwareServer.job(name, body, step:, id:)`, which also reports it as a
+request of its own, with when it started and ended, and run anything else
+under `FlutterwareServer.inStep(step, body)`. The [worlds
 guide](worlds.md#see-what-a-tap-caused) has the pattern.
 
-A hijacked request is reported by nothing here, which is the honest answer:
-the response never existed and the socket's life is no longer the handler's.
-To see that the upgrade happened, report an `event` of your own before the
-hijack — the correlation zone is still yours at that point.
+Nothing here reports a hijacked request: there is no response, and the socket
+no longer belongs to the handler. To see that an upgrade happened, report an
+`event` of your own before the hijack, while you are still in the request's
+zone.
 
-The version in `example_server.dart` goes further and is the one to copy for
-the Request/Response tabs: it captures **redacted headers** and **capped
-textual bodies** into the event's `details:`. Only their delivery waits for
-someone to open the tab. The map is built on every request and JSON-encoded
-the moment the event is reported, then held server-side in a byte-capped
-store, so the capture is a cost each request pays. The capture cut (decision
-11) is what keeps it small: textual content types with a known length under
-32 KB are buffered; streams and everything else are recorded as size only,
-because interposing on a stream is exactly the overhead this design refuses.
-Redaction lives in that snippet — in code you own — not in the library.
+To fill the **Request** and **Response** tabs, copy the version in
+`example_server.dart` instead. It adds the request and response headers,
+redacted, and small text bodies to the event's `details:`. The studio fetches
+them only when you open the tab, but your server builds and JSON-encodes them
+on every request and keeps them in a store with a byte limit, so every request
+pays for the capture. To keep that cost small, a body is captured only when its
+content type is text and its length is known and under 32 KB. For streams and
+everything else, only the size is recorded. The library redacts nothing; the
+snippet does, in code you own.
 
 ## Logs: package:logging
 
-The listener runs in whatever zone called `listen`, so correlation must come
-from `record.zone` — the zone the log call happened in. Without that, log
-lines lose their request id.
+The listener runs in the zone that called `listen`, so report each record from
+`record.zone`, the zone the log call was made in. Otherwise log lines lose
+their request id.
 
 ```dart
 Logger.root.onRecord.listen((record) {
@@ -200,8 +203,9 @@ Logger.root.onRecord.listen((record) {
 
 ## Uncaught errors, outside any request
 
-The middleware already reports a handler that throws. For everything else —
-timers, queue consumers, fire-and-forget futures — wrap `main`'s body:
+The middleware already reports a handler that throws. For errors anywhere else,
+such as timers, queue consumers and futures nobody awaits, wrap the body of
+`main`:
 
 ```dart
 Future<void> main() async {
@@ -219,45 +223,46 @@ Future<void> main() async {
 
 ### What counts as an error
 
-The Errors tab and the `errors` action admit three things, and only the first
-is about the response:
+The `errors` action reports three kinds of event, and only the first is about
+the response:
 
 - an `http` event whose `status` is **500 or more**;
 - a `log` event at **`SEVERE`** or **`SHOUT`**;
 - **any event carrying an `error` key**, on any channel.
 
-So what lands there depends on how your project logs, not only on what it
-answered. A 403 whose handler logs with `error:` attached shows up — through
-the third rule, not the first. A 4xx handler that logs at `INFO` with no error
-attached shows up nowhere, for a request that failed. That is deliberate: a 404
-is traffic, not a fault, and only your code knows which of yours are which.
-Attach `error:` to the log line for the ones that are.
+So what it reports depends on how your project logs as well as on what it
+answered. A 403 whose handler logs with `error:` attached shows up, through the
+third rule. A 4xx whose handler logs at `INFO` with no error attached doesn't
+show up at all, although the request failed. Most 404s are ordinary traffic,
+and only your code knows which of its 4xx answers are faults: attach `error:`
+to the log line for those.
 
-When the question really is about the status, ask it directly:
-`errors` takes `minStatus`, which replaces the three rules above with that one
-comparison — `minStatus: 400` is every request that failed, whatever the logger
-was doing.
+To ask about the status alone, pass `minStatus` to `errors`. It replaces the
+three rules with that one comparison, so `minStatus: 400` returns every request
+that failed, whatever was logged.
+
+In the studio, the **Errors** filter of the request list shows every request
+that answered 400 or more, or that carries an `error`.
 
 ## SQL: drift
 
-`QueryInterceptor` is the one hook that sees every statement. The `explain`
-and `requery` handlers run **inside your server, on your own connection** —
-that is why the GUI needs no driver and no credentials to show a real plan.
+Drift's `QueryInterceptor` sees every statement. The `explain` and `requery`
+handlers run inside your server, on your own connection, so the studio needs no
+driver and no credentials to show a real query plan.
 
-**Report the statement as the driver received it, and report its parameters
-beside it.** Substituting values into the text would break the grouping the SQL
-tab is built on — `normalizeSql` gathers occurrences by shape, and an N+1 is
-exactly a set of queries differing only in their literals. So `$1` / `@name` /
-`?` stay where they are, which means the text alone will not run: `EXPLAIN` on
-it fails, because a parameter has no meaning outside a prepared statement.
-A command is therefore invoked with `params` as well as `query` — the chosen
-occurrence's own, as your `span` reported them — and every handler below binds
-them rather than interpolating. A statement that took no parameters arrives
-without the key.
+Report the statement as the driver received it, with its parameters beside it.
+Don't substitute the values into the text: the **SQL** tab groups queries by
+their shape, and an N+1 is a set of queries that differ only in their values.
+The placeholders (`$1`, `@name`, `?`) stay in the text, so the text alone will
+not run, and `EXPLAIN` on it fails. That is why `explain` and `requery` receive
+`params` as well as `query`: the parameters of the occurrence you picked, as
+your `span` reported them. Every handler below binds them instead of pasting
+them into the SQL. A statement that took no parameters arrives without
+`params`.
 
-Report them in the shape your driver binds: a list where the placeholders are
-positional, a **map where they are named**. `parameters.values.toList()` on a
-named query throws the names away, and the names are the half that binds back.
+Report the parameters in the shape your driver binds: a list for positional
+placeholders, a **map for named ones**. `parameters.values.toList()` on a named
+query loses the names, and the handler needs them to bind the values again.
 
 ```dart
 import 'package:drift/drift.dart';
@@ -270,8 +275,8 @@ class InspectingInterceptor extends QueryInterceptor {
       'query': sql,
       if (args.isNotEmpty) 'params': args,
     }, body);
-    // For selects, prefer reporting the row count too — it is what the
-    // occurrence rows show: run the body yourself, then
+    // For selects, report the row count too; the SQL tab shows it on each
+    // occurrence. Run the body yourself, then
     // FlutterwareServer.event('sql', {..., 'rows': result.length, 'ms': …}).
   }
 
@@ -308,9 +313,9 @@ void registerSqlCommands(MyDatabase db) {
   });
 }
 
-/// The parameters as they crossed the wire, back into drift variables. They
-/// arrive JSON-shaped, so a `DateTime` is the string the reporter recorded —
-/// good enough for a plan, and the reason `requery` is for dev databases.
+/// The reported parameters, back as drift variables. They arrive as JSON, so a
+/// `DateTime` is the string that was reported: good enough for a plan, and one
+/// more reason to keep `requery` to dev databases.
 List<Variable> _bind(Object? reported) => [
   for (var value in reported as List? ?? const []) Variable(value),
 ];
@@ -329,8 +334,8 @@ Future<Result> query(
 }) {
   return FlutterwareServer.span('sql', {
     'query': sql,
-    // The map, not `parameters.values.toList()`: this query is named, so a
-    // list is the half of it that cannot be bound back.
+    // The map itself: this query uses named parameters, and a list of the
+    // values could not be bound back.
     if (parameters != null) 'params': parameters,
   }, () => connection.execute(Sql.named(sql), parameters: parameters));
 }
@@ -386,9 +391,10 @@ void registerSqlCommands(Database db) {
 List<Object?> _bind(Object? reported) => [...?reported as List?];
 ```
 
-## HTTP out: the other half of a slow endpoint
+## HTTP out: package:http
 
-Outgoing calls your handlers make, reported into the same waterfall:
+Report the calls your handlers make to other services, and they appear on the
+same waterfall as the request's queries:
 
 ```dart
 import 'package:http/http.dart' as http;
@@ -410,21 +416,18 @@ class InspectingClient extends http.BaseClient {
 
 ## Notes that apply to every snippet
 
-- **Redaction is yours**: before reporting headers or parameters, drop what
-  must not leave the process. The snippets above report no headers for exactly
-  that reason — add them consciously.
+- **Redaction is up to you.** Before you report headers or parameters, drop
+  anything that must not leave the process. That is why the snippets above
+  report no headers; add them knowing what they carry.
 
-  **Build the list by grepping your handlers for the headers they read, not
-  from a list of usual suspects.** `Authorization`, `Cookie` and password
-  fields are where everyone starts and where no real server ends: a project
-  that accepts `x-authorization` as a fallback for `authorization` has a
-  credential no outside list names, and it is one grep away from being found.
-  The same grep catches the other half — a `x-publishable-key` is *publishable*,
-  and redacting it costs you which integrator a request came from, which is
-  half of why anyone opens the panel. Redact what your code treats as a secret;
-  leave what it treats as an identity.
-- **`requery` re-executes the statement.** Registering it for a toy or a
-  local dev database is convenient; think before registering it against
-  anything shared.
-- Every handler answer must be JSON-encodable; cap row counts (`take(50)`)
-  — the wire is for inspection, not for bulk export.
+  Build the list of headers to redact by searching your handlers for the
+  headers they read. `Authorization`, `Cookie` and password fields are a
+  start, but a server that accepts `x-authorization` as a fallback for
+  `authorization` has a credential no generic list would name. The same search
+  shows what to keep: an `x-publishable-key` is not a secret, and it tells you
+  which client sent a request. Redact what your code treats as a secret, and
+  keep what it uses to identify the caller.
+- **`requery` runs the statement again.** That is handy on a local dev
+  database; think twice before registering it against a shared one.
+- What a handler returns must be JSON-encodable. Cap the rows it returns
+  (`take(50)` above) so a big table doesn't flood the answer.

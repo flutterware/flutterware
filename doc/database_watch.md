@@ -1,21 +1,20 @@
-# Database watch — your app's sqlite, on every surface
+# Database watch
 
-Hand the devbar a `DatabaseAdapter` and the running app's database becomes a
-panel: browse the schema, run a query, pin a live query, follow the writes —
-from the cockpit's App tab, from `fw run run`, from an agent over MCP, on any
-device the run cockpit reaches. Nothing here needs a rebuild to inspect, and
-it works on a physical phone, where the database file itself is sealed inside
-the app sandbox (design doc:
-`docs/superpowers/specs/2026-08-12-sqlite-watch-design.md`).
+Give the devbar a `DatabaseAdapter` and your app's database shows up as a
+panel while the app runs. You can browse the schema, run queries, keep a
+query live and follow writes, from the run's **App** tab, from `fw run run` or
+from an agent over MCP. It needs no rebuild, and it works on a physical
+phone, where the database file is inside the app sandbox and out of reach.
 
-flutterware imports no sqlite. The adapter is four function types and a name;
-you wire it to whatever database library you use and own those five lines.
+flutterware doesn't depend on any SQLite package. The adapter is four function
+types and a name, which you connect to the database library you already use.
 
 ## The recipe: sqlite_async (and PowerSync)
 
-`PowerSyncDatabase` implements sqlite_async's interface, so the same lines
-cover both. A live version is
-[`fixtures/probe_app/lib/devbar_example.dart`](../fixtures/probe_app/lib/devbar_example.dart).
+`PowerSyncDatabase` implements sqlite_async's interface, so the same code works
+for both.
+[`fixtures/probe_app/lib/devbar_example.dart`](../fixtures/probe_app/lib/devbar_example.dart)
+has a working version.
 
 ```dart
 import 'package:flutterware/devbar.dart';
@@ -35,23 +34,24 @@ Devbar(
 )
 ```
 
-- `query` should be a **read path**. sqlite_async's `getAll` runs on the
-  read pool, which sqlite itself enforces read-only — a write smuggled into
-  a query dies with `attempt to write a readonly database`, measured, not
-  assumed.
-- `updates` powers the `changes` feed: which tables changed, per write
-  transaction, coalesced over 250ms so a sync burst reads as one event
-  rather than two hundred.
-- `watch` is optional. Without it a watched query re-runs on every coalesced
-  tick; with it, sqlite_async re-runs only when the query's own source
-  tables change. Pass a `throttle` around 250ms — the library's 30ms default
-  produces a dozen snapshots during a burst.
-- Two databases are two `DatabasePlugin.init` calls with two
-  `DatabaseAdapter(name: ...)`s: panels `db:main` and `db:cache`.
+- `query` should only read. sqlite_async's `getAll` runs on its read pool,
+  which SQLite keeps read-only, so a write sent through `query` fails with
+  `attempt to write a readonly database`.
+- `updates` feeds `changes`: which tables each write transaction changed,
+  grouped over 250ms so a burst of sync writes shows as one event instead of
+  two hundred.
+- `watch` is optional. Without it, a watched query runs again on every
+  `changes` event. With it, sqlite_async runs the query again only when the
+  tables it reads from change. Pass a `throttle` of around 250ms, because the
+  library's 30ms default produces a dozen results during a burst.
+- For two databases, call `DatabasePlugin.init` twice, with a different
+  `DatabaseAdapter(name: ...)` in each. The name (`main` by default) gives the
+  panel its id, so `main` and `cache` become the panels `db:main` and
+  `db:cache`.
 
-### PowerSync: say so, and see the sync too
+### PowerSync
 
-One more line tells the panel the database is PowerSync's:
+Add one line to tell the panel the database is PowerSync's:
 
 ```dart
 DatabaseAdapter(
@@ -61,58 +61,60 @@ DatabaseAdapter(
 )
 ```
 
-The panel then reads PowerSync's own tables, through the same read-only
+The panel then reads PowerSync's own tables through the same read-only
 `query`, and adds:
 
 - **`sync`** (state): this client's id, the local changes waiting to upload,
   when it last synced, and how far each bucket has applied. The client id is
-  the one the PowerSync service logs, so a device and the service's log line
-  up.
+  the one the PowerSync service logs, so you can match a device to the
+  service's log lines.
 - **`records`** (feed): every record the app wrote locally, as it joins the
   upload queue (`local put`, `local patch`), and every record a checkpoint
-  brought in, with its operation (`synced`, `op 16`) and its bucket. A
-  change on one device and its arrival on another share the record's key.
-  A bucket the device starts holding, or lets go of, is an entry of its own
-  (`subscribed`, `unsubscribed`): what was written to it before arrives
-  after it, flagged `newBucket`. The device lists a bucket once it holds
-  something, so one subscribed to while empty is reported at its first
-  record.
+  brought in, with its operation (`synced`, `op 16`) and its bucket. A change
+  made on one device and its arrival on another have the same record key.
+  When the device starts or stops holding a bucket, that is an entry of its
+  own (`subscribed`, `unsubscribed`), and the records already in a new bucket
+  arrive after it, flagged `newBucket`. The device lists a bucket only once it
+  holds something, so a bucket subscribed to while empty is reported with its
+  first record.
 
-It is said rather than guessed: an app on plain sqlite gets nothing it has no
-use for, and flutterware still imports no sync library.
+The panel doesn't detect PowerSync by itself. Without `sync:`, an app on plain
+SQLite gets none of this, and flutterware depends on no sync library either
+way.
 
-## Writes are opt-in, by existence
+## Writes are opt-in
 
-There is no flag. Provide `execute` and an `Execute SQL` action exists,
-marked danger on every surface; leave it out and no surface — agents
-included — can see a write door at all:
+Provide `execute` and an **Execute SQL** action appears, marked as dangerous
+everywhere it is shown. Leave it out and nothing can write to the database
+through the panel, from the studio, the command line or an agent:
 
 ```dart
 DatabaseAdapter(
   query: (sql, args) => db.getAll(sql, args),
   updates: db.updates.map((u) => u.tables),
-  execute: (sql, args) => db.execute(sql, args),  // the whole opt-in
+  execute: (sql, args) => db.execute(sql, args),  // this line turns writes on
 )
 ```
 
-## What you get on the wire
+## What the panel offers
 
-- **`schema`** (state) — tables *and views*, columns, row counts, read
-  live. Each entry carries its `type`, so a database that presents itself
-  through views — PowerSync, where every schema table is a view over a
-  `ps_data__*` table — reads as itself rather than as its storage.
-- **`query`** (action) — one statement, rows inline, capped at `limit`
-  (default 100) with a `truncated` flag rather than a silent cut. The cap
-  protects the reply, not the fetch: put a `LIMIT` in the SQL to page a big
-  table.
-- **`changes`** (feed) — coalesced table-level ticks.
-- **`watch` / `unwatch`** (actions) + **`watch`** (feed) — every result
-  snapshot of every watched query, rows riding in the lazily-fetched
-  details; a broken query reports its error on the feed and stops. Each
-  snapshot offers **`explain`** — `EXPLAIN QUERY PLAN` for the query the row
-  belongs to.
+- **`schema`** (state): tables and views, with their columns and row counts,
+  read live. Each entry has a `type`, table or view. In PowerSync every table
+  of your schema is a view over a `ps_data__*` table, and the panel lists the
+  views you query.
+- **`query`** (action): runs one statement and returns its rows, at most
+  `limit` of them (default 100), with `truncated` set when there were more.
+  The limit only shortens the answer, and the query still reads every row, so
+  put a `LIMIT` in the SQL to page through a big table.
+- **`changes`** (feed): which tables changed, grouped as described above.
+- **`watch`** and **`unwatch`** (actions), and the **`watch`** feed: every new
+  result of every watched query, with the rows in its details, which are
+  fetched when you open them. A query that fails reports its error on the feed
+  and stops. Each result offers **`explain`**, which runs
+  `EXPLAIN QUERY PLAN` for its query.
 
-From an agent, one call each:
+From the command line, each is one call. An agent makes the same calls over
+MCP.
 
 ```sh
 fw run run panelInvoke --panel=db:main --action=query \

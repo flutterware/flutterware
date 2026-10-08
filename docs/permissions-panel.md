@@ -1,21 +1,19 @@
-# A permissions panel — in your app, not in flutterware
+# A permissions panel in your app
 
-Keeping an eye on what the OS has granted, and flipping one on before you walk
-to the screen that needs it, is a genuinely useful thing to have in the devbar.
-It is also about sixty lines, and they belong in your project.
+A devbar panel that shows what the OS has granted, and asks for a permission
+before you reach the screen that needs it, takes about sixty lines. This page
+has them, to copy into your project.
 
-flutterware ships no permissions plugin, on purpose. Every app reaches
-permissions through a package it chose — `permission_handler`, or the
-platform channels it wrote itself — and a panel that lives here would have to
-translate that package's vocabulary into one of ours. That translation is
-lossy in exactly the place it hurts: see [the traps](#the-traps-worth-knowing)
-below, where `permission_handler`'s six states collapse to two under any
-honest mapping. Written in your project against your own package, there is no
-mapping and nothing is lost.
+flutterware has no permissions plugin of its own. Your app already reads
+permissions through a package it chose, such as `permission_handler`, or
+through platform channels of its own, and a panel written against that package
+shows exactly what it reports. A generic panel would have to map those states
+onto its own, and lose detail: [the traps](#the-traps-worth-knowing) below
+show how `permission_handler`'s six states come down to two on Android.
 
-What flutterware provides is the seam: implement `DevbarPanelSource` and your
-panel is mirrored to the run cockpit, to `fw`, and to MCP from the one
-declaration — the same path the feature-flag and database panels take.
+What flutterware provides is `DevbarPanelSource`. Implement it, and your panel
+appears on the run's **App** tab, in `fw` and over MCP, the same way the
+feature flag and database panels do.
 
 ## The whole thing
 
@@ -85,14 +83,12 @@ class PermissionsPlugin implements DevbarPlugin, DevbarPanelSource {
     );
   }
 
-  /// Every permission in one call.
-  ///
-  /// One call rather than one per permission because this is a column: N round
-  /// trips over a phone's channel to fill one column is N-1 too many.
+  /// Every permission in one call, so filling the column costs one round trip
+  /// to the phone instead of one per permission.
   Future<Map<String, Object?>> _status() async {
     var statuses = <String, Object?>{};
     for (var entry in _permissions.entries) {
-      // One failing permission must not cost the others.
+      // A permission that fails to read must not hide the others.
       try {
         statuses[entry.key] = (await entry.value.status).name;
       } on Object {
@@ -107,7 +103,7 @@ class PermissionsPlugin implements DevbarPlugin, DevbarPanelSource {
     if (permission == null) {
       return {'error': 'Which permission? One of ${_permissions.keys}.'};
     }
-    // The status *after*, read from the platform — never the request echoed.
+    // The status after the request, read back from the platform.
     return {'status': (await permission.request()).name};
   }
 
@@ -128,56 +124,55 @@ Devbar(
 )
 ```
 
-## What that buys
+## What you get
 
-The declaration is the only thing you write. From it:
+From that one declaration:
 
-- the **run cockpit** draws the panel — statuses, a Request button, Open
-  settings;
-- **`fw`** reaches the same three through the generic panel verbs —
-  `fw run run panelState --panel=permissions --state=status`,
+- the run's **App** tab shows the panel: each status, a **Request** button and
+  **Open settings**;
+- **`fw`** reaches the same three through the panel actions:
+  `fw run run panelState --panel=permissions --state=status` and
   `fw run run panelInvoke --panel=permissions --action=request …`;
-- **MCP** exposes them to an agent with no extra plumbing.
+- an agent gets them over **MCP** with nothing more to write.
 
-Reading a status from inside the process is also the only reading available at
-all on a physical iPhone and on macOS, where the host has no store anything
-else can read.
+On a physical iPhone and on macOS, reading the status from inside the app is
+the only way to read it at all: the system keeps no record that a tool outside
+the app can read.
 
 ## What it cannot do
 
-Worth knowing before you build a workflow on it.
+**You cannot revoke or reset a permission from inside the app.** Neither
+platform allows it. The panel gets you into a granted state; it can't take you
+down the denied path or back to a first install. To return an app to the state
+where nothing has been asked yet, uninstall it, or run `adb shell pm
+reset-permissions` or `xcrun simctl privacy … reset` from a terminal.
 
-**You cannot revoke or reset from inside the app.** Neither platform offers it.
-So this is a convenience for getting *into* a granted state, not a way to test
-the denied path or to reproduce a first install. Returning an app to its
-never-asked state still means uninstalling it, or `adb shell pm
-reset-permissions` / `xcrun simctl privacy … reset` from a terminal.
+**On iOS, `request` shows a dialog once per install.** After the first answer,
+the platform returns the stored answer without asking, so the button does
+nothing. **Open settings** is then the only way to change it, and it sends the
+app to the background, where iOS suspends it.
 
-**On iOS, `request` shows a dialog once per install.** After the first answer
-the platform returns the stored one without asking, so the button quietly
-becomes a no-op and Open settings is the only route — which backgrounds the
-app, and iOS then suspends it.
-
-**On Android it works best**, and even there the status you can read is
-coarser than it looks. Which brings us to:
+**On Android it works best**, but even there the status is coarser than it
+looks: see [the traps](#the-traps-worth-knowing) below.
 
 ## A panel scoped to something that opens and closes
 
-The plugin above is declared in the devbar's plugin list, which is right for a
-panel the app has all the time. Some panels are not like that: a database
-opened at login and closed at logout has nothing to hand a devbar built at
-`runApp`, and the same goes for anything belonging to a checkout, a document, a
-selected workspace.
+The plugin above is in the devbar's plugin list, which suits a panel the app
+has the whole time. Some panels only exist for part of it. A database opened at
+login and closed at logout isn't there yet when the devbar is built at
+`runApp`, and the same goes for anything that belongs to a checkout, a document
+or a selected workspace.
 
-Two shapes, and the first is usually the better one.
+There are two ways to handle it, and the first is usually better.
 
-**Keep the panel and let it say why it is empty.** Close over the lookup rather
-than over the thing, resolve it inside each handler, and throw a sentence when
-there is nothing to resolve. `DatabaseAdapter`'s own documentation carries the
-worked version, `DatabaseUnavailable` and all.
+**Keep the panel, and have it say why it is empty.** Give the panel a way to
+look the thing up instead of the thing itself, look it up inside each handler,
+and throw an error with a readable message when there is nothing to find.
+`DatabaseAdapter`'s documentation has a full example, with
+`DatabaseUnavailable`.
 
-**Or scope the panel to the subtree** with `AddDevbarPanel`, which serves a
-`DevbarPanelSource` for exactly as long as it is mounted:
+**Or limit the panel to a subtree** with `AddDevbarPanel`, which serves a
+`DevbarPanelSource` for as long as it is mounted:
 
 ```dart
 AddDevbarPanel(
@@ -186,53 +181,49 @@ AddDevbarPanel(
 )
 ```
 
-Or, when the scope is a service rather than a subtree — a session opened at
-login and closed at logout has no subtree to hang from — the same call without
-the widget:
+When the lifetime belongs to a service instead of a subtree, such as a session
+opened at login and closed at logout, make the same call without the widget:
 
 ```dart
 _panel = DevbarPanels.add(DatabasePanelSource(adapter));  // at login
 _panel.remove();                                          // at logout
 ```
 
-`AddDevbarPanel` is that call with the removal wired to `dispose`, the way
+`AddDevbarPanel` makes that call and removes the panel in `dispose`, the way
 `AddDevbarButton` wraps `UiService.addButton`. Use the widget when a subtree
-already has the lifetime you want, and the handle when it does not — inserting
-a widget above an existing subtree to borrow its lifetime remounts it.
+already has the lifetime you want, and the handle when it doesn't: inserting a
+widget above an existing subtree remounts that subtree.
 
-The list of panels is announced on every change and every host re-reads it, so
-a panel appearing halfway through a run reaches the cockpit, `fw` and MCP with
-none of them knowing what a session is.
+The list of panels is sent again whenever it changes, so a panel added halfway
+through a run shows up in the studio, in `fw` and over MCP.
 
-The reason to prefer the first: **a panel that is not there cannot explain
-itself.** Ask for `db:main` when it has gone and every surface answers *"this
-app declares no panel db:main"* — the same sentence whether the app has no
-database at all or the user is one tap away from opening one. Reach for
-`AddDevbarPanel` when the panel genuinely does not exist outside its scope,
-not merely when its data does not.
+Prefer the first way when you can, because a panel that isn't there can't say
+why. Ask for `db:main` after it has been removed and the answer is that the app
+declares no panel `db:main`, whether the app has no database at all or the
+user is one tap away from opening one. Use `AddDevbarPanel` when the panel
+itself makes no sense outside its scope. If only its data comes and goes, keep
+the panel.
 
 ## The traps worth knowing
 
-If you use `permission_handler`, two of its states do not mean what the names
-suggest. Both were found by driving a real app against what the OS actually
-held.
+If you use `permission_handler`, two of its states don't mean what their names
+suggest.
 
-**`denied` does not mean denied.** `permission_handler` has no *undetermined*:
-a permission nobody has ever been asked for and one the user turned down both
-arrive as `PermissionStatus.denied`. If you show that word, a brand-new
-install reads as though the user refused everything.
+**`denied` doesn't only mean denied.** `permission_handler` has no
+*undetermined* state: a permission that was never requested and one the user
+turned down both arrive as `PermissionStatus.denied`. Show that word as it is
+and a fresh install looks as if the user refused everything.
 
-**`permanentlyDenied` is meaningless on Android before the first ask.** It is
-derived from `shouldShowRequestPermissionRationale`, which is false *both*
-before the first request and after a "don't ask again". So a fresh install
-reports every permission permanently denied — and there is no way to tell that
-apart from a real permanent denial.
+**On Android, `permanentlyDenied` means nothing before the first request.** It
+comes from `shouldShowRequestPermissionRationale`, which is false both before
+the first request and after "don't ask again". So a fresh install reports every
+permission as permanently denied, and you can't tell that apart from a real
+permanent denial.
 
-Between them, an honest mapping on Android leaves you with *granted* or *don't
-know* and little in between. That is the real resolution of what this package
-can tell you there, and it is worth rendering as such rather than picking a
-word that looks more precise than the data.
+Together, on Android, they leave you with *granted* or *don't know*, and little
+in between. Show it that way, instead of a word that sounds more precise than
+the data.
 
-A package that asks the platform directly — or your own code, tracking whether
-you have ever issued a first request — can do better. That is the line to
-change, and it is in your project, which is the point.
+A package that asks the platform directly can do better, and so can your own
+code if it records whether it has made the first request yet. Either change
+goes in `_status` above, in your project.

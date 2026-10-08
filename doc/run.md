@@ -4,7 +4,7 @@ Launch your app on any device from the studio, then watch it and drive it while
 it runs: logs, network calls, the widget tree, device settings, and taps and
 typing from the studio, the command line or a coding agent.
 
-![The run cockpit: the steps an agent took through the demo app on an iPhone,
+![The Run screen: the steps an agent took through the demo app on an iPhone,
 one of them open on the screen it left](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/run.webp)
 
 ## Turn it on
@@ -30,9 +30,8 @@ fw.use(
 ```
 
 Leave `entrypoints` empty and every file directly in `lib/` with a `main()` is
-offered.
-Naming them is worth it: the name and description are what you, and an agent,
-pick from.
+offered. Naming them is worth it: the name and description are what you, and an
+agent, pick from.
 
 ## Launch
 
@@ -115,8 +114,8 @@ The verbs are `tap`, `doubleTap`, `longPress`, `secondaryTap`, `hover`,
 `navigate` and `observe`. A target is visible text, or JSON for a key, a
 semantics label, a tooltip, a widget inside another, or a point.
 
-A wrong target never succeeds quietly: if it matches nothing or several things,
-the answer lists what is on screen so the next try can be exact.
+If a target matches nothing or several things, the action fails, and the answer
+lists what is on screen so the next try can be exact.
 
 An agent does the same over MCP with `flutterware_act`, and gets a screenshot
 and the visible texts back with each step, so it can edit code, hot reload and
