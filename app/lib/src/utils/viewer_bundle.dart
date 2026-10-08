@@ -89,8 +89,8 @@ class ViewerBundle {
     if (exitCode != 0) {
       throw StateError(
         'The export page viewer did not compile (exit $exitCode). It is '
-        "flutterware's own code in $appToolRoot — the error above is a bug in "
-        'the tool, not in your project.',
+        "flutterware's own code in $appToolRoot, so the error above is a bug "
+        'in flutterware, not in your project.',
       );
     }
   }

@@ -31,10 +31,9 @@ enum SemanticsLens {
 /// view neither knows nor cares which.
 ///
 /// Selection is **local state, not the address**: a semantics node has no id
-/// space of its own yet, and the picker stays bound to Elements (see
-/// `2026-08-10-scenarios-semantics-tab.md`). What a selection leaves behind
-/// is a lit row and a detail pane, never a rectangle on the picture — hover
-/// draws, exactly as everywhere else.
+/// space of its own yet, and the picker stays bound to Elements. What a
+/// selection leaves behind is a lit row and a detail pane, never a rectangle
+/// on the picture — hover draws, exactly as everywhere else.
 class SemanticsView extends StatefulWidget {
   const SemanticsView({
     super.key,

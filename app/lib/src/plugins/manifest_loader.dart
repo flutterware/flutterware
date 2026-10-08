@@ -23,10 +23,10 @@ class ManifestLoadException implements Exception {
 
 /// Runs a worktree's `tool/flutterware.dart` and parses what it prints.
 ///
-/// Still a plain `dart run` model, per the plan's decision 4 — no resident
-/// compiler, no long-lived config process — with the compile step memoised on
-/// disk. That is not a deviation: a `.dill` beside `package_config.json` holds
-/// no state and is re-derived whenever either input moves.
+/// Still a plain `dart run` model — no resident compiler, no long-lived config
+/// process — with the compile step memoised on disk. A `.dill` beside
+/// `package_config.json` holds no state and is re-derived whenever either
+/// input moves.
 ///
 /// It is worth the file. Measured, `dart run tool/flutterware.dart` costs
 /// 510–590ms while the same file precompiled costs 70–80ms — which is the bare
@@ -222,10 +222,10 @@ class ManifestLoader {
       slowHint:
           'This was the first run for this checkout, so `dart run` was also '
           'resolving the workspace and running the build hooks of every '
-          'dependency that ships one — which for a package that generates '
-          'shaders is minutes rather than seconds, once per machine. If that '
-          'is not what it was doing, check the config for a loop, a read from '
-          'stdin, or an await that never completes.',
+          'dependency that has one. A package that generates shaders can take '
+          'minutes the first time on a machine. If that does not explain it, '
+          'check the config for a loop, a read from stdin, or an await that '
+          'never completes.',
     );
   }
 

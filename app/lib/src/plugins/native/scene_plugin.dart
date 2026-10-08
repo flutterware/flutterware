@@ -55,9 +55,8 @@ export 'scene_core.dart' show SceneCore, scenePluginId;
 
 /// The GUI half of the scene editor.
 ///
-/// Milestone 4 of the graduation plan: the editor's real home. The panels it
-/// mounts are still the spike's — they are rebuilt on the design system one
-/// at a time from here, which is the whole point of landing the home first.
+/// The editor's home in the studio. The panels it mounts are still the
+/// spike's; they are rebuilt on the design system one at a time from here.
 class ScenePlugin extends NativePlugin<SceneCore> {
   ScenePlugin(super.core);
 
@@ -101,7 +100,7 @@ class ScenePlugin extends NativePlugin<SceneCore> {
     var guest = _panel?._guest;
     if (guest == null) return null;
     if (guest.session.phase == CatalogSessionPhase.starting) {
-      return guest.session.busyWith ?? 'starting the guest';
+      return guest.session.busyWith ?? 'starting the preview';
     }
     return guest.busyWith;
   }
@@ -421,7 +420,7 @@ class _ScenePanelState extends State<_ScenePanel>
       setState(() {
         _close();
         _note =
-            '${entry.fileName} is in no group — no folder above it has a '
+            '${entry.fileName} is not in a group: no folder above it has a '
             '$sceneGroupFileName';
       });
       return;
@@ -438,8 +437,8 @@ class _ScenePanelState extends State<_ScenePanel>
       setState(() {
         _close();
         _note =
-            '${entry.fileName}: ${opened.refusals.length} refusal(s) — '
-            '${opened.refusals.first}';
+            '${entry.fileName}: ${opened.refusals.length} problem(s). '
+            'First: ${opened.refusals.first}';
       });
       return;
     }
@@ -510,7 +509,7 @@ class _ScenePanelState extends State<_ScenePanel>
         held.add(library.fileName);
         _autosave.suspend(
           library.path,
-          '${library.fileName} changed on disk — save to keep yours',
+          '${library.fileName} changed on disk. Save to keep your version.',
         );
         continue;
       }
@@ -541,7 +540,8 @@ class _ScenePanelState extends State<_ScenePanel>
         held.add(p.basename(file.path));
         _autosave.suspend(
           file.path,
-          '${p.basename(file.path)} changed on disk — save to keep yours',
+          '${p.basename(file.path)} changed on disk. Save to keep your '
+          'version.',
         );
         continue;
       }
@@ -562,7 +562,7 @@ class _ScenePanelState extends State<_ScenePanel>
     }
     setState(() {
       _note = refused.isNotEmpty
-          ? 'on disk and unreadable — ${refused.join('; ')}'
+          ? 'changed on disk and could not be read: ${refused.join('; ')}'
           : held.isNotEmpty
           ? '${held.join(', ')} changed on disk'
           : adopted.isNotEmpty
@@ -654,8 +654,8 @@ class _ScenePanelState extends State<_ScenePanel>
       if (!opened.ok) {
         setState(() {
           _note =
-              '${entry.fileName}: ${opened.refusals.length} refusal(s) — '
-              '${opened.refusals.first}';
+              '${entry.fileName}: ${opened.refusals.length} problem(s). '
+              'First: ${opened.refusals.first}';
         });
         return null;
       }
@@ -750,7 +750,7 @@ class _ScenePanelState extends State<_ScenePanel>
   void _openLibraryPage(String? path, {String? token}) {
     var library = path == null ? null : _libraryAt(path);
     if (library == null) {
-      setState(() => _note = 'No library to open — + starts one');
+      setState(() => _note = 'No library to open. Use + to start one.');
       return;
     }
     setState(() {
@@ -979,8 +979,8 @@ class _ScenePanelState extends State<_ScenePanel>
                     ),
                     child: Text(
                       '${countOf(scan.strayScenes, '.scene.dart file')} '
-                      'the tool does not read — nothing above them says '
-                      'they are scenes',
+                      'not read: no folder above them has a '
+                      '$sceneGroupFileName',
                       style: type.caption.copyWith(color: colors.mut2),
                     ),
                   ),
@@ -1352,7 +1352,7 @@ class _ScenePanelState extends State<_ScenePanel>
               // kernel: a change to the app's widgets, or to SceneView
               // itself, reaches it through a reload and nothing else.
               Tooltip(
-                message: 'Hot reload the guest',
+                message: 'Hot reload the preview',
                 child: Tappable(
                   onTap: () async {
                     await widget.plugin.sessionFor(_package!).reload();
@@ -1417,8 +1417,8 @@ class _ScenePanelState extends State<_ScenePanel>
           return Center(
             child: Text(
               session.phase == CatalogSessionPhase.error
-                  ? 'session error'
-                  : 'booting the guest… (${session.busyWith ?? 'starting'})',
+                  ? 'The preview failed'
+                  : 'Starting the preview… (${session.busyWith ?? 'starting'})',
               style: context.type.caption.copyWith(color: context.colors.mut2),
             ),
           );
@@ -1538,7 +1538,9 @@ class _Header extends StatelessWidget {
             FwActionButton(
               label: 'Save anyway',
               primary: true,
-              tooltip: 'The file changed on disk. Write yours over it (⌘S)',
+              tooltip:
+                  'The file changed on disk. Overwrite it with your version '
+                  '(⌘S)',
               onPressed: () async => onSave(),
             )
           else
@@ -2054,7 +2056,7 @@ class _SaveWord extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
     message: state == SceneSaveState.refused
-        ? 'Nothing was written. The work is still here.'
+        ? 'Nothing was saved. Your changes are still here.'
         : 'Saved as you work (⌘S writes now)',
     child: Text(
       switch (state) {

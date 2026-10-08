@@ -335,8 +335,8 @@ function renderFindings(host) {
     host.appendChild(shots);
   } else if (tab === 'expansionBreaks') {
     host.appendChild(el('p', 'sub',
-      'Screens the max-length probe broke — every value on them grown at ' +
-      'once, like a verbose language would.'));
+      'Screens that broke in the max-length probe, which grows every value ' +
+      'on them at once, the way a verbose language would.'));
     host.appendChild(table(['Scenario', 'Step', 'At', 'What broke'],
       rows.map(r => [r.scenario, r.step || '—', '+' + r.level + '%',
         r.failure ? 'scenario failed: ' + r.failure

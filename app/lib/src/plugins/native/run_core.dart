@@ -70,9 +70,7 @@ const _maxRememberedFailures = 8;
 /// worktree of the repo, not just this one — and launching an entry point onto
 /// one.
 ///
-/// See `docs/superpowers/specs/2026-07-31-app-launcher-cockpit-brainstorm.md`.
-///
-/// Two sources, and the difference between them is the whole design:
+/// Two sources, which differ in kind:
 ///
 /// - **Devices** come from a `flutter daemon`, which costs seconds to start
 ///   and answers about the machine. Whoever holds one publishes what it sees
@@ -1733,7 +1731,7 @@ class RunCore extends PluginCore {
     if (!probe.canInspect) {
       return Status.neutral(logOf(handle)?.stage ?? 'building');
     }
-    if (!probe.launcher) return const Status.warn('no launcher');
+    if (!probe.launcher) return const Status.warn('cannot reload');
     return const Status.good('live');
   }
 
@@ -1761,7 +1759,7 @@ class RunCore extends PluginCore {
       else if (probe.canReload)
         'reloadable'
       else if (probe.canInspect)
-        'no launcher'
+        'cannot reload'
       else
         'starting',
     ].join(' · ');
@@ -2346,7 +2344,7 @@ class RunCore extends PluginCore {
           name: name,
           problem:
               'main requires this, so nothing can launch it. A knob has to be '
-              "optional — give it a default (String $name = 'x') and it "
+              "optional: give it a default (String $name = 'x') and it "
               'becomes one.',
         ),
     ];
@@ -2495,13 +2493,11 @@ class RunCore extends PluginCore {
             declared.name,
     ];
     if (missing.isEmpty) return null;
-    return '${entry.name} needs ${missing.join(', ')} set. '
-        'tool/flutterware.dart declares ${missing.length == 1 ? 'it' : 'them'} '
-        'required, which means the parameter default is a placeholder rather '
-        'than a value to run against — so launching without one would build, '
-        'install and boot an app configured by nobody. Pass '
-        '${missing.length == 1 ? 'it' : 'them'} to launch, or give the knob a '
-        '`from:` that can work the value out.';
+    var them = missing.length == 1 ? 'it' : 'them';
+    return '${entry.name} needs a value for ${missing.join(', ')}. '
+        'tool/flutterware.dart marks $them required, so the default in main is '
+        'only a placeholder. Set $them before launching, or give the knob a '
+        '`from:` that works the value out.';
   }
 
   /// Everything worth offering: an enum's own constants, this machine's
@@ -2548,8 +2544,8 @@ class RunCore extends PluginCore {
   ) {
     if (declared?.from case ScriptSource source) {
       if (outcomeOf(source)?.problem case var problem?) {
-        return '$problem. Until it answers, ${declared!.name} has no computed '
-            'value and a launch that does not set it will be refused.';
+        return '$problem. Until the script answers, ${declared!.name} has no '
+            'value, and a launch that does not set it is refused.';
       }
     }
     if (read == null) {
@@ -2559,8 +2555,8 @@ class RunCore extends PluginCore {
       if (undrawable[declared!.name] case var reason?) {
         return _undrawable(declared.name, reason);
       }
-      return 'main takes no `${declared.name}` parameter. The control would '
-          'appear and do nothing — check the spelling against the signature.';
+      return 'main takes no `${declared.name}` parameter, so this knob would '
+          "do nothing. Check the spelling against main's parameters.";
     }
     // A value offered for an enum that the enum does not declare. Worth saying
     // rather than dropping: it is a line in `tool/flutterware.dart` that reads
@@ -2576,9 +2572,9 @@ class RunCore extends PluginCore {
         },
       }..removeWhere(constants.contains);
       if (stray.isNotEmpty) {
-        return '${stray.join(', ')} — offered for ${read.name}, which is an '
-            'enum taking ${constants.join(', ')}. Only its own constants '
-            'compile, so the rest are not offered.';
+        return '${read.name} is an enum of ${constants.join(', ')}, so '
+            '${stray.join(', ')} ${stray.length == 1 ? 'is' : 'are'} left out: '
+            'only its own values compile.';
       }
     }
     return null;
@@ -2611,8 +2607,8 @@ class RunCore extends PluginCore {
     // confused one agent into filing it as a fault.
     var flavorless =
         flavor != null && flavorVocabularyFor(package, device)?.isEmpty == true
-        ? '$package declares no flavors on ${platformLabelFor(device)} — '
-              'launched without --flavor, as on web.'
+        ? '$package declares no flavors on ${platformLabelFor(device)}, so it '
+              'launched without --flavor.'
         : null;
     var web =
         flavor != null &&
@@ -2620,7 +2616,7 @@ class RunCore extends PluginCore {
               (candidate) =>
                   candidate.id == device && candidate.platformType == 'web',
             )
-        ? 'web takes no --flavor — launched without it.'
+        ? 'web takes no --flavor, so it launched without one.'
         : null;
 
     var handle = await launch(
@@ -2670,14 +2666,15 @@ class RunCore extends PluginCore {
       _handles = _scanHandles();
     }
     var stillBuilding =
-        'Still building after the timeout. It has not failed — follow it '
+        'Still building when the wait ran out. It has not failed: follow it '
         'with the apps action, or read ${handle.logPath}.';
     return RunLaunchResult(
       status: status,
       waited: wait,
       progress: log.stage,
       error:
-          failure ?? (status == 'failed' ? 'the app stopped starting' : null),
+          failure ??
+          (status == 'failed' ? 'the app stopped before it started' : null),
       headline: status == 'failed' ? log.failureHeadline : null,
       logPath: status == 'failed' ? handle.logPath : null,
       note: _joinNotes([
@@ -2830,19 +2827,19 @@ class RunCore extends PluginCore {
   String _ambiguity(List<(String, EntrypointRef)> matches, String? package) {
     var packagesInPlay = {for (var (candidate, _) in matches) candidate};
     if (package == null && packagesInPlay.length > 1) {
-      return 'ambiguous — ${matches.length} entry points match, in different '
+      return 'ambiguous: ${matches.length} entry points match, in different '
           'packages. Pass `package` with one of: '
           '${packagesInPlay.join(', ')}';
     }
     var names = {for (var (_, entry) in matches) entry.name};
     if (names.length == matches.length) {
-      return 'ambiguous — ${matches.length} entry points share this path. '
+      return 'ambiguous: ${matches.length} entry points share this path. '
           'Pass `entrypoint` with one of the names: '
           '${names.map((name) => '"$name"').join(', ')}';
     }
     // Two declarations with one name in one package. Nothing the caller can
     // pass separates them, so the refusal is about the config, not the call.
-    return 'ambiguous — ${matches.length} entry points match and share the '
+    return 'ambiguous: ${matches.length} entry points match and share the '
         'name ${names.map((name) => '"$name"').join(', ')}. Give them distinct '
         'names in tool/flutterware.dart';
   }
@@ -2895,8 +2892,8 @@ class RunCore extends PluginCore {
     var required = scan.required;
     if (required.isNotEmpty) {
       throw RunRefusal(
-        "${entry.name}'s main requires ${required.join(', ')}, so it cannot "
-        'start without one. A knob has to be optional — give the parameter a '
+        "${entry.name}'s main requires ${required.join(', ')}, so flutterware "
+        'cannot launch it. A knob has to be optional: give the parameter a '
         "default (String apiHost = 'localhost') and it becomes one.",
       );
     }
@@ -2943,7 +2940,7 @@ class RunCore extends PluginCore {
         KnobKind.boolean when value != 'true' && value != 'false' =>
           'takes true or false, not "$value"',
         KnobKind.picker when !knob.knob.options.contains(value) =>
-          'takes ${knob.knob.options.join(', ')} — not "$value"',
+          'takes ${knob.knob.options.join(', ')}, not "$value"',
         _ => null,
       };
 
@@ -2986,7 +2983,7 @@ class RunCore extends PluginCore {
     if (unresolved.isNotEmpty) {
       throw RunRefusal(
         'cannot work out ${unresolved.join(', ')}. Fix the script, or pass the '
-        'knob explicitly to launch without it.',
+        'knob a value to launch without it.',
       );
     }
     // Last, so a source that answered counts as somebody having chosen — and
@@ -3000,9 +2997,9 @@ class RunCore extends PluginCore {
 
   /// `setKnobs` — rewrite the wrapper with new values and hot restart.
   ///
-  /// The agent's half of § K5: without it an agent can launch with knobs and
-  /// then has to relaunch to change one, which is the rebuild this design
-  /// exists to remove.
+  /// The agent's way to change a knob: without it an agent can launch with
+  /// knobs and then has to relaunch to change one, which is the rebuild knobs
+  /// exist to remove.
   Future<RunControlResult> _setKnobsAction(
     Map<String, Object?> arguments,
   ) async {
@@ -3110,9 +3107,9 @@ class RunCore extends PluginCore {
       return (
         knobs: const [],
         unknown:
-            'This run belongs to ${handle.worktreeName}. Its knobs are '
-            "declared in that checkout's source, which can be on another "
-            'branch — so this one cannot say what it takes.',
+            'This run belongs to ${handle.worktreeName}, which can be on '
+            'another branch, so its knobs can only be read there. Open the run '
+            'from that worktree.',
       );
     }
     var package = handle.package;
@@ -3121,7 +3118,7 @@ class RunCore extends PluginCore {
         knobs: const [],
         unknown:
             'This run was launched from a package this worktree does not '
-            'declare, so there is no signature to read.',
+            'declare, so its knobs cannot be read.',
       );
     }
     var entry = entrypointOf(handle);
@@ -3129,8 +3126,8 @@ class RunCore extends PluginCore {
       return (
         knobs: const [],
         unknown:
-            '${handle.entrypoint} is no longer an entry point of $package — '
-            'renamed or removed since this run started.',
+            '${handle.entrypoint} is no longer an entry point of $package. It '
+            'was renamed or removed after this run started.',
       );
     }
     return (knobs: knobEntriesOf(package, entry), unknown: null);
@@ -3138,7 +3135,7 @@ class RunCore extends PluginCore {
 
   /// Rewrites [handle]'s wrapper with [values] and hot restarts it.
   ///
-  /// The whole point of the design, and the only place a human feels it.
+  /// The whole point of knobs, and the only place a human feels it.
   /// Changing a knob is a rewrite of one generated file plus a restart —
   /// measured at 262ms on desktop, 263ms on the iOS simulator and 3.07s on an
   /// Android emulator, against 29.6s and 38.6s to rebuild. Without this the only
@@ -3166,22 +3163,21 @@ class RunCore extends PluginCore {
     if (!isMine(handle)) {
       throw RunRefusal(
         '${handle.entrypointLabel} belongs to ${handle.worktreeName}. Change '
-        'its knobs from that checkout: this one would rewrite its own copy of '
-        'the wrapper.',
+        'its knobs from that worktree.',
       );
     }
     if (handle.world case var world?) {
       throw RunRefusal(
-        '${handle.entrypointLabel} is a person in the world $world, whose '
-        'script gives them their knobs. Restart the world for new ones: '
-        '`worlds restart`, or Restart in the Worlds panel.',
+        '${handle.entrypointLabel} is a person in the world $world, and the '
+        "world's script sets their knobs. To change them, restart the world: "
+        'Restart in the Worlds panel, or `worlds restart`.',
       );
     }
     var package = handle.package;
     if (package == null) {
       throw RunRefusal(
-        '${handle.entrypointLabel} was launched without a package, so there is '
-        'no wrapper to rewrite.',
+        '${handle.entrypointLabel} was launched without a package, so its '
+        'knobs cannot be changed.',
       );
     }
     var entry = entrypointOf(handle);
@@ -3296,8 +3292,8 @@ class RunCore extends PluginCore {
     var uri = handle.vmService;
     if (uri == null && action != 'stop') {
       throw RunRefusal(
-        '${handle.entrypointLabel} has no VM service yet — it is still '
-        'building. Watch ${handle.logPath}.',
+        '${handle.entrypointLabel} is still building. Its progress is in '
+        '${handle.logPath}.',
       );
     }
     RunConnection? connection;
@@ -3456,7 +3452,7 @@ class RunCore extends PluginCore {
       ms: DateTime.now().difference(started).inMilliseconds,
       note: device == null
           ? 'Started, but it had not appeared as a device before the wait ran '
-                'out. It is probably still booting — check `devices`.'
+                'out. It is probably still booting; check `devices`.'
           : null,
     );
   }
@@ -3602,9 +3598,9 @@ class RunCore extends PluginCore {
       // that mounts no `Devbar` installs no channels, and saying which is the
       // difference between a bug hunt and reading one line.
       throw RunRefusal(
-        '${handle.entrypointLabel} is not reporting any panels. An app '
-        'reports them by mounting `Devbar(plugins: …)` around its own widget '
-        'and being launched by flutterware.',
+        '${handle.entrypointLabel} has no panels. An app has them when it '
+        'wraps its root widget in `Devbar(plugins: …)` and is launched by '
+        'flutterware.',
       );
     }
     try {
@@ -3672,14 +3668,14 @@ class RunCore extends PluginCore {
   }
 
   static const _noPanelsDeclared =
-      'The app is reporting, but no plugin declared a panel. A devbar plugin '
-      'joins by implementing `DevbarPanelSource`.';
+      'The app has a devbar, but none of its plugins declares a panel. A '
+      'devbar plugin adds one by implementing `DevbarPanelSource`.';
 
   static RunRefusal _noSuchPanel(String id, List<PanelDescriptor> listed) =>
       listed.isEmpty
       ? RunRefusal(_noPanelsDeclared)
       : RunRefusal(
-          'This app declares no panel "$id" — it has '
+          'This app has no panel "$id". It has '
           '${listed.map((p) => p.id).join(', ')}.',
         );
 
@@ -3749,8 +3745,8 @@ class RunCore extends PluginCore {
         result: {'knob': knob, 'value': after?.value},
         knobs: [for (var k in knobs) k.toJson()],
         note: after == null
-            ? 'The app kept no knob called "$knob" — it may have been declared '
-                  'by a screen that has since unmounted.'
+            ? 'The app has no knob called "$knob". The screen that declared '
+                  'it may have closed.'
             : null,
       );
     });
@@ -3793,8 +3789,8 @@ class RunCore extends PluginCore {
     var uri = handle.vmService;
     if (uri == null) {
       throw RunRefusal(
-        '${handle.entrypointLabel} has no VM service yet — it is still '
-        'building. Watch ${handle.logPath}.',
+        '${handle.entrypointLabel} is still building. Its progress is in '
+        '${handle.logPath}.',
       );
     }
     var connection = await RunConnection.connect(uri);
@@ -3846,9 +3842,8 @@ class RunCore extends PluginCore {
       settings: [written.toJson()],
       note: written.value == value
           ? null
-          : 'Asked for "$value" and the device answered '
-                '"${written.value ?? 'nothing'}". The reply is the re-read, '
-                'not the request.',
+          : 'Asked for "$value", but the device now reports '
+                '"${written.value ?? 'nothing'}".',
     );
   }
 
@@ -3931,12 +3926,10 @@ class RunCore extends PluginCore {
     var settings = await _nativeSessionFor(handle).settings();
     if (settings != null) return settings;
     throw RunRefusal(
-      "Nothing here can write ${handle.device}'s settings. A booted iOS "
-      'simulator answers to `simctl` and an Android device to `adb`; a '
-      'physical iPhone, macOS and the browser each have their own mechanisms '
-      'and none of them is built yet. Set it on the device by hand — the '
-      'commands are in '
-      'docs/superpowers/specs/2026-08-24-run-device-tab-capability-findings.md.',
+      "flutterware cannot change ${handle.device}'s settings. It can change "
+      'them on a booted iOS simulator or an Android device, but not yet on a '
+      'physical iPhone, on macOS or in the browser. Change the setting on the '
+      'device itself.',
     );
   }
 
@@ -3990,16 +3983,21 @@ class RunCore extends PluginCore {
     var refused = settings
         .where((s) => s.state == DeviceSettingState.unavailable)
         .length;
+    var shown = echoes.length == 1
+        ? 'the value shown is the one'
+        : 'the values shown are the ones';
     var echoed =
-        'The value of ${echoes.join(' and ')} is the store it was written to '
-        'rather than an answer — nothing on this platform reports it.';
+        'This platform does not report ${echoes.join(' or ')}, so $shown last '
+        'written.';
     var whose =
-        "These are the device's, not the run's: except where a row says "
-        'per-app, a write reaches every app on it and outlives the run.';
+        'These settings belong to the device. Unless a row says per-app, a '
+        'change applies to every app on it and lasts after the run ends.';
+    var unavailable =
+        '$refused setting(s) this device cannot change are listed with the '
+        'reason.';
     return [
       if (echoes.isNotEmpty) echoed,
-      if (refused > 0)
-        '$refused setting(s) this target cannot do are listed with the reason.',
+      if (refused > 0) unavailable,
       whose,
     ].join(' ');
   }
@@ -4039,7 +4037,7 @@ class RunCore extends PluginCore {
         requests: [for (var r in requests) _networkRow(r)],
         cursor: profile.timestamp.microsecondsSinceEpoch,
         note: dropped > 0
-            ? '$dropped older requests over the limit — raise `limit` or '
+            ? '$dropped older requests are past the limit. Raise `limit`, or '
                   'pass `since` to page forward.'
             : requests.isEmpty && since == null
             ? 'Nothing recorded. Capture starts at launch for an app '
@@ -4322,11 +4320,9 @@ class RunCore extends PluginCore {
     if (source == null) {
       return const NativeLogRead.unread(
         note:
-            'There is no platform log flutterware can read on this device. It '
-            'reads the iOS simulator, Android and macOS. A physical iOS device '
-            'is not one of them — its log comes off `xcrun devicectl device '
-            'console` or `idevicesyslog`, which is a different mechanism '
-            'rather than a different argument, so run one of those by hand.',
+            'flutterware cannot read the platform log on this device. It reads '
+            'the iOS simulator, Android and macOS. On a physical iOS device, '
+            'run `xcrun devicectl device console` or `idevicesyslog` yourself.',
       );
     }
     return source.read(since: handle.startedAt, tail: tail);
@@ -4349,10 +4345,10 @@ class RunCore extends PluginCore {
     if (source == null || source.platform == NativeLogPlatform.macos) {
       return null;
     }
-    return 'These are the lines `flutter run` forwarded, which on '
-        '${source.platform.label} is the app and the engine only — anything '
-        'a plugin logs from its own framework is filtered out before it gets '
-        'here. Pass `native: true` to read the platform log as well.';
+    return 'These are the lines `flutter run` forwarded. On '
+        '${source.platform.label} that is the app and the engine only, so '
+        'anything a plugin logs from native code is missing. Pass '
+        '`native: true` to read the platform log as well.';
   }
 
   /// Held drive connections, one per run — the loop's fast path. A session
@@ -4991,8 +4987,8 @@ class RunCore extends PluginCore {
   Future<String> _nativeHint(RunHandle handle, String? failure) async {
     if (failure != 'notFound') return '';
     if (!await _nativeSessionFor(handle).isAvailable) return '';
-    return '\nIf this is not a Flutter widget — a permission dialog, a '
-        'webview, the keyboard, anything the platform draws — the native '
+    return '\nIf this is not a Flutter widget (a permission dialog, a '
+        'webview, the keyboard, anything the platform draws), the native '
         'layer may see it: retry with layer: native.';
   }
 
@@ -5210,7 +5206,7 @@ class RunCore extends PluginCore {
     if (up) return null;
     return wanted
         ? 'The app is not answering, so there is no tree and no picture. It is '
-              'either still building or it died — the logs say which.'
+              'still building or it has stopped; the logs say which.'
         : 'The app is not answering yet.';
   }
 
@@ -5288,7 +5284,7 @@ class RunCore extends PluginCore {
           if (!isMine(handle)) handle,
       ];
       var nothing = run != null
-          ? 'No run "$run" — `apps` reports the keys that exist.'
+          ? 'No run "$run". `apps` lists the runs that exist.'
           : worktree != null
           ? 'Nothing is running from worktree "$worktree".'
           : device != null
@@ -5296,9 +5292,9 @@ class RunCore extends PluginCore {
           : 'Nothing is running${others.isEmpty ? '' : ' from this worktree'}.';
       var elsewhere = others.isEmpty
           ? ''
-          : ' Other worktrees are: '
+          : ' Running in other worktrees: '
                 '${others.map((h) => '${h.worktreeName} (${h.device}/${h.entrypoint})').join(', ')}'
-                ' — pass `worktree` to drive one.';
+                '. Pass `worktree` to drive one.';
       throw RunRefusal(
         '$nothing$elsewhere '
         '`launch` starts an app; `status` lists devices and declared entry '
@@ -5668,8 +5664,8 @@ _ItemLookup _pointForItem(RunHandle handle, Object wanted) {
   var n = int.tryParse('$wanted');
   if (n == null) {
     return _ItemMiss(
-      'item: "$wanted" is not a number — pass the `n` of something in the '
-      "last reply's screen.",
+      'item: "$wanted" is not a number. Pass the `n` of an item on the last '
+      "reply's screen.",
     );
   }
 
@@ -5703,9 +5699,9 @@ _ItemLookup _pointForItem(RunHandle handle, Object wanted) {
   var item = screen.items.where((item) => item.n == n).firstOrNull;
   if (item == null) {
     return _ItemMiss(
-      'no item $n on the screen this run last reported — it had '
-      '${screen.length}. Observe again; the numbers are per observation and '
-      'a screen that changed renumbers.',
+      'no item $n on the screen this run last reported, which had '
+      '${screen.length} items. Observe again: each observation numbers the '
+      'screen afresh.',
     );
   }
 

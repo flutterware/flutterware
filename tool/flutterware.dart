@@ -45,8 +45,7 @@ void main() => Flutterware.configure((fw) {
         // What CI will actually run, and the lint rules it runs with.
         '.github/workflows/**',
         'analysis_options.yaml',
-        // The design docs. Every screen in this app was argued in one of
-        // these first, and a spec moving is usually the reason the code did.
+        // The specs. When one changes, the code usually changes with it.
         'docs/superpowers/specs/**',
       ],
     ),
@@ -170,9 +169,8 @@ void main() => Flutterware.configure((fw) {
         StoreShotsApp(
           brewline,
           file: 'test/scenarios/mobile/shop_test.dart',
-          // The listing's own composition — a panorama with tilted devices
-          // that lean across the joins. See the file; it is the demo the
-          // store design's §10i argues for.
+          // The listing's own composition: a panorama with tilted devices
+          // that lean across the joins. See the file.
           frame: 'lib/store_frame.dart',
           listings: [
             Listing.appStore(locales: {'en': 'en-US', 'fr': 'fr-FR'}),
@@ -490,8 +488,8 @@ void main() => Flutterware.configure((fw) {
             TranslationCatalog(name: 'shop', files: 'assets/i18n/*.json'),
             // The listing's headlines. A second catalog rather than more keys
             // in the first: marketing copy is not UI, and a translator sent
-            // the shop's strings should not find `Tap. Pay. Collect.` among
-            // them. Store design, decision 9.
+            // the shop's strings should not find `Tap. Pay. Collect.`
+            // among them.
             TranslationCatalog(name: 'store', files: 'assets/store/*.json'),
           ],
         ),

@@ -65,8 +65,8 @@ List<WorldFile> declaredWorlds({
 /// not even be kept apart — `CFFIXED_USER_HOME` is macOS's.
 String? worldsUnsupported({bool? macOS}) => (macOS ?? Platform.isMacOS)
     ? null
-    : "Worlds open on macOS only for now: each person's app runs in the "
-          "studio's guest, and only the macOS guest answers a phone's plugins.";
+    : "Worlds open on macOS only for now: each person's app runs inside the "
+          "studio, and only the macOS studio can answer a phone's plugins.";
 
 /// `pickup_order` as `Pickup order`.
 String worldName(String stem) {

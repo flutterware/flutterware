@@ -13,9 +13,9 @@ import 'package:flutterware_app/src/embedder/protocol.dart' as ipc;
 import 'package:flutterware_app/src/utils/run_dir.dart';
 import 'package:path/path.dart' as p;
 
-/// Measures the two things `2026-07-29-ui-catalog-inspection-design.md` leaves
-/// as guesses: whether the Flutter inspector is really reachable in the
-/// embedder guest, and what a widget tree costs to carry.
+/// Measures two things that were guesses: whether the Flutter inspector is
+/// really reachable in the embedder guest, and what a widget tree costs to
+/// carry.
 ///
 /// Creation tracking is on by default now that it has been measured; pass
 /// `--no-track-widget-creation` to re-measure the baseline it was compared
@@ -130,8 +130,8 @@ Future<void> main(List<String> args) async {
 
 /// Which `ext.flutter.*` extensions the guest actually registered.
 ///
-/// The design argues from the SDK source that the inspector is registered
-/// inside an `assert`, so this is the empirical half of that claim.
+/// The SDK source says the inspector is registered inside an `assert`; this is
+/// the empirical half of that claim.
 Future<void> _reportExtensions(_Guest guest) async {
   var isolate = await guest.vmService.service.getIsolate(
     guest.vmService.isolateId,

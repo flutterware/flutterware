@@ -151,8 +151,7 @@ class CaptureViewport {
   /// the panel's own rectangle.
   ///
   /// Measured per device per orientation rather than derived, and already
-  /// turned by the time it lands here: see
-  /// `docs/superpowers/specs/2026-08-21-fake-keyboard-design.md`.
+  /// turned by the time it lands here.
   final double keyboard;
 
   /// The digit pad's height — what a `phone` or `number` field gets — or null

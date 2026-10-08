@@ -11,7 +11,7 @@ import 'app_theme.dart';
 /// A scenario that was replayed and produced no result, beside ones that did.
 ///
 /// On the wire it is `skipped`; drawn as `skipped` it would say the opposite
-/// of what happened. See `2026-09-15-comparison-determinism-design.md`.
+/// of what happened.
 @Preview(
   name: 'Scenarios tab · no result',
   group: 'Comparison',

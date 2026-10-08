@@ -351,7 +351,10 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
             isA<ArgumentError>().having(
               (e) => '${e.message}',
               'message',
-              allOf(contains('no points at all'), contains('did not fan out')),
+              allOf(
+                contains('no points at all'),
+                contains('a run without a matrix'),
+              ),
             ),
           ),
         );

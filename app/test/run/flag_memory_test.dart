@@ -47,8 +47,8 @@ void main() {
     expect(FlagMemory(dir.path).wishes(key()), {'newCheckout': true});
   });
 
-  /// The rule Decision 4 turns on: one app, whatever entrypoint or device it
-  /// was launched with. A flag you turned on for the simulator is one you
+  /// A flag is remembered per app, whatever entrypoint or device it was
+  /// launched with. A flag you turned on for the simulator is one you
   /// meant for the app.
   test('entrypoint and device do not split a project memory', () {
     memory.wish(key(handleFor(entrypoint: 'lib/main_dev.dart')), 'flag', true);

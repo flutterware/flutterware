@@ -102,7 +102,9 @@ void main() {
   Future<void> plus(WidgetTester tester, int n) async {
     await tester.tap(
       find
-          .byTooltip('Comment on this line — shift-click to extend a span')
+          .byTooltip(
+            'Comment on this line. Shift-click to cover several lines.',
+          )
           .at(n),
     );
     await tester.pumpAndSettle();
@@ -429,7 +431,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Export 1 comment'));
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Resolve them too'));
+    await tester.tap(find.textContaining('Mark them resolved'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Export'));
     await tester.pumpAndSettle();

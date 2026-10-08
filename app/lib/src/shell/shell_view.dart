@@ -519,8 +519,8 @@ class _LaunchFallbackBanner extends StatelessWidget {
           const Gap(FwSpacing.sm),
           Expanded(
             child: Text(
-              'Not the checkout flutterware was started in — launched in '
-              '${fallback.launchDirectory}, which no worktree contains.',
+              'Not the checkout flutterware was started in. It was launched '
+              'in ${fallback.launchDirectory}, which no worktree contains.',
               style: context.type.caption.copyWith(color: colors.warningText),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1347,7 +1347,7 @@ class _SwitcherRow extends StatelessWidget {
             ),
             const Gap(FwSpacing.sm),
             // Worktrees that are not open hold no session, so there is nothing
-            // to report about them yet — see open question 4.
+            // to report about them yet.
             //
             // The rail's [StatusText], for the rail's reason: a status is
             // written by a plugin and a row is not the place to find out how

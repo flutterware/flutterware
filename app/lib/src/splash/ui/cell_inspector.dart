@@ -164,9 +164,8 @@ class SplashCellInspector extends StatelessWidget {
       if (resolution.fallsBackToLight)
         FieldRow(
           'Dark',
-          'No dark configuration, so the OS shows the light splash. The dark '
-              'keys are a chain of their own and never fall through to the '
-              'light ones.',
+          'No dark configuration, so the OS shows the light splash. Dark '
+              'keys never fall back to the light ones.',
           labelWidth: _labelWidth,
         ),
       if (picture.composition.usesLauncherIcon)

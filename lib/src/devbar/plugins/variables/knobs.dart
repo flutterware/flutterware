@@ -17,10 +17,11 @@ import 'plugin.dart';
 
 /// Pre-sets a value for a key whether or not anything has declared it.
 ///
-/// The host's half of Decision 4. It lands in [VariablesPlugin.overrides] —
-/// session-scoped, never the persisted store — because the cockpit is the
-/// thing that remembers wishes across runs, and a value written into the app's
-/// own store would outlive the intent of whoever asked for it.
+/// The host's half of mirroring variables as knobs. It lands in
+/// [VariablesPlugin.overrides] — session-scoped, never the persisted store —
+/// because the cockpit is the thing that remembers wishes across runs, and a
+/// value written into the app's own store would outlive the intent of whoever
+/// asked for it.
 const presetAction = PluginAction(
   'preset',
   'Pre-set a value',

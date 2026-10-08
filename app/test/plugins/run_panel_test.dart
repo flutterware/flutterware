@@ -207,7 +207,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.textContaining('no flutterware guest'),
+        find.textContaining('flutterware did not launch this app'),
         findsOneWidget,
         reason: 'the pane says which absence this is',
       );
@@ -328,7 +328,7 @@ void main() {
     var picture = tester.widget<RawImage>(find.byType(RawImage));
     expect(picture.image, isNotNull);
     expect(
-      find.text('rendered by the app — platform views will not appear'),
+      find.text('rendered by the app; platform views do not appear'),
       findsOneWidget,
     );
 
@@ -494,14 +494,14 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(
-      find.text('The app answered with a picture that decodes to nothing.'),
+      find.text('The app sent a picture that could not be decoded.'),
       findsOneWidget,
     );
 
     // Neither of the two things it is not: a caption over an empty box, nor
     // the "no picture yet" that means the reading has not happened.
     expect(
-      find.text('rendered by the app — platform views will not appear'),
+      find.text('rendered by the app; platform views do not appear'),
       findsNothing,
     );
     expect(find.text('No picture yet'), findsNothing);
@@ -802,7 +802,7 @@ void main() {
     // The declaration answers the whole question: nothing to read beyond the
     // fact, and nothing to override — the launch drops the flag as on web.
     expect(
-      find.text('none — the platform declares no flavors'),
+      find.text('none: this platform declares no flavors'),
       findsOneWidget,
     );
     expect(find.text('Override'), findsNothing);
@@ -1260,7 +1260,7 @@ void main() {
       // carry nothing because they work.
       expect(find.textContaining('Building the app…'), findsOneWidget);
       expect(
-        find.byTooltip('waiting for the app — the log is live'),
+        find.byTooltip('Available once the app starts. Logs works now.'),
         findsNWidgets(4),
       );
     });

@@ -174,7 +174,7 @@ final brandTokens = [
           isA<ActionRefusal>().having(
             (e) => e.message,
             'message',
-            contains('refused by the library reader'),
+            contains('cannot be read as a token library'),
           ),
         ),
       );

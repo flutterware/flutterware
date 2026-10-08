@@ -696,8 +696,8 @@ class _NotReplayed extends StatelessWidget {
   final ScenarioComparison scenario;
 
   static const _notAboutTheBranch =
-      'Not a finding about the branch: the scenario did not produce the same '
-      'outcome twice here.';
+      'This says nothing about the branch: the scenario did not produce the '
+      'same outcome twice on this machine.';
 
   @override
   Widget build(BuildContext context) {
@@ -733,10 +733,9 @@ class _NotReplayed extends StatelessWidget {
         ComparedState.removed =>
           'This branch no longer declares it; the base still does.',
         _ =>
-          'Nothing that decides its pixels changed between the two sides — '
-              'not a file in its import closure, not an asset, not a lockfile '
-              '— so both runs would have drawn the same frames and neither was '
-              'run.',
+          'Nothing that affects its pixels changed between the two sides '
+              '(no file it imports, no asset, no lockfile), so both runs '
+              'would draw the same frames. Neither side was run.',
       },
     );
   }

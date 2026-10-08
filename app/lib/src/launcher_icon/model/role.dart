@@ -199,7 +199,7 @@ enum IconRole {
     safeFraction: adaptiveSafeFraction,
     since: 'Android 8 (API 26)',
     description:
-        'The lower layer of an adaptive icon — an image, or a colour named in '
+        'The lower layer of an adaptive icon: an image, or a colour named in '
         'colors.xml.',
   ),
   androidRound(
@@ -231,8 +231,8 @@ enum IconRole {
     treatment: IconTreatment.whiteSilhouette,
     since: 'Android 5 (API 21)',
     description:
-        'Drawn in the status bar with all colour discarded — only the alpha '
-        'channel survives, filled white.',
+        'Drawn in the status bar with all colour removed. Only the alpha '
+        'channel is kept, filled white.',
   ),
   androidPlayStore(
     'android.play-store',
@@ -248,7 +248,7 @@ enum IconRole {
     IconPlatform.ios,
     mask: IconMask.iosSquircle,
     description:
-        'The iOS/iPadOS icon. Must not carry an alpha channel — App Store '
+        'The iOS/iPadOS icon. It must not have an alpha channel: App Store '
         'Connect rejects one that does.',
   ),
   iosDark(
@@ -267,8 +267,8 @@ enum IconRole {
     mask: IconMask.iosSquircle,
     since: 'iOS 18',
     description:
-        'Desaturated and tinted by the system. Meant to be authored greyscale; '
-        'a colour source is flattened, not preserved.',
+        'Desaturated and tinted by the system. Meant to be drawn in '
+        'greyscale; a colour source is flattened.',
   ),
   macosApp(
     'macos.app',
@@ -277,10 +277,10 @@ enum IconRole {
     mask: IconMask.macosGuide,
     safeFraction: macosArtworkFraction,
     description:
-        'The macOS icon. Drawn exactly as authored — the rounded corners and '
-        'shadow are painted into the artwork, not applied by the system. '
-        'Convention insets it, and a full-bleed square reads as oversized in '
-        'the Dock.',
+        'The macOS icon, drawn exactly as authored: the rounded corners and '
+        'the shadow are part of the artwork, and the system adds neither. By '
+        'convention the artwork is inset; a full-bleed square looks oversized '
+        'in the Dock.',
   ),
   webIcon(
     'web.icon',

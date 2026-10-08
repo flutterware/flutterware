@@ -5,8 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'async_watchdog.dart';
 
 /// The real-time lane's binding: `LiveTestWidgetsFlutterBinding` with three
-/// things changed, each measured to be necessary on a consumer's suite
-/// (`2026-09-16-live-scenarios-findings-and-design.md`).
+/// things changed, each measured to be necessary on a consumer's suite.
 ///
 /// - HTTP is left alone. The base class installs `flutter_test`'s 400 mock
 ///   whatever the binding, and only the integration_test binding flips it.

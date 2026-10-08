@@ -342,9 +342,9 @@ class NativeSession {
   /// native layer would have.
   String get unavailable =>
       'The native layer has no driver for ${handle.deviceLabel}. It drives '
-      'Android devices and emulators through adb; the iOS simulator and macOS '
-      'arrive with the accessibility helper. Everything Flutter draws is '
-      'addressable without it — drop `layer` to use the widget tree.';
+      'Android devices and emulators through adb, and the iOS simulator and '
+      'macOS through the accessibility helper. Everything Flutter draws can '
+      'be reached without it: drop `layer` to use the widget tree.';
 
   /// Resolve → act → observe, as one reply.
   ///
@@ -406,10 +406,10 @@ class NativeSession {
         default:
           throw NativeRefusal(
             '`$verb` is not a native verb. The native layer does `observe`, '
-            '`tap`, `enterText` and `foreground`; everything else — '
-            'doubleTap, secondaryTap, drag, scroll, scrollTo, hover, key, '
-            "back, navigate — is the drive layer, which addresses Flutter's "
-            'own tree. Drop `layer` for those.',
+            '`tap`, `enterText` and `foreground`. Everything else (doubleTap, '
+            'secondaryTap, drag, scroll, scrollTo, hover, key, back, navigate) '
+            "belongs to the drive layer, which addresses Flutter's own tree. "
+            'Drop `layer` for those.',
             failure: 'unsupported',
           );
       }

@@ -1,7 +1,7 @@
 // A gradient paint as the engine takes it.
 //
 // Its own file because two painters will want it — a text pass today, and a
-// frame's fill the day `fill` becomes a list of paints (master plan §6) — and
+// frame's fill the day `fill` becomes a list of paints — and
 // because every rule the engine has about gradients is kept here rather than
 // at each call. dart:ui throws on a gradient with no stops unless it has
 // exactly two colours, so the even spread the model promises is spelled out

@@ -162,10 +162,9 @@ class GuestDrive {
   /// is least able to diagnose. Reported by a consumer, who lost the time.
   static const _notStarted =
       'the app has not called runApp, so there is no widget tree to act on or '
-      'observe. This is the app failing to start rather than flutterware '
-      'failing to reach it — its `main` most likely threw before `runApp`, and '
-      'the engine writes that reason to the launcher log where no daemon event '
-      'carries it. `inspect {errors: true}` prints those lines.';
+      'observe. The app failed to start: its `main` most likely threw before '
+      '`runApp`. The engine writes the reason to the launcher log, and '
+      '`inspect {errors: true}` prints those lines.';
 
   /// One transaction, without the extension around it.
   ///
@@ -265,7 +264,7 @@ class GuestDrive {
     // projects the screen out of it, answers `find`/`at`/`styles` from it and
     // archives it, and every one of those needs the nodes the noise filter
     // drops. Narrowing is the host's decision because the host is where the
-    // reply is shaped — see `2026-08-13-screen-handback-design.md` § M1.
+    // reply is shaped.
     //
     // It costs what it costs either way: the guest built this tree on every
     // observe already, including calls that asked for no tree at all, and the
@@ -431,9 +430,9 @@ Future<DriveStep> runWireVerb(
       if (handler == null) {
         throw TargetError(
           TargetFailure.notFound,
-          'this app declares no navigation handler — `navigate` needs one. '
-          'A routing system registers it with `GuestDrive.navigator = …`; '
-          'until then, `tap` walks the UI.',
+          'this app declares no navigation handler, and `navigate` needs one. '
+          'A routing system registers it with `GuestDrive.navigator = …`. '
+          'Until then, use `tap` to move through the app.',
         );
       }
       var watch = Stopwatch()..start();
@@ -447,7 +446,7 @@ Future<DriveStep> runWireVerb(
       );
     default:
       throw ArgumentError(
-        'unknown verb ${params['verb']} — one of tap, doubleTap, '
+        'unknown verb ${params['verb']}. Use one of tap, doubleTap, '
         'longPress, secondaryTap, hover, unhover, drag, scroll, scrollTo, '
         'enterText, key, back, wait, observe, navigate',
       );
@@ -521,7 +520,7 @@ dynamic _wireTarget(Object? json) {
       return Target.at(x.toDouble(), y.toDouble());
     default:
       throw ArgumentError(
-        'not a target: $json — a bare string is visible text, or one of '
+        'not a target: $json. Use a bare string for visible text, or one of '
         '{"text"}, {"key"}, {"label"}, {"tooltip"}, {"containing"}, '
         '{"within": {"scope", "child"}}, {"nth": {"target", "index"}}, '
         '{"at": {"x", "y"}}',

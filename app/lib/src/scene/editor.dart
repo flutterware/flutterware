@@ -277,14 +277,14 @@ class SceneEditor extends SceneListenable {
     var decl = doc.paramNamed(name);
     if (decl == null) throw ArgumentError('no parameter "$name"');
     if (decl.kind == SceneParamKind.list) {
-      throw ArgumentError('"$name" is a list — a token is one value');
+      throw ArgumentError('"$name" is a list: a token is one value');
     }
     if (doc.tokenNamed(name) != null) {
       throw ArgumentError('the group already has a token "$name"');
     }
     for (var (node, prop) in readersOf(name)) {
       if (prop == 'repeat' || node.bindings[prop] is ItemRef) {
-        throw ArgumentError('"$name" feeds a table — a token cannot');
+        throw ArgumentError('"$name" feeds a table, which a token cannot do');
       }
     }
     declare(name, decl.kind, decl.defaultValue);
@@ -312,10 +312,12 @@ class SceneEditor extends SceneListenable {
     var decl = doc.tokenNamed(name);
     if (decl == null) throw ArgumentError('no token "$name"');
     if (decl.isStyle) {
-      throw ArgumentError('"$name" is a style — a parameter holds one value');
+      throw ArgumentError('"$name" is a style: a parameter holds one value');
     }
     if (!decl.hasValue) {
-      throw ArgumentError('"$name" is the app\'s — there is no value here');
+      throw ArgumentError(
+        '"$name" belongs to the app, so there is no value here',
+      );
     }
     if (paramNameProblem(name) case var problem?) {
       throw ArgumentError(problem);
@@ -405,7 +407,7 @@ class SceneEditor extends SceneListenable {
     if (m == null || wanted == name) return;
     if (!isValidNodeName(wanted)) {
       throw ArgumentError(
-        '"$wanted" is not a valid name — letters and digits, '
+        '"$wanted" is not a valid name: letters and digits, '
         'starting with a letter',
       );
     }
@@ -438,7 +440,7 @@ class SceneEditor extends SceneListenable {
     if (m == null || group == null || wanted == name) return;
     if (!isValidNodeName(wanted)) {
       throw ArgumentError(
-        '"$wanted" is not a valid name — letters, digits, '
+        '"$wanted" is not a valid name: letters, digits, '
         'starting with a lowercase letter',
       );
     }
@@ -669,8 +671,8 @@ class SceneEditor extends SceneListenable {
   /// and parameters share the class namespace, so a node's name is taken.
   String? paramNameProblem(String wanted, {String? renaming}) {
     if (!isValidNodeName(wanted)) {
-      return '"$wanted" is not a valid name — a Dart identifier: letters, '
-          'digits and underscores, not starting with a digit';
+      return '"$wanted" is not a valid name. A name is a Dart identifier: '
+          'letters, digits and underscores, not starting with a digit';
     }
     if (wanted == renaming) return null;
     if (doc.nodeNamed(wanted) != null ||
@@ -761,7 +763,7 @@ class SceneEditor extends SceneListenable {
     var decl = doc.params[i];
     if (!_holds(decl.kind, value)) {
       throw ArgumentError(
-        '"$name" is a ${decl.typeName} parameter — '
+        '"$name" is a ${decl.typeName} parameter: '
         'a ${value.runtimeType} is not one',
       );
     }
@@ -791,7 +793,7 @@ class SceneEditor extends SceneListenable {
     var readers = readersOf(name);
     if (readers.isNotEmpty) {
       throw ArgumentError(
-        '"$name" is read by ${_readerList(readers)} — unbind them first',
+        '"$name" is read by ${_readerList(readers)}: unbind them first',
       );
     }
     perform('Retype parameter $name', () {
@@ -807,7 +809,7 @@ class SceneEditor extends SceneListenable {
     var readers = readersOf(name);
     if (readers.isNotEmpty) {
       throw ArgumentError(
-        '"$name" is read by ${_readerList(readers)} — unbind them first',
+        '"$name" is read by ${_readerList(readers)}: unbind them first',
       );
     }
     perform('Delete parameter $name', () => doc.params.removeAt(i));
@@ -837,7 +839,7 @@ class SceneEditor extends SceneListenable {
     }
     if (decl.kind != kind) {
       throw ArgumentError(
-        '"$param" is a ${decl.typeName} parameter — "$prop" takes a '
+        '"$param" is a ${decl.typeName} parameter: "$prop" takes a '
         '${SceneParamDecl(param, kind, zeroOf(kind)).typeName}',
       );
     }
@@ -861,7 +863,7 @@ class SceneEditor extends SceneListenable {
     if (decl == null) throw ArgumentError('no token "$token"');
     if (decl.isStyle) {
       throw ArgumentError(
-        '"$token" is a text style — apply it to a text, not to a property',
+        '"$token" is a text style: apply it to a text, not to a property',
       );
     }
     // An export on an external widget's argument: the argument carries the
@@ -876,7 +878,7 @@ class SceneEditor extends SceneListenable {
     if (decl.isOpaque) {
       if (node is! ExternalNode || sceneArgName(prop) == null) {
         throw ArgumentError(
-          '"$token" is a ${decl.typeName} — the app\'s own object, which '
+          '"$token" is a ${decl.typeName}: the app\'s own object, which '
           "only an external widget's argument can take",
         );
       }
@@ -892,7 +894,7 @@ class SceneEditor extends SceneListenable {
     }
     if (decl.kind != kind) {
       throw ArgumentError(
-        '"$token" is a ${decl.typeName} token — "$prop" takes a '
+        '"$token" is a ${decl.typeName} token: "$prop" takes a '
         '${SceneTokenDecl(token, kind, '').typeName}',
       );
     }
@@ -928,7 +930,7 @@ class SceneEditor extends SceneListenable {
     }
     if (node is! TextNode) {
       throw ArgumentError(
-        '"${node.name}" is not a text — a style is a text\'s',
+        '"${node.name}" is not a text, and only a text takes a style',
       );
     }
     var style = decl.style;
@@ -1030,7 +1032,7 @@ class SceneEditor extends SceneListenable {
     if (wanted == node.name) return;
     if (!isValidNodeName(wanted)) {
       throw ArgumentError(
-        '"$wanted" is not a valid name — letters, digits, '
+        '"$wanted" is not a valid name: letters, digits, '
         'starting with a lowercase letter',
       );
     }
@@ -1675,7 +1677,7 @@ class SceneEditor extends SceneListenable {
     var index = children.indexWhere(isRef);
     if (index < 0 && m.placements.containsKey(groupName)) {
       throw ArgumentError(
-        '"$groupName" is not placed directly on the timeline — a group inside '
+        '"$groupName" is not placed directly on the timeline: a group inside '
         'a Seq or a Speed starts where its neighbours put it',
       );
     }

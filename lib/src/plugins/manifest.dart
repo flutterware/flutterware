@@ -247,8 +247,8 @@ class FlutterwareConfig {
   void identity(ProjectIdentity config) {
     if (_identity != null) {
       throw StateError(
-        'fw.identity was called twice. A repository has one face — declare one '
-        'ProjectIdentity.',
+        'fw.identity was called twice. Declare one ProjectIdentity per '
+        'repository.',
       );
     }
     _identity = config;
@@ -266,8 +266,7 @@ class FlutterwareConfig {
   void clock(DateTime origin) {
     if (_clock != null) {
       throw StateError(
-        'fw.clock was called twice. A project renders at one instant — '
-        'declare one.',
+        'fw.clock was called twice. Declare one clock per project.',
       );
     }
     _clock = origin;
@@ -280,8 +279,8 @@ class FlutterwareConfig {
   void network(ScenarioNetwork mode) {
     if (_network != null) {
       throw StateError(
-        'fw.network was called twice. A project has one answer to what its '
-        'scenarios reach — declare one.',
+        'fw.network was called twice. Declare one network mode per '
+        'project.',
       );
     }
     _network = mode;
@@ -368,8 +367,8 @@ const foldersConfigKey = 'folders';
 /// want, and the plugin's own options are where it is expressed — or, for a
 /// plugin that keys on folders, a `directory` on each entry.
 String _duplicatePackageMessage(String pluginId, String path) =>
-    'Plugin "$pluginId" declares package "$path" twice. A package may be '
-    'named once per plugin — put every option for it in one entry.';
+    'Plugin "$pluginId" declares package "$path" twice. Name each package '
+    'once per plugin, with all its options in one entry.';
 
 /// Entry point for a project's `tool/flutterware.dart`:
 ///

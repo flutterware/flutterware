@@ -37,7 +37,7 @@ void main() {
     expect(reply['error'], contains('runApp'));
     expect(
       reply['error'],
-      contains('rather than flutterware'),
+      contains('The app failed to start'),
       reason: 'it must say whose failure this is',
     );
     expect(

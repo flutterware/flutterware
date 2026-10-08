@@ -18,8 +18,6 @@
 /// a `PanelDescriptor` would make them ones. A test pins that
 /// (`app/test/utils/entry_point_purity_test.dart`), and it is what caught the
 /// original single library.
-///
-/// Design: `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
 library;
 
 export 'src/channels/descriptor.dart'

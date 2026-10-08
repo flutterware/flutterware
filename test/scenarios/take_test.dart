@@ -4,8 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/reel.dart';
 
 /// Reading a film's timeline back as a **take** — the thing an edit plans
-/// against. Design:
-/// `docs/superpowers/specs/2026-09-08-scenario-reel-design.md`.
+/// against.
 ///
 /// The film marks what a stretch of frames *is*, at the grain a camera needs:
 /// a travel, an aim, a press, the verb's own frames, the pause after it. An

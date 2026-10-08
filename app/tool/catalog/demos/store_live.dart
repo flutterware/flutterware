@@ -1,8 +1,7 @@
 /// Where the store's own listing goes on a set card — three candidates, and
 /// the states each of them has to survive.
 ///
-/// Design: `docs/superpowers/specs/2026-08-27-store-live-and-upload-design.md`
-/// §5. Nothing here is wired to a store; every screenshot is painted and every
+/// Nothing here is wired to a store; every screenshot is painted and every
 /// live half is a literal, which is the point — the question is a layout
 /// question and it is answerable without a credential.
 ///
@@ -83,7 +82,7 @@ class _Layouts extends StatelessWidget {
       const _Caption(
         'C · A line, and a dialog',
         'The card stays as it is and answers *how much, how old*. The pixels '
-            "move to a third viewer, beside §6's two.",
+            'move to a third viewer, beside the existing two.',
       ),
       _card(layout: _LiveLayout.line, live: _live4),
     ],
@@ -217,7 +216,7 @@ class _States extends StatelessWidget {
 // Where the rest of the facts go
 // ---------------------------------------------------------------------------
 
-/// The three levels above the card, which is where most of §4's matrix lives.
+/// The three levels above the card, which is where most of the facts go.
 class _Levels extends StatelessWidget {
   const _Levels();
 

@@ -58,7 +58,7 @@ void main() {
 
     expect(find.text('Not replayed'), findsOneWidget);
     expect(
-      find.textContaining('Nothing that decides its pixels changed'),
+      find.textContaining('Nothing that affects its pixels changed'),
       findsOneWidget,
     );
   });

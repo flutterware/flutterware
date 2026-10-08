@@ -334,7 +334,7 @@ String reviewMarkdown(
     );
     if (comment.anchor.path case var path? when drifted.contains(path)) {
       buffer.writeln(
-        '> ⚠ this file has changed since the comment was written — the quote '
+        '> ⚠ This file has changed since the comment was written. The quote '
         'below is as it stood then.',
       );
     }

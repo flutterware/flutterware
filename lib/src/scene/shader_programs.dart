@@ -108,7 +108,7 @@ class SceneShaderPrograms extends ChangeNotifier {
     if (!_reported.add((asset, uniform))) return;
     debugPrint(
       'flutterware: $asset has no uniform "$uniform" of $floats '
-      'float${floats == 1 ? '' : 's'} — its value is skipped',
+      'float${floats == 1 ? '' : 's'}, so its value is skipped',
     );
   }
 

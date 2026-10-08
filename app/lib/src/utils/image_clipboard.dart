@@ -28,10 +28,7 @@ class ImageClipboard {
   /// success and puts nothing on the clipboard is discovered at the paste.
   static Future<void> setPng(Uint8List png) async {
     if (!isSupported) {
-      throw UnsupportedError(
-        'Copying an image is implemented on macOS, which is also the only '
-        'platform the catalog preview runs on.',
-      );
+      throw UnsupportedError('Copying an image works only on macOS.');
     }
     var written = await _channel.invokeMethod<bool>('setImage', {'png': png});
     if (written != true) {

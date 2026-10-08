@@ -12,8 +12,7 @@ import 'tile_slot.dart';
 /// `NSImage` carrying 16/32/128/512 art renders the *largest* downsampled in
 /// both the Dock and the ⌘-Tab switcher, even though `bestRepresentation`
 /// answers correctly in-process. So there is nothing to gain from composing a
-/// ladder — see the spike in
-/// `docs/superpowers/specs/2026-08-12-project-identity-design.md`.
+/// ladder.
 ///
 /// [size] is therefore chosen for the largest place it lands, not the smallest.
 class TileComposer {

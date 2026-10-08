@@ -7,8 +7,7 @@
 /// the launcher-icon scan of `fixtures/probe_app` with the files it names
 /// copied in beside it, and a run of some of its scenarios with every frame
 /// and tree the harness wrote. The studio's own catalog demos, its scenario
-/// tests and the web demo all open one. See
-/// `docs/superpowers/specs/2026-09-10-studio-over-a-fake-project-design.md`.
+/// tests and the web demo all open one.
 library;
 
 /// Where the recorded project pretends to be. Never read from disk; it is what

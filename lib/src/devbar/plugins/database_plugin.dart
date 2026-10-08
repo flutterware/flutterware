@@ -14,7 +14,7 @@ class DatabasePlugin implements DevbarPlugin, DevbarPanelSource {
 
   /// One plugin per database: `db:main` and `db:cache` are two `init` calls
   /// in the devbar's plugin list, not one call with a list — a panel is the
-  /// unit every surface renders (§ Decision 2 of the design).
+  /// unit every surface renders.
   static DatabasePlugin Function(DevbarState) init({
     required DatabaseAdapter database,
   }) =>

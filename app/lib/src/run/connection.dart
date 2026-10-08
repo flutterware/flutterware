@@ -189,8 +189,8 @@ class RunConnection {
     var method = _methods[_reloadSources];
     if (method == null) {
       throw StateError(
-        'This app has no launcher registered against it, so hot reload is not '
-        'available. Its `flutter run` has exited; the app itself is still up.',
+        'Hot reload is not available: the `flutter run` that launched this '
+        'app has exited. The app itself is still running.',
       );
     }
     await service.callMethod(method, args: {'isolateId': ?isolateId});
@@ -201,9 +201,8 @@ class RunConnection {
     var method = _methods[_hotRestart];
     if (method == null) {
       throw StateError(
-        'This app has no launcher registered against it, so hot restart is '
-        'not available. Its `flutter run` has exited; the app itself is still '
-        'up.',
+        'Hot restart is not available: the `flutter run` that launched this '
+        'app has exited. The app itself is still running.',
       );
     }
     await service.callMethod(method);

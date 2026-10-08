@@ -5,10 +5,10 @@
 /// is the run's own files — the handle, the launcher's log, the journal and
 /// every picture it points at — read by the paths the tool wrote, under
 /// [recordedRunDir]. The app answers its probe as a run whose launcher is gone
-/// and whose app is still there, which is the header's *no launcher — cannot
-/// reload*: the truth about a recording, and a state the cockpit already
-/// draws. Its screen is the last picture the session took, and its channels
-/// answer what the app said when the recorder asked.
+/// and whose app is still there, which is the header's *flutter run ended,
+/// cannot reload*: the truth about a recording, and a state the cockpit
+/// already draws. Its screen is the last picture the session took, and its
+/// channels answer what the app said when the recorder asked.
 ///
 /// Everything else — launching, reloading, booting, driving — refuses with
 /// [recordedRunRefusal], through the core's own read-only door.
@@ -46,8 +46,8 @@ const recordedRunRefusal =
 ///
 /// [presenting] has the app answer as a run whose launcher is still there, so
 /// the header draws a live session rather than the recording's truth — for
-/// pictures of the cockpit, where *no launcher — cannot reload* would describe
-/// the recording rather than the tool. Everything still refuses.
+/// pictures of the cockpit, where *flutter run ended, cannot reload* would
+/// describe the recording rather than the tool. Everything still refuses.
 RunSources recordedRunSources(Recording recording, {bool presenting = false}) {
   var files = RecordedRunFiles(recording);
   return RunSources(

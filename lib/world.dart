@@ -35,9 +35,7 @@
 /// ```
 ///
 /// Pure Dart: a server package can depend on it without Flutter in its
-/// build, the bargain `package:flutterware/server.dart` already makes. The
-/// design is `docs/superpowers/specs/2026-09-25-worlds-design.md` in
-/// flutterware's repository.
+/// build, the bargain `package:flutterware/server.dart` already makes.
 library;
 
 export 'src/devices.dart' show Device, DeviceKind, DevicePlatform, Devices;

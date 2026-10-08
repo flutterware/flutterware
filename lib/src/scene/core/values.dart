@@ -1,5 +1,4 @@
-// The scene core's own value vocabulary — the graduation decision
-// (2026-09-01-scene-graduation-plan.md): the grammar's allowlist as real
+// The scene core's own value vocabulary: the grammar's allowlist as real
 // types, so the model and both grammars stay pure Dart and the whole
 // headless surface (fw scene check, MCP tools, codemods) needs no Flutter.
 // The *file* spellings (`Color(0xFF…)`, `FontWeight.w700`) are the grammar's
@@ -164,7 +163,7 @@ class SceneAlignment {
 /// the project's own fragment shaders.
 ///
 /// Built for text layers, and shaped for `fill` to adopt the day a frame's
-/// fill becomes a list of paints (master plan §6) — a second notion of paint
+/// fill becomes a list of paints — a second notion of paint
 /// is the thing to avoid, not a second user of this one. Linear, radial and
 /// sweep share [SceneGradient]; the wire tags the kind, so a new one is
 /// additive.
@@ -555,7 +554,7 @@ enum SceneStrokeJoin { miter, round, bevel }
 /// darker half.
 ///
 /// On the pass rather than on the paint, because a paint is shaped to be a
-/// frame's fill one day (master plan §6), and a frame has no lines.
+/// frame's fill one day, and a frame has no lines.
 enum SceneLayerBox { text, line }
 
 /// How a pass lands on what is already there — the modes a design tool
@@ -587,7 +586,7 @@ enum SceneBlendMode {
 /// and the effect space is what combining them reaches: a drop shadow is a
 /// blurred offset fill, an outline is a stroke beneath the fill, sticker type
 /// is stroke-stroke-fill, extruded type is a dozen offset fills under a
-/// gradient one. None of those is a code path (master plan §4.5).
+/// gradient one. None of those is a code path.
 ///
 /// Layers are ANONYMOUS and immutable, and they live on the style rather than
 /// the node: a named per-node stack is a treatment nothing else can share,
@@ -900,7 +899,7 @@ Object? _sAxes(SceneTextStyle s) => s.axes;
 /// says only `weight` leaves size and colour to the table's defaults. A node
 /// spells ONE of these and nothing else — an override is
 /// `tokens.title.copyWith(fontSize: 60)`, a delta on the style rather than a
-/// property beside it (master plan §4.5). A property written equal to the
+/// property beside it. A property written equal to the
 /// style's is indistinguishable from an inherited one and follows the style;
 /// there is no override flag, by decision.
 class SceneTextStyle {

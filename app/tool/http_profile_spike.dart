@@ -13,8 +13,7 @@
 ///     fvm dart run tool/http_profile_spike.dart socket
 ///     fvm dart run tool/http_profile_spike.dart clear
 ///
-/// Findings land in docs/superpowers/specs/ — this file is the instrument,
-/// not the product.
+/// This file is a measuring instrument; nothing ships from it.
 library;
 
 import 'dart:convert';

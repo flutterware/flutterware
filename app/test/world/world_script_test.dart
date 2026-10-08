@@ -82,7 +82,7 @@ void main() {
             .having(
               (f) => f.message,
               'message',
-              allOf(contains('compiler went down'), contains('Reload again')),
+              allOf(contains('compiler stopped'), contains('Reload again')),
             ),
       ),
     );

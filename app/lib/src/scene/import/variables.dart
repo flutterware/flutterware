@@ -1,16 +1,15 @@
 // A design file's variables, as saved JSON, becoming tokens — merged into a
 // library by [TokensLibrary.merge].
 //
-// The smallest slice of the importer, pulled forward (master plan, M5½):
-// variables need no node import at all, and they put real data against the
-// token declaration before styles are built on it. Built on the JSON the
-// design tool's REST API answers for a file's local variables — saved to
-// disk, never fetched here, so CI needs no credential and the network lane
-// (M8) is a wrapper around this.
+// The smallest slice of the importer, built first: variables need no node
+// import at all, and they put real data against the token declaration before
+// styles are built on it. Built on the JSON the design tool's REST API
+// answers for a file's local variables — saved to disk, never fetched here,
+// so CI needs no credential and a network fetch can wrap this later.
 //
-// The rules the plan sets for every import apply: a variable that cannot be
-// a token is REFUSED, by name and with the reason, never approximated. What
-// is refused is the list of what to build next.
+// The rules for every import apply: a variable that cannot be a token is
+// REFUSED, by name and with the reason, never approximated. What is refused
+// is the list of what to build next.
 //
 // A library is a design system, so only COLOR and FLOAT variables become
 // tokens. A STRING is copy and a BOOLEAN is a flag; both are refused by
@@ -71,7 +70,7 @@ class ImportRefusal {
   final String reason;
 
   @override
-  String toString() => '$what — $reason';
+  String toString() => '$what: $reason';
 }
 
 /// What a read of the variables produced: the tokens, in the design file's
@@ -108,7 +107,7 @@ VariablesImport importVariables(String json) {
     return VariablesImport(const [], [
       ImportRefusal(
         'the file',
-        'no variableCollections and variables — this is not the variables '
+        'no variableCollections and variables: this is not the variables '
             "endpoint's answer",
       ),
     ]);
@@ -138,7 +137,7 @@ class _Importer {
         refusals.add(
           ImportRefusal(
             '${collection['name']} · ${mode['name']}',
-            'only the default mode is imported — a library holds one value '
+            'only the default mode is imported: a library holds one value '
                 'per token; build the other set in your app as '
                 'SceneTokens(…) and pass it to the scene',
           ),
@@ -184,7 +183,7 @@ class _Importer {
           refusals.add(
             ImportRefusal(
               source,
-              'its name becomes "$name", which $other already took — rename '
+              'its name becomes "$name", which $other already took: rename '
               'one of them in the design file',
             ),
           );

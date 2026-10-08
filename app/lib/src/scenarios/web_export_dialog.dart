@@ -191,7 +191,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
       title: Text(
         widget.package == '.'
             ? 'Export a web page'
-            : 'Export a web page — ${widget.package}',
+            : 'Export a web page for ${widget.package}',
       ),
       content: SizedBox(
         width: 560,
@@ -200,9 +200,9 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Runs the scenarios and writes the result as a page: the same '
-              'flows, step pages and inspect dock you see here, for anyone '
-              'with a browser and no checkout.',
+              'Runs the scenarios and writes the result as a web page, with '
+              'the same flows, step pages and inspector you see here. Anyone '
+              'with a browser can open it, without a checkout.',
               style: context.type.caption.copyWith(color: colors.mut),
             ),
             const Gap(FwSpacing.xl),
@@ -217,7 +217,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
               label: 'Base href',
               controller: _baseHref,
               enabled: !_running,
-              hint: '$defaultBaseHref — serves from anywhere it is hosted',
+              hint: '$defaultBaseHref works wherever the page is hosted',
             ),
             const Gap(FwSpacing.sm),
             CheckboxListTile(
@@ -230,8 +230,8 @@ class _WebExportDialogState extends State<_WebExportDialog> {
               controlAffinity: ListTileControlAffinity.leading,
               title: Text('Self-contained', style: context.type.bodySmall),
               subtitle: Text(
-                "Bundles the renderer instead of fetching it from Google's "
-                'CDN. Bigger, and the only form that works offline.',
+                "Bundles the renderer instead of loading it from Google's "
+                'CDN. The page is bigger, and works offline.',
                 style: context.type.micro.copyWith(color: colors.mut),
               ),
             ),
@@ -261,15 +261,15 @@ class _WebExportDialogState extends State<_WebExportDialog> {
                 // like every other one until you open the red flow.
                 _Message(
                   text:
-                      '${exported.failed} failed — their flows are on the '
-                      'page, up to the frame they broke on.',
+                      '${exported.failed} failed. Their flows are on the '
+                      'page, up to the frame where they failed.',
                   color: colors.red,
                 ),
               ],
               if (_served case var url?) ...[
                 const Gap(FwSpacing.xs),
                 _Message(
-                  text: 'Serving at $url — until this worktree is closed.',
+                  text: 'Serving at $url until this worktree is closed.',
                   color: colors.mut,
                 ),
               ],

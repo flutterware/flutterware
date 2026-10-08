@@ -44,7 +44,7 @@ void main() {
       ),
     );
     expect(message, contains('made no progress for 30s'));
-    expect(message, contains('waiting rather than working'));
+    expect(message, contains('so the body was waiting'));
     expect(message, contains('inside `s.pumpWidget SceneApp`'));
     expect(message, contains('called from test/scenarios/a_test.dart:12'));
     expect(message, contains('2 microtasks are queued'));
@@ -140,7 +140,7 @@ void main() {
       const Duration(milliseconds: 100),
       const [],
     );
-    expect(frames, contains('it is not fake time the body is waiting on'));
+    expect(frames, contains('so the body is waiting on real work'));
     expect(frames, isNot(contains('timeout:')));
   });
 

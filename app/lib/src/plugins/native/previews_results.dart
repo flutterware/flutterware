@@ -1004,8 +1004,7 @@ class ComparisonFinding {
 /// One difference a finding is made of.
 ///
 /// The wire form of `ChannelDelta`, and deliberately the same five facets:
-/// `half` is the finding's, `channel` and the rest are here. See
-/// `docs/superpowers/specs/2026-08-29-comparison-events-channel-design.md` §9.
+/// `half` is the finding's, `channel` and the rest are here.
 @JsonSerializable(
   explicitToJson: true,
   includeIfNull: false,

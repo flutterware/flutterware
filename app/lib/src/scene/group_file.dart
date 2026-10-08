@@ -234,7 +234,7 @@ GroupParse parseGroupFile(
             refuse(
               element.offset,
               'library',
-              'a library is named by its list symbol — libraries: '
+              'a library is named by its list symbol: libraries: '
                   '[brandTokens], imported from brand.tokens.dart',
             );
           }
@@ -275,7 +275,7 @@ GroupParse parseGroupFile(
       refuse(
         offset,
         'library',
-        'no import of this file declares $symbol — a library is a '
+        'no import of this file declares $symbol: a library is a '
             "'*$sceneTokensFileSuffix' whose first line is "
             '$sceneTokensFileMarker, imported here',
       );

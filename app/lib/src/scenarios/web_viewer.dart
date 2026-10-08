@@ -29,10 +29,9 @@ import '../ui/loading_state.dart';
 /// talks to a runner — the scenarios ran on the machine that built the page,
 /// and this is what they produced.
 ///
-/// See `2026-08-11-scenario-web-export-design.md`. The live variant, where the
-/// scenarios re-run in a hidden client iframe, replaces
-/// [HttpScenarioArtifacts] and this widget's report future; everything below
-/// stays as it is.
+/// The live variant, where the scenarios re-run in a hidden client iframe,
+/// replaces [HttpScenarioArtifacts] and this widget's report future;
+/// everything below stays as it is.
 class ScenarioWebViewer extends StatefulWidget {
   const ScenarioWebViewer({super.key, required this.base, this.raw});
 
@@ -101,10 +100,9 @@ class _ScenarioWebViewerState extends State<ScenarioWebViewer> {
     setState(() {
       if (raw == null) {
         _error =
-            'This page could not read its own $scenarioWebReportFile. A '
-            'scenario page has to be served over HTTP — opening index.html '
-            'from the filesystem leaves the browser unable to fetch anything '
-            'beside it.';
+            'This page could not read its own $scenarioWebReportFile. Serve '
+            'the page over HTTP: opened from the filesystem, index.html '
+            'cannot load the files beside it.';
       } else {
         _apply(raw);
       }

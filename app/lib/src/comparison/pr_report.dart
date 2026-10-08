@@ -484,8 +484,8 @@ String _comment(
     buffer
       ..writeln(
         '<details><summary>$count scenario${count == 1 ? '' : 's'} not '
-        'compared — no result on this machine, which is a finding about the '
-        'scenario and not the branch</summary>\n',
+        'compared: no result on this machine, which points at the scenario '
+        'rather than the branch</summary>\n',
       )
       ..writeln('| scenario | why |')
       ..writeln('|---|---|');
@@ -495,7 +495,8 @@ String _comment(
     }
     if (count > commentRowCap) {
       buffer.writeln(
-        '\n*…and ${count - commentRowCap} more — the page has them all.*',
+        '\n*…and ${count - commentRowCap} more. The full comparison lists '
+        'them all.*',
       );
     }
     buffer.writeln('\n</details>\n');
@@ -507,10 +508,10 @@ String _comment(
   if (findings.isEmpty && gap == null) {
     buffer.writeln('### Comparison against `$against`$notComparedClause\n');
     caveats();
-    buffer.writeln('Nothing changed — $receipt.\n');
+    buffer.writeln('Nothing changed: $receipt.\n');
     unsure();
   } else if (findings.isEmpty) {
-    buffer.writeln('### Comparison against `$against` — **no verdict**\n');
+    buffer.writeln('### Comparison against `$against`: **no verdict**\n');
     caveats();
     buffer
       ..writeln('$gap.\n')
@@ -524,12 +525,12 @@ String _comment(
         if (_isFinding(entry.key)) '${entry.value} ${entry.key.name}',
     ].join(' · ');
     buffer.writeln(
-      '### Comparison against `$against` — **$summary**$notComparedClause\n',
+      '### Comparison against `$against`: **$summary**$notComparedClause\n',
     );
     caveats();
     // Above the link rather than folded away with the table: a reader who
     // stops at the pictures has to know part of the run answered nothing.
-    if (gap != null) buffer.writeln('> **No verdict** — $gap.\n');
+    if (gap != null) buffer.writeln('> **No verdict**: $gap.\n');
     buffer.writeln(
       '[**Open the full comparison →**]($viewerUrlPlaceholder) · $receipt\n',
     );
@@ -570,8 +571,8 @@ String _comment(
     }
     if (findings.length > commentRowCap) {
       buffer.writeln(
-        '\n*…and ${findings.length - commentRowCap} more — the page has '
-        'them all.*',
+        '\n*…and ${findings.length - commentRowCap} more. The full '
+        'comparison lists them all.*',
       );
     }
     buffer.writeln('\n</details>\n');
@@ -587,9 +588,10 @@ String _comment(
   // nothing is blessed — and that a cached side is one that was a result.
   var host = artifact.host?.summary;
   buffer.writeln(
-    '<sub>`fw compare`$at${host == null || host.isEmpty ? '' : ' on $host'} — '
-    'both sides from git, nothing blessed; a side read from the cache is one '
-    'that replayed to a result under the same inputs.</sub>',
+    '<sub>`fw compare`$at${host == null || host.isEmpty ? '' : ' on $host'}. '
+    'Both sides are rendered from git, with no stored baseline. A side read '
+    'from the cache had already replayed to a result with the same '
+    'inputs.</sub>',
   );
   return buffer.toString();
 }

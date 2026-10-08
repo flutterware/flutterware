@@ -10,7 +10,7 @@
 /// template format. RTL flips because the locale is in the tree; a dark variant
 /// works because the theme is; fonts are the project's own because the harness
 /// loaded them. Nothing here invents a layout language, and nothing here knows
-/// where a project keeps its marketing copy — see the design's §2.
+/// where a project keeps its marketing copy.
 library;
 
 import 'package:material_ui/material_ui.dart';
@@ -152,8 +152,7 @@ abstract class StoreFrame extends StatelessWidget {
 /// The frame a project that declares none gets: chrome everywhere, a
 /// composition only where geometry forces one.
 ///
-/// The rule decision 7 settles, and it turns on a distinction that decision
-/// did not originally draw. Inventing a ground and a device body is a
+/// The rule turns on a distinction. Inventing a ground and a device body is a
 /// **marketing** decision and stays opt-in — but a status bar is not marketing.
 /// It is the one piece of a real screenshot a `flutter_tester` cannot draw, and
 /// a store set without one reads as a mockup of the app rather than a picture
@@ -213,7 +212,7 @@ class PlainStoreFrame extends StoreFrame {
 ///
 /// Where this applies at all is decided elsewhere and narrowly: a project that
 /// declares no frame keeps getting raw app pixels wherever a store accepts
-/// them, so this composes only what geometry forces — see decision 7.
+/// them, so this composes only what geometry forces.
 ///
 /// The headline band is **empty unless the project fills it**. Passing a
 /// builder is three lines and produces the composition everybody recognises;

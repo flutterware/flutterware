@@ -902,8 +902,9 @@ class _ListPaneHeader extends StatelessWidget {
             const Gap(FwSpacing.xs),
             Tooltip(
               message:
-                  'Runs on the real clock with real sockets, one guest per '
-                  'scenario. Pictures are not compared between runs.',
+                  'Runs on the real clock with real network connections, each '
+                  'scenario in a fresh app. Pictures are not compared between '
+                  'runs.',
               waitDuration: const Duration(milliseconds: 500),
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -1252,7 +1253,7 @@ class _ScenarioPageState extends State<_ScenarioPage> {
   void _reportProgress() {
     var run = _run;
     var task = (run?.running ?? false)
-        // The runner's own phase while it has one — "Compiling the harness",
+        // The runner's own phase while it has one — "Compiling the scenarios",
         // "Rebuilding the asset bundle" — because rebuilding a bundle is a
         // very different wait from a hung harness. It holds the last thing the
         // runner said, including "Running the scenario", so one lane covers
@@ -1447,8 +1448,8 @@ class _ScenarioPageState extends State<_ScenarioPage> {
         if (unknownDeviceIn(AddressScope.param(context, 'device'))
             case var bad?)
           _ErrorBanner(
-            'No device "$bad" — running as the folder says instead. '
-            'Accepted: ${deviceIds.join(', ')}.',
+            'No device "$bad", so this runs on the device the folder '
+            'declares. Accepted: ${deviceIds.join(', ')}.',
           ),
         // **Above the flow, and this is the half that used to go unsaid.**
         // The page narrated its wait only while the canvas was empty, and
@@ -1564,11 +1565,11 @@ class _ScenarioPageState extends State<_ScenarioPage> {
             const Gap(FwSpacing.md),
             Tooltip(
               message:
-                  'Every scenario in this run read ${_clockStamp(clock)} as '
-                  'now. Scenarios are pinned to a date so two runs of a suite '
-                  'produce the same pictures; the project sets it with '
-                  'fw.clock(...), and one run can override it with --clock '
-                  '(or --clock now for the wall clock).',
+                  'Every scenario in this run used ${_clockStamp(clock)} as '
+                  'the current time. Scenarios run at a fixed date so that '
+                  'two runs produce the same pictures. Set it for the project '
+                  'with fw.clock(...), or for one run with --clock (--clock '
+                  'now uses the real time).',
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1668,20 +1669,20 @@ class _ScenarioPageState extends State<_ScenarioPage> {
 
   String _unsettledTooltip(ScenarioPanelRun? run, int unsettled) {
     var what = unsettled == 1
-        ? 'One step was captured with the app still animating — the settle '
-              'budget ran out with frames still scheduled, and the picture is '
-              'of a moving screen.'
-        : '$unsettled steps were captured with the app still animating — the '
-              'settle budget ran out with frames still scheduled, and their '
+        ? 'One step was captured while the app was still animating. It was '
+              'still scheduling frames when the wait ran out, so the picture '
+              'is of a moving screen.'
+        : '$unsettled steps were captured while the app was still animating. '
+              'It was still scheduling frames when the wait ran out, so their '
               'pictures are of moving screens.';
     var ticking = _stillTicking(run);
     if (ticking.isEmpty) {
-      return '$what A spinner or a looping animation does that. Amber in the '
-          'flow below.';
+      return '$what A spinner or a looping animation causes this. These '
+          'steps are amber in the flow below.';
     }
     return '$what\n\nStill ticking:\n'
         '${ticking.map((line) => '• $line').join('\n')}\n\n'
-        '$ambientHint Amber in the flow below.';
+        '$ambientHint These steps are amber in the flow below.';
   }
 
   /// What kept those steps moving, once each — off the streamed steps for the
@@ -1715,9 +1716,8 @@ class _ScenarioPageState extends State<_ScenarioPage> {
         Icons.cloud_outlined,
         colors.amber,
         'This run reached the real network and wrote nothing down. What came '
-            'back is what the network said at the time, so these pictures are '
-            'not guaranteed to repeat — and the run needs a connection to '
-            'pass.',
+            'back is what the network said at the time, so these pictures may '
+            'not repeat, and the run needs a connection to pass.',
       );
     }
     if (modes.contains('replay')) {
@@ -1763,7 +1763,7 @@ class _ScenarioPageState extends State<_ScenarioPage> {
           title: 'Runs against your backend',
           message:
               'A live scenario talks to a real server on a real clock, so it '
-              'runs when you press Run rather than when you open it.',
+              'runs only when you press Run.',
         );
       }
       if (running || run == null) {
@@ -1794,8 +1794,8 @@ class _ScenarioPageState extends State<_ScenarioPage> {
         icon: Icons.image_not_supported_outlined,
         title: 'No steps captured',
         message:
-            'The scenario ran without a screenshot — every tap and '
-            'screen() captures one unless Shots.manual turned that off.',
+            'The scenario ran without taking a screenshot. Every tap and '
+            'screen() takes one unless Shots.manual turns that off.',
       );
     }
 

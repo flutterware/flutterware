@@ -1,9 +1,8 @@
 # The worlds lab
 
-A small server and a customer app, built to answer one question — should a
-person's app in a world run in the studio's embedded guest by default (it
-should: `docs/superpowers/specs/2026-09-25-worlds-guest-phase5-decision.md`)
-— and kept to host the worlds after it.
+A small server and a customer app, built to find out whether a person's app in
+a world should run in the studio's embedded guest by default (it should), and
+kept to host the worlds after it.
 
 - **`server/`** — a coffee shop's pickup orders, in memory. Its edges — SMS
   and push — report to flutterware instead of reaching a carrier, naming who

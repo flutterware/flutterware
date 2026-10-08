@@ -4,8 +4,8 @@ import 'tone.dart';
 /// A plugin's answer to "what are you showing right now?", as data.
 ///
 /// Native plugins draw real Flutter widgets for humans. They *also* emit one of
-/// these, so the same state reaches `fw`, a file projection, and an agent. That
-/// is decision 2: the panel forks, the contract does not.
+/// these, so the same state reaches `fw`, a file projection, and an agent. The
+/// panel forks; the contract does not.
 ///
 /// This is deliberately **not** a rendering kit — nothing interprets these
 /// nodes to build the GUI. It is a projection: a summary faithful enough that

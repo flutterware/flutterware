@@ -162,7 +162,7 @@ class SceneGuest {
       // build, silently — the status line is where that has to be said.
       if (session.compileErrorFor(entry) case var error?) {
         _hostProblem = error;
-        status.value = 'guest: the host does not compile — $error';
+        status.value = 'guest: the host does not compile. $error';
       } else if (session.lastSwitch?.error case var error?) {
         _hostProblem = error;
         status.value = 'guest: $error';
@@ -171,8 +171,8 @@ class SceneGuest {
     }
     _hostProblem = 'no scene host';
     status.value =
-        'guest: no scene host in $groupDirectory/ — the generated '
-        '$sceneArgsFileName declares it; rescan the group';
+        'guest: no scene host in $groupDirectory/. The generated '
+        '$sceneArgsFileName declares it; rescan the group.';
   }
 
   final String groupDirectory;
@@ -318,7 +318,7 @@ class SceneGuest {
             _pendingShaders = const [];
             if (_everApplied) {
               status.value = e is TimeoutException
-                  ? 'guest: no answer in 3s — the host may be stuck'
+                  ? 'guest: no answer in 3s; the host may be stuck'
                   : 'guest: push failed';
             }
           })

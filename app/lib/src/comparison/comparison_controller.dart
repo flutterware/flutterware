@@ -319,15 +319,14 @@ abstract interface class ComparisonEnvironment {
 /// controller restores what the last run concluded, and everything past that —
 /// the base checkout included — waits for [compare].
 ///
-/// That is a reversal of the design's §13.11 ("entering a tab runs that
-/// half"), and it is deliberate. The auto-run was justified by a per-tab cost
-/// estimate that made the price visible before the click; the estimate was
-/// built, measured at four minutes on a real catalog, and removed — leaving a
-/// panel that started git checkouts, `pub get` and compilers as a side effect
-/// of a tab getting focus, with a one-line spinner for company. The contract
-/// is now the opposite one: the tab always *shows* for free (the last
-/// run, kept on disk), and the machinery starts only when the button that
-/// names it is pressed.
+/// Entering a tab used to run that half. The auto-run was justified by a
+/// per-tab cost estimate that made the price visible before the click; the
+/// estimate was built, measured at four minutes on a real catalog, and
+/// removed — leaving a panel that started git checkouts, `pub get` and
+/// compilers as a side effect of a tab getting focus, with a one-line spinner
+/// for company. The contract is now the opposite one: the tab always *shows*
+/// for free (the last run, kept on disk), and the machinery starts only when
+/// the button that names it is pressed.
 class ComparisonController extends ChangeNotifier {
   ComparisonController(this.environment)
     : previews = ComparisonHalf(

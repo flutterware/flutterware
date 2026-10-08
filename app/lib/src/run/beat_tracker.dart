@@ -13,8 +13,6 @@ import 'dart:async';
 /// give-up after consecutive failures — over a much cheaper call: the guest's
 /// `beats` extension neither settles nor walks a tree, it hands back records
 /// that already exist and clears them.
-///
-/// Design: `2026-08-24-human-beats-design.md`.
 class RunBeatTracker {
   RunBeatTracker({required this.drain, required this.onBeats});
 

@@ -108,8 +108,8 @@ flutter:
     - assets/images/
     # The shop's copy, one file per locale — a loader-based catalog, which is
     # what `fw.use(Translations(...))` in the repo root points at.
-    # The *listing's* copy, separate from the app's — decision 9 of the store
-    # design. A headline is never shown in the app.
+    # The *listing's* copy, separate from the app's: a headline is never
+    # shown in the app.
     - assets/store/
     - assets/icons/check.svg
     - path: assets/icons/heart.svg

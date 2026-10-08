@@ -33,11 +33,11 @@ class ExplorerEntry {
 
   /// The label-priority stack, resolved.
   ///
-  /// Open question (inherited from the 2026-05-18 plugin design, and this is
-  /// the first surface where both are routinely present): an agent title and a
-  /// PR title both want to be the name. The rule here is that a *live* agent
-  /// wins — while it is working or waiting, its title is what the worktree is
-  /// currently about — and the PR title wins otherwise.
+  /// An open question, and this is the first surface where both are routinely
+  /// present: an agent title and a PR title both want to be the name. The rule
+  /// here is that a *live* agent wins — while it is working or waiting, its
+  /// title is what the worktree is currently about — and the PR title wins
+  /// otherwise.
   String get label {
     var agent = facts.agent.value;
     if (agent != null &&
@@ -73,7 +73,6 @@ enum ExplorerSort {
 /// The explorer — `fw:///worktrees`.
 ///
 /// A View: entries and callbacks in, no probing, no git, no clock of its own.
-/// See `docs/superpowers/specs/2026-08-10-worktree-explorer-view-design.md`.
 class WorktreeExplorerView extends StatefulWidget {
   const WorktreeExplorerView({
     super.key,

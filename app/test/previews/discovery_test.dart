@@ -22,9 +22,8 @@ void main() {
   ScanResult scan() => CatalogScanner(projectRoot: root.path).scan();
 
   group('the knobs a signature declares', () {
-    // The static half of `2026-07-27-knobs-static-and-runtime.md`: read off the
-    // parameter list, so answering "what can I vary here" costs a parse rather
-    // than a compile and a frame.
+    // Read off the parameter list, so answering "what can I vary here" costs a
+    // parse rather than a compile and a frame.
     test('reads them off the parameter list, enums included', () {
       write('src/backend.dart', 'enum Backend { dev, staging, prod }');
       write('team/tile.dart', """

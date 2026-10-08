@@ -73,7 +73,7 @@ void main() {
           return '$error';
         }
       });
-      expect(refusal, contains('refused — the network is off'));
+      expect(refusal, contains('refused: the network is off'));
       expect(refusal, contains('$base/api/messages'));
       expect(refusal, contains("s.network.get('/api/messages'"));
       expect(hits, isEmpty);
@@ -118,10 +118,7 @@ void main() {
         );
         expect(refusal.title, endsWith('/api/me'));
         expect(refusal.error, isTrue);
-        expect(
-          refusal.detail,
-          'refused — the network is off for this scenario',
-        );
+        expect(refusal.detail, 'refused: the network is off for this scenario');
         expect(refusal.body, contains('was not made'));
       });
     });

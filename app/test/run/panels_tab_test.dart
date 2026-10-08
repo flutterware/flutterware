@@ -202,8 +202,8 @@ void main() {
     }, reason: 'and the host remembers it for the next run');
   });
 
-  /// The other half of Decision 4: what the host remembered is pushed before
-  /// anything is read, so the first list already shows it.
+  /// What the host remembered is pushed before anything is read, so the first
+  /// list already shows it.
   testWidgets('a remembered wish is applied on attach', (tester) async {
     // A flag nothing has declared: only `preset` can carry it.
     var seen = <String, Object?>{};

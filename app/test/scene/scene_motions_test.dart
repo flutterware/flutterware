@@ -175,14 +175,14 @@ void main() {
     expect(editor.activeMotion, 'BannerSceneMotion');
     expect(find.text('BannerSceneMotion'), findsWidgets);
     expect(
-      find.text('Nothing animates yet — select a node to animate it'),
+      find.text('Nothing animates yet. Select a node to animate it.'),
       findsOneWidget,
     );
 
     // The chevron folds the timeline away and keeps the motion open: the
     // header still names it, the picture still plays it.
     await tester.tap(
-      find.byTooltip('Fold the timeline away — the motion stays open'),
+      find.byTooltip('Fold the timeline away. The motion stays open.'),
     );
     await tester.pump();
     expect(find.byType(SceneTimeline), findsNothing);
@@ -200,7 +200,7 @@ void main() {
     // is off, nothing is open.
     editor.autoKey = true;
     await tester.tap(
-      find.byTooltip('Close the motion — the scene as authored'),
+      find.byTooltip('Close the motion and show the scene as authored'),
     );
     await tester.pump();
     expect(find.byType(SceneTimeline), findsNothing);

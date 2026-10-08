@@ -77,7 +77,7 @@ static void OnVsyncRequest(void* user_data, intptr_t baton) {
 // own message loop on this thread and waits for somebody to pump it; this
 // host's main thread spends its life in a socket read, so nobody did, and a
 // platform call from Dart was never answered at all. An app's first plugin call
-// hung it forever (`2026-07-26-s1-scenario-in-embedder-findings.md`).
+// hung it forever.
 //
 // So the engine is handed a runner of ours: tasks go into a list ordered by
 // target time, a byte down a pipe wakes the main loop, and the main loop polls

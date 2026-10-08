@@ -15,7 +15,7 @@ void main() {
   test("the host says what it is doing in the rail's own register", () {
     expect(
       statusFor('[previews] compiling the harness'),
-      const Status.info('compiling the catalog…'),
+      const Status.info('compiling the previews…'),
     );
     expect(
       statusFor('[previews] the asset bundle changed'),
@@ -25,11 +25,11 @@ void main() {
       statusFor(
         '[tester] The Dart VM service is listening on http://127.0.0.1:1/',
       ),
-      const Status.info('starting the harness…'),
+      const Status.info('starting the previews…'),
     );
     expect(
       statusFor('[previews] the harness exited (255)'),
-      const Status.info('restarting the harness…'),
+      const Status.info('restarting the previews…'),
     );
     expect(
       statusFor('[previews] reloading 1 edited source(s)'),

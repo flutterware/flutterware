@@ -40,7 +40,7 @@ class SceneListTable extends StatelessWidget {
         padding: const EdgeInsets.all(FwSpacing.lg),
         alignment: Alignment.topLeft,
         child: Text(
-          'No items. The first one is written in the file — it is the shape '
+          'No items. Write the first one in the file: it sets the shape '
           'every row shares.',
           style: caption,
         ),

@@ -31,8 +31,7 @@ class DevStackPlugin extends NativePlugin<DevStackCore> {
 /// worktree overview's card was mounted verbatim at the top, 720px wide inside a
 /// panel twice that, above two mismatched command controls and three hundred
 /// pixels of empty state, while facts the core already held — per-service state,
-/// the exit code, how long the command took — were never drawn at all. See
-/// `docs/superpowers/specs/2026-08-12-dev-stack-ui-study-2.md`.
+/// the exit code, how long the command took — were never drawn at all.
 ///
 /// What replaced it is the anatomy every other working panel here already has:
 /// a header band carrying the state and the one control that changes it,
@@ -58,9 +57,9 @@ class _DevStackPanel extends StatelessWidget {
                   ? const EmptyState(
                       title: 'Nothing to run here',
                       message:
-                          'This project declares a probe and nothing else — no '
-                          'services to break down, and no commands to run from '
-                          'here. The state above is all there is to show.',
+                          'This project declares a probe, but no services and '
+                          'no commands. The state above is all there is to '
+                          'show.',
                     )
                   // The console takes whatever the sections leave rather than
                   // being pinned under a gap they were too short to fill: a
@@ -462,8 +461,8 @@ class _Console extends StatelessWidget {
             child: DevStackColumn(
               child: command == null
                   ? Text(
-                      'Anything you run above prints here — the tail of it, with '
-                      'the exit code.',
+                      'The output of a command you run above shows here, with '
+                      'its exit code.',
                       style: type.caption.copyWith(color: colors.mut2),
                     )
                   : ConstrainedBox(
@@ -592,8 +591,7 @@ class _CopyLinkState extends State<_CopyLink> {
         padding: const EdgeInsets.symmetric(vertical: FwSpacing.xxs),
         child: Container(
           // The same underline the block's links wear. Without it this was the
-          // one control on the page you found by hovering, which is the finding
-          // the first study closed everywhere else.
+          // one control on the page you found by hovering.
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: colors.mut3)),
           ),

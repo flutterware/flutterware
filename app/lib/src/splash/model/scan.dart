@@ -176,13 +176,13 @@ class SplashConfigScan {
       compositionFor(surface, theme),
       reason: !isGenerated
           ? 'Nothing has been generated yet, so this is what the config will '
-                'produce — not what any device shows. Run '
-                'flutter_native_splash:create in this package to make it real.'
+                'produce. No device shows it until you run '
+                'flutter_native_splash:create in this package.'
           : surface == SplashSurface.ios
           // Not "nothing was generated": there is plenty on disk, we simply
           // cannot read a storyboard back into a picture.
-          ? 'Predicted from the config. iOS cannot be read back — '
-                'LaunchScreen.storyboard describes constraints, not the '
+          ? 'Predicted from the config. iOS cannot be read back, because '
+                'LaunchScreen.storyboard describes constraints rather than a '
                 'finished image.'
           : 'Predicted from the config. Nothing was generated for this surface.',
     );
@@ -260,7 +260,7 @@ _ConfigSearch _findConfigs(SplashFiles files, String packageRoot) {
       if (required) {
         errors.add(
           '"$name" has no `flutter_native_splash:` section. The generator '
-          'throws rather than reading the keys at the root.',
+          'fails without one; it does not read keys at the top level.',
         );
       }
       return null;

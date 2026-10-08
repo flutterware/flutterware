@@ -4,9 +4,8 @@ import 'package:sqlite3/sqlite3.dart';
 
 /// The scenario that must load a native library, and the guard that keeps it
 /// loading — nothing else in this suite reaches the bundle's native-assets
-/// manifest, and previews never will. The platform story (why a missing
-/// mapping is masked on macOS and honest on Linux and Windows) is the
-/// 2026-08-26 build-hooks design doc, piece 3.
+/// manifest, and previews never will. A missing mapping is masked on macOS,
+/// where the system's SQLite stands in, and fails on Linux and Windows.
 ///
 /// Two choices are this file's own. The screen shows the version it loaded,
 /// because on macOS the fallback would serve the *system's* SQLite and the

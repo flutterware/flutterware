@@ -16,8 +16,6 @@
 ///
 /// The seam is also re-exported from `package:flutterware/flutter_test.dart`,
 /// which is where a test already imports from.
-///
-/// Design: `2026-08-18-translation-index-design.md`.
 library;
 
 export 'src/translations/export.dart';

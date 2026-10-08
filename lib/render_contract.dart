@@ -8,8 +8,6 @@
 /// web; the server's door, which spawns guests, is
 /// `package:flutterware/render_client.dart`, and the app binds
 /// implementations through `package:flutterware/render.dart`.
-///
-/// Design: docs/superpowers/specs/2026-08-31-widget-export-design.md.
 library;
 
 export 'src/render/contract.dart';

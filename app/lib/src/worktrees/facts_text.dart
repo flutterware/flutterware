@@ -1,9 +1,9 @@
 /// The explorer, rendered as text.
 ///
-/// The third renderer of one model — the GUI's row, this, and `--json` — which
-/// is the master plan's "no renderer is privileged" applied to a shell surface.
-/// It lives here rather than in `cli.dart` so it can be tested without a CLI,
-/// and so the columns stay next to the facts they render.
+/// The third renderer of one model — the GUI's row, this, and `--json` — and
+/// none of the three is privileged over the others. It lives here rather than
+/// in `cli.dart` so it can be tested without a CLI, and so the columns stay
+/// next to the facts they render.
 library;
 
 import 'package:flutterware/plugins.dart';

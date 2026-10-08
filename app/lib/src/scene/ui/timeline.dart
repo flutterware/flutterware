@@ -314,7 +314,7 @@ class _SceneTimelineState extends State<SceneTimeline> {
                       child: groups.isEmpty && selected == null
                           ? Center(
                               child: Text(
-                                'Nothing animates yet — select a node to animate it',
+                                'Nothing animates yet. Select a node to animate it.',
                                 style: context.type.bodyMuted,
                               ),
                             )
@@ -584,8 +584,8 @@ class _GroupRowState extends State<_GroupRow> {
                         if (offered.isNotEmpty)
                           _AddPropertyButton(
                             tooltip:
-                                'Animate another property of ${group.node.name} — '
-                                'a key at the playhead',
+                                'Animate another property of ${group.node.name} '
+                                'with a key at the playhead',
                             entries: [
                               for (var spec in offered)
                                 MenuItem(
@@ -745,7 +745,7 @@ class _AnimateRow extends StatelessWidget {
                     ),
                   ),
                   _AddPropertyButton(
-                    tooltip: 'Animate ${node.name} — a key at the playhead',
+                    tooltip: 'Animate ${node.name} with a key at the playhead',
                     entries: [
                       for (var spec in sceneAnimatableProps(node, axesFor))
                         MenuItem(

@@ -205,25 +205,25 @@ String stallDiagnosis({
   var lines = <String>[
     switch (kind) {
       ScenarioStallKind.stalled =>
-        'the scenario made no progress for ${spanOf(deadline)} — no '
-            'verb returned, no step was captured, no tracked work was pending, '
-            'and the isolate sat idle, so it was waiting rather than working: '
+        'the scenario made no progress for ${spanOf(deadline)}: no verb '
+            'returned, no step was captured, no tracked work was pending, and '
+            'the isolate was idle, so the body was waiting: '
             '${watchdog ?? _where(inFlight, lastVerb, clock: clock)}',
       ScenarioStallKind.trackedWork =>
         'tracked real work `$overdue` was still pending after '
             '${spanOf(overdue?.pendingFor ?? elapsed ?? trackedWorkCeiling)}, '
-            'past the ${spanOf(trackedWorkCeiling)} any one tracked future is '
-            'given. ${_waitingFor(landingTracked, inFlight, lastVerb)} Tracked '
-            'work is waited for as long as it takes, so a slow machine does '
-            'not end up here: work this late is not coming. The usual cause is '
-            "a future a dependency memoized in an earlier scenario's zone"
-            '${previousScenario == null ? '' : ' — `$previousScenario` ran before this one in the same process'}'
-            ', which `RealWork.run` avoids by running the load in the root '
+            'past the ${spanOf(trackedWorkCeiling)} limit for any one tracked '
+            'future. ${_waitingFor(landingTracked, inFlight, lastVerb)} '
+            'Tracked work is waited for as long as it takes up to that limit, '
+            'so work this late is not coming. The usual cause is a future that '
+            "a dependency cached in an earlier scenario's zone"
+            '${previousScenario == null ? '' : ' (`$previousScenario` ran before this one in the same process)'}'
+            '. `RealWork.run` avoids that by running the load in the root '
             'zone.',
       ScenarioStallKind.ceiling =>
         'the scenario was still running after ${spanOf(elapsed ?? deadline)}, '
-            'though it never went ${spanOf(deadline)} without progress — a '
-            'flow that loops without end? '
+            'though it never went ${spanOf(deadline)} without progress, so it '
+            'may be looping forever: '
             '${watchdog ?? _where(inFlight, lastVerb, clock: clock)}',
     },
   ];
@@ -261,7 +261,7 @@ String stallDiagnosis({
   lines.add(
     'The steps it captured before it stopped are on disk'
     '${eventsOnFailedStep ? ', and what the app printed and did since the last of them is on the failed step (`scenarios read --events`)' : ''}.'
-    '${kind == ScenarioStallKind.trackedWork ? '' : ' Its timeout is how long it may go without progress, not how long it may take: give it longer, or opt out, with `scenario(timeout: …)`.'}',
+    '${kind == ScenarioStallKind.trackedWork ? '' : ' Its timeout is how long it may go without progress. To give it longer, or to turn the timeout off, use `scenario(timeout: …)`.'}',
   );
   return lines.join(' ');
 }
@@ -321,29 +321,31 @@ String _where(
 
 String _mechanism(int? microtasks, String? previousScenario) {
   if (microtasks == null) {
-    return "The usual causes: a future created in an earlier scenario's fake "
-        'zone, or work that needs the real clock — a platform channel nobody '
-        'answers, a real-clock timer outside `s.runAsync`.';
+    return 'The usual causes are a future created in an earlier '
+        "scenario's fake zone, or work that needs the real clock, such as a "
+        'platform channel nobody answers or a real-clock timer outside '
+        '`s.runAsync`.';
   }
   if (microtasks > 0) {
     return '$microtasks microtask${microtasks == 1 ? ' is' : 's are'} queued '
-        "in this scenario's fake zone with nothing pumping: real work "
-        'completed and its continuation is waiting for a pump the suspended '
-        'body cannot run. Hand that work to `RealWork.track` '
-        '(`package:flutterware/real_work.dart`) so the next verb lands it, '
-        'or await it with a pump — `while (!done) { await s.tester.pump(); }` '
-        '— never bare, and never inside `s.runAsync`.';
+        "in this scenario's fake zone and nothing is pumping: real work "
+        'completed, and its continuation is waiting for a pump that the '
+        'suspended body cannot run. Hand that work to `RealWork.track` '
+        '(`package:flutterware/real_work.dart`) so the next verb waits for '
+        'it, or await it while pumping: '
+        '`while (!done) { await s.tester.pump(); }`. Do not await it on its '
+        'own, and do not await it inside `s.runAsync`.';
   }
   var earlier = previousScenario == null
       ? "an earlier scenario's fake zone"
-      : "an earlier scenario's fake zone — `$previousScenario` ran before "
-            'this one in the same process';
+      : "an earlier scenario's fake zone (`$previousScenario` ran before "
+            'this one in the same process)';
   return 'Nothing is queued in the fake zone, so the body is waiting on a '
-      'future no pump would complete: one created in $earlier, which a '
-      'process-wide cache or a static `Future` hands to every scenario after '
-      'it — or work that needs the real clock: a platform channel nobody '
-      'answers, a real-clock timer outside `s.runAsync`. To reproduce the '
-      'first, run the two files together in order: '
+      'future no pump would complete. Either it was created in $earlier, '
+      'and a process-wide cache or a static `Future` handed it to every '
+      'later scenario, or it needs the real clock: a platform channel nobody '
+      'answers, or a real-clock timer outside `s.runAsync`. To reproduce the '
+      'first case, run the two files together in order: '
       '`--file=<earlier>,<this>`.';
 }
 
@@ -360,17 +362,17 @@ String stillWaitingMessage(
       '`s.act` "$description" was still waiting for its body after '
       '${spanOf(timeout)} of fake time, moved ${spanOf(interval)} a frame.';
   if (timers.isEmpty) {
-    return '$head Nothing was left on the fake clock — only frames, and '
-        'pumping drew them — so it is not fake time the body is waiting on. '
-        'Real work is: a platform channel nobody answers, a file, an isolate, '
-        'which belong in `s.runAsync`; or a future made in an earlier '
-        "scenario's fake zone, which never completes at all.";
+    return '$head Nothing was left on the fake clock except frames, and '
+        'pumping drew those, so the body is waiting on real work: a platform '
+        'channel nobody answers, a file or an isolate, which belong in '
+        "`s.runAsync`, or a future made in an earlier scenario's fake zone, "
+        'which never completes.';
   }
   return '$head The fake clock still holds ${describeTimers(timers)}. If the '
-      'body is waiting on one of them, give it longer: `s.act(…, timeout: …)`. '
-      'If it is waiting on real work instead — a platform channel, a file, an '
-      'isolate — no amount of fake time completes it: that belongs in '
-      '`s.runAsync`.';
+      'body is waiting on one of them, give it longer with '
+      '`s.act(…, timeout: …)`. If it is waiting on real work instead (a '
+      'platform channel, a file, an isolate), fake time cannot complete it, '
+      'so move that work into `s.runAsync`.';
 }
 
 /// The mechanism when nothing is queued but the clock still holds timers: the
@@ -378,11 +380,11 @@ String stillWaitingMessage(
 /// pumps that move it.
 String _clockMechanism(List<ScenarioTimer> timers) =>
     'Nothing is queued in the fake zone, but the fake clock still holds '
-    '${describeTimers(timers)}, and only a pump moves that clock — the '
-    'suspended body is the one thing that would have run it. A '
-    '`Future.delayed`, a debounce or a timer-driven load awaited between verbs '
-    'never completes. Await it inside `s.act(…)`, which moves the clock until '
-    'its body completes, or move the clock first with `s.wait(…)`.';
+    '${describeTimers(timers)}. Only a pump moves that clock, and the '
+    'suspended body is what would have pumped. A `Future.delayed`, a '
+    'debounce or a timer-driven load awaited between verbs never completes. '
+    'Await it inside `s.act(…)`, which moves the clock until its body '
+    'completes, or move the clock first with `s.wait(…)`.';
 
 /// [timers] as a sentence names them — "a 2s timer from `Repo.load
 /// (lib/repo.dart:12)`, a periodic 1s timer and 3 more".

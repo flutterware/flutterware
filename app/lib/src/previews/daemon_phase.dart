@@ -16,16 +16,16 @@ String daemonPhaseLabel(String phase) => switch (phase) {
   'host build' => 'Building the preview host',
   'asset bundle' => 'Building the asset bundle',
   'compiler start' => 'Starting the compiler',
-  'cold compile' => 'Compiling the catalog',
+  'cold compile' => 'Compiling the previews',
   // Both of the daemon's second passes. What sent it back is a fact about the
   // daemon — a demo that would not build, an excursion to write the shared
   // half — and neither is a distinction anybody waiting has any use for.
   'rebuild after quarantine' ||
-  'rebuild after seeding' => 'Rebuilding the catalog',
-  'seed kernel' => 'Saving a head start for the next checkout',
+  'rebuild after seeding' => 'Rebuilding the previews',
+  'seed kernel' => 'Saving a kernel for the next checkout to start from',
   'scan' => 'Looking for demos',
   'quarantine' => 'Reading what did not compile last time',
-  'publish prepared kernel' => 'Publishing the kernel a guest boots from',
+  'publish prepared kernel' => 'Publishing the kernel the previews start from',
   // The one phase whose key carries a number — `source baseline (649 files)` —
   // so it is matched by its head and the count is kept, because the count is
   // the interesting half.

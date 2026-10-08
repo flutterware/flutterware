@@ -6,8 +6,6 @@
 /// unix socket (`attach_client.dart`) or as batches drained from a VM service
 /// extension (`app/lib/src/run/channel_client.dart`) — so it is written once
 /// here and both feed it.
-///
-/// Design: `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
 library;
 
 import 'dart:async';

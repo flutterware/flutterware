@@ -66,7 +66,7 @@ void main() {
     expect(report, isNotNull, reason: 'the constructor installs it');
 
     report!('.', (phase: TesterPhase.compiling, files: null));
-    expect(it.startupFor('.').task?.label, 'Compiling the previews harness');
+    expect(it.startupFor('.').task?.label, 'Compiling the previews');
 
     report('.', (phase: TesterPhase.reloading, files: 1));
     expect(it.startupFor('.').task?.label, 'Reloading 1 edited file');

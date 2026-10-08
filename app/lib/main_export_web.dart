@@ -98,10 +98,10 @@ class _ExportViewerAppState extends State<ExportViewerApp> {
     if (!mounted) return;
     setState(() {
       _error =
-          'This page could not read its own index.json or '
-          '$scenarioWebReportFile. An exported page has to be served over '
-          'HTTP — opening index.html from the filesystem leaves the browser '
-          'unable to fetch anything beside it.';
+          'This page could not read its index.json or '
+          '$scenarioWebReportFile. Serve the export over HTTP: a browser that '
+          'opens index.html from the filesystem cannot fetch the files beside '
+          'it.';
     });
   }
 

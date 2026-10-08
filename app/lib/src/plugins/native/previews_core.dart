@@ -85,10 +85,10 @@ const webBuildActionId = 'build-web';
 @visibleForTesting
 Status? previewsRunnerStatus(TesterPhaseReading reading) =>
     switch (reading.phase) {
-      TesterPhase.compiling => const Status.info('compiling the catalog…'),
+      TesterPhase.compiling => const Status.info('compiling the previews…'),
       TesterPhase.bundling => const Status.info('rebuilding the assets…'),
-      TesterPhase.starting => const Status.info('starting the harness…'),
-      TesterPhase.restarting => const Status.info('restarting the harness…'),
+      TesterPhase.starting => const Status.info('starting the previews…'),
+      TesterPhase.restarting => const Status.info('restarting the previews…'),
       TesterPhase.reloading => Status.info(
         'reloading ${reading.files} file${reading.files == 1 ? '' : 's'}…',
       ),
@@ -2060,7 +2060,7 @@ class PreviewsCore extends PluginCore {
     var path = _requireOnePackage(package);
 
     if (name is! String || name.trim().isEmpty) {
-      throw ArgumentError.value(name, 'name', "required — the demo's name");
+      throw ArgumentError.value(name, 'name', "required: the preview's name");
     }
     name = name.trim();
 
@@ -2095,9 +2095,9 @@ class PreviewsCore extends PluginCore {
       throw ArgumentError.value(
         relative,
         'file',
-        'must be under $root/, the only directory this package is scanned for '
-            'demos. A file outside it would never be found. Change the '
-            r'directory itself with `Previews(packages: [.new(app, '
+        'must be under $root/, where previews are looked for in this '
+            'package. A file outside it would not be found. To change the '
+            r'directory, set `Previews(packages: [.new(app, '
             r"directory: '...')])` in tool/flutterware.dart.",
       );
     }
@@ -2509,8 +2509,9 @@ class PreviewsCore extends PluginCore {
         throw ArgumentError.value(
           narrowTo,
           'path',
-          'matches no entry in ${paths.join(', ')}. Ask `entries` what there '
-              'is; a path names a directory or a file, not an entry id.',
+          'matches no entry in ${paths.join(', ')}. List them with '
+              '`entries`. A path names a directory or a file; an entry id '
+              'does not work here.',
         );
       }
     }
@@ -2528,7 +2529,7 @@ class PreviewsCore extends PluginCore {
       if (only != null && only.isEmpty) continue;
       List<PreviewAuditRow> audited;
       try {
-        _setBusy(path, const Status.info('rendering the catalog…'));
+        _setBusy(path, const Status.info('rendering the previews…'));
         audited = await testRunnerFor(path).audit(
           entryIds: only,
           // Validated above; passed on by id, because the harness resolves it
@@ -2719,9 +2720,8 @@ class PreviewsCore extends PluginCore {
   /// merely reliable.
   ///
   /// No flags is the "is it OK" answer — render, report what the framework
-  /// said, nothing else. Everything heavier is opt-in, which is what the token
-  /// measurements in the prior design already concluded: summary always,
-  /// details on request, `find` before `tree`.
+  /// said, nothing else. Everything heavier is opt-in: summary always, details
+  /// on request, `find` before `tree`.
   Future<CatalogInspectResult> _inspect(Map<String, Object?> arguments) async {
     // Read and checked before anything is scanned or compiled. A typo in a flag
     // should cost nothing, and a compile-and-render is the most expensive thing
@@ -2915,8 +2915,8 @@ class PreviewsCore extends PluginCore {
           switch ((observed.grown, scrolled)) {
             (CatalogGrown(:var from, :var to, truncated: true), _) =>
               'Grew the screen from ${from.round()}pt to ${to.round()}pt and '
-                  'stopped with a list still going — it has no end, or is '
-                  'longer than ten screens — so its last rows are not here.',
+                  'stopped before a list ended (it has no end, or is longer '
+                  'than ten screens), so its last rows are not here.',
             (CatalogGrown(:var from, :var to), _) when to > from =>
               'Grew the screen from ${from.round()}pt to ${to.round()}pt to '
                   'show every row, so every box here is on one tall screen.',
@@ -3004,10 +3004,10 @@ class PreviewsCore extends PluginCore {
         throw ArgumentError.value(
           node,
           'node',
-          'nothing in $entryId is called that, and it is not the id of a node '
-              'either. `node` takes a widget name — `SplitButton`, `Save` — or '
-              'an id from an earlier read. Ids are positions in the tree, so '
-              'one taken before an edit may name nothing now.',
+          'nothing in $entryId is called that, and it is not a node id. '
+              '`node` takes a widget name, like `SplitButton` or `Save`, or an '
+              'id from an earlier read. Ids are positions in the tree, so one '
+              'taken before an edit may no longer match.',
         );
       }
       var subtree = found.reduce(
@@ -3044,8 +3044,8 @@ class PreviewsCore extends PluginCore {
       throw ArgumentError.value(
         value,
         'at',
-        'a point, written `x,y` — two whole numbers in the coordinates a '
-            'screenshot is taken in, as `120,300`',
+        'a point written `x,y`: two whole numbers in screenshot '
+            'coordinates, as `120,300`',
       );
     }
     return (x, y);
@@ -3274,7 +3274,7 @@ class PreviewsCore extends PluginCore {
       throw ArgumentError.value(
         node,
         'node',
-        'must be text — a widget name or a node id',
+        'must be text: a widget name or a node id',
       );
     }
     var annotate = arguments['annotate'] == true;
@@ -3416,7 +3416,7 @@ class PreviewsCore extends PluginCore {
       throw ArgumentError.value(
         value,
         'page',
-        'only a `full` picture has pages — pass `full: true` too',
+        'only a `full` picture has pages; pass `full: true` too',
       );
     }
     return page;
@@ -3439,7 +3439,7 @@ class PreviewsCore extends PluginCore {
         _ => throw ArgumentError.value(
           value,
           'steps',
-          'must be a JSON list of act steps — '
+          'must be a JSON list of act steps, like '
               '`[{"verb": "tap", "target": "Coffee"}]`',
         ),
       },
@@ -3451,16 +3451,16 @@ class PreviewsCore extends PluginCore {
         throw ArgumentError.value(
           step,
           'steps',
-          'step ${index + 1} is not an act step — each is an object with a '
-              '`verb`, as `flutterware_act` takes it',
+          'step ${index + 1} is not an act step. Each step is an object with '
+              'a `verb`, as `flutterware_act` takes it',
         );
       }
       if (step.containsKey('item')) {
         throw ArgumentError.value(
           step,
           'steps',
-          'step ${index + 1} names an `item`, which is a number on the screen '
-              'of a live reply — there is none here. Name the target instead.',
+          'step ${index + 1} names an `item`, which only works on the screen '
+              'of a live app. Name the target instead.',
         );
       }
       steps.add({
@@ -3485,8 +3485,8 @@ class PreviewsCore extends PluginCore {
   /// and a list in `--json` is not where a person reading a terminal looks.
   static String _reportedWhileRendering(int count) =>
       'The picture was taken, but the entry reported '
-      '${count == 1 ? 'an error' : '$count errors'} while it rendered — '
-      'see `errors`, or `inspect` it.';
+      '${count == 1 ? 'an error' : '$count errors'} while it rendered. '
+      'See `errors`, or `inspect` it.';
 
   /// Knob values, however they arrived.
   ///

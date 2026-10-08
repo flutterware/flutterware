@@ -721,8 +721,8 @@ class ScenariosRunner {
       if (compared.state.isFinding && (hazardous || reordered != null)) {
         onProgress?.call(
           hazardous
-              ? 'replaying "$name" again, alone: it drew work nothing '
-                    'announced · $count'
+              ? 'replaying "$name" again, alone: it drew unannounced work '
+                    '· $count'
               : 'replaying "$name" again, alone: only its events changed '
                     'order · $count',
         );

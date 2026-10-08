@@ -7,8 +7,7 @@
 ///
 ///     cd app && fvm dart run tool/spike/closure_cost.dart [app|fixtures/probe_app]
 ///
-/// Findings land in docs/superpowers/specs/ — this file is the instrument,
-/// not the product.
+/// This file is a measuring instrument; nothing ships from it.
 library;
 
 import 'dart:convert';

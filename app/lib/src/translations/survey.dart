@@ -3,8 +3,6 @@
 /// Pure Dart and pure data: it is handed what a run captured and what the
 /// catalog files say, and answers questions about the pair. No IO, so the
 /// export, the panel and a test all reason about the same object.
-///
-/// Design: `2026-08-18-translation-index-design.md`.
 library;
 
 /// One catalog's files, loaded — locale to key to value.

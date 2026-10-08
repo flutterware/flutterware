@@ -191,7 +191,7 @@ class VideoEncoder {
     if (width != _width || height != _height) {
       throw StateError(
         'frame ${_frames + 1} is ${width}x$height, but the stream was opened '
-        'at ${_width}x$_height — raw video carries no size, so a frame that '
+        'at ${_width}x$_height: raw video carries no size, so a frame that '
         'changes it corrupts everything after it',
       );
     }

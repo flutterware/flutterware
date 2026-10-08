@@ -312,7 +312,7 @@ void main() {
 
         expect(result.ok, isFalse);
         expect(result.error, contains('no item 9'));
-        expect(result.error, contains('it had 2'));
+        expect(result.error, contains('which had 2 items'));
       },
     );
 

@@ -357,9 +357,9 @@ Future<T> reloadWhenFree<T>(
       // down under this reload, and only the next one starts a fresh one.
       if (_compilerGone.hasMatch(said)) {
         throw WorldScriptReloadFailed(
-          "The script's compiler went down during this reload: two reloads "
-          'compiling at once — a hot reloader of your own inside the script, '
-          'say — can take it down. Reload again, and a fresh one compiles '
+          "The script's compiler stopped during this reload. Two reloads "
+          'compiling at once can stop it, for example when the script runs a '
+          'hot reloader of its own. Reload again, and a new compiler compiles '
           'it.\n$said',
           refused: true,
         );
@@ -371,8 +371,8 @@ Future<T> reloadWhenFree<T>(
       throw WorldScriptReloadFailed(
         [
           error.code == RPCErrorKind.kIsolateIsReloading.code
-              ? 'The script was still reloading after ${busyFor.inSeconds} s '
-                    '— another reloader running inside it, most likely.'
+              ? 'The script was still reloading after ${busyFor.inSeconds} s. '
+                    'Most likely another reloader is running inside it.'
               : 'The VM would not reload the script, and still would not '
                     'after ${busyFor.inSeconds} s.',
           '${error.message} (${error.code})',

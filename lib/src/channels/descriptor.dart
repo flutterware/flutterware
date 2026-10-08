@@ -1,7 +1,7 @@
 /// What a panel inside a running app declares to everything outside it.
 ///
-/// A panel that renders its own widgets is invisible here by construction —
-/// widget mode, Decision 1 of the design. A panel that declares *this* is
+/// A panel that renders its own widgets (widget mode) is invisible here by
+/// construction. A panel that declares *this* is
 /// rendered by the cockpit, by `fw` and by MCP from one description, and by
 /// the in-app overlay from the same one, so the two surfaces cannot drift.
 ///
@@ -12,9 +12,6 @@
 /// guest reports for a demo's parameters, already rendered by a panel that
 /// switches on [KnobKind]. What is added here is the two shapes neither
 /// covered: an append-only **feed**, and a **state** snapshot.
-///
-/// Design: `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`
-/// (§ Decision 3).
 library;
 
 import '../plugins/action.dart';

@@ -19,8 +19,6 @@ import 'cues.dart';
 /// were; the truth of a reel is whatever the live instances do when driven.
 /// An edit that inserts time changes when later beats happen and not which
 /// ones — so anything comparing two passes compares the *sequence*.
-///
-/// Design: `docs/superpowers/specs/2026-09-08-scenario-reel-design.md`.
 class Take {
   Take({
     required this.scenario,

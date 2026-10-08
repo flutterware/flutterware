@@ -449,7 +449,7 @@ class _ExportSplitButton extends StatelessWidget {
           Tooltip(
             message: measure
                 ? 'Re-run the suite, then measure how long every string '
-                      'can get — several extra passes'
+                      'can get. This takes several extra passes.'
                 : 'Re-run the suite and refresh the pictures',
             child: Tappable(
               onTap: onExport,
@@ -543,9 +543,9 @@ class _NoExportYet extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'No export yet. The table is read straight from your catalog '
-              'files — running the export adds a picture of each string in '
-              'place, and a folder you can send a translator.',
+              'No export yet. The table comes straight from your catalog '
+              'files. Run the export to add a picture of each string in '
+              'place, and a folder you can send to a translator.',
               style: context.type.bodySmall,
             ),
           ),
@@ -598,9 +598,9 @@ class _NothingTraced extends StatelessWidget {
               spacing: FwSpacing.xs,
               children: [
                 Text(
-                  'The export ran, but nothing asked a catalog for a string — '
-                  'so no picture could be attached to a key. The seam is not '
-                  'wired.',
+                  'The export ran, but nothing asked a catalog for a string, '
+                  'so no picture could be attached to a key. Scenario runs '
+                  'need this hook into your translation lookups:',
                   style: context.type.bodySmall,
                 ),
                 SelectableText(
@@ -608,9 +608,10 @@ class _NothingTraced extends StatelessWidget {
                   style: context.type.mono.copyWith(color: colors.mut),
                 ),
                 Text(
-                  'Hand that to whatever your app already funnels its '
-                  "translation reads through, in the scenarios' test setup, "
-                  'and the next export fills the column in.',
+                  'Call it from the function your app reads its '
+                  "translations through, in your scenario folder's "
+                  'flutter_test_config.dart. The next export fills in this '
+                  'column.',
                   style: context.type.bodySmall.copyWith(color: colors.mut),
                 ),
               ],
@@ -1220,8 +1221,8 @@ String _maxLengthSentence(ExportedMaxLength measured, List<String> over) {
   var base = measured.bounded
       ? 'Measured: ${measured.chars} characters fit$where; '
             '${measured.clipsChars} were cut off.'
-      : 'Measured: at least ${measured.chars} characters fit$where — '
-            'nothing tried was long enough to clip.';
+      : 'Measured: at least ${measured.chars} characters fit$where. '
+            'Nothing tried was long enough to clip.';
   if (over.isEmpty) return base;
   return '$base The ${over.join(', ')} text is already longer than the limit.';
 }
@@ -1392,8 +1393,8 @@ class _Detail extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: FwSpacing.md),
               child: Text(
-                'Nothing for $locale, so the $template text is what a reader '
-                'of that language sees.',
+                'No $locale text, so readers of that language see the '
+                '$template text.',
                 style: context.type.bodySmall.copyWith(color: colors.amber),
               ),
             ),
@@ -1430,8 +1431,7 @@ class _Detail extends StatelessWidget {
                       ),
                       const SizedBox(height: FwSpacing.xs),
                       Text(
-                        'The clip, photographed: the padded string cut off '
-                        'in place.',
+                        'The padded string, cut off where it appears.',
                         style: context.type.micro.copyWith(color: colors.mut),
                       ),
                     ],

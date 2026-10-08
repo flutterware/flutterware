@@ -124,8 +124,8 @@ void _audit(List<TranscriptUtterance> utterances) {
           badge: 'nothing to read',
           message:
               'This ${utterance.role ?? 'control'} reaches a screen reader '
-              'with no label, value, tooltip or hint — it is announced as '
-              'only "${utterance.role ?? 'unknown'}".',
+              'with no label, value, tooltip or hint, so it is announced only '
+              'as "${utterance.role ?? 'unknown'}".',
         ),
       );
       continue;
@@ -138,7 +138,7 @@ void _audit(List<TranscriptUtterance> utterances) {
           badge: 'symbol label',
           message:
               'The label has no words, so a screen reader falls back to the '
-              'symbol\'s own name — "☕" is read as "hot beverage". Give the '
+              'symbol\'s own name: "☕" is read as "hot beverage". Give the '
               'control a spoken label.',
         ),
       );
@@ -151,8 +151,8 @@ void _audit(List<TranscriptUtterance> utterances) {
           severity: TranscriptSeverity.warning,
           badge: 'role in label',
           message:
-              'The label already says "$role", and the reader appends the '
-              'role itself — announced as "$words, $role".',
+              'The label already says "$role", and the reader adds the role '
+              'again, so it is announced as "$words, $role".',
         ),
       );
     }
@@ -165,9 +165,10 @@ void _audit(List<TranscriptUtterance> utterances) {
             severity: TranscriptSeverity.warning,
             badge: 'duplicate of ${first.index}',
             message:
-                'Announced exactly like utterance ${first.index} — a listener '
-                'cannot tell the two controls apart. Distinguish the labels '
-                '("$words" twice says which kind, not which one).',
+                'Announced exactly like utterance ${first.index}, so a '
+                'listener cannot tell the two controls apart. Give them '
+                'distinct labels ("$words" twice says which kind of control, '
+                'not which one).',
           ),
         );
       } else {

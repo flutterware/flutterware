@@ -52,7 +52,7 @@ import 'harness.dart' show scenarioFileSafe, scenarioNameMax;
 ///
 /// `scenario` is `testWidgets` plus a [ScenarioTester] — so every scenario is
 /// an ordinary widget test, runnable by a bare `flutter test` with no daemon
-/// and no GUI. Design: `docs/superpowers/specs/2026-07-30-scenarios-design.md`.
+/// and no GUI.
 ///
 /// ```dart
 /// scenario('Onboarding', (s) async {
@@ -405,8 +405,8 @@ String? guessedLandingNotice(String scenario, Map<String, int> guessed) {
       step(label, turn),
   ];
   return '"$scenario": ${steps.join(', ')} finished drawing only after '
-      'turns of the real event loop, on work nothing announced. On a slower '
-      'machine that work can land after the step has moved on.';
+      'turns of the real event loop, on work the app did not announce. On a '
+      'slower machine that work can land after the step has moved on.';
 }
 
 /// Which scenarios have already had their overruled `record` reported.
@@ -440,13 +440,12 @@ String? recordOverriddenMessage(
 ) {
   if (run != ScenarioNetwork.record) return null;
   if (own == null || own == ScenarioNetwork.record) return null;
-  return '"$scenario" states `network: ${own.name}`, so this `record` run '
-      'left it alone and wrote nothing for it. Nearest wins: a '
-      '`scenario(network: ...)` is nearer than a run, and a run only reaches '
-      'past a folder and the project. To record it, move the declaration up '
-      'to the folder — `runScenarios(network: ...)` in '
-      '`flutter_test_config.dart` — which is the altitude a `--network=` can '
-      'reach.';
+  return '"$scenario" sets `network: ${own.name}`, so this `record` run '
+      'skipped it and recorded nothing for it. The nearest setting wins: a '
+      '`scenario(network: ...)` overrides the run, and a run only overrides '
+      'the folder and the project. To record it, move the setting to the '
+      'folder with `runScenarios(network: ...)` in `flutter_test_config.dart`, '
+      'where `--network=` can override it.';
 }
 
 /// Which scenarios have already been told their stated mode did nothing.
@@ -489,17 +488,15 @@ String? inertNetworkMessage(
   required int requests,
 }) {
   if (!stated || requests > 0 || reach == ScenarioNetwork.off) return null;
-  return '"$scenario" states `network: ${reach.name}` and then made no http '
-      'request at all, so the mode did nothing. A request reaches the funnel '
-      'only if something actually opens an `HttpClient`: `HttpOverrides` '
-      "catches the app's own client and everything built on it — "
-      '`package:http`, `dio` — and `NetworkImage` is caught alongside it. '
-      'What is not caught is a layer that answers before opening one. A '
-      '`CachedNetworkImage` is the common case: its bytes come from a '
-      '`BaseCacheManager`, and the no-op manager a project writes because the '
-      'real one cannot run on a test binding fails every url without opening '
-      'anything. A manager whose `getFileStream` is a plain `HttpClient` '
-      'passthrough is caught like everything else.';
+  return '"$scenario" sets `network: ${reach.name}` but made no http '
+      'request, so the setting had no effect. Only a request that opens an '
+      "`HttpClient` is caught. That covers the app's own client, everything "
+      'built on it (`package:http`, `dio`) and `NetworkImage`. A layer that '
+      'answers without opening a client is not caught. The common case is '
+      '`CachedNetworkImage`: its bytes come from a `BaseCacheManager`, and '
+      'the no-op manager a project writes for tests fails every url without '
+      'opening anything. A manager whose `getFileStream` passes through to a '
+      'plain `HttpClient` is caught like any other request.';
 }
 
 ScenarioNetwork? get _scenarioNetworkFromHost {
@@ -821,8 +818,6 @@ final _tickingSinceLastCapture = <String>{};
 /// unmeasurable past its first break. Installed inside the test body, over the
 /// binding's own handler, and restored before the body ends; anything that is
 /// not an overflow report still goes where it always went.
-///
-/// Design: `2026-08-19-translation-max-lengths-design.md`.
 VoidCallback? _installExpansionOverflowFilter() {
   if (TranslationIndex.expandPercent == null) return null;
   var prior = FlutterError.onError;
@@ -993,16 +988,16 @@ class _SplitPlan {
         : '${quoted.take(quoted.length - 1).join(', ')} and ${quoted.last}';
     if (_cursor >= stated.length) {
       throw ScenarioFilmRefusal(
-        '`$scenario` splits into $listed, and a film is one path. Name it: '
-        "--branch='${names.first}'. Nested splits take one --branch each, "
-        'outermost first.',
+        '`$scenario` splits into $listed, and a film follows one path. Pick '
+        "one with --branch='${names.first}'. Nested splits take one --branch "
+        'each, outermost first.',
       );
     }
     var wanted = stated[_cursor];
     var index = names.indexOf(wanted);
     if (index < 0) {
       throw ScenarioFilmRefusal(
-        '`$scenario` has no branch called `$wanted` here — it splits into '
+        '`$scenario` has no branch called `$wanted` here. It splits into '
         '$listed.',
       );
     }
@@ -1795,9 +1790,9 @@ class ScenarioTester {
       }
       if (keys.held case var key?) {
         throw ScenarioTargetError(
-          '${key.debugName} is already held down — pressed through '
+          '${key.debugName} is already held down: it was pressed through '
           '`s.tester` and not released. `s.key("$chord")` presses every key '
-          'of its chord itself: release it first, or leave it out of the '
+          'of its chord itself, so release it first or leave it out of the '
           'chord.',
         );
       }
@@ -1805,11 +1800,10 @@ class ScenarioTester {
       if (!handled && nothingFocused) {
         throw ScenarioTargetError(
           '`s.key("$chord")` went nowhere: nothing in the app holds focus, so '
-          "the keystroke dispatched from the root scope — above the app's "
-          '`Shortcuts` and everything else that would have taken it. Give the '
-          'app a focus first: `s.tap` a control, `s.enterText` into a field, '
-          'or `autofocus: true` on the widget the shortcut belongs to. The '
-          'keys were pressed and released, so nothing is stuck.',
+          "none of the app's `Shortcuts` received it. Give the app focus "
+          'first: `s.tap` a control, `s.enterText` into a field, or set '
+          '`autofocus: true` on the widget the shortcut belongs to. The keys '
+          'were pressed and released, so nothing is stuck.',
         );
       }
     },
@@ -2959,11 +2953,10 @@ class ScenarioTester {
     coveredEscapeHatch:
         ' Use `s.tester` if you meant to hit whatever is on top.',
     blankScreenHint:
-        'Nothing has rendered — there is no text on screen at all, so this '
-        'is not something `s.scrollTo` can reach. A scenario runs under fake '
-        'time: anything the app waits on for real — a database, a socket, an '
-        'http call — never completes between pumps. Give it a turn with '
-        '`await s.runAsync(() async { … })`.',
+        'There is no text on screen at all, so `s.scrollTo` will not find it. '
+        'A scenario runs under fake time, so anything the app waits on for '
+        'real (a database, a socket, an http call) never completes between '
+        'pumps. Give it a turn with `await s.runAsync(() async { … })`.',
   );
 
   /// The actionability ladder every pointer verb climbs — shared with the
@@ -3000,10 +2993,10 @@ class ScenarioTester {
     if (!_keyboard.up || center.dy < _keyboardTop) return null;
     return '$described is behind the software keyboard, which covers the '
         'bottom ${_keyboard.height.round()} points of the screen, so '
-        '`s.$verb` at its centre lands on the keyboard instead. If the app is '
-        'meant to reach this while the keyboard is up, that is a layout '
-        'problem: a `Scaffold` that resizes moves it out of the way. To carry '
-        'the flow on: `await s.keyboard.dismiss()`.';
+        '`s.$verb` at its centre lands on the keyboard instead. If the app '
+        'should reach this while the keyboard is up, the layout needs fixing: '
+        'a `Scaffold` that resizes moves it out of the way. To continue the '
+        'flow, call `await s.keyboard.dismiss()` first.';
   }
 
   /// Where the keyboard's top edge is, in the logical pixels every box in a

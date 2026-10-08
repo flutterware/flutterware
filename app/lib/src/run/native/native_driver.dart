@@ -23,8 +23,6 @@ import 'dart:convert';
 /// downgrade would reintroduce the one failure this whole surface exists to
 /// prevent — acting on something other than what was addressed, and reporting
 /// success.
-///
-/// Measured before it was designed: `2026-08-12-run-native-fallback-spike-findings.md`.
 abstract class NativeDriver {
   /// What this driver drives — `android`, `ios-simulator`, `macos`. Rides
   /// every observation so an agent reading a reply knows which rules apply
@@ -358,7 +356,7 @@ class NativeTarget {
       case {'key': _}:
         throw NativeRefusal(
           'A key is a Flutter widget property, and the native layer sees only '
-          'what the platform publishes — text, labels and roles. Target this '
+          'what the platform publishes: text, labels and roles. Target this '
           'by its visible text, or drop `layer` to address the widget tree.',
           failure: 'unsupported',
         );
@@ -366,7 +364,7 @@ class NativeTarget {
         throw NativeRefusal(
           'A tooltip is a Flutter widget property, and the native layer sees '
           'only what the platform publishes. On a native tree the tooltip is '
-          "usually the element's label — try it as bare text — or drop "
+          "usually the element's label, so try it as bare text, or drop "
           '`layer` to address the widget tree.',
           failure: 'unsupported',
         );
@@ -379,8 +377,8 @@ class NativeTarget {
         );
       default:
         throw NativeRefusal(
-          'not a native target: $spec — a bare string is visible text, or one '
-          'of {"text"}, {"label"}, {"containing"}, {"role"}, '
+          'not a native target: $spec. Use a bare string for visible text, or '
+          'one of {"text"}, {"label"}, {"containing"}, {"role"}, '
           '{"nth": {"target", "index"}}, {"at": {"x", "y"}}.',
           failure: 'unsupported',
         );
@@ -428,7 +426,7 @@ class NativeTarget {
     }
     throw NativeRefusal(
       'the native layer sees ${matches.length} things matching $description. '
-      'Pick one with {"nth": {"target": …, "index": …}} — they are, in order: '
+      'Pick one with {"nth": {"target": …, "index": …}}. In order, they are: '
       '${matches.map((node) => node.describe()).join(', ')}.',
       failure: 'multiple',
     );
@@ -441,9 +439,9 @@ class NativeTarget {
         .take(40)
         .join(', ');
     if (seen.isEmpty) {
-      return ' It published no labelled elements at all — a screen drawn '
-          'entirely in a platform view or a canvas. The screenshot is the only '
-          'reading of it, and {"at": {"x": …, "y": …}} the only way to tap it.';
+      return ' It published no labelled elements at all, as happens with a '
+          'screen drawn entirely in a platform view or a canvas. Only the '
+          'screenshot shows it, and only {"at": {"x": …, "y": …}} can tap it.';
     }
     return ' It sees: $seen.';
   }

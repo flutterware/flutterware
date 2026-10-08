@@ -24,8 +24,8 @@ void Function(String route) registerDriveNavigator(ShellController shell) {
     if (address == null) {
       throw TargetError(
         TargetFailure.notFound,
-        '`$route` is not a flutterware address — this app navigates by the '
-        '`fw://` grammar: fw:///worktrees/<worktree>/<plugin>/<segments…>. '
+        '`$route` is not a flutterware address. This app navigates by '
+        '`fw://` addresses: fw:///worktrees/<worktree>/<plugin>/<segments…>. '
         'The current screen is at `${shell.address}`.',
       );
     }
@@ -33,7 +33,7 @@ void Function(String route) registerDriveNavigator(ShellController shell) {
     if (shell.go(address) == GoResult.worktreeUnknown) {
       throw TargetError(
         TargetFailure.notFound,
-        '`$route` names no worktree git knows here — it reports: '
+        '`$route` names no worktree git knows here. Git reports: '
         '${shell.worktrees.map((w) => w.name).join(', ')}. '
         'The current screen is at `${shell.address}`.',
       );
@@ -137,8 +137,8 @@ Address _canonicalPlugin(ShellController shell, Address address) {
   throw TargetError(
     TargetFailure.notFound,
     '`$plugin` is not a plugin this worktree declares'
-    '${matches.isEmpty ? '' : ', and ${matches.join(', ')} all end in it'} — '
-    'it has: ${session.plugins.map((p) => p.id).join(', ')}. '
+    '${matches.isEmpty ? '' : ' (${matches.join(', ')} all end in it)'}. '
+    'It declares: ${session.plugins.map((p) => p.id).join(', ')}. '
     'The current screen is at `${shell.address}`.',
   );
 }

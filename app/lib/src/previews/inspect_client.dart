@@ -71,9 +71,8 @@ class InspectPatience {
 /// `settledKnobs` beside `_readKnobs`, with nothing keeping the pair honest and
 /// three more reads about to be duplicated the same way.
 ///
-/// The rule this encodes, from
-/// `docs/superpowers/specs/2026-07-29-ui-catalog-inspection-panel.md`: **the
-/// shared unit is the guest extension and its model, not the `PluginAction`.**
+/// The rule this encodes: **the shared unit is the guest extension and its
+/// model, not the `PluginAction`.**
 /// The panel cannot call an action — it must inspect the guest that is on
 /// screen, not a re-render of it — so parity has to live below the action
 /// layer, and this is where.

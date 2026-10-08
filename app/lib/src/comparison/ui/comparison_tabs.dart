@@ -199,8 +199,7 @@ class _ComparisonTabsState extends State<ComparisonTabs>
             // picked a base from the strip, which outranks both. The file diff
             // resolves its base as `fw.changes(base:)` first and inference after; a
             // comparison that only ever inferred would compare against `master` on
-            // a screen whose other tab says `develop`, and the design's
-            // one-definition rule exists precisely to stop that.
+            // a screen whose other tab says `develop`.
             baseRef:
                 _baseOverride ??
                 widget.shell.manifestFor(widget.worktree)?.changes?.base,
@@ -212,8 +211,8 @@ class _ComparisonTabsState extends State<ComparisonTabs>
         _unavailable = _baseOverride == null
             ? 'This worktree is not in a git repository with a base to '
                   'compare against.'
-            : 'Nothing called "$_baseOverride" here — git cannot resolve it '
-                  'to a commit to compare against.';
+            : 'Git cannot resolve "$_baseOverride" to a commit to compare '
+                  'against.';
         return;
       }
       _controller = ComparisonController(environment)..addListener(_onChange);
@@ -492,7 +491,7 @@ class _BaseControl extends StatelessWidget {
           onSelected: overridden ? () => onRebase(null) : null,
         ),
         MenuItem(
-          'HEAD~1 — the previous commit',
+          'HEAD~1 (the previous commit)',
           icon: overridden && _isPrevious ? Icons.check : null,
           onSelected: () => onRebase('HEAD~1'),
         ),
@@ -504,8 +503,9 @@ class _BaseControl extends StatelessWidget {
       ],
       builder: (context, controller) => Tooltip(
         message:
-            'This worktree as it sits on disk — uncommitted and untracked '
-            'included — against the merge base with ${environment.baseLabel}.',
+            'This worktree as it is on disk, including uncommitted and '
+            'untracked files, compared with its merge base with '
+            '${environment.baseLabel}.',
         child: Tappable(
           onTap: controller.toggle,
           child: Padding(
@@ -599,7 +599,7 @@ class _RefDialogState extends State<_RefDialog> {
               style: context.type.body,
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'any ref, tag or commit — origin/main, v2.1, HEAD~3',
+                hintText: 'Any ref, tag or commit: origin/main, v2.1, HEAD~3',
                 hintStyle: context.type.body.copyWith(color: colors.mut2),
                 border: OutlineInputBorder(
                   borderSide: BorderSide(color: colors.line),
@@ -609,8 +609,8 @@ class _RefDialogState extends State<_RefDialog> {
             ),
             const Gap(FwSpacing.md),
             Text(
-              'The comparison runs against the merge base of HEAD and what '
-              'you name — the point where this branch left it.',
+              'The comparison runs against the merge base of HEAD and the '
+              'ref you name: the commit where this branch left it.',
               style: context.type.caption.copyWith(color: colors.mut),
             ),
             const Gap(FwSpacing.lg),
@@ -981,8 +981,8 @@ class _ReceiptStrip extends StatelessWidget {
             const Gap(FwSpacing.sm),
             Tooltip(
               message:
-                  'The worktree or its base has moved since this run — the '
-                  'rows may no longer describe the code on disk.',
+                  'The worktree or its base has changed since this run. The '
+                  'rows may no longer match the code on disk.',
               child: Text(
                 '· stale',
                 style: context.type.micro.copyWith(color: colors.amber),
@@ -1021,7 +1021,7 @@ class _ReceiptStrip extends StatelessWidget {
       var lasted = started == null
           ? ''
           : ' after ${DateTime.now().difference(started).inSeconds}s';
-      return 'stopped$lasted — partial';
+      return 'stopped$lasted, partial results';
     }
     var last = half.lastRun;
     if (last == null) return '';

@@ -177,7 +177,8 @@ class StoreShotsReport {
   /// A narrowed export writes one listing or one locale, and the sets it did
   /// not touch are still on disk and still true. Replacing the whole file
   /// would make `export --listing=play` erase the panel's knowledge of the App
-  /// Store half, which is the same mistake §5's replace rule fixes on disk.
+  /// Store half. On disk the same rule holds: an export replaces exactly what
+  /// it produced.
   StoreShotsReport merge(Iterable<StoreShotsSet> updated) {
     var byKey = {for (var set in sets) set.key: set};
     for (var set in updated) {

@@ -462,7 +462,7 @@ class ComparisonRunner {
     // ids, the paths and the one file each entry starts from. A tear-off of
     // `decide` sends its receiver, which is why the receiver is plain data.
     onProgress?.call(
-      'deciding what changed — hashing ${common.length} '
+      'deciding what changed: hashing ${common.length} '
       '${common.length == 1 ? 'closure' : 'closures'}',
     );
     var decided = await Isolate.run(

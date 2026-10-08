@@ -1,12 +1,11 @@
 // Styles: a text style is a token that bundles the text subset of the
 // table, applied whole and overridden per property.
 //
-// The file's rule is the one the plan decided (§4.3): what the node spells
-// beside `style:` is an override, what it leaves out is inherited, and a
-// property spelled equal to the style's is inherited — there is no flag.
-// So the graders here are the round trip on both sides of that line, the
-// constructor resolving the same way a parsed node does, and the editor's
-// three doors: apply, override (any edit), reset.
+// The file's rule: what the node spells beside `style:` is an override, what it
+// leaves out is inherited, and a property spelled equal to the style's is
+// inherited — there is no flag. So the graders here are the round trip on both
+// sides of that line, the constructor resolving the same way a parsed node
+// does, and the editor's three doors: apply, override (any edit), reset.
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/scene.dart';
@@ -178,7 +177,7 @@ final sceneTokens = [
 
     test('takes its own style, and refuses what is not one', () {
       // A literal is a node's OWN type, and legal: it is the only way to
-      // spell a treatment nothing else shares (master plan §4.5).
+      // spell a treatment nothing else shares.
       var parsed = _parse(
         _scene.replaceAll(
           'style: t.title',
@@ -362,7 +361,7 @@ final sceneTokens = [
     await tester.pump();
     // ignore: avoid_print
     expect(
-      find.byTooltip('Typed over display — click to take its value back'),
+      find.byTooltip('Overrides display. Click to use its value again.'),
       findsOneWidget,
     );
     expect(

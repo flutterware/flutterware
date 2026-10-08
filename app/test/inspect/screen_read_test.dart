@@ -5,8 +5,7 @@ import 'package:flutterware_app/src/inspect/screen_read.dart';
 
 /// The one shaping the three surfaces share. Run reads a live app's tree,
 /// previews a tree it just rendered, scenarios one off disk — and from here
-/// on there is a single implementation, which is the whole of what "unified"
-/// means in `2026-08-13-screen-handback-design.md`.
+/// on there is a single implementation.
 void main() {
   /// A screen with two rows of controls under a scaffold's worth of wrappers,
   /// so the filtered and unfiltered readings differ.

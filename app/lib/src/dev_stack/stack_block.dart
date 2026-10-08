@@ -39,11 +39,9 @@ enum DevStackForm {
 ///
 /// ## The layout, and what it is answering
 ///
-/// See `docs/superpowers/specs/2026-08-11-dev-stack-ui-study.md` for the six
-/// rules — one word one colour, answer before evidence, anatomical constancy,
-/// the safe direction gets the weight — and
-/// `2026-08-12-dev-stack-ui-study-2.md` for the pass that turned the card into
-/// a strip. Two rules were added there:
+/// The rules: one word one colour, answer before evidence, anatomical
+/// constancy, the safe direction gets the weight. Two more came with the pass
+/// that turned the card into a strip:
 ///
 /// - **The tint is the frame.** State was carried by a 3px rail against neutral
 ///   chrome, and the card existed mostly to give the rail an edge to be. A wash
@@ -533,7 +531,7 @@ class _DevStackBlockState extends State<DevStackBlock> {
       return FwActionButton(
         label: 'Tear down',
         tooltip: _core.stopIsDestructive
-            ? 'Asks first — this destroys data'
+            ? 'Asks first, because this destroys data'
             : null,
         onPressed: off ? null : _stop,
       );
@@ -668,8 +666,8 @@ class _StateDot extends StatelessWidget {
 ///
 /// The first draft set these as plain ink at body size, which is the same
 /// treatment as the sentence above them — you found out they were buttons by
-/// hovering. The rule underneath is the second finding of the study: an
-/// affordance you have to discover is not an affordance.
+/// hovering. The rule underneath: an affordance you have to discover is not
+/// an affordance.
 class _Link extends StatelessWidget {
   const _Link(this.label, {this.enabled = true, required this.onTap});
 

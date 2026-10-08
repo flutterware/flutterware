@@ -445,7 +445,7 @@ class _PackageShaders extends ChangeNotifier implements SceneShaders {
         uniforms: uniforms,
         error: samplers.isEmpty
             ? null
-            : 'uses a sampler (${samplers.join(', ')}) — a scene cannot feed '
+            : 'uses a sampler (${samplers.join(', ')}): a scene cannot feed '
                   'one yet',
       );
     } on Object catch (error) {

@@ -12,8 +12,6 @@
 /// the app's own product code; this plugin holds no state and makes no
 /// decisions. A plugin that reimplements the feature it is meant to drive can
 /// pass every test while the app stays broken.
-///
-/// Step 7 of `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
 library;
 
 import 'dart:async';

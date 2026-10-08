@@ -264,8 +264,8 @@ class FakeKeyboardPainter extends CustomPainter {
     );
 
     // The bands, top to bottom. The suggestion strip is inside the measured
-    // number rather than beside it — see the design's *Not in v1* — and so is
-    // the home indicator, which is why the rows stop short of the bottom.
+    // number rather than beside it, and so is the home indicator, which is
+    // why the rows stop short of the bottom.
     //
     // **A keypad has no strip**, and that is not a drawing decision: a digit
     // pad predicts nothing, which is most of why it is the shorter keyboard

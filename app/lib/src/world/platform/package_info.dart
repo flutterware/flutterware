@@ -4,8 +4,8 @@ import '../guest_platform.dart';
 
 /// `package_info_plus` — the app's own name and version — answered from the
 /// package's pubspec. The version has to be the true one: a server that
-/// refuses outdated apps checks it, and a guest reporting `1.0.0` was refused
-/// (`2026-09-25-worlds-guest-phase1-findings.md`, finding 8).
+/// refuses outdated apps checks it, and a guest reporting `1.0.0` was
+/// refused.
 void answerPackageInfo(GuestPlatform platform, {required String package}) {
   var pubspec = File('$package/pubspec.yaml').readAsStringSync();
   String? field(String name) => RegExp(

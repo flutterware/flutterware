@@ -165,7 +165,7 @@ void main() {
 
     // Inspectable, not reloadable: the launcher is gone, and the header says
     // so rather than offering a reload that could not work.
-    expect(find.text('no launcher — cannot reload'), findsOneWidget);
+    expect(find.text('flutter run ended, cannot reload'), findsOneWidget);
     // The last picture the session took, read as the app's screen, with its
     // tree beside it.
     expect(find.byType(RunScreenPicture), findsOneWidget);

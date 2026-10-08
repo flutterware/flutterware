@@ -11,8 +11,6 @@
 /// which is why [translationExportVersion] exists and why [TranslationExport.read]
 /// refuses a major it does not know rather than handing back a half-decoded
 /// object.
-///
-/// Design: `2026-08-18-translation-index-design.md`.
 library;
 
 import 'dart:convert';
@@ -185,7 +183,7 @@ class ExportedShot {
 /// [clipsChars] present means the bound is a real limit — a longer string was
 /// rendered and clipped. Absent, the key never clipped at anything tried and
 /// [chars] reads as "at least": every surface must render it that way, never
-/// as a limit. Design: `2026-08-19-translation-max-lengths-design.md`.
+/// as a limit.
 class ExportedMaxLength {
   const ExportedMaxLength({
     required this.chars,

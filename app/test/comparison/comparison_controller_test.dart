@@ -26,8 +26,8 @@ void main() {
   tearDown(() => controller.dispose());
 
   group('nothing runs on its own', () {
-    // The whole reversal of §13.11: the machinery starts on the button, never
-    // on a mount, a tab focus or an address arrival.
+    // The machinery starts on the button, never on a mount, a tab focus or an
+    // address arrival.
     test('building it touches nothing', () async {
       await pumpEventQueue();
 

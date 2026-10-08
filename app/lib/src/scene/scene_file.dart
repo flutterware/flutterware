@@ -111,7 +111,7 @@ class SceneRefusal {
   final String message;
 
   @override
-  String toString() => 'line $line: $construct — $message';
+  String toString() => 'line $line, $construct: $message';
 }
 
 /// What a parse produced: a document, or the complete list of reasons there
@@ -161,7 +161,7 @@ String emitSceneFile(
   if (doc.root.name != 'root') {
     throw ArgumentError(
       'the root node is the `root` field, so its name '
-      'must be "root" — got "${doc.root.name}"',
+      'must be "root", got "${doc.root.name}"',
     );
   }
   // The tokens formal is written when the scene reads a token, or when the
@@ -221,7 +221,7 @@ ${_imports(imports, needsArgs: _placesSomething(doc) || hasTokensFormal)}
     }
     if (!isValidNodeName(n.name) || !seen.add(n.name)) {
       throw ArgumentError(
-        '"${n.name}" is not a usable node name — names are '
+        '"${n.name}" is not a usable node name. Names are '
         'field names: valid Dart identifiers, unique in the scene',
       );
     }
@@ -852,7 +852,7 @@ class _Parser {
           refuse(
             decl.offset,
             'extends',
-            'a scene file holds one scene class and its motions — a motion '
+            'a scene file holds one scene class and its motions: a motion '
                 'is `class ${decl.namePart.typeName.lexeme}(super.scene) '
                 'extends SceneMotion<${found.namePart.typeName.lexeme}>`',
           );
@@ -893,7 +893,7 @@ class _Parser {
         refuse(
           member.offset,
           'constructor',
-          'parameters live in the class header — '
+          'parameters live in the class header: '
               "`class ${className!}({final String title = '…'})`",
         );
         continue;
@@ -902,7 +902,7 @@ class _Parser {
         refuse(
           member.offset,
           'member',
-          'the scene class holds only node fields — '
+          'the scene class holds only node fields: '
               '`late final <name> = <Node>(…);`',
         );
         continue;
@@ -915,7 +915,7 @@ class _Parser {
           member.offset,
           'no initializer',
           _params.containsKey(name)
-              ? '"$name" is a parameter — the header already declares its '
+              ? '"$name" is a parameter: the header already declares its '
                     'field; there is nothing to add below'
               : '`$name` must be initialized with a node',
         );
@@ -925,7 +925,7 @@ class _Parser {
         refuse(
           variable.offset,
           'duplicate name',
-          '"$name" is already declared — parameters and nodes share one '
+          '"$name" is already declared: parameters and nodes share one '
               'namespace, and a name is an identity',
         );
         continue;
@@ -963,7 +963,7 @@ class _Parser {
           refuse(
             offset,
             'root as child',
-            '`root` is the tree — it cannot be placed inside itself',
+            '`root` is the tree: it cannot be placed inside itself',
           );
           continue;
         }
@@ -980,7 +980,7 @@ class _Parser {
           refuse(
             offset,
             'placed twice',
-            '"$ref" is already placed — a node has exactly one parent',
+            '"$ref" is already placed: a node has exactly one parent',
           );
           continue;
         }
@@ -1002,15 +1002,15 @@ class _Parser {
         refuse(
           declared[entry.key]!,
           'orphan node',
-          '"${entry.key}" is declared but never placed in a children list — '
-              'the next save would silently drop it',
+          '"${entry.key}" is declared but never placed in a children list, '
+              'so the next save would drop it',
         );
       } else if (!reachable.contains(entry.value)) {
         refuse(
           declared[entry.key]!,
           'unreachable node',
           '"${entry.key}" is placed, but its parent chain never reaches '
-              '`root` — the next save would silently drop it',
+              '`root`, so the next save would drop it',
         );
       }
     }
@@ -1037,7 +1037,7 @@ class _Parser {
         refuse(
           directive.offset,
           'directive',
-          'a scene file imports and nothing else — no part, export or '
+          'a scene file imports and nothing else: no part, export or '
               'library declaration',
         );
         continue;
@@ -1048,7 +1048,7 @@ class _Parser {
           refuse(
             directive.offset,
             'authoring import',
-            'the authoring import is written plain — $sceneAuthoringImport',
+            'the authoring import is written plain: $sceneAuthoringImport',
           );
           continue;
         }
@@ -1061,7 +1061,7 @@ class _Parser {
       refuse(
         0,
         'missing import',
-        'a scene file is Dart, so it imports its vocabulary — '
+        'a scene file is Dart, so it imports its vocabulary: '
             '$sceneAuthoringImport',
       );
     }
@@ -1078,7 +1078,7 @@ class _Parser {
       refuse(
         pc.constKeyword!.offset,
         'const',
-        'a scene is never const — its nodes are late finals',
+        'a scene is never const: its nodes are late finals',
       );
     }
     for (var p in pc.formalParameters.parameters) {
@@ -1087,8 +1087,8 @@ class _Parser {
         refuse(
           p.offset,
           'parameter',
-          'a scene parameter is spelled in full in the header — '
-              "`final String $name = '…'` — never `this.`",
+          'a scene parameter is spelled in full in the header, as '
+              "`final String $name = '…'`, never with `this.`",
         );
         continue;
       }
@@ -1096,7 +1096,7 @@ class _Parser {
         refuse(
           p.offset,
           'parameter',
-          'a scene parameter is a named header formal with a default — '
+          'a scene parameter is a named header formal with a default: '
               "`final String title = '…'`",
         );
         continue;
@@ -1122,7 +1122,7 @@ class _Parser {
           refuse(
             p.offset,
             'tokens formal',
-            'a scene takes one $sceneTokensClassName — "$_tokensFormal" '
+            'a scene takes one $sceneTokensClassName: "$_tokensFormal" '
                 'already does',
           );
           continue;
@@ -1131,7 +1131,7 @@ class _Parser {
           refuse(
             p.type!.offset,
             'tokens formal',
-            "this scene's group lists no token library — create one in the "
+            "this scene's group lists no token library: create one in the "
                 "editor, or attach one in the group's $sceneGroupFileName",
           );
           continue;
@@ -1144,7 +1144,7 @@ class _Parser {
           refuse(
             dflt.offset,
             'tokens default',
-            'the tokens formal defaults to the declared set — '
+            'the tokens formal defaults to the declared set: '
                 '`final $sceneTokensClassName $name = const $sceneTokensClassName()`',
           );
         }
@@ -1166,7 +1166,7 @@ class _Parser {
         refuse(
           p.type!.offset,
           'parameter type',
-          'this default makes "$name" a ${decl.typeName} — spell it '
+          'this default makes "$name" a ${decl.typeName}: spell it '
               '`final ${decl.typeName} $name`',
         );
         continue;
@@ -1217,7 +1217,7 @@ class _Parser {
         refuse(
           element.offset,
           element is Expression ? _kind(element) : _elementKind(element),
-          "an item is a record literal — (item: 'Espresso beans', qty: '12')",
+          "an item is a record literal: (item: 'Espresso beans', qty: '12')",
         );
         continue;
       }
@@ -1227,7 +1227,7 @@ class _Parser {
           refuse(
             field.offset,
             'positional field',
-            "an item's fields are named — (item: '…', qty: '…')",
+            "an item's fields are named: (item: '…', qty: '…')",
           );
           continue;
         }
@@ -1354,9 +1354,9 @@ class _Parser {
           args,
           kind == 'ExternalNode'
               ? 'an ExternalNode takes the generated arguments of the widget '
-                    'it places — ExternalNode(const DrinkBadgeArgs(size: 140))'
+                    'it places: ExternalNode(const DrinkBadgeArgs(size: 140))'
               : 'a SceneRefNode takes the generated arguments of the scene it '
-                    "instantiates — SceneRefNode(const PromoBadgeArgs(label: 'New'))",
+                    "instantiates: SceneRefNode(const PromoBadgeArgs(label: 'New'))",
         );
         var (target, nodeArgs, argRefs, tokensArg) =
             read ?? ('', <String, Object?>{}, <String, SceneBinding>{}, null);
@@ -1366,7 +1366,7 @@ class _Parser {
             refuse(
               positional[0].offset,
               'unknown argument',
-              '$target declares no "$name" — it takes '
+              '$target declares no "$name": it takes '
                   '${declared.isEmpty ? 'no arguments' : declared.join(', ')}',
             );
           }
@@ -1375,7 +1375,7 @@ class _Parser {
           refuse(
             positional[0].offset,
             'tokens argument',
-            'a widget takes no tokens set — a nested scene does',
+            'a widget takes no tokens set: a nested scene does',
           );
         }
         var node = kind == 'ExternalNode'
@@ -1405,7 +1405,7 @@ class _Parser {
         refuse(
           expr.offset,
           'unknown node',
-          '"$kind" is not a scene node — FrameNode, TextNode, ShapeNode, '
+          '"$kind" is not a scene node: FrameNode, TextNode, ShapeNode, '
               'ExternalNode, SceneRefNode'
               '${[for (var k in sceneKinds) ', ${k.constructor}'].join()}',
         );
@@ -1439,7 +1439,7 @@ class _Parser {
             refuse(
               id.offset,
               'parameter as child',
-              '"${id.name}" is a parameter — children list nodes',
+              '"${id.name}" is a parameter: children list nodes',
             );
           case SimpleIdentifier id:
             refs.add((id.name, id.offset));
@@ -1448,7 +1448,7 @@ class _Parser {
               element.offset,
               'inline node',
               'a node is declared as its own field and placed here by '
-                  'name — `children: [headline]`, with '
+                  'name: `children: [headline]`, with '
                   '`late final headline = …` beside it',
             );
           case Expression x:
@@ -1461,7 +1461,7 @@ class _Parser {
             refuse(
               element.offset,
               _elementKind(element),
-              'a scene lists its children one by one — the editor cannot '
+              'a scene lists its children one by one: the editor cannot '
               'read a computed list',
             );
         }
@@ -1495,7 +1495,7 @@ class _Parser {
           'over',
           decl == null
               ? '"${e.name}" is not a parameter of this scene'
-              : '"${e.name}" is a ${decl.typeName} — a repeat draws one row '
+              : '"${e.name}" is a ${decl.typeName}: a repeat draws one row '
                     'per item of a list parameter',
         );
         return;
@@ -1507,7 +1507,7 @@ class _Parser {
         refuse(
           args.offset,
           'over',
-          'a repeat says what it draws — `over: lines`',
+          'a repeat says what it draws: `over: lines`',
         );
       }
       return null;
@@ -1517,7 +1517,7 @@ class _Parser {
       refuse(
         args.offset,
         'row',
-        'a repeat says how to draw one item — `row: (line) => [ … ]`',
+        'a repeat says how to draw one item: `row: (line) => [ … ]`',
       );
       return null;
     }
@@ -1531,7 +1531,7 @@ class _Parser {
       refuse(
         rowArg.offset,
         'row',
-        'row takes one parameter — the item it is drawing',
+        'row takes one parameter: the item it is drawing',
       );
       return null;
     }
@@ -1540,7 +1540,7 @@ class _Parser {
       refuse(
         rowArg.offset,
         'row',
-        "row returns the row's cells — `(line) => [TextNode(line.item)]`",
+        "row returns the row's cells: `(line) => [TextNode(line.item)]`",
       );
       return null;
     }
@@ -1579,7 +1579,7 @@ class _Parser {
         refuse(
           element.offset,
           'named cell',
-          'a repeated row writes its cells inline — they are not fields, '
+          'a repeated row writes its cells inline: they are not fields, '
               'because there is no one row for them to belong to',
         );
         continue;
@@ -1681,7 +1681,7 @@ class _Parser {
               refuse(
                 e.offset,
                 p.name,
-                '${p.name} takes a list of sizes — '
+                '${p.name} takes a list of sizes: '
                 '[double.infinity, 48, null]',
               );
               return;
@@ -1757,7 +1757,7 @@ class _Parser {
       refuse(
         list.offset,
         _kind(list),
-        "a rich text is a list of runs — TextNode.rich([TextRun('a'), …])",
+        "a rich text is a list of runs: TextNode.rich([TextRun('a'), …])",
       );
       return [];
     }
@@ -1768,7 +1768,7 @@ class _Parser {
         refuse(
           element.offset,
           _elementKind(element),
-          "every element is a run — TextRun('a')",
+          "every element is a run: TextRun('a')",
         );
         continue;
       }
@@ -1814,7 +1814,7 @@ class _Parser {
       refuse(
         e.offset,
         'run style',
-        "a run's style is its own delta — style: SceneTextStyle(weight: "
+        "a run's style is its own delta: style: SceneTextStyle(weight: "
             'SceneFontWeight.w700)',
       );
       return null;
@@ -1888,7 +1888,7 @@ class _Parser {
         refuse(
           arg.offset,
           _kind(arg.argumentExpression),
-          'every argument is named — ${call.$1}(size: 140)',
+          'every argument is named: ${call.$1}(size: 140)',
         );
         continue;
       }
@@ -1962,7 +1962,7 @@ class _Parser {
       refuse(
         e.offset,
         'parameter type',
-        '"${e.name}" is a ${decl.typeName} parameter — this property takes '
+        '"${e.name}" is a ${decl.typeName} parameter: this property takes '
             'a $wanted',
       );
       return _refused;
@@ -1993,7 +1993,7 @@ class _Parser {
         items.isEmpty
             ? '"${scope.list}" has no items, so there is no "$field" to read'
             : '"${scope.list}" items carry '
-                  '${items.first.keys.map((k) => '"$k"').join(', ')} — '
+                  '${items.first.keys.map((k) => '"$k"').join(', ')}, '
                   'not "$field"',
       );
       return _refused;
@@ -2011,7 +2011,7 @@ class _Parser {
         e.offset,
         'field type',
         '"${e.prefix.name}.$field" is a ${value is String ? 'string' : 'number'}'
-            ' — this property takes a '
+            ': this property takes a '
             '${kind == SceneParamKind.number ? 'number' : 'value of another kind'}',
       );
       return _refused;
@@ -2040,7 +2040,7 @@ class _Parser {
       refuse(
         e.offset,
         'token type',
-        '"${e.identifier.name}" is a ${decl.typeName} — the app\'s own '
+        '"${e.identifier.name}" is a ${decl.typeName}: the app\'s own '
             "object, which only an external widget's argument can take",
       );
       return _refused;
@@ -2049,7 +2049,7 @@ class _Parser {
       refuse(
         e.offset,
         'token type',
-        '"${e.identifier.name}" is a ${decl.typeName} token — this property '
+        '"${e.identifier.name}" is a ${decl.typeName} token: this property '
             'takes a ${SceneTokenDecl('', kind, '').typeName}',
       );
       return _refused;
@@ -2134,7 +2134,7 @@ class _Parser {
       refuse(
         e.offset,
         'token type',
-        '"${e.identifier.name}" is a ${decl.typeName} — a style is a '
+        '"${e.identifier.name}" is a ${decl.typeName}: a style is a '
             'SceneTextStyle token, or a TextStyle the app exports',
       );
       return;
@@ -2150,7 +2150,7 @@ class _Parser {
       e.identifier.offset,
       'unknown token',
       "no library of this scene's group declares "
-          '"${e.identifier.name}" — they have '
+          '"${e.identifier.name}"; they have '
           '${_tokens.keys.map((k) => '"$k"').join(', ')}',
     );
   }
@@ -2242,7 +2242,7 @@ class _Parser {
     refuse(
       e.offset,
       _kind(e),
-      'expected a single string literal — the editor cannot evaluate '
+      'expected a single string literal: the editor cannot evaluate '
       '${_kind(e) == 'interpolation' ? 'an interpolation' : 'this'}',
     );
     return null;
@@ -2277,7 +2277,7 @@ class _Parser {
     refuse(
       e.offset,
       _kind(e),
-      'expected $prefix.<${values.take(4).join('|')}…> — nothing else is '
+      'expected $prefix.<${values.take(4).join('|')}…>: nothing else is '
       'on the allowlist',
     );
     return null;

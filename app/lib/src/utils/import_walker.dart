@@ -25,12 +25,12 @@ const webEnvironment = <String, String>{
 /// Walks the transitive `import`/`export` graph of a Dart entry point,
 /// resolving conditional URIs against a simulated build [environment].
 ///
-/// What this is for here: master-plan decision 9 says purity is a property of
-/// the entry point's import closure, and that the `dart compile exe` failure is
-/// the guardrail. That guardrail only fires at distribution time, and only for
-/// the entry points that are actually compiled. This walks the same graph in a
-/// unit test, so a `package:flutter` import that would fill the machine with a
-/// compiler fork bomb fails in seconds with the chain that pulled it in.
+/// What this is for here: purity is a property of the entry point's import
+/// closure, and the `dart compile exe` failure is the guardrail. That guardrail
+/// only fires at distribution time, and only for the entry points that are
+/// actually compiled. This walks the same graph in a unit test, so a
+/// `package:flutter` import that would fill the machine with a compiler fork
+/// bomb fails in seconds with the chain that pulled it in.
 ///
 /// Ported from a sibling project (`packages/server/lib/src/tools/import_walker/`).
 class ImportWalker {

@@ -283,7 +283,7 @@ LiveTestWidgetsFlutterBinding ensureLiveScenarioBinding({
         "${other.runtimeType} is already initialized. In this folder's "
         'flutter_test_config.dart call `ensureLiveScenarioBinding()` instead '
         'of `TestWidgetsFlutterBinding.ensureInitialized()`, or call neither '
-        '— runScenarios initializes the right one.',
+        'and let runScenarios initialize the right one.',
       );
   }
 }

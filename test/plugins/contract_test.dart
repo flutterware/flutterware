@@ -15,8 +15,8 @@ class _Docker extends Plugin {
 
 void main() {
   group('the contract stays pure data', () {
-    // The whole point of decision 2: if any of this reaches for package:flutter
-    // then the CLI, the file projection and any agent lose it permanently.
+    // If any of this reaches for package:flutter, then the CLI, the file
+    // projection and any agent lose it permanently.
     test('no file under lib/src/plugins imports flutter', () {
       var offenders = <String>[];
       for (var entity in Directory(

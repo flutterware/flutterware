@@ -315,8 +315,8 @@ class Session {
     if (found == null) {
       throw SessionException(
         'No Flutter SDK above the dart running flutterware. Start it with the '
-        'dart from a Flutter SDK — `dart run flutterware`, or whatever your '
-        'version manager spells that.',
+        'dart from a Flutter SDK: `dart run flutterware`, or the same command '
+        'through your version manager.',
       );
     }
     return found;
@@ -506,7 +506,7 @@ class Session {
             // `true` is not what anybody wrote — it is what a flag with
             // nothing after it became.
             throw ArgumentError(
-              'needs a value — `--${entry.key}=<value>` or '
+              'needs a value: `--${entry.key}=<value>` or '
               '`--${entry.key} <value>`',
               entry.key,
             ),

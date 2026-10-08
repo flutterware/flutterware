@@ -12,10 +12,6 @@
 /// |---|---|
 /// | unix socket + handle file (`inspector.dart`) | a Dart server on the host |
 /// | VM service extension + `postEvent` | a Flutter app, on any device |
-///
-/// Design: `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`
-/// (§ Decision 5), which is the split
-/// `2026-07-31-app-launcher-cockpit-brainstorm.md` §D6 called for.
 library;
 
 import 'dart:async';

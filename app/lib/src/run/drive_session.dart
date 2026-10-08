@@ -50,14 +50,14 @@ class DriveNoGuest implements Exception {
 
   static const _sentence =
       'This app is running without the drive guest, so it can be inspected '
-      'but not driven. Launch it through flutterware (the GUI, `fw run '
-      'launch`, or MCP) to get a driveable run.';
+      'but not driven. Launch it through flutterware (the studio, `fw run '
+      'launch` or MCP) to drive it.';
 
   /// The refusal as every surface renders it: by stringifying.
   static String describe({String? census}) => census == null
       ? _sentence
       : '$_sentence\nAsked the VM which isolate has `ext.flutterware.act` and '
-            'none does — isolates: $census.';
+            'none does. Isolates: $census.';
 
   @override
   String toString() => describe(census: census);
@@ -237,10 +237,10 @@ class DriveSession {
   Future<String> _whyNoAnswer(RunConnection connection) async {
     try {
       await connection.service.getVersion().timeout(const Duration(seconds: 2));
-      return 'Its VM service still answers, so the app is running and the '
-          'verb itself is slow or wedged — an animation that never ends, or a '
-          'transaction from another actor ahead of this one in the queue. Try '
-          'again with a larger settleMs, or `observe` to see the screen.';
+      return 'Its VM service still answers, so the app is running but this '
+          'step is slow or stuck: an animation that never ends, or another '
+          'step queued ahead of this one. Try again with a larger settleMs, '
+          'or use `observe` to see the screen.';
     } on Object {
       return _notScheduled;
     }
@@ -257,16 +257,16 @@ class DriveSession {
       'Its VM service does not answer, so the process is not being scheduled: '
       'on iOS the OS suspends a backgrounded app, and it answers nothing until '
       'it is in the foreground again. Bring the app to the front and retry. '
-      'The step is not lost — a suspended guest runs the request it was sent '
-      'when it resumes.';
+      'The step is not lost: a suspended app runs the request when it '
+      'resumes.';
 
   Future<RunConnection> _ensure() {
     if (_connection case var held?) return held;
     var uri = handle.vmService;
     if (uri == null) {
       throw StateError(
-        '${handle.entrypointLabel} has no VM service yet — it is still '
-        'building. Watch ${handle.logPath}.',
+        '${handle.entrypointLabel} is still building. Its progress is in '
+        '${handle.logPath}.',
       );
     }
     var connecting = RunConnection.connect(uri);

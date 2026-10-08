@@ -16,9 +16,8 @@ import 'ui.dart';
 ///
 /// Descriptor mode as well as widget: it keeps its own tab in the overlay
 /// *and* mirrors every variable to the host as a knob, because a feature flag
-/// is a variable and turning one on from the cockpit is what the bridge is
-/// for. See `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`
-/// § Decision 4.
+/// is a variable and turning one on from the cockpit is what the bridge
+/// is for.
 class VariablesPlugin implements DevbarPlugin, DevbarPanelSource {
   final DevbarState devbar;
   final _variables = ValueStream<List<DevbarVariable>>([]);

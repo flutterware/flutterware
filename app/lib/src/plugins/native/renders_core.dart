@@ -149,7 +149,7 @@ class RendersCore extends PluginCore {
         );
         return (text: '', bytes: result.bytes, warnings: result.warnings);
       default:
-        throw ActionRefusal('format is svg, png or pdf, not "$format"');
+        throw ActionRefusal('unknown format "$format"; use svg, png or pdf');
     }
   }
 
@@ -285,7 +285,7 @@ class RendersCore extends PluginCore {
         .map((lane) => lane.pool?.points.length)
         .nonNulls
         .fold(0, (sum, n) => sum + n);
-    if (points > 0) return Status.info('$points point(s), guest running');
+    if (points > 0) return Status.info('$points point(s), renderer running');
     return Status.none;
   }
 
@@ -336,7 +336,7 @@ class RendersCore extends PluginCore {
     if (pool == null) {
       return const [
         ViewText(
-          'points are announced by the running guest — open the panel or '
+          'points are listed once the renderer runs; open the panel or '
           'invoke `render`',
         ),
       ];
@@ -502,14 +502,16 @@ class RenderLane {
         ),
         log: _say,
       );
-      if (_disposed) throw StateError('the render lane was closed');
-      _say('starting the render guest');
+      if (_disposed) {
+        throw StateError('the renderer was shut down while starting');
+      }
+      _say('starting the renderer');
       var started = await RenderPool.start(bundle: bundle);
       if (_disposed) {
         // The worktree closed while the guest was coming up: without this,
         // dispose() ran against a null pool and the guest idled forever.
         unawaited(started.close());
-        throw StateError('the render lane was closed');
+        throw StateError('the renderer was shut down while starting');
       }
       pool = started;
       phase = null;

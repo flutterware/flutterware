@@ -14,9 +14,9 @@
 /// of every shape, bodies that fold and bodies that cannot be captured, and an
 /// event on a channel the GUI has never heard of.
 ///
-/// The `_inspect` middleware and `_query` wrapper below are the copy-paste
-/// adapters the design doc describes (spec decision 5): a project pastes and
-/// adapts them, only the primitives live in `package:flutterware/server.dart`.
+/// The `_inspect` middleware and `_query` wrapper below are copy-paste
+/// adapters: a project pastes and adapts them, and only the primitives live in
+/// `package:flutterware/server.dart`.
 library;
 
 import 'dart:async';
@@ -157,12 +157,11 @@ Future<void> main(List<String> args) async {
 /// Adapter: the shelf middleware. One `runZoned` is the whole correlation
 /// story — every query and log line emitted below it carries this request's id.
 ///
-/// Headers and small textual bodies go into the event's `details` (spec
-/// decision 11). Only the delivery is on demand: the map is built here on
-/// every request and encoded as the event is reported, then held server-side
-/// until somebody opens the Request/Response tab — which is why bodies are
-/// capped. Redaction happens *here*, in code you own, before anything leaves
-/// your handler's reach.
+/// Headers and small textual bodies go into the event's `details`. Only the
+/// delivery is on demand: the map is built here on every request and encoded as
+/// the event is reported, then held server-side until somebody opens the
+/// Request/Response tab — which is why bodies are capped. Redaction happens
+/// *here*, in code you own, before anything leaves your handler's reach.
 Middleware _inspect() {
   var nextRequestId = 1;
   return (inner) => (request) {
@@ -213,7 +212,7 @@ Middleware _inspect() {
   };
 }
 
-/// The capture cut (spec decision 11): textual content types with a known
+/// The capture cut: textual content types with a known
 /// length under the cap are buffered; streams and everything else are
 /// recorded as size only. Reading a shelf body consumes it, so a captured
 /// message is rebuilt around the bytes just read.

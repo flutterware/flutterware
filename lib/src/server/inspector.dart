@@ -23,7 +23,7 @@ typedef ServerCommandHandler = InspectorCommandHandler;
 /// This is the whole public runtime surface: `event`, `span`/`spanSync`,
 /// `handle`, and zone correlation. Adapters — a shelf middleware, a query
 /// interceptor, a log listener — are copy-paste snippets over these four,
-/// deliberately not code in this package (spec decision 5).
+/// deliberately not code in this package.
 ///
 /// There is no init call. The first reported event activates the
 /// inspector: it binds a unix socket in `~/.flutterware/run`, publishes a
@@ -208,7 +208,7 @@ class FlutterwareServer {
   ///
   /// [details] is for the heavy parts — headers, bodies — held server-side
   /// in a byte-capped store and fetched only when an attacher asks
-  /// (`meta/detail`, spec decision 11). The event itself stays small, so the
+  /// (`meta/detail`). The event itself stays small, so the
   /// hot path and the ring never carry a body. The details are not free,
   /// though: they are JSON-encoded as the event is reported, whether or not
   /// anyone ever asks — only their delivery waits.
@@ -430,8 +430,7 @@ class _SocketPeer implements InspectorPeer {
 /// `srv-*.json` handle beside it, and the predecessor cleanup that makes a
 /// restart self-healing. The ring, the channels, the handlers, the detail
 /// store and the attach handshake are [InspectorCore], which knows nothing
-/// about sockets and compiles into a Flutter app — see
-/// `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
+/// about sockets and compiles into a Flutter app.
 class ServerInspector {
   ServerInspector._({
     required this.runDir,

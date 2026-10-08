@@ -6,19 +6,18 @@
 /// every state of it with painted stand-ins, and it is why this file knows
 /// nothing about where an export puts things.
 ///
-/// **The arrangement, never the chrome** — decision 4. Nothing here copies
-/// Apple's or Google's styling, so nothing here goes stale when either
-/// restyles. It reads as a listing because of the *shape*: an icon and a name
-/// over a row of screenshots that runs off the edge.
+/// **The arrangement, never the chrome.** Nothing here copies Apple's or
+/// Google's styling, so nothing here goes stale when either restyles. It reads
+/// as a listing because of the *shape*: an icon and a name over a row of
+/// screenshots that runs off the edge.
 ///
-/// Which settles §12's first open question: **one arrangement, not one per
-/// store.** Two chromes would be two invented layouts to keep current, and
-/// they would differ only cosmetically — because we are not copying either
-/// store, "App Store" and "Play" would be two of our own designs wearing
-/// different labels. What genuinely differs, and what a person needs to see,
-/// is *how many shots are visible and how much of each* — and that is
-/// [StorePlacement], which is a question about the listing rather than about
-/// the company.
+/// So there is **one arrangement, not one per store.** Two chromes would be two
+/// invented layouts to keep current, and they would differ only cosmetically —
+/// because we are not copying either store, "App Store" and "Play" would be two
+/// of our own designs wearing different labels. What genuinely differs, and
+/// what a person needs to see, is *how many shots are visible and how much of
+/// each* — and that is [StorePlacement], which is a question about the listing
+/// rather than about the company.
 library;
 
 import 'package:material_ui/material_ui.dart';
@@ -109,12 +108,12 @@ class StoreStage extends StatelessWidget {
 /// Icon, name, subtitle — and **nothing invented**.
 ///
 /// It carried a star rating and an Install button for a while. Both are gone,
-/// and the rule they broke is worth naming because decision 4 only half said
-/// it: we draw the *arrangement*, never the chrome — and an invented rating is
-/// worse than chrome. A fake `4.6 · 1.2K ratings` is a number, and a number on
-/// a screen is read as a fact about the app; an Install button invites the
-/// whole panel to be read as a preview of a real store page rather than as a
-/// layout that shows a screenshot at the size a stranger meets it.
+/// and the rule they broke is worth naming: we draw the *arrangement*, never
+/// the chrome — and an invented rating is worse than chrome. A fake
+/// `4.6 · 1.2K ratings` is a number, and a number on a screen is read as a fact
+/// about the app; an Install button invites the whole panel to be read as a
+/// preview of a real store page rather than as a layout that shows a
+/// screenshot at the size a stranger meets it.
 ///
 /// What is left is true: the name and the line under it are the package's own
 /// pubspec. The icon is a letter, which is plainly a placeholder rather than a

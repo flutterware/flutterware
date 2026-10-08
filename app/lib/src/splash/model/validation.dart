@@ -221,8 +221,8 @@ List<SplashProblem> validateSplash(
       problems.add(
         SplashProblem(
           Tone.error,
-          '"$key: $text" is not a colour the generator accepts — it wants '
-          'exactly six hex digits, like "1E1E1E". It throws on anything else, '
+          '"$key: $text" is not a colour the generator accepts. Use exactly '
+          'six hex digits, like "1E1E1E". It fails on anything else, '
           'including eight-digit values with alpha.',
           key: key,
           blocksGeneration: true,
@@ -251,8 +251,8 @@ List<SplashProblem> validateSplash(
       problems.add(
         SplashProblem(
           Tone.error,
-          'The file "$path" set as "$key" was not found. The generator exits '
-          'rather than skipping it.',
+          'The file "$path" set as "$key" was not found. The generator stops '
+          'at a missing file.',
           key: key,
           blocksGeneration: true,
         ),
@@ -273,8 +273,8 @@ List<SplashProblem> validateSplash(
       problems.add(
         SplashProblem(
           Tone.info,
-          '"$path" is a .$extension — the generator converts it to PNG. Any '
-          'transparency the format does not carry is already gone by then.',
+          '"$path" is a .$extension, which the generator converts to PNG. '
+          'Any transparency the format does not carry is already lost.',
           key: key,
         ),
       );
@@ -511,7 +511,7 @@ SplashProblem _brandingPaddingProblem(
   return SplashProblem(
     Tone.warn,
     'The branding sits ${over}dp inside the bottom safe area on '
-    '${finding.device.label} — under the home indicator. Set "$key" to at '
+    '${finding.device.label}, under the home indicator. Set "$key" to at '
     'least $padding.',
     key: key,
     surface: surface,
@@ -540,8 +540,8 @@ void _checkVocabulary(
       SplashProblem(
         Tone.warn,
         '"$key: $value" uses "$token", which is not one of '
-        '${legal.join(', ')}. The generator does not validate this — it just '
-        'falls back to its default.'
+        '${legal.join(', ')}. The generator does not check this and uses its '
+        'default instead.'
         '${meant == null ? '' : ' Did you mean "$meant"?'}',
         key: key,
       ),

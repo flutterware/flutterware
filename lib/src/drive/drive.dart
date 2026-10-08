@@ -54,7 +54,7 @@ class DriveStep {
 /// resolve + reachability retry until [actTimeout], settling between attempts
 /// (a plain wait advances zero frames on a hidden window), and only the
 /// deadline surfaces the error. Measured: taps land on the first frame a
-/// transition releases them (`2026-08-11-run-drive-spike-findings.md`).
+/// transition releases them.
 ///
 /// **Where it runs is a [DriveLane].** The default is the live one; a
 /// [TesterLane] runs the same verbs under a widget test's fake clock, which is
@@ -112,17 +112,16 @@ class Drive {
     controller,
     messages: const TargetMessages(
       narrowHint:
-          'Narrow it: `{"nth": {"target": <the same target>, "index": <the '
-          'number above>}}`, or `{"at": {"x": …, "y": …}}` with the centre of '
-          'one of those boxes. `{"within": {"scope": …, "child": …}}` picks '
-          'the one inside a named pane, and `item: <n>` acts on a numbered '
-          "thing from the last reply's screen.",
+          'To pick one, use `{"nth": {"target": <the same target>, "index": '
+          '<the number above>}}`, or `{"at": {"x": …, "y": …}}` with the '
+          'centre of one of those boxes. `{"within": {"scope": …, "child": '
+          '…}}` picks the one inside a named pane, and `item: <n>` acts on a '
+          "numbered item from the last reply's screen.",
       blankScreenHint:
-          'Nothing has rendered in the widget tree — there is no text on '
-          'screen at all, so this is not something `scrollTo` can reach. '
-          'Either the app has not drawn yet, or what you are looking at is '
-          'not Flutter: a permission dialog, a webview or a map is invisible '
-          'here and addressable with `layer: native`.',
+          'There is no text on screen at all, so `scrollTo` will not find '
+          'it. Either the app has not drawn yet, or the screen shows '
+          'something outside Flutter, such as a permission dialog, a webview '
+          'or a map. Reach those with `layer: native`.',
     ),
     describeScreen: _describeScreen,
     ensureSemantics: () async {
@@ -494,10 +493,9 @@ class Drive {
     if (keys.held case var key?) {
       throw TargetError(
         TargetFailure.covered,
-        '${key.debugName} is already held down — the human has a finger on '
-        'it, or a previous chord was interrupted. Pressing it again would '
-        'leave the keyboard in a state neither of you meant. Let go and '
-        'retry.',
+        '${key.debugName} is already held down: someone is pressing it, or a '
+        'previous chord was interrupted. Pressing it again would leave the '
+        'keyboard in the wrong state. Release it and retry.',
       );
     }
     var handled = await keys.press();
@@ -520,13 +518,11 @@ class Drive {
     if (!handled && nothingFocused) {
       throw TargetError(
         TargetFailure.notFound,
-        'the keystroke went nowhere: nothing in the app holds focus, so it '
-        "dispatched from the root scope — which sits *above* the app's "
-        '`Shortcuts`, and above everything else that would have taken it. Give '
-        'the app a focus first and retry: `tap` a control, or `enterText` into '
-        'a field. (A window that was launched hidden, or that nobody has '
-        'clicked, starts out like this.) The keys were pressed and released, '
-        'so nothing is stuck.',
+        'the keystroke went nowhere: nothing in the app holds focus, so none '
+        "of the app's `Shortcuts` received it. Give the app focus and retry: "
+        '`tap` a control, or `enterText` into a field. A window that was '
+        'launched hidden, or that nobody has clicked, starts out like this. '
+        'The keys were pressed and released, so nothing is stuck.',
       );
     }
 

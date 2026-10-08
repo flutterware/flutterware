@@ -49,7 +49,7 @@ class _MissingDefines extends StatelessWidget {
           child: Text(
             'The embedder harness needs the app and SDK paths.\n\n'
             'Run it with the --dart-define flags FLUTTERWARE_APP_ROOT and '
-            'FLUTTER_SDK_ROOT set — see the run command in '
+            'FLUTTER_SDK_ROOT set. The run command is in '
             'app/lib/src/embedder/README.md.',
             style: TextStyle(color: Colors.red),
           ),

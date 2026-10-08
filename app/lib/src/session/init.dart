@@ -402,7 +402,7 @@ class ProjectInit {
         names.map((name) => '.new($name)').join(', ');
     var perPackage = members == null || members.isEmpty
         ? '; the default is the single\n// package here'
-        : " — started as the root\n// pubspec's `workspace:` members";
+        : ", listed from the root\n// pubspec's `workspace:` members";
     var widgetTools = widgetConsts.isEmpty
         ? '''
   // Previews and Scenarios are for Flutter packages, and no member here
@@ -433,8 +433,7 @@ import 'package:flutterware/plugins.dart';
 // Which tools this project gets, and what they work on.
 //
 // Run `fw status` to see what they say, and `fw actions` for what they can do.
-// Every plugin listed here is available from the GUI, the CLI and MCP — they
-// are three renderings of this file.
+// Every tool listed here is available from the GUI, the CLI and MCP.
 
 // One Pkg per package you want a tool to work on$perPackage. Hand each tool the ones it applies to.
 $declarations
@@ -593,11 +592,8 @@ String _identityLine(String root, Map<String, String> consts) {
   const preamble =
       '  // The picture that stands for this repository in the window and the\n'
       '  // Dock, so several checkouts open at once can be told apart. Both\n'
-      '  // fields are needed: `icon` is the picture, and `package` only says\n'
-      '  // which directory it is relative to — no icon is looked up from it.\n'
-      '  // The file is named rather than searched for because a search once\n'
-      '  // showed a real app as the Flutter logo, from a leftover\n'
-      '  // `flutter create` icon.\n'
+      '  // fields are needed: `icon` is the picture, and `package` is the\n'
+      '  // directory its path is relative to.\n'
       '  //\n';
   var guessed = guessFace(root);
   if (guessed == null) {

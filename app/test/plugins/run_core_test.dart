@@ -3116,8 +3116,8 @@ void main({int serverPort = 1, Backend backend = Backend.dev}) {}
     });
 
     const noPanels =
-        'The app is reporting, but no plugin declared a panel. A devbar '
-        'plugin joins by implementing `DevbarPanelSource`.';
+        'The app has a devbar, but none of its plugins declares a panel. A '
+        'devbar plugin adds one by implementing `DevbarPanelSource`.';
 
     Matcher refusedWith(String message) =>
         throwsA(isA<RunRefusal>().having((e) => e.message, 'message', message));
@@ -3167,7 +3167,7 @@ void main({int serverPort = 1, Backend backend = Backend.dev}) {}
             'panelState',
             arguments: {'panel': 'net', 'state': 'info'},
           ),
-          refusedWith('This app declares no panel "net" — it has flags.'),
+          refusedWith('This app has no panel "net". It has flags.'),
         );
         // A panel that is there keeps the channel's own answer: the method is
         // what is missing, and a refusal about panels would be wrong about it.

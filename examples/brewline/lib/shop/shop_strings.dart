@@ -10,10 +10,8 @@ import 'package:flutter/widgets.dart';
 /// every read goes through [read]. That one funnel is the whole integration
 /// surface: hand it a wrapper and the words a screen renders can be traced
 /// back to the keys they came from, by object identity, with nothing inserted
-/// into the text and no pixel moved. See
-/// `docs/superpowers/specs/2026-08-18-translation-index-design.md`, and
-/// `test/scenarios/mobile/flutter_test_config.dart` for the two lines that
-/// wire it.
+/// into the text and no pixel moved. The two lines that wire it are in
+/// `test/scenarios/mobile/flutter_test_config.dart`.
 ///
 /// Deliberately hand-rolled rather than codegen: a demo should show localized
 /// scenarios without dragging in a pipeline, and a hand-rolled catalog is

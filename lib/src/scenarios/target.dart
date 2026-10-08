@@ -24,7 +24,7 @@ Finder finderForTarget(dynamic target) {
     Type() => find.byType(target),
     _ => throw ArgumentError(
       'a scenario target is a Finder, a String, a Key, an IconData, a Type '
-      'or a Target — got ${target.runtimeType}',
+      'or a Target, got ${target.runtimeType}',
     ),
   };
 }
@@ -290,8 +290,8 @@ class _At extends Target {
     if (view == null || (Offset.zero & view.size).contains(point)) return null;
     String n(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
     return '(${n(x)}, ${n(y)}) is outside the screen, which is '
-        '${n(view.size.width)} × ${n(view.size.height)} logical pixels — the '
-        'space every box in an observation is reported in.';
+        '${n(view.size.width)} × ${n(view.size.height)} logical pixels (the '
+        'units every box in an observation is reported in).';
   }
 
   @override

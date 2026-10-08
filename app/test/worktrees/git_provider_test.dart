@@ -42,7 +42,7 @@ void main() {
         '1 D. N... 100644 000000 000000 159d212 0000000 app/lib/src/icon/screen.dart\n'
         '2 R. N... 100644 100644 100644 aaa bbb R100 app/new.dart\tapp/old.dart\n'
         'u UU N... 100644 100644 100644 100644 ccc ddd eee app/conflict.dart\n'
-        '? docs/superpowers/specs/2026-08-01-asset-codegen-design.md\n',
+        '? docs/notes.md\n',
       );
 
       expect(status.dirty, 5);
@@ -105,7 +105,7 @@ void main() {
       var shape = parseNumstat(
         '5\t5\tapp/lib/src/capture/capture_request.dart\n'
         '16\t9\tapp/lib/src/shell/address_bar.dart\n'
-        '40\t2\tdocs/superpowers/specs/design.md\n'
+        '40\t2\tdocs/guide.md\n'
         '3\t1\tREADME.md\n',
       );
 

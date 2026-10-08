@@ -146,9 +146,9 @@ class ServerCore extends PluginCore {
         client.done.then((_) {
           if (isDisposed || tracked.client != client) return;
           // A drop, not a death: the handle decides which on the next scan —
-          // still there means reattach (decision 10), and the re-replay
-          // dedupes against what this core already holds. Gone means the
-          // scan marks it stopped.
+          // still there means reattach, and the re-replay dedupes against
+          // what this core already holds. Gone means the scan marks it
+          // stopped.
           tracked.dropConnection();
           notifyChanged();
           _scheduleRescan();
@@ -267,7 +267,7 @@ class ServerCore extends PluginCore {
           ViewText('Not scanned yet.')
         else if (servers.isEmpty)
           ViewText(
-            'No servers are announcing themselves under this worktree.\n'
+            'No servers are reporting from this worktree.\n'
             'Report from one with package:flutterware/server.dart.',
           )
         else
@@ -420,7 +420,7 @@ class ServerCore extends PluginCore {
       if (withheld > 0)
         'note':
             '$withheld of these have details that did not fit one reply. Ask '
-            'again for fewer — a narrower path, a higher minStatus, a shorter '
+            'again for fewer: a narrower path, a higher minStatus, a shorter '
             'since, or a smaller last.',
     };
   }
@@ -445,8 +445,8 @@ class ServerCore extends PluginCore {
       return {
         'servers': <Object>[],
         'note': name == null
-            ? 'No servers are announcing themselves under this worktree.'
-            : 'No server named "$name" is announcing itself.',
+            ? 'No servers are reporting from this worktree.'
+            : 'No server named "$name" is reporting.',
       };
     }
 
@@ -464,7 +464,7 @@ class ServerCore extends PluginCore {
                 ? '"${handle.name}" (pid ${handle.pid}) is gone; its stale '
                       'handle was removed.'
                 : '"${handle.name}" (pid ${handle.pid}) did not answer the '
-                      'attach in time: $error. It is still listed — retry.',
+                      'attach in time: $error. It is still listed; try again.',
           );
         },
       );
@@ -517,7 +517,7 @@ class ServerCore extends PluginCore {
     throw ArgumentError.value(
       value,
       'since',
-      'must be a duration back from now — "30s", "10m", "2h", "1d" — or an '
+      'must be a duration back from now ("30s", "10m", "2h", "1d") or an '
           'ISO-8601 instant like "2026-08-17T09:00:00Z"',
     );
   }
@@ -722,8 +722,8 @@ class TrackedServer {
   bool get connected => client != null;
 
   /// This core's own copy, merged across attachments and deduped by event id
-  /// (monotonic per server process — decision 10). A reattach replays the
-  /// whole ring; everything already here collapses to a no-op.
+  /// (monotonic per server process). A reattach replays the whole ring;
+  /// everything already here collapses to a no-op.
   List<ServerEvent> get events => List.unmodifiable(_events);
   final _events = <ServerEvent>[];
   var _lastEventId = 0;
@@ -923,8 +923,8 @@ List<QueryStats> sqlStats(Iterable<ServerEvent> events) {
 /// [threshold] times within one request's correlated events — the N+1 shape.
 ///
 /// Counts on [normalizeSql]'s output because the N+1 queries differ precisely
-/// in their literals (spec decision 12). Lives on the core side so the badge
-/// the panel draws and whatever `fw` reports later are the same computation.
+/// in their literals. Lives on the core side so the badge the panel draws and
+/// whatever `fw` reports later are the same computation.
 Map<String, int> repeatedQueries(
   Iterable<ServerEvent> caused, {
   int threshold = 3,

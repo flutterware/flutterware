@@ -16,8 +16,7 @@ import 'stage.dart';
 /// identically and drifting independently. Teaching the page to lead with
 /// whatever changed therefore fixed the scenarios half and left the previews
 /// half exactly as it was, which is the failure mode a second copy exists to
-/// produce. Design:
-/// `docs/superpowers/specs/2026-08-31-comparison-detail-page-design.md`.
+/// produce.
 ///
 /// **The page leads with whatever changed.** When the pixels moved, that is
 /// the pictures and this is the layout it has always had. When they did not,
@@ -71,9 +70,9 @@ class FindingBody extends StatelessWidget {
             Text('Identical, and not exported', style: context.type.bodyStrong),
             const Gap(FwSpacing.sm),
             Text(
-              'Both sides rendered and the frames matched, so this page — '
-              "written with only the findings' pictures — did not carry "
-              'them. Every channel it compared is still below.',
+              'Both sides rendered and the frames matched. This page was '
+              'exported with only the changed pictures, so it leaves these '
+              'out. Every channel that was compared is still listed below.',
               textAlign: TextAlign.center,
               style: context.type.caption.copyWith(color: colors.mut),
             ),
@@ -187,7 +186,7 @@ class FindingBody extends StatelessWidget {
                       // whole answer.
                       item.retargeted == null
                           ? 'No changes on any channel'
-                          : 'Only the test changed here — the app drew the '
+                          : 'Only the test changed here. The app drew the '
                                 'same thing on every channel',
                       style: context.type.body.copyWith(color: colors.mut),
                     ),

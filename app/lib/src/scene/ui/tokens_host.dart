@@ -79,7 +79,7 @@ class SceneTokensHost {
   void renameHere(SceneEditor editor, String name, String wanted) {
     var library = libraryOf(name);
     if (library == null) {
-      throw ArgumentError("\"$name\" is the app's — rename it in the app");
+      throw ArgumentError('"$name" belongs to the app. Rename it in the app.');
     }
     library.rename(name, wanted, taken: takenIn(editor)..remove(name));
     editor.renameTokenRefs(name, wanted);

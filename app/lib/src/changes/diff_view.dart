@@ -592,7 +592,7 @@ class CommentMargin extends StatelessWidget {
     return SizedBox(
       width: width,
       child: Tooltip(
-        message: 'Comment on this line — shift-click to extend a span',
+        message: 'Comment on this line. Shift-click to cover several lines.',
         waitDuration: const Duration(milliseconds: 600),
         child: Tappable.builder(
           onTap: onTap,
@@ -782,10 +782,10 @@ class IndexUntrackedRow extends StatelessWidget {
             // git is asking rather than an answer, so it says so on hover.
             Tooltip(
               message: entry.isDirectory
-                  ? 'Untracked — git is not tracking anything in this '
+                  ? 'Untracked: git is not tracking anything in this '
                         'directory yet'
-                  : 'Untracked — git is not tracking this file yet, so there '
-                        'is no other side to diff it against',
+                  : 'Untracked: git is not tracking this file yet, so there '
+                        'is nothing to compare it with',
               child: SizedBox(
                 width: 12,
                 child: Text(

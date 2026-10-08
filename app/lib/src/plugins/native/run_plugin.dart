@@ -138,7 +138,7 @@ class RunPlugin extends NativePlugin<RunCore> {
 ///
 /// Starting a run is its own page rather than a button per entry point: four to
 /// ten entry points as a row of buttons is a wall, and the defines have nowhere
-/// to go. See `docs/superpowers/specs/2026-07-31-run-cockpit-panel-design.md`.
+/// to go.
 class _RunPanel extends StatefulWidget {
   const _RunPanel(this.plugin);
 
@@ -383,11 +383,11 @@ class _RunViewState extends State<_RunView> {
         view != RunViewKind.steps &&
         view != RunViewKind.logs;
 
-    // **Header first, then the tabs.** The design drew them the other way and
-    // it read wrong once built: the run is the subject and the tabs are views
-    // *of* it, so putting the strip on top made the page look like it belonged
-    // to the tab rather than to the app you launched. Reload and stop act on
-    // the run whichever pane is open, which is the same argument.
+    // **Header first, then the tabs.** The other order read wrong once built:
+    // the run is the subject and the tabs are views *of* it, so putting the
+    // strip on top made the page look like it belonged to the tab rather than
+    // to the app you launched. Reload and stop act on the run whichever pane
+    // is open, which is the same argument.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -429,9 +429,8 @@ class _RunViewState extends State<_RunView> {
         const Divider(height: 1),
         // **Over the picture, not on a tab of its own.** A tab strip is
         // exclusive: opening a *Device* tab would close *Screen*, which is a
-        // control writing to a page you are not on — the second dev-stack
-        // study's finding 12. Here the result of pressing one is in the frame
-        // underneath it.
+        // control writing to a page you are not on. Here the result of
+        // pressing one is in the frame underneath it.
         //
         // Outside the `switch` below, so it survives `!canInspect`: a device
         // answers while a build is running and after an app has died, which
@@ -510,10 +509,10 @@ class _RunViewState extends State<_RunView> {
 
 /// Capability, not liveness.
 ///
-/// The S-L1 finding, made visible. Hot reload is registered by the `flutter
-/// run` and dies with it; the tree and the screenshots belong to the app and
-/// outlive it. A header saying only "running" would hide exactly the difference
-/// the buttons beside it are about to demonstrate.
+/// Hot reload is registered by the `flutter run` and dies with it; the tree
+/// and the screenshots belong to the app and outlive it. A header saying only
+/// "running" would hide exactly the difference the buttons beside it are about
+/// to demonstrate.
 class _RunState {
   const _RunState({
     required this.label,
@@ -552,7 +551,7 @@ class _RunState {
       return const _RunState(
         // Not "stopped": the app is up and fully inspectable. What is gone is
         // the process that could have reloaded it.
-        label: 'no launcher — cannot reload',
+        label: 'flutter run ended, cannot reload',
         canInspect: true,
         canReload: false,
         tone: _Tone.warn,
@@ -702,9 +701,9 @@ class _RunHeader extends StatelessWidget {
 
 /// What the run can still be told to do, in three words and a colour.
 ///
-/// Capability, not liveness — the S-L1 finding made loud. An app whose
-/// `flutter run` died keeps its tree and its screenshots and loses hot reload,
-/// and the row has to say which of those you have before you press anything.
+/// Capability, not liveness. An app whose `flutter run` died keeps its tree
+/// and its screenshots and loses hot reload, and the row has to say which of
+/// those you have before you press anything.
 class _CapabilityPill extends StatelessWidget {
   const _CapabilityPill({required this.state});
 
@@ -825,7 +824,7 @@ class _ViewTabs extends StatelessWidget {
             enabled: enabled || _fileBacked.contains(tab.id),
             // Said, because a grey *Screen* beside a live *Logs* is otherwise
             // two guesses: a build in flight, or a run this build cannot read.
-            disabledReason: 'waiting for the app — the log is live',
+            disabledReason: 'Available once the app starts. Logs works now.',
             body: _unused,
           ),
       ],
@@ -869,11 +868,11 @@ class _ViewTabs extends StatelessWidget {
 
 /// The device strip, with the reads and the writes behind it.
 ///
-/// The Screen half of the split the launcher-icon research named: [DeviceStrip]
-/// takes a list and two callbacks and reads nothing, and this holds the backend
-/// and owns the busy state. Every ability it has is [RunCore]'s — the same two
-/// methods `run/device` and `run/setDevice` call — so the panel adds nothing an
-/// agent or the CLI cannot do.
+/// The reading half of the device strip: [DeviceStrip] takes a list and two
+/// callbacks and reads nothing, and this holds the backend and owns the busy
+/// state. Every ability it has is [RunCore]'s — the same two methods
+/// `run/device` and `run/setDevice` call — so the panel adds nothing an agent
+/// or the CLI cannot do.
 class _DeviceStripHost extends StatefulWidget {
   const _DeviceStripHost({
     super.key,
@@ -1007,7 +1006,7 @@ class _DeviceStripHostState extends State<_DeviceStripHost> {
   );
 }
 
-/// The picture and the widget tree, side by side — the design's Screen tab.
+/// The picture and the widget tree, side by side: the Screen tab.
 ///
 /// One reading rather than two. Both come off a single `getRootWidgetTree` in
 /// one object group, which is what merging `inspect` into one action allowed: a
@@ -1310,9 +1309,9 @@ class _ScreenTabState extends State<_ScreenTab> {
                   placeholder: _loading
                       ? 'Reading the app…'
                       : !_fromGuest
-                      ? 'This run has no flutterware guest in it, and the '
-                            'service extension has no semantics to give. '
-                            'Launch it through flutterware to read them.'
+                      ? 'flutterware did not launch this app, so it cannot '
+                            'read its semantics. Launch the app from '
+                            'flutterware to see them.'
                       : 'The app has published no semantics tree.',
                 ),
               ),
@@ -1442,8 +1441,8 @@ class _StepsTabState extends State<_StepsTab> {
     var entries = _entries;
     if (entries.isEmpty) {
       return const _Hint(
-        'Nothing has driven this run yet. Steps land here when an agent — '
-        'or fw — taps, types, reloads or observes.',
+        'Nothing has driven this run yet. Steps show up here when an agent '
+        'or fw taps, types, reloads or observes.',
       );
     }
     var selected = (_selected ?? entries.length - 1).clamp(
@@ -1632,7 +1631,7 @@ class _StepDetailState extends State<_StepDetail> {
       if (entry.actor case var actor?) 'by $actor',
       if (entry.layer case var layer?) 'through the $layer layer',
       if (entry.reconciled case var count? when count > 0)
-        '$count of its own taps came back as human input, and were dropped',
+        '$count of its own taps not counted as human taps',
       if ((entry.attempts ?? 1) > 1) '${entry.attempts} tries',
       if (entry.settleMs case var ms?) 'settled in ${ms}ms',
       if (entry.settled == false) 'still animating when observed',
@@ -2009,7 +2008,7 @@ class _NewRunPageState extends State<_NewRunPage> {
                 _Field(
                   label: 'Flavor',
                   hint: _overridingFlavor
-                      ? 'just this run; empty passes no --flavor at all'
+                      ? 'for this run only; leave it empty to pass no --flavor'
                       : null,
                   child: _FlavorField(
                     declared: _declaredFlavor,
@@ -2027,7 +2026,7 @@ class _NewRunPageState extends State<_NewRunPage> {
                   const Gap(FwSpacing.lg),
                   _Field(
                     label: 'Knobs',
-                    hint: 'passed to main — changing one is a hot restart',
+                    hint: 'passed to main; changing one later is a hot restart',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -2060,9 +2059,9 @@ class _NewRunPageState extends State<_NewRunPage> {
                       child: Text(_launching ? 'Starting…' : 'Start'),
                     ),
                     const Gap(FwSpacing.md),
-                    // Said before the click, not explained after it: every wireless
-                    // launch in the spike stalled on an OS dialog while the tool
-                    // reported only `Installing and launching…`.
+                    // Said before the click, not explained after it: a wireless
+                    // launch can stall on an OS dialog while the tool reports
+                    // only `Installing and launching…`.
                     if (blocked case var reason?)
                       Flexible(
                         child: Text(
@@ -2075,8 +2074,8 @@ class _NewRunPageState extends State<_NewRunPage> {
                     else if (device != null && device.isWireless)
                       Flexible(
                         child: Text(
-                          'wireless — expect a slow install, and a permission prompt '
-                          'on this Mac',
+                          'wireless, so expect a slow install and a permission '
+                          'prompt on this Mac',
                           style: context.type.caption.copyWith(
                             color: context.colors.amber,
                           ),
@@ -2219,9 +2218,10 @@ class _DevicePicker extends StatelessWidget {
     selected: selected,
     onChanged: onChanged,
     empty: restricted
-        ? 'Nothing connected that this entry point can run on. Boot one from '
-              'the desk below, or widen its platforms in tool/flutterware.dart.'
-        : 'No devices yet. Starting a flutter daemon takes a few seconds.',
+        ? 'No connected device this entry point can run on. Boot one under '
+              'On this machine below, or widen its platforms in '
+              'tool/flutterware.dart.'
+        : 'No devices yet. Finding them takes a few seconds.',
   );
 
   static String _detail(DaemonDevice device) => [
@@ -2595,7 +2595,7 @@ class _FlavorField extends StatelessWidget {
       // platform has no flavors, and the launch drops the flag the way web
       // does. An Override button here could only produce a refused launch.
       return Text(
-        'none — the platform declares no flavors',
+        'none: this platform declares no flavors',
         style: context.type.caption.copyWith(color: context.colors.mut3),
       );
     }
@@ -2663,7 +2663,7 @@ class _FlavorField extends StatelessWidget {
             // simply not have written this down, and that is exactly the
             // case where the build is about to fail for a reason the
             // cockpit could not have known.
-            FlavorSource.none => 'nothing declares one — none is passed',
+            FlavorSource.none => 'nothing declares one, so none is passed',
           }, style: context.type.caption.copyWith(color: context.colors.mut3)),
         ),
         const Gap(FwSpacing.xs),
@@ -2770,8 +2770,8 @@ class _FailedRunPage extends StatelessWidget {
                     ),
                     const Gap(FwSpacing.xs),
                     Text(
-                      '${failure.runLabel} on ${failure.deviceLabel} — '
-                      'never started, so nothing is holding the device.',
+                      '${failure.runLabel} on ${failure.deviceLabel} never '
+                      'started, so the device is free.',
                       style: context.type.bodyMuted,
                     ),
                   ],

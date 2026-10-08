@@ -15,7 +15,7 @@ import 'resolve.dart' show visibleTextCap;
 /// in the instant after the user's finger lifts, which is exactly when they
 /// are watching for the app to respond. `texts` is the same question answered
 /// 15x cheaper, because a predicate walk filters where the tree builds an
-/// object per node. See `2026-08-24-human-beats-design.md` § Measured.
+/// object per node.
 class HumanCapture {
   HumanCapture({required this.picture, required this.texts});
 

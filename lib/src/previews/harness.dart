@@ -386,7 +386,7 @@ Future<void> _serve(
         },
         // Carried now though nothing here takes a picture yet, so that when
         // one does it is asked for in physical pixels rather than acquiring a
-        // silent 1× default on the way — which is the whole of §4.2.
+        // silent 1× default on the way.
         pixelRatio: switch (request['pixelRatio']) {
           num ratio => ratio.toDouble(),
           _ => 1,
@@ -582,8 +582,7 @@ VoidCallback _stageViewport(WidgetTester tester, StagedViewport viewport) {
       // another, which means the rectangle's platform is not simply "the
       // machine" and the question is what a *rectangle* should be. Left as it
       // was until that is answered, because a change that trades one
-      // disagreement for another is not a fix — see §5.3 of
-      // `2026-08-27-previews-render-lane-design.md`.
+      // disagreement for another is not a fix.
       platform: switch (viewport.platform) {
         DevicePlatform.ios => TargetPlatform.iOS,
         DevicePlatform.android => TargetPlatform.android,

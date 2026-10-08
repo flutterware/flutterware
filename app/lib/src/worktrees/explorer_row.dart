@@ -19,8 +19,7 @@ import 'facts.dart';
 /// six cells in 52 pixels from reading as a wall.
 ///
 /// A View in the catalog sense — plain data in, callbacks out. It never asks
-/// what a worktree is; the facts arrive already probed. See
-/// `docs/superpowers/specs/2026-08-10-worktree-explorer-view-design.md` §7.
+/// what a worktree is; the facts arrive already probed.
 class WorktreeRow extends StatefulWidget {
   const WorktreeRow({
     super.key,
@@ -157,7 +156,7 @@ const _prWidth = 150.0;
 /// half of what taking `forge` away buys.
 const _stackWidth = 116.0;
 const _whenWidth = 64.0;
-// Wider than the 76 it was, and than the 32 the design budgeted: the column
+// Wider than the 76 it was, and than the 32 first budgeted: the column
 // carries Open, a menu trigger and the chevron, and at 76 that Row overflowed
 // by 11px — which clipped the trigger off the right edge, so it looked like it
 // vanished as you reached for it.

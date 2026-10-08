@@ -10,17 +10,17 @@ import 'plugin_host.dart';
 
 /// A plugin's behaviour, with no Flutter in it.
 ///
-/// This is master-plan decision 2 made literal: `status`, `badge`, `actions`,
-/// `teardown`, `guard` and the text projection are data, and **only the panel
-/// forks**. Everything a renderer other than the GUI needs lives here, so the
-/// same object serves the sidebar, `fw` and an agent.
+/// `status`, `badge`, `actions`, `teardown`, `guard` and the text projection
+/// are data, and **only the panel forks**. Everything a renderer other than
+/// the GUI needs lives here, so the same object serves the sidebar, `fw` and an
+/// agent.
 ///
 /// The reason it is a separate type from `NativePlugin` rather than a
 /// refactoring of it: `NativePlugin.buildPanel` returns a `Widget`, so that
 /// class can never be linked into a pure-Dart entry point. `fw` links cores.
 ///
-/// Change notification is a [ValueStream] rather than a `ChangeNotifier`, for
-/// the same reason — see `2026-07-27-gui-cli-mcp-architecture.md`, decision 4.
+/// Change notification is a [ValueStream] rather than a `ChangeNotifier` for
+/// the same reason: `ChangeNotifier` comes from `package:flutter`.
 abstract class PluginCore {
   PluginCore(this.host);
 

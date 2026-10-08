@@ -132,9 +132,8 @@ class GuiLauncher {
   /// already the parent.
   ///
   /// What it buys is the bottom of the terminal: a place that says the GUI is
-  /// up and how to stop it, and — when decisions 3 and 5 of the GUI/CLI/MCP
-  /// architecture land — where revealed addresses and job results arrive. The
-  /// GUI's own output goes above it, as ordinary scrollback.
+  /// up and how to stop it, and later where revealed addresses and job results
+  /// arrive. The GUI's own output goes above it, as ordinary scrollback.
   ///
   /// Off a terminal, or under `-v`, none of this happens and the child gets the
   /// terminal exactly as before.

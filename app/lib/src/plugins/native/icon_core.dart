@@ -289,7 +289,7 @@ class LauncherIconCore extends PluginCore {
 
   /// Whether the OS reaches this, in a word.
   static String _shown(IconRoleScan role) => switch (role.referenced) {
-    false => 'never — unreferenced',
+    false => 'never (unreferenced)',
     true => role.role.since ?? 'yes',
     null => role.role.since ?? 'yes',
   };
@@ -301,7 +301,7 @@ class LauncherIconCore extends PluginCore {
         ViewField('iOS icons', switch (scan.ios) {
           IosCatalog.appIconSet => 'AppIcon.appiconset',
           IosCatalog.iconComposer =>
-            'Icon Composer — ${scan.iconBundles.join(', ')}',
+            'Icon Composer (${scan.iconBundles.join(', ')})',
           IosCatalog.both =>
             'both an Icon Composer bundle and AppIcon.appiconset',
           IosCatalog.none => 'none',
@@ -418,7 +418,7 @@ class LauncherIconCore extends PluginCore {
       throw ArgumentError.value(
         flavor,
         'flavor',
-        'no icon set "$flavor" in "$path" — nothing names it: no '
+        'no icon set "$flavor" in "$path": there is no '
             'flutter_launcher_icons-$flavor.yaml, no android/app/src/$flavor/ '
             'and no AppIcon-$flavor.appiconset. '
             'Found: ${scan.flavors.isEmpty ? 'none' : scan.flavors.map((f) => f.name).join(', ')}',

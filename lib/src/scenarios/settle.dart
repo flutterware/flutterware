@@ -308,8 +308,8 @@ class _Until extends Settle {
           '${describeTarget(target)} did not appear within '
           '${_readable(timeout)} of '
           '${tester.binding is LiveTestWidgetsFlutterBinding ? 'real' : 'fake'}'
-          ' time. The picture on this step is the screen when the wait gave '
-          'up. If it is on its way and slower than that, give it longer: '
+          ' time. The picture on this step shows the screen when the wait '
+          'gave up. If it is coming but takes longer, give it more time: '
           '`Settle.until(…, timeout: …)`.',
         );
       }
@@ -455,22 +455,22 @@ ScenarioStillAnimating stillAnimating(
   if (ambient) {
     return ScenarioStillAnimating(
       '${did.isEmpty ? 'the step' : '`$did`'} left an `Ambient` on screen. '
-      'Under a scenario its motion is frozen, so the screen settled — but '
-      '`Settle.strict` is about the loader being there, not about the frames '
-      'it costs, and a picture with a spinner in it fails here frozen or not. '
-      'If the loader is the point of this picture, say so on the verb: '
+      'Its motion is frozen in a scenario, so the screen settled, but '
+      '`Settle.strict` fails any picture with a loader in it, frozen or not. '
+      'If the loader belongs in this picture, say so on the verb: '
       '`settle: Settle.standard`.',
     );
   }
   return ScenarioStillAnimating(
     '${did.isEmpty ? 'the step' : '`$did`'} left the screen still '
     "animating: a frame was still scheduled$budget and after the step's "
-    'real work had landed. `Settle.strict` makes that a failure where '
-    '`Settle.standard` records `settled: false` and moves on. '
-    '${still.isEmpty ? 'Nothing announced is still in flight, so what keeps asking for frames is on the captured step — a spinner, a looping animation, a caret in a focused field on an iOS device.' : 'Still in flight: ${still.join('; ')}.'} '
+    'real work had landed. `Settle.strict` fails the step here, where '
+    '`Settle.standard` records `settled: false` and continues. '
+    '${still.isEmpty ? 'No announced work is still in flight, so whatever keeps asking for frames is on the captured step: a spinner, a looping animation, or a caret in a focused field on an iOS device.' : 'Still in flight: ${still.join('; ')}.'} '
     '${ticking.isEmpty ? '' : 'Still ticking: ${ticking.join(', ')}. '}'
-    'If the animation is the point of this picture, say so on the verb: '
-    '`settle: Settle.standard`, or `Settle.frames(n)` for a fixed way in.',
+    'If the animation belongs in this picture, say so on the verb: '
+    '`settle: Settle.standard`, or `Settle.frames(n)` for a fixed number of '
+    'frames.',
   );
 }
 

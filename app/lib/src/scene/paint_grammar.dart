@@ -117,7 +117,7 @@ List<TextLayer>? readSceneLayers(Expression e, Refuse refuse) {
     refuse(
       e.offset,
       'layers',
-      'a paint stack is a list, back to front — '
+      'a paint stack is a list, back to front: '
           'layers: [StrokeLayer(width: 14), FillLayer()]',
     );
     return null;
@@ -140,7 +140,7 @@ TextLayer? _readLayer(Expression e, Refuse refuse) {
     refuse(
       e.offset,
       'layers',
-      'a pass is FillLayer(…) or StrokeLayer(width: …) — nothing else is '
+      'a pass is FillLayer(…) or StrokeLayer(width: …): nothing else is '
           'on the allowlist',
     );
     return null;
@@ -295,8 +295,8 @@ ScenePaint? _readPaint(Expression e, Refuse refuse) {
         e.offset,
         'paint',
         'a paint is SolidPaint(SceneColor(0x…)); LinearPaint, RadialPaint or '
-            "SweepPaint(colors: […]); or ShaderPaint('shaders/….frag') — "
-            'nothing else is on the allowlist',
+            "SweepPaint(colors: […]); or ShaderPaint('shaders/….frag'). "
+            'Nothing else is on the allowlist',
       );
       return null;
   }
@@ -311,7 +311,7 @@ ScenePaint? _readShader(Expression at, ArgumentList args, Refuse refuse) {
     refuse(
       at.offset,
       'paint',
-      'a shader paint names its asset first, as the pubspec declares it — '
+      'a shader paint names its asset first, as the pubspec declares it: '
           "ShaderPaint('shaders/foil.frag')",
     );
     return null;
@@ -336,7 +336,7 @@ Map<String, List<double>>? _readUniforms(Expression e, Refuse refuse) {
     refuse(
       e.offset,
       'uniforms',
-      "a map of uniform names to values — {'uAngle': [0.4], 'uTint': [1, 0.8, 0.2]}",
+      "a map of uniform names to values: {'uAngle': [0.4], 'uTint': [1, 0.8, 0.2]}",
     );
     return null;
   }
@@ -356,7 +356,7 @@ Map<String, List<double>>? _readUniforms(Expression e, Refuse refuse) {
       refuse(
         entry.value.offset,
         "uniform '$name'",
-        'a list of one to four numbers, one per component — [0.4] for a '
+        'a list of one to four numbers, one per component: [0.4] for a '
             'float, [1, 0.8, 0.2] for a vec3',
       );
       return null;
@@ -398,7 +398,7 @@ List<double>? _uniformValue(Expression e) {
     refuse(
       at.offset,
       'paint',
-      'a gradient names its colours — '
+      'a gradient names its colours: '
           '$kind(colors: [SceneColor(0x…), SceneColor(0x…)])',
     );
     return null;
@@ -422,7 +422,7 @@ List<double>? _uniformValue(Expression e) {
     refuse(
       colorList.offset,
       'paint',
-      'a gradient has two colours at least — one colour is '
+      'a gradient has two colours at least: one colour is '
           'SolidPaint(SceneColor(0x…))',
     );
     return null;
@@ -439,7 +439,7 @@ List<double>? _uniformValue(Expression e) {
       refuse(
         s.offset,
         'paint',
-        'a gradient has one stop per colour — or no stops, which spreads '
+        'a gradient has one stop per colour, or no stops, which spreads '
             'the colours evenly',
       );
       return null;

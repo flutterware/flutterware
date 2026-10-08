@@ -7,8 +7,6 @@
 /// contract. The app binds implementations against it (see
 /// `package:flutterware/render.dart`); the server hands it back with typed
 /// args and gets a typed result.
-///
-/// Design: docs/superpowers/specs/2026-08-31-widget-export-design.md.
 library;
 
 import 'dart:typed_data';

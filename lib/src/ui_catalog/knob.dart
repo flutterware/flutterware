@@ -5,9 +5,8 @@
 /// *whatever produced it*. Today that is the guest, which learns the knobs by
 /// running the demo and reports them over the VM service. A declaration read
 /// straight off a demo's parameter list would produce the same descriptors
-/// without running anything — see
-/// `docs/superpowers/specs/2026-07-27-knobs-static-and-runtime.md`. The panel
-/// should not be able to tell the difference.
+/// without running anything, and the panel should not be able to tell
+/// the difference.
 library;
 
 /// What kind of control a knob is, which is what a panel switches on.

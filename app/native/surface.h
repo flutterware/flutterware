@@ -12,12 +12,10 @@
 // On macOS each slot is an IOSurface that also backs a Metal texture the engine
 // renders into directly — zero-copy, no per-frame copy at all. Elsewhere each
 // slot is a shared-memory mapping the engine's GL framebuffer is read back
-// into: one copy per frame, measured at ~2ms for an 800x600 panel and ~4.5ms
-// at 1600x1200. See
-// `docs/superpowers/specs/2026-08-28-linux-embedder-guest-findings.md`.
-// The GL host cannot do better yet because a dmabuf is the only zero-copy way
-// across a process boundary there, and exporting one is a Mesa extension that
-// not every driver has.
+// into: one copy per frame, measured at ~2ms for an 800x600 panel and ~4.5ms at
+// 1600x1200. The GL host cannot do better yet because a dmabuf is the only
+// zero-copy way across a process boundary there, and exporting one is a Mesa
+// extension that not every driver has.
 //
 // Everything above the two blocks at the bottom of this header is common, so
 // `host.c` reallocates, captures, locks and advances the ring the same way on

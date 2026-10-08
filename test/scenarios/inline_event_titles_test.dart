@@ -48,7 +48,7 @@ void main() {
 
     expect(titles, hasLength(13), reason: 'twelve, and the marker');
     expect(titles.take(12), everyElement(startsWith('event ')));
-    expect(titles.last, '… 28 more — scenarios read events: true');
+    expect(titles.last, '… 28 more (scenarios read events: true)');
   });
 
   test('the count that is marked is of the titles, not of the events', () {
@@ -60,7 +60,7 @@ void main() {
       ...events(18),
     ])!;
 
-    expect(titles.last, '… 6 more — scenarios read events: true');
+    expect(titles.last, '… 6 more (scenarios read events: true)');
   });
 
   group('a title too wide for a summary', () {

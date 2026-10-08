@@ -19,9 +19,7 @@ import 'package:flutter/widgets.dart';
 /// - **Linux**, on the pinned engine, **segfaults the whole application** on
 ///   the raster thread. The engine hands `LayerTree::Flatten` a null graphics
 ///   context by construction under Impeller, and the embedder's external
-///   texture resolves against it without a null check — see
-///   `docs/superpowers/specs/2026-08-28-linux-embedder-guest-findings.md`,
-///   which has the disassembly and the two upstream faults.
+///   texture resolves against it without a null check.
 ///
 /// So the texture comes out of the tree for the frame the raster photographs.
 /// Nothing is lost: that rectangle has never carried the guest on either host,

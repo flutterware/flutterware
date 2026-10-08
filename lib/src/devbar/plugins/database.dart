@@ -1,10 +1,9 @@
-/// The app's database, on every surface — the panel half of
-/// `docs/superpowers/specs/2026-08-12-sqlite-watch-design.md`.
+/// The app's database as a panel, on every surface.
 ///
 /// flutterware never imports sqlite_async, powersync or sqlite3: the seam is
 /// [DatabaseAdapter], four function types and a name, and the recipe the app
-/// pastes is five lines (§ Decision 1 of the design). Everything here is pure
-/// Dart; the devbar wrapper lives in `database_plugin.dart`.
+/// pastes is five lines. Everything here is pure Dart; the devbar wrapper
+/// lives in `database_plugin.dart`.
 library;
 
 import 'dart:async';
@@ -120,7 +119,7 @@ class DatabaseAdapter {
   final DatabaseWatch? watch;
 
   /// Presence is the write opt-in. No function, no `execute` action, on
-  /// any surface — an agent cannot even see it (§ Decision 3 of the design).
+  /// any surface — an agent cannot even see it.
   final DatabaseQuery? execute;
 
   /// The sync engine that keeps this database, when one does. Said, not
@@ -613,7 +612,9 @@ class DatabasePanelSource implements DevbarPanelSource {
     var id = raw is int ? raw : int.tryParse('$raw');
     var subscription = id == null ? null : _watches.remove(id);
     if (subscription == null) {
-      throw ArgumentError('no watch $raw — active: ${_watches.keys.toList()}');
+      throw ArgumentError(
+        'no watch $raw. Active watches: ${_watches.keys.toList()}',
+      );
     }
     unawaited(subscription.cancel());
     return {'stopped': id};
@@ -624,8 +625,8 @@ class DatabasePanelSource implements DevbarPanelSource {
     var sql = event is int ? _sqlByEvent[event] : null;
     if (sql == null) {
       throw ArgumentError(
-        'explain is an item action — it needs the `event` id of a watch '
-        'snapshot still in the ring',
+        'explain is an item action and needs the `event` id of a watch '
+        'snapshot that is still held',
       );
     }
     var plan = await adapter.query('EXPLAIN QUERY PLAN $sql', const []);

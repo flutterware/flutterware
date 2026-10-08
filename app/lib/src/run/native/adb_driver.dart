@@ -12,7 +12,7 @@ import 'native_driver.dart';
 /// already needs. The Patrol-style automator APK — the heavier mechanism this
 /// could have been — stays unbuilt because the cheap path passed its spike:
 /// ~2.5s per dump idle, ~4s under a continuous animation, twelve dumps and no
-/// failures, taps landing on the first try (S-N1, 2026-08-12).
+/// failures, taps landing on the first try.
 ///
 /// Two measured facts shape everything here. **The dump arms Flutter's
 /// semantics by itself** — UiAutomation registers as an accessibility service,
@@ -205,7 +205,7 @@ class AdbNativeDriver extends NativeDriver {
       if (attempt == 1) {
         throw NativeRefusal(
           'The device would not describe its screen: ${output.trim()}. This '
-          'usually means a window is still opening — try again.',
+          'usually means a window is still opening; try again.',
           failure: 'unavailable',
         );
       }
@@ -357,8 +357,8 @@ class AdbNativeDriver extends NativeDriver {
       throw NativeRefusal(
         'This driver has not seen the app on screen yet, so it does not know '
         'which package to bring forward. `observe` once while it is visible '
-        'and retry. Worth knowing: Android rarely needs this — a backgrounded '
-        'Android app still answers the drive layer, unlike iOS.',
+        'and retry. Android rarely needs this: a backgrounded Android app '
+        'still answers the drive layer.',
         failure: 'unavailable',
       );
     }

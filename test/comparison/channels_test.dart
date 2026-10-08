@@ -527,7 +527,7 @@ void main() {
   });
 
   // The seam between the model and the UI pass: a filter can only ever select
-  // on facets the comparison recorded. Design note §9.
+  // on facets the comparison recorded.
   group('the facet contract', () {
     ComparedItem item() => ComparedItem.of(
       id: 'a#b',
@@ -631,7 +631,7 @@ void main() {
 
   // Measured on this repository: a comparison whose events channel reported
   // eleven deltas reported one *shape*, eleven times over. Eleven lines that
-  // are one fact. Design note `2026-08-30-comparison-ui-pass-design.md` §4a.
+  // are one fact.
   group('folding', () {
     ChannelDelta autofill(String hash) => ChannelDelta(
       channel: 'events',
@@ -724,8 +724,8 @@ void main() {
   });
 
   // Two caps on one payload, the second applied *after* the write and so
-  // *before* the comparison, is the derived-count failure §7 is about
-  // reappearing one level up.
+  // *before* the comparison, puts an "N more fields" count into what is
+  // compared, and the diff reports the count instead of the field.
   group('a payload is capped once, at write time', () {
     Map<String, Object?> wide(int fields, {String tail = 'x'}) => {
       'channel': 'analytics',

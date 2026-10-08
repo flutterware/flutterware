@@ -262,7 +262,7 @@ class _TeardownDialogState extends State<_TeardownDialog> {
           if (plan.branch case var branch?)
             _Row(
               label: 'Delete the branch $branch',
-              detail: 'only if it is merged — git refuses otherwise',
+              detail: 'only if it is merged; git refuses otherwise',
               value: _deleteBranch,
               danger: true,
               onChanged: (value) =>

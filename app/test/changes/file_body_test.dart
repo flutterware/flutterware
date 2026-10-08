@@ -134,7 +134,9 @@ void main() {
   Future<void> plus(WidgetTester tester, int n) async {
     await tester.tap(
       find
-          .byTooltip('Comment on this line — shift-click to extend a span')
+          .byTooltip(
+            'Comment on this line. Shift-click to cover several lines.',
+          )
           .at(n),
     );
     await tester.pumpAndSettle();
@@ -275,7 +277,7 @@ void main() {
     // And drawn where it is about, not at the top with the file-wide notes:
     // below line 2's margin and above line 3's.
     var margins = find.byTooltip(
-      'Comment on this line — shift-click to extend a span',
+      'Comment on this line. Shift-click to cover several lines.',
     );
     var thread = tester.getTopLeft(find.byType(ReviewThread)).dy;
     expect(tester.getTopLeft(margins.at(1)).dy, lessThan(thread));

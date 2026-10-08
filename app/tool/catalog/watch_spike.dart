@@ -16,14 +16,10 @@ import 'package:flutterware_app/src/embedder/protocol.dart';
 import 'package:flutterware_app/src/utils/run_dir.dart';
 import 'package:path/path.dart' as p;
 
-/// Measures the two things the inspection-panel spec refused to build the watch
-/// without measuring.
-///
-/// From `docs/superpowers/specs/2026-07-29-ui-catalog-inspection-panel.md`:
-/// *"whether VM-service events at 60Hz arrive smoothly or batch, and what a
-/// per-frame walk of a real tree costs"*, with the decision attached —
-/// **per-frame is allowed only if the measurement says it is free**, and
-/// otherwise the watch debounces.
+/// Measures the two things the watch was not to be built without: whether
+/// VM-service events at 60Hz arrive smoothly or batch, and what a per-frame
+/// walk of a real tree costs. **Per-frame is allowed only if the measurement
+/// says it is free**, and otherwise the watch debounces.
 ///
 /// It measures the real thing rather than a benchmark of something shaped like
 /// it: the guest is the real embedder host, the demo is one that genuinely

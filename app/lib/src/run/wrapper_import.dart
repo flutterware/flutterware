@@ -65,8 +65,8 @@ String? wrapperImportOf(String target, {String? package, bool web = false}) {
 String? webWrapperImportRefusal(String target) {
   if (!p.posix.isWithin('.', target)) return null;
   if (p.posix.isWithin('lib', target)) return null;
-  return '$target is outside lib/, and a web build roots the compiler at the '
-      "generated wrapper's own directory — so the wrapper has no import that "
-      'reaches the entry point. Move it under lib/ to get knobs, inspect and '
-      'drive on web; every other platform wraps it as it is.';
+  return '$target is outside lib/. A web build compiles from the generated '
+      "wrapper's directory, so the wrapper cannot import the entry point. "
+      'Move it under lib/ to get knobs, inspect and drive on web; other '
+      'platforms work with it where it is.';
 }

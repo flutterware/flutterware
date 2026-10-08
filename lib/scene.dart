@@ -2,12 +2,11 @@
 /// between the pure authoring core (`package:flutterware/scene_authoring.dart`)
 /// and Flutter's types.
 ///
-/// By decision (2026-09-01-scene-graduation-plan.md) this user-facing
-/// library will never export the authoring vocabulary — a file that imports
-/// it next to `material.dart` must never collide.
+/// This library never exports the authoring vocabulary, so a file can import
+/// it next to `material.dart` without a name colliding.
 ///
-/// Spike-grade surface: graduated from the canvas-toy spike 2026-09-01 and
-/// still moving with the editor; not yet a supported consumer API.
+/// **Experimental.** This surface still moves with the editor and is not yet
+/// a supported API.
 library;
 
 export 'src/scene/flutter_bridge.dart';

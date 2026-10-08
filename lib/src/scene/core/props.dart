@@ -16,7 +16,7 @@
 // The STYLE rows are the subset a [SceneTextStyle] carries, and they are
 // pinned to `sceneTextStyleFields` in both directions, so a row added there
 // without a field here would be authorable and unshareable. A text's other
-// rows are its own, spelled beside the style (master plan §4.5).
+// rows are its own, spelled beside the style.
 import 'kind.dart';
 import 'model.dart';
 import 'values.dart';

@@ -50,8 +50,8 @@ Color scenarioStepTone(BuildContext context, ScenarioRunStep step) {
 /// Where the names of what kept ticking point: the fix for motion that only
 /// says "busy", which is most of it.
 const ambientHint =
-    'If it only says "busy" — a spinner, a shimmer, a pulsing dot — wrap it '
-    'in `Ambient` (package:flutterware/ambient.dart): a scenario then draws it '
+    'If it only says "busy" (a spinner, a shimmer, a pulsing dot), wrap it '
+    'in `Ambient` (package:flutterware/ambient.dart). A scenario then draws it '
     'standing still and the step settles.';
 
 /// What a step reports above its picture — the error it broke on, or the note
@@ -78,46 +78,47 @@ class ScenarioStepNotice extends StatelessWidget {
         colors.amber,
         Icons.motion_photos_on_outlined,
         stillTicking.isEmpty
-            ? 'Still animating when this was captured — the settle budget ran '
-                  'out with frames still scheduled. A spinner or a looping '
-                  'animation does that; the picture is of a moving screen.'
-            : 'Still animating when this was captured — the settle budget ran '
-                  'out with frames still scheduled, and the picture is of a '
-                  'moving screen.\n\nStill ticking:\n'
+            ? 'Still animating when this was captured. The screen still '
+                  'asked for frames when the settle time ran out, so the '
+                  'picture shows it moving. A spinner or a looping animation '
+                  'does this.'
+            : 'Still animating when this was captured. The screen still '
+                  'asked for frames when the settle time ran out, so the '
+                  'picture shows it moving.\n\nStill ticking:\n'
                   '${stillTicking.map((line) => '• $line').join('\n')}\n\n'
                   '$ambientHint',
       ),
       ScenarioRunStep(landed: false) => (
         colors.amber,
         Icons.image_not_supported_outlined,
-        'Still loading when this was captured — an image decode or an asset '
+        'Still loading when this was captured: an image decode or an asset '
             'read had not finished after a second of real time. Whatever is '
-            'missing from this picture turns up on the next step.',
+            'missing from this picture shows up on the next step.',
       ),
       ScenarioRunStep(unchanged: true) => (
         colors.amber,
         Icons.copy_all_outlined,
-        'Identical to the step before it — ${_whatRan(step)} ran and '
-            'nothing on screen changed. In a walking scenario that usually '
-            'means a stalled flow: a tap that landed on a control that '
-            "ignored it, repeated until the loop's bound. It is harmless if "
-            'you parked the capture mid-flight on purpose.',
+        'Identical to the step before it: ${_whatRan(step)} ran and '
+            'nothing on screen changed. In a scenario that loops through a '
+            'flow, this usually means the flow stalled: a tap landed on a '
+            'control that ignored it, and the loop repeated it until it '
+            'stopped. It is fine if you captured mid-animation with '
+            '`Settle.none` or `Settle.frames`.',
       ),
       ScenarioRunStep(:var strayFrames) when strayFrames > 0 => (
         colors.mut2,
         Icons.timeline,
         '$strayFrames frame${strayFrames == 1 ? '' : 's'} were drawn before '
-            'this step by something other than a scenario verb — the raw '
-            '`tester`. Whatever the app showed in them is missing from this '
-            'flow.',
+            'this step by something other than a scenario verb, such as a '
+            'direct call on `s.tester`. Whatever the app showed in them is '
+            'missing from this flow.',
       ),
       ScenarioRunStep(settled: false, waited: false) => (
         colors.mut2,
         Icons.motion_photos_paused_outlined,
-        'Parked mid-flight: this step ran under a policy that draws its '
-            'frames and stops rather than waiting for the app to go quiet, so '
-            'the screen still moving is what the picture is of. Nothing gave '
-            'up here.',
+        "Captured mid-animation: this step's settle policy draws its "
+            'frames and stops without waiting for the app to go quiet, so the '
+            'picture shows the screen still moving. Nothing went wrong here.',
       ),
       _ => (null, null, null),
     };

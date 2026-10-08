@@ -29,10 +29,10 @@ void main() {
   );
 
   group('merging what an export wrote', () {
-    // The on-disk half of this is §5's replace rule; this is the same
-    // statement about the panel's knowledge. `export --listing=play` must not
-    // erase what the panel knows about the App Store half, for exactly the
-    // reason it must not delete those files.
+    // An export replaces the files of the listing it wrote and leaves the
+    // others; this is the same statement about the panel's knowledge.
+    // `export --listing=play` must not erase what the panel knows about the
+    // App Store half, for exactly the reason it must not delete those files.
     test('a narrowed export leaves the sets it did not touch', () {
       var before = StoreShotsReport(
         sets: [

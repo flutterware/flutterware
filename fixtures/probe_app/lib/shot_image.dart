@@ -12,8 +12,7 @@
 /// `landRealWork`), and every `ImageProvider` passes through that counter — so
 /// a scenario, a preview screenshot and a `scene video` frame all wait for this
 /// decode without being told to. The one lane that does not is the offscreen
-/// render lane, which mounts and pumps once; see the note in
-/// the design note (2026-09-09-store-assets-from-scenes.md § 2d).
+/// render lane, which mounts and pumps once.
 library;
 
 import 'dart:io';

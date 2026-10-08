@@ -4,10 +4,9 @@ import 'dart:typed_data';
 
 import 'package:standard_message_codec/standard_message_codec.dart';
 
-/// One person's platform, as the studio answers it for their guest — phase 3
-/// of the worlds guest experiment: can the studio stand in for the platform a
-/// plugin's native half would have run on
-/// (`docs/superpowers/specs/2026-09-25-worlds-guest-experiment-plan.md`).
+/// One person's platform, as the studio answers it for their guest: the
+/// studio stands in for the platform a plugin's native half would have run
+/// on.
 ///
 /// A guest started with `FW_FORWARD_PLATFORM=1` hands every platform message
 /// to its studio, and this answers them by channel. The plugins' own Dart code

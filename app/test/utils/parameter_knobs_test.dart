@@ -159,7 +159,7 @@ Widget demo({m.Backend backend = m.Backend.prod}) => Placeholder();
     expect(skipped['tint'], contains('is `Color`'));
     expect(
       skipped['tint'],
-      contains('String, bool, int, double, num, or an enum'),
+      contains('String, bool, int, double, num or an enum'),
     );
     expect(skipped['tint'], contains('If it is an enum'));
   });

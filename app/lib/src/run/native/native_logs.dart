@@ -143,7 +143,7 @@ class AppleLogSource implements NativeLogSource {
     if (output == null) {
       return NativeLogRead.unread(
         command: _describe(predicate, since),
-        note: 'The platform log could not be read — `log show` failed.',
+        note: 'The platform log could not be read: `log show` failed.',
       );
     }
     var lines = parseAppleLog(output, bundle: bundle);
@@ -342,7 +342,7 @@ class AndroidLogSource implements NativeLogSource {
     if (output == null) {
       return NativeLogRead.unread(
         command: _describe(arguments),
-        note: 'The platform log could not be read — `adb logcat` failed.',
+        note: 'The platform log could not be read: `adb logcat` failed.',
       );
     }
     var lines = parseLogcat(output);

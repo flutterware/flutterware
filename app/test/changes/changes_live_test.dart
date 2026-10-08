@@ -213,7 +213,7 @@ void main() {
       );
 
       expect(
-        find.textContaining('no longer part of the delta'),
+        find.textContaining('no longer among the changes'),
         findsOneWidget,
       );
       expect(inIndex('f03.dart'), findsNothing);

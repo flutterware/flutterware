@@ -200,7 +200,7 @@ void main() {
 
   group('reading a phase back into words', () {
     test('the ones the daemon actually reports', () {
-      expect(daemonPhaseLabel('cold compile'), 'Compiling the catalog');
+      expect(daemonPhaseLabel('cold compile'), 'Compiling the previews');
       expect(daemonPhaseLabel('asset bundle'), 'Building the asset bundle');
       expect(
         daemonPhaseLabel('rebuild after quarantine'),

@@ -593,7 +593,7 @@ class _JsonViewState extends State<JsonView> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Invalid JSON — $_parseError',
+              'Invalid JSON: $_parseError',
               style: _mono(context, colors.red).copyWith(fontSize: 12),
             ),
           ),

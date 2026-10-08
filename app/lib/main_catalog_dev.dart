@@ -119,8 +119,8 @@ class _MissingDefines extends StatelessWidget {
           child: Text(
             'The catalog harness needs the app and SDK paths.\n\n'
             'Run it with --dart-define FLUTTERWARE_APP_ROOT and '
-            'FLUTTER_SDK_ROOT set — see the doc comment in '
-            'app/lib/main_catalog_dev.dart.',
+            'FLUTTER_SDK_ROOT set, as the doc comment in '
+            'app/lib/main_catalog_dev.dart shows.',
             style: TextStyle(color: Colors.red),
           ),
         ),

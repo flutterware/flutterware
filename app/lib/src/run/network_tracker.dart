@@ -14,8 +14,6 @@ import 'connection.dart';
 /// which is what makes this tracker disposable — a fresh attach replays
 /// everything since capture was armed (by the run guest, or by [poll]'s
 /// re-arm for a guest-less run, which misses startup).
-///
-/// Measured semantics: `2026-08-12-http-profile-spike-findings.md`.
 class RunNetworkTracker {
   RunNetworkTracker(this.connection, {this.detailByteCap = 8 << 20});
 

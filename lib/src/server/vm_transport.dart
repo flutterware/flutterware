@@ -3,8 +3,7 @@
 ///
 /// The socket transport (`inspector.dart`) can write to a peer whenever it
 /// likes. This one cannot: a VM service extension is request/response, and the
-/// only thing an app can push is `postEvent`. So the shape here is the hybrid
-/// Decision 5 of the design settled on:
+/// only thing an app can push is `postEvent`. So the shape here is a hybrid:
 ///
 /// - **the host pulls.** Every call to [channelExtension] hands the core a
 ///   frame (or nothing) and comes back with whatever that peer has queued —
@@ -19,8 +18,6 @@
 /// five thousand rows produces one nudge, not five thousand — which is what
 /// makes it safe to put this on the same `Extension` stream Flutter already
 /// posts `Flutter.Frame` to on every frame.
-///
-/// Design: `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`.
 library;
 
 import 'dart:collection';

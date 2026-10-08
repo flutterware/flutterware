@@ -17,7 +17,6 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) {
   // string object per key, so the capture can say which key put which words on
   // which screen — with nothing inserted into the text and no pixel moved.
   // Test-only: these hooks are null in production and cost nothing there.
-  // Design: `docs/superpowers/specs/2026-08-18-translation-index-design.md`.
   ShopStrings.wrapValue = indexTranslations('shop');
   // Two things identity alone cannot follow, each closed by routing the key
   // rather than guessing it back out of the words. A substitution builds a new

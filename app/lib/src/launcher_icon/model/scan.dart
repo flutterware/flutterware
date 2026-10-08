@@ -1086,7 +1086,7 @@ List<IconFinding> _findings(IconScan scan, List<_Resource> resources) {
             Tone.warn,
             '${role.files.length} file${role.files.length == 1 ? '' : 's'} on '
             'disk, but no adaptive icon XML or manifest attribute points at '
-            '${role.files.first.name} — Android never draws it.',
+            '${role.files.first.name}, so Android never draws it.',
             role: role.role,
           ),
         );
@@ -1116,8 +1116,8 @@ List<IconFinding> _findings(IconScan scan, List<_Resource> resources) {
       IconFinding(
         Tone.warn,
         'Both an Icon Composer bundle (${scan.iconBundles.join(', ')}) and a '
-        'classic AppIcon.appiconset are present. Xcode uses one; which is '
-        'decided by the target settings, not by what is on disk.',
+        'classic AppIcon.appiconset are present. Xcode uses only one, chosen '
+        'by the target settings.',
       ),
     );
   }

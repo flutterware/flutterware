@@ -39,20 +39,15 @@ bool isKnownNotDelivered(String platform, DeviceSettingId id) =>
 /// refusals use: what was tried, what came back, and when it was measured — so
 /// a reader can tell a decision from a guess and knows what to re-run if they
 /// think it has changed.
-String notDeliveredReason(String platform, DeviceSettingId id) => switch ((
-  platform,
-  id,
-)) {
-  ('ios-simulator', DeviceSettingId.disableAnimations) =>
-    'The simulator accepts Reduce Motion and reads it straight back, and no '
-        'Flutter app sees it — before or after a relaunch. Nothing on the '
-        'iOS simulator sets it in a way the engine forwards. '
-        'Measured 2026-08-24.',
-  ('android', DeviceSettingId.highContrast) =>
-    'Android accepts high_text_contrast_enabled and reads it straight back, '
-        'and no Flutter app sees it. Android publishes no high-contrast '
-        'flag the engine forwards. Measured 2026-08-24.',
-  _ =>
-    'This platform accepts ${id.name} and no Flutter app sees it. '
-        'Measured 2026-08-24.',
-};
+String notDeliveredReason(String platform, DeviceSettingId id) =>
+    switch ((platform, id)) {
+      ('ios-simulator', DeviceSettingId.disableAnimations) =>
+        'The simulator accepts Reduce Motion and reads it back, but no Flutter '
+            'app sees it, even after a relaunch. Nothing on the iOS simulator '
+            'sets it in a way the engine passes on.',
+      ('android', DeviceSettingId.highContrast) =>
+        'Android accepts high_text_contrast_enabled and reads it back, but no '
+            'Flutter app sees it: Android publishes no high-contrast flag the '
+            'engine passes on.',
+      _ => 'This platform accepts ${id.name}, but no Flutter app sees it.',
+    };

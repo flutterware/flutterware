@@ -1,5 +1,4 @@
-/// The sample app's own database — the dogfood for the db panel
-/// (`docs/superpowers/specs/2026-08-12-sqlite-watch-design.md`, S-DB1).
+/// The sample app's own database — the dogfood for the db panel.
 ///
 /// sqlite_async over a real file, so the panel's `changes` ticks and `watch`
 /// re-runs come from the same machinery a production app uses. A small

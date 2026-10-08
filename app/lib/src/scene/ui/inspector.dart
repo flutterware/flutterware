@@ -820,7 +820,7 @@ class SceneInspector extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.only(bottom: FwSpacing.md),
         child: Text(
-          '${t.runs.length} runs — typing here makes them one',
+          '${t.runs.length} runs. Typing here makes them one.',
           style: context.type.caption.copyWith(color: context.colors.mut2),
         ),
       ),
@@ -1269,8 +1269,8 @@ class SceneInspector extends StatelessWidget {
       _label(context, 'Repeat'),
       Text(
         items.isEmpty
-            ? 'once per $source — no items, so nothing is drawn'
-            : 'once per $source — ${items.length} rows, this one the first',
+            ? 'once per $source: no items, so nothing is drawn'
+            : 'once per $source: ${items.length} rows, this one the first',
         style: context.type.caption,
       ),
       if (fields.isNotEmpty)
@@ -1321,10 +1321,10 @@ class SceneInspector extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: FwSpacing.xs),
           child: Text(
-            '$widest cells in the widest row — '
+            '$widest cells in the widest row, so '
             '${widest - f.columns.length} column'
-            '${widest - f.columns.length == 1 ? '' : 's'} '
-            'undeclared, and hugging',
+            '${widest - f.columns.length == 1 ? ' is' : 's are'} '
+            'undeclared and hug their content',
             style: context.type.micro.copyWith(color: context.colors.mut2),
           ),
         ),
@@ -1737,7 +1737,7 @@ class SceneInspector extends StatelessWidget {
               for (var m in info.meshes) FwChoice(value: m, label: m),
             ];
             missing =
-                'no mesh "$current" in ${paths.basename(asset)} — it has: '
+                'no mesh "$current" in ${paths.basename(asset)}. It has: '
                 '${info.meshes.join(', ')}';
           } else {
             choices = [
@@ -1750,7 +1750,7 @@ class SceneInspector extends StatelessWidget {
                 ),
             ];
             missing =
-                'no clip "$current" in ${paths.basename(asset)} — it has: '
+                'no clip "$current" in ${paths.basename(asset)}. It has: '
                 '${info.clips.map((c) => c.name).join(', ')}';
           }
       }
@@ -1973,7 +1973,7 @@ class SceneInspector extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: FwSpacing.xs),
             child: Text(
-              'Mixed — picking one sets them all',
+              'Mixed. Picking one sets them all.',
               style: context.type.caption.copyWith(color: colors.mut2),
             ),
           ),
@@ -2190,8 +2190,8 @@ class SceneInspector extends StatelessWidget {
   /// An instance of another scene: its arguments, each at one of three
   /// places in the cascade — the child's default, an override written here,
   /// or a parameter of THIS scene it reads. Editing here writes the
-  /// override (or the parameter it reads, the M1 rule); the child's own
-  /// mockup is edited in its main, one door away.
+  /// override (or the parameter it reads); the child's own mockup is edited
+  /// in its main, one door away.
   List<Widget> _sceneProps(BuildContext context, SceneRefNode r) {
     var inst = r.instance;
     var caption = context.type.caption.copyWith(color: context.colors.mut2);

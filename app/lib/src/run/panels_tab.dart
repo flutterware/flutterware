@@ -37,8 +37,8 @@ class PanelsTab extends StatefulWidget {
 
   final RunHandle handle;
 
-  /// The host's half of Decision 4: wishes to push, and the knobs this project
-  /// has shown before.
+  /// The host's half of the flag memory: wishes to push, and the knobs this
+  /// project has shown before.
   final FlagMemory memory;
 
   /// How to reach the app. Injected for the test that drives a fake VM.

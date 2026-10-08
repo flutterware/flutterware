@@ -194,8 +194,8 @@ class TokensLibrary extends SceneListenable implements SceneSavable {
     Set<String> taken = const {},
   }) {
     if (!isValidNodeName(wanted)) {
-      return '"$wanted" is not a valid name — a Dart identifier: letters, '
-          'digits and underscores, not starting with a digit';
+      return '"$wanted" is not a valid name. A name is a Dart identifier: '
+          'letters, digits and underscores, not starting with a digit';
     }
     if (wanted == renaming) return null;
     if (named(wanted) != null) return '"$wanted" is already in $fileName';
@@ -335,7 +335,7 @@ class TokensLibrary extends SceneListenable implements SceneSavable {
       throw ArgumentError('"$name" holds no value to set');
     }
     if (!_holds(kind, value)) {
-      throw ArgumentError('"$name" is a ${t.typeName} — a $value is not one');
+      throw ArgumentError('"$name" is a ${t.typeName}: a $value is not one');
     }
     perform('Edit token $name', mergeKey: mergeKey, () {
       tokens[i] = SceneTokenDecl(name, kind, value);
@@ -394,7 +394,7 @@ class TokensLibrary extends SceneListenable implements SceneSavable {
       if (have.isExport || have.isStyle || have.kind != t.kind) {
         var what = have.isStyle ? 'a style' : 'a ${have.kind?.name}';
         notImported.add(
-          '${t.source} — "${t.name}" is $what here, the file has a '
+          '${t.source}: "${t.name}" is $what here, the file has a '
           '${t.kind.name}',
         );
         continue;

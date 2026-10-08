@@ -5,8 +5,6 @@
 /// ([Screen.of]), which is what lets run, previews and scenarios all hand back
 /// the same thing without three implementations: each surface's job is to
 /// produce a tree, and this turns it into a screen.
-///
-/// Design and measurements: `2026-08-13-screen-handback-design.md`.
 library;
 
 import 'package:meta/meta.dart';
@@ -295,12 +293,12 @@ class Screen {
 
   /// What a caller is told when [tryOf] could not build a screen.
   static String projectionFailed(Object error) =>
-      'the screen could not be projected from this frame — $error. That is a '
-      'bug in flutterware rather than in the app, and worth reporting. The '
-      'rest of this reply is the same frame and unaffected: the texts, the '
-      'picture, `find "…"`, `at "x,y"` and `tree: true` all answer. What is '
-      'gone is the numbering, so `item:` has nothing to point at — target by '
-      'text, or by `at` with a point read off the picture.';
+      'the screen could not be projected from this frame: $error. This is a '
+      'bug in flutterware, not in the app, and worth reporting. The rest of '
+      'this reply comes from the same frame and still works: the texts, the '
+      'picture, `find "…"`, `at "x,y"` and `tree: true`. Only the numbering '
+      'is missing, so `item:` has nothing to point at. Target by text, or by '
+      '`at` with a point read off the picture.';
 
   /// The screen [tree] describes.
   ///

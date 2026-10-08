@@ -188,9 +188,8 @@ class _ExportSheetState extends State<_ExportSheet> {
               on: _route == ExportRoute.file,
               title: 'Save to a file…',
               body:
-                  'Point a reader at the path. Save it outside the checkout '
-                  'unless you want it showing up as an untracked row on this '
-                  'very screen.',
+                  'Give the path to whoever reads it. Save it outside the '
+                  'checkout, or it shows up here as an untracked file.',
               onTap: () => setState(() => _route = ExportRoute.file),
             ),
             const Gap(FwSpacing.xl),
@@ -250,7 +249,7 @@ class _ExportSheetState extends State<_ExportSheet> {
                   const Gap(FwSpacing.sm),
                   Flexible(
                     child: Text(
-                      'Resolve them too — no reply comes back',
+                      'Mark them resolved, since no reply comes back',
                       style: context.type.caption.copyWith(
                         color: _resolve ? colors.ink : colors.mut2,
                       ),

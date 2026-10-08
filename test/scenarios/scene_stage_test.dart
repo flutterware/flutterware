@@ -4,8 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/reel.dart';
 import 'package:flutterware/scene_authoring.dart';
 
-/// A stage that is a **scene**, and the stock edit that builds one. Design:
-/// `docs/superpowers/specs/2026-09-08-scenario-reel-design.md`.
+/// A stage that is a **scene**, and the stock edit that builds one.
 ///
 /// Pure: an edit is a take in and a reel out, and a motion is `apply(t)`, so
 /// every claim here is checked with no pixels and no app.

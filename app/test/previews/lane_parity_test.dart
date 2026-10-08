@@ -19,8 +19,7 @@ import 'package:flutterware/src/inspect/node.dart';
 
 /// **The two backends, asked the same question.**
 ///
-/// §9 of `2026-08-27-previews-render-lane-design.md` asks for this before
-/// `screenshot` crosses, and the reason is a bug the last such check found:
+/// The reason is a bug the last such check found:
 /// the guest *audit* framed entries on `flutter_test`'s 800×600 where the
 /// single-entry path gave 900×700, so one demo was reported overflowing by 576
 /// pixels where it really overflowed by 476. Nothing else caught it, because

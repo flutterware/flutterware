@@ -1,8 +1,7 @@
 /// A [FeedDescriptor] rendered: rows on the left, the selected event on the
 /// right.
 ///
-/// Master/detail, following the server panel's Requests tab — which is the
-/// announced reference (`2026-07-31-run-cockpit-panel-design.md`) — but written
+/// Master/detail, following the server panel's Requests tab, but written
 /// against the descriptor rather than extracted from it. Extraction waits for
 /// a second real consumer to prove the generalisation against.
 library;

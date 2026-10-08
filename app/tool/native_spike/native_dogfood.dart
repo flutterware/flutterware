@@ -1,5 +1,4 @@
-// Dogfood driver for the native fallback layer
-// (docs/superpowers/specs/2026-08-12-run-native-fallback-design.md).
+// Dogfood driver for the native fallback layer.
 //
 // The stack an agent actually uses — a real Session, the run plugin's own
 // act/observe actions — against an app already running on a device, driving

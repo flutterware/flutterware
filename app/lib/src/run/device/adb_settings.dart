@@ -107,8 +107,8 @@ class AdbDeviceSettings implements DeviceSettings {
       case DeviceSettingId.textScale:
         if (double.tryParse(value) == null) {
           throw DeviceRefusal(
-            'Android takes a font scale as a number — ${fontScales.join(', ')} '
-            'are what its own settings offer. "$value" is not one.',
+            'Android takes a font scale as a number, and "$value" is not one. '
+            'Its own settings offer ${fontScales.join(', ')}.',
           );
         }
         await _shell(['settings', 'put', 'system', 'font_scale', value]);
@@ -208,7 +208,7 @@ class AdbDeviceSettings implements DeviceSettings {
       note: mode == null || mode == 'yes' || mode == 'no'
           ? null
           : 'The device is on "$mode", which is neither light nor dark until '
-                'something decides.',
+                'the system picks one.',
     );
   }
 
@@ -227,7 +227,7 @@ class AdbDeviceSettings implements DeviceSettings {
       command: 'adb shell settings get system font_scale',
       note:
           'Android scales text non-linearly, so this is not a multiplier: 2.0 '
-          'is ×1.86 at 14sp and ×1.00 at 100sp. Measured 2026-08-24.',
+          'is ×1.86 at 14sp and ×1.00 at 100sp.',
     );
   }
 
@@ -284,8 +284,8 @@ class AdbDeviceSettings implements DeviceSettings {
       throw DeviceRefusal(
         'The device is set to $wanted and the screen is still '
         '${setting.value ?? 'not saying'} two seconds later. An app that pins '
-        'its own orientation — SystemChrome.setPreferredOrientations — takes '
-        'the device setting and never turns.',
+        'its own orientation with SystemChrome.setPreferredOrientations '
+        'accepts the device setting but does not rotate.',
         command: 'adb -s $serial shell am get-config',
       );
     }
@@ -336,8 +336,8 @@ class AdbDeviceSettings implements DeviceSettings {
       clearLabel: 'Device language',
       command: 'adb shell cmd locale get-app-locales $package',
       note:
-          'Set for $package alone, live, with no restart. Takes any BCP-47 '
-          'tag; an empty value hands the app back to the device language.',
+          'Applies to $package only, right away, with no restart. Takes any '
+          'BCP-47 tag; an empty value returns the app to the device language.',
     );
   }
 
@@ -377,9 +377,9 @@ class AdbDeviceSettings implements DeviceSettings {
       atDefault: value == 'off',
       command: 'adb shell settings get global transition_animation_scale',
       note:
-          'The transition scale is the one the engine forwards; setting this '
-          'writes the window and animator scales too, so the device is calm '
-          'rather than only reporting that it is.',
+          'The engine reads the transition scale. Setting this also writes '
+          'the window and animator scales, so animations stop on the whole '
+          'device.',
     );
   }
 
@@ -396,10 +396,9 @@ class AdbDeviceSettings implements DeviceSettings {
     id: DeviceSettingId.boldText,
     noun: 'A11y',
     reason:
-        'Android delivers bold text, and applying it tears the activity down '
-        'and back up — the app loses its state and main() runs again. Every '
-        'other control here is live, and one that is a hot restart in disguise '
-        'does not belong beside them. Measured 2026-08-24.',
+        'Android delivers bold text, but applying it recreates the activity: '
+        'the app loses its state and main() runs again. The other controls '
+        'here apply live, so this one is left out.',
     command: 'adb shell settings put secure font_weight_adjustment 300',
   );
 
@@ -461,7 +460,7 @@ class AdbDeviceSettings implements DeviceSettings {
 
   DeviceRefusal _noPackage() => DeviceRefusal(
     'Nothing on screen says which app this is, so there is no package to set a '
-    'locale for. Android scopes this one per package — bring the app to the '
+    'locale for. Android sets the language per package; bring the app to the '
     'front and try again.',
   );
 
@@ -484,7 +483,8 @@ class AdbDeviceSettings implements DeviceSettings {
   void _require(String value, Iterable<String> options, DeviceSettingId id) {
     if (options.contains(value)) return;
     throw DeviceRefusal(
-      '${id.name} on Android takes ${options.join(', ')} — not "$value".',
+      '${id.name} on Android takes ${options.join(', ')}, and "$value" is '
+      'not one of them.',
     );
   }
 }

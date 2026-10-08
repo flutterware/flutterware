@@ -59,9 +59,8 @@ class MyDevBar extends StatelessWidget {
   final Widget child;
   final List<String> availableUsers;
 
-  /// The db panel's subject, when the entry point opened one. The recipe
-  /// from 2026-08-12-sqlite-watch-design.md: the app hands over
-  /// query/updates/watch; flutterware imports no sqlite.
+  /// The db panel's subject, when the entry point opened one. The app hands
+  /// over query/updates/watch; flutterware imports no sqlite.
   final AppDatabase? database;
 
   MyDevBar({

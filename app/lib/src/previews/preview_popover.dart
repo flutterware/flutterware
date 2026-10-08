@@ -167,7 +167,7 @@ class PreviewPopover extends StatelessWidget {
         return _waiting(
           context,
           colors,
-          child: const LoadingState(title: 'Compiling the catalog…'),
+          child: const LoadingState(title: 'Compiling the previews…'),
         );
       // Null is the frame between the pointer stopping and the store having
       // been asked. Same face as a warm pending, deliberately: a box that

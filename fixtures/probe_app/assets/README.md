@@ -1,8 +1,7 @@
 # Asset fixtures
 
-These exist for the asset inspector
-(`docs/superpowers/specs/2026-07-29-asset-inspector-design.md`), not for the
-example app — nothing here is referenced from its Dart code yet.
+These exist for the asset inspector, not for the example app — nothing here
+is referenced from its Dart code yet.
 
 **Several are wrong on purpose.** This directory is the audit's test suite, so
 every finding the audit is meant to produce has something here to find. Fixing

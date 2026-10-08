@@ -9,8 +9,7 @@ import 'value_stream.dart';
 /// The one place the pure-Dart notification primitive meets Flutter. It exists
 /// because `ListenableBuilder` cannot accept a [ValueStream] — and because the
 /// widget's subscription *is* the demand signal: mounting starts the work,
-/// unmounting releases it, which is the laziness model of
-/// `2026-07-26-packages-and-laziness.md` with no extra machinery.
+/// unmounting releases it, so the work is lazy with no extra machinery.
 ///
 /// Unlike `StreamBuilder` there is no initial frame without data: a
 /// [ValueStream] always has a current value, so [builder] gets a real one on

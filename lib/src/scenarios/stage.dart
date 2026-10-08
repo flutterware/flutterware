@@ -19,8 +19,6 @@ import 'reel.dart';
 /// Why a tree and not a canvas: the moment a stage can zoom, a cursor painted
 /// onto the app's pixels grows with the app, and a caption hand-laid on a
 /// canvas is a `TextPainter` and a stack of offsets. Both are free here.
-///
-/// Design: `docs/superpowers/specs/2026-09-08-scenario-reel-design.md`.
 abstract class ReelStage {
   const ReelStage();
 
@@ -177,8 +175,8 @@ class StageScope extends InheritedWidget {
     var scope = context.dependOnInheritedWidgetOfExactType<StageScope>();
     if (scope == null) {
       throw FlutterError(
-        'Screen and Pointer only work inside a stage — they draw the frame a '
-        'reel is being rendered for, and outside one there is no frame.',
+        'Screen and Pointer only work inside a stage, because they draw the '
+        'frame a reel is being rendered for.',
       );
     }
     return scope.frame;

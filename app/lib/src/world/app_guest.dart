@@ -14,8 +14,7 @@ import '../previews/asset_bundle.dart';
 import 'plugin_registrant.dart';
 
 /// An app's own `main`, built to run in embedded guests — one kernel for every
-/// person in a world. The worlds guest experiment
-/// (`docs/superpowers/specs/2026-09-25-worlds-guest-experiment-plan.md`).
+/// person in a world.
 ///
 /// **One kernel, every person.** The generated entry reads its knobs at run
 /// time — from a file of that person's, on every start — and hands them to

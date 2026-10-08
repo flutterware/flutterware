@@ -5,7 +5,7 @@ import 'package:flutterware/devbar.dart';
 import 'package:flutterware/devbar_plugins/variables.dart';
 
 /// Feature flags, from the widget that declares one to the wire a cockpit
-/// reads — the app half of Decision 4.
+/// reads.
 void main() {
   setUp(() {
     GuestChannels.install();

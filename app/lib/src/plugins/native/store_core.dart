@@ -28,8 +28,7 @@ const _pluginDescription =
 ///
 /// The plugin has no validator and must not grow one. A [Listing] declares
 /// which store it is and the store's sizes arrive with it, so a set a store
-/// would refuse cannot be declared — see `lib/src/plugins/store.dart` and
-/// `docs/superpowers/specs/2026-08-26-store-screenshots-design.md`.
+/// would refuse cannot be declared — see `lib/src/plugins/store.dart`.
 ///
 /// Holds to the two rules every core holds to: the constructor allocates
 /// nothing, and [report] only formats what a previous call caused to load.
@@ -191,9 +190,9 @@ class StoreCore extends PluginCore {
     description: _pluginDescription,
     actions: _actions,
     status: _progress == null ? Status.none : Status.info(_progress!.line),
-    // **Always, including for one app** — the store design's §1. A panel
-    // that named its app only once there were two left the ordinary project
-    // looking at "App Store" and "Google Play" with nothing saying whose.
+    // **Always, including for one app.** A panel that named its app only
+    // once there were two left the ordinary project looking at "App Store"
+    // and "Google Play" with nothing saying whose.
     // The id is the name `--app` takes, so a rail row, an address and a CLI
     // flag are one spelling.
     children: [
@@ -362,7 +361,7 @@ class StoreCore extends PluginCore {
   /// renders one composition in about a second where this renders a whole
   /// listing in seventeen; and an export is a release artifact, where reusing
   /// what happens to be on disk risks shipping last week's screenshots to save
-  /// nine seconds. See decision 13.
+  /// nine seconds.
   Future<StoreExportResult> _export(Map<String, Object?> arguments) async {
     var onlyListing = arguments['listing'] as String?;
     var onlyLocale = arguments['locale'] as String?;
@@ -560,9 +559,7 @@ class StoreCore extends PluginCore {
           : p.join(redirect, nameOf(app));
       if (!Directory(output).existsSync()) {
         throw ActionRefusal(
-          'nothing exported to "$output" yet. Run `store export` first — '
-          'opening a directory that is not there would look like an export '
-          'that produced nothing.',
+          'nothing exported to "$output" yet. Run `store export` first.',
         );
       }
       await _reveal(output);
@@ -1001,7 +998,7 @@ class StoreProgress {
   double get fraction => total == 0 ? 0 : done / total;
 
   /// The one line that reaches the panel, `fw run` and an MCP client alike.
-  String get line => '$phase $set — ${done + 1} of $total';
+  String get line => '$phase $set (${done + 1} of $total)';
 }
 
 /// How much of what is already there an export is entitled to remove.

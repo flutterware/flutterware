@@ -170,7 +170,7 @@ class RunScreenPicture extends StatelessWidget {
             const Gap(FwSpacing.sm),
             _Freshness(readAt: readAt, movedSince: movedSince),
             Text(
-              'rendered by the app — platform views will not appear',
+              'rendered by the app; platform views do not appear',
               textAlign: TextAlign.center,
               style: context.type.micro.copyWith(color: context.colors.mut3),
             ),
@@ -182,7 +182,7 @@ class RunScreenPicture extends StatelessWidget {
                 // the grip it reads as an unexplained rule down the page.
                 (true, _) => 'Taking a picture…',
                 (_, true) =>
-                  'The app answered with a picture that decodes to nothing.',
+                  'The app sent a picture that could not be decoded.',
                 _ => 'No picture yet',
               },
               textAlign: TextAlign.center,

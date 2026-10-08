@@ -7,9 +7,6 @@
 /// the code that serves it together, and the descriptor is derived from what
 /// was registered. A panel that describes something it cannot answer is not
 /// expressible.
-///
-/// Design: `docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`
-/// (§ Decision 3).
 library;
 
 import 'dart:async';
@@ -96,7 +93,7 @@ class Panel {
     var feed = _feeds[feedId];
     if (feed == null) {
       throw ArgumentError(
-        'panel $id has no feed "$feedId" — declare the feed before its '
+        'panel $id has no feed "$feedId". Declare the feed before its '
         'actions. Declared: ${_feeds.keys.toList()}',
       );
     }
@@ -134,7 +131,7 @@ class Panel {
   }) {
     if (!_feeds.containsKey(feedId)) {
       throw ArgumentError(
-        'panel $id has no feed "$feedId" — declared: ${_feeds.keys.toList()}',
+        'panel $id has no feed "$feedId". Declared: ${_feeds.keys.toList()}',
       );
     }
     return _core.addEvent(
@@ -216,7 +213,7 @@ class Panel {
     var handler = _handlers[actionId];
     if (handler == null) {
       throw ArgumentError(
-        'panel $id has no action "$actionId" — declared: '
+        'panel $id has no action "$actionId". Declared: '
         '${_handlers.keys.toList()}',
       );
     }
@@ -228,7 +225,7 @@ class Panel {
     var entry = _states[stateId];
     if (entry == null) {
       throw ArgumentError(
-        'panel $id has no state "$stateId" — declared: '
+        'panel $id has no state "$stateId". Declared: '
         '${_states.keys.toList()}',
       );
     }
@@ -241,7 +238,7 @@ class Panel {
     var entry = _knobs[name];
     if (entry == null) {
       throw ArgumentError(
-        'panel $id has no knob "$name" — declared: ${_knobs.keys.toList()}',
+        'panel $id has no knob "$name". Declared: ${_knobs.keys.toList()}',
       );
     }
     await entry.$3(value);

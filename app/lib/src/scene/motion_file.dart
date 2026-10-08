@@ -1,6 +1,5 @@
 // Disposable spike: the motion class grammar, its parser and its emitter —
-// the scene grammar's discipline applied to the motion rewrite (sketches
-// 17–25, decisions owner-signed 2026-09-01).
+// the scene grammar's discipline applied to the motion rewrite.
 //
 // THE GRAMMAR, on a page. A motion is a class in the SCENE file, beside
 // the scene it animates (grammar 0.5 folded the two files into one, so
@@ -105,7 +104,7 @@ void emitMotionClass(
   for (var g in doc.groups) {
     if (!isValidNodeName(g.name) || !seen.add(g.name)) {
       throw ArgumentError(
-        '"${g.name}" is not a usable group name — names are field names: '
+        '"${g.name}" is not a usable group name. Names are field names: '
         'valid identifiers, unique in the class, off the reserved list',
       );
     }
@@ -184,7 +183,7 @@ String _track(MotionTrack t, TrackKind kind, Map<String, SceneParamDecl> ps) {
   }
   if (t.keys.isEmpty) {
     throw ArgumentError(
-      'a track with no keys is not written — Save writes non-empty tracks '
+      'a track with no keys is not written: Save writes non-empty tracks '
       'only; remove the property instead',
     );
   }
@@ -232,7 +231,7 @@ String _dur(Duration d) {
   if (d.isNegative || d.inMicroseconds % 1000 != 0) {
     throw ArgumentError(
       'a motion time is a whole, non-negative millisecond '
-      'count — got $d',
+      'count, got $d',
     );
   }
   return '${d.inMilliseconds}.ms';
@@ -245,7 +244,7 @@ String _paramDefault(SceneParamDecl p) => switch (p.kind) {
   SceneParamKind.bool => '${p.defaultValue}',
   // A track interpolates between two values; a list is not one.
   SceneParamKind.list => throw ArgumentError(
-    'a motion parameter cannot be a list — "${p.name}"',
+    'a motion parameter cannot be a list: "${p.name}"',
   ),
 };
 
@@ -351,7 +350,7 @@ class _Parser {
         refuse(
           member.offset,
           'constructor',
-          'parameters live in the class header — '
+          'parameters live in the class header: '
               '`class ${className!}(super.scene, {final double p = 1})`',
         );
         continue;
@@ -364,8 +363,8 @@ class _Parser {
         refuse(
           member.offset,
           'member',
-          'the motion class holds group fields, the timeline, and the '
-              'derived copy — nothing else',
+          'the motion class holds only group fields, the timeline and the '
+              'derived copy',
         );
         continue;
       }
@@ -395,7 +394,7 @@ class _Parser {
           'duplicate name',
           motionReservedNames.contains(name)
               ? '"$name" is reserved in a motion class'
-              : '"$name" is already declared — parameters and groups share '
+              : '"$name" is already declared: parameters and groups share '
                     'one namespace, and a name is an identity',
         );
         continue;
@@ -415,7 +414,7 @@ class _Parser {
           found.offset,
           'no timeline',
           'the motion class declares '
-              '`@override late final timeline = ParExpr([…])` — '
+              '`@override late final timeline = ParExpr([…])`: '
               'the timeline is what plays',
         );
       }
@@ -428,7 +427,7 @@ class _Parser {
         refuse(
           entry.value,
           'parameter in timeline',
-          '"$name" is a parameter — the timeline plays groups',
+          '"$name" is a parameter: the timeline plays groups',
         );
         continue;
       }
@@ -444,7 +443,7 @@ class _Parser {
         refuse(
           entry.value,
           'placed twice',
-          '"$name" is already in the timeline — a group plays from one '
+          '"$name" is already in the timeline: a group plays from one '
               'place; wrap it in Repeat or split the group instead',
         );
       }
@@ -503,7 +502,7 @@ class _Parser {
         refuse(
           pc.constKeyword!.offset,
           'const',
-          'a motion is never const — its groups are late finals',
+          'a motion is never const: its groups are late finals',
         );
       }
       var sawScene = false;
@@ -518,7 +517,7 @@ class _Parser {
         refuse(
           pc.formalParameters.offset,
           'scene formal',
-          'the first formal is `super.scene` — the motion holds the scene '
+          'the first formal is `super.scene`: the motion holds the scene '
               'it animates',
         );
       }
@@ -526,7 +525,7 @@ class _Parser {
       refuse(
         decl.offset,
         'no constructor',
-        'a motion class takes its scene in the header — '
+        'a motion class takes its scene in the header: '
             '`class ${className!}(super.scene) extends '
             'SceneMotion<$sceneClassName>`',
       );
@@ -539,8 +538,8 @@ class _Parser {
       refuse(
         p.offset,
         'parameter',
-        'a motion parameter is spelled in full in the header — '
-            '`final double $name = 24` — never `this.`',
+        'a motion parameter is spelled in full in the header, as '
+            '`final double $name = 24`, never with `this.`',
       );
       return;
     }
@@ -549,7 +548,7 @@ class _Parser {
         p.offset,
         'parameter',
         'after `super.scene`, a parameter is a named header formal with a '
-            'default — `final double slideFrom = 24`',
+            'default: `final double slideFrom = 24`',
       );
       return;
     }
@@ -584,7 +583,7 @@ class _Parser {
       refuse(
         p.type!.offset,
         'parameter type',
-        'this default makes "$name" a ${decl.typeName} — spell it '
+        'this default makes "$name" a ${decl.typeName}: spell it '
             '`final ${decl.typeName} $name`',
       );
       return;
@@ -637,7 +636,7 @@ class _Parser {
       refuse(
         m.offset,
         'copy',
-        'copy is derived — the editor rewrites it as '
+        'copy is derived: the editor rewrites it as '
             '`${className!} copy($sceneClassName scene) => '
             'copyStateInto(${className!}(scene, …));`; leave it out or keep '
             'that shape',
@@ -690,7 +689,7 @@ class _Parser {
       refuse(
         expr.offset,
         'expression',
-        'a group animates one scene node — '
+        'a group animates one scene node: '
             '`late final $name = scene.<node>.animate(…)`',
       );
       return null;
@@ -724,7 +723,7 @@ class _Parser {
           refuse(
             value.offset,
             'args',
-            'only an external widget or a nested scene takes args — '
+            'only an external widget or a nested scene takes args: '
                 '"$targetName" is a ${target.typeName}',
           );
           continue;
@@ -737,7 +736,7 @@ class _Parser {
           refuse(
             value.offset,
             'axes',
-            'only a text has a face to move — '
+            'only a text has a face to move: '
                 '"$targetName" is a ${target.typeName}',
           );
           continue;
@@ -750,7 +749,7 @@ class _Parser {
         refuse(
           value.offset,
           'unknown property',
-          '"$prop" is not animatable on a ${target.typeName} — '
+          '"$prop" is not animatable on a ${target.typeName}: '
               '${allowed.keys.join(', ')}',
         );
         continue;
@@ -775,7 +774,7 @@ class _Parser {
       refuse(
         e.offset,
         'args',
-        'args takes the tracks of what it animates — '
+        'args takes the tracks of what it animates: '
             'args: $expected(size: MotionTrack([…]))',
       );
       return;
@@ -785,7 +784,7 @@ class _Parser {
         refuse(
           arg.offset,
           'positional argument',
-          'every track is named — $expected(size: MotionTrack([…]))',
+          'every track is named: $expected(size: MotionTrack([…]))',
         );
         continue;
       }
@@ -805,7 +804,7 @@ class _Parser {
       refuse(
         e.offset,
         'axes',
-        'axes takes a map of tags to tracks — '
+        'axes takes a map of tags to tracks: '
             "axes: {'wght': MotionTrack([…])}",
       );
       return;
@@ -885,7 +884,7 @@ class _Parser {
       refuse(
         list.offset,
         'empty track',
-        'a track with no keys contributes nothing and is never written — '
+        'a track with no keys contributes nothing and is never written: '
             'remove the property instead',
       );
       return null;
@@ -903,7 +902,7 @@ class _Parser {
         refuse(
           element.offset,
           'keys out of order',
-          'keys are listed in time order — the hold rule reads them sorted',
+          'keys are listed in time order: the hold rule reads them sorted',
         );
         continue;
       }
@@ -911,7 +910,7 @@ class _Parser {
         refuse(
           element.offset,
           'duplicate key time',
-          'two keys at ${key.at.inMilliseconds}.ms — one value per time',
+          'two keys at ${key.at.inMilliseconds}.ms: one value per time',
         );
         continue;
       }
@@ -1064,7 +1063,7 @@ class _Parser {
         refuse(
           e.offset,
           'parameter type',
-          '"${e.name}" is a ${decl.typeName} parameter — this track holds '
+          '"${e.name}" is a ${decl.typeName} parameter: this track holds '
               '${kind.name}s',
         );
         return null;
@@ -1092,7 +1091,7 @@ class _Parser {
     refuse(
       e.offset,
       'unknown curve',
-      'expected SceneCurves.<${motionCurves.take(4).join('|')}…> — nothing else '
+      'expected SceneCurves.<${motionCurves.take(4).join('|')}…>: nothing else '
           'is on the allowlist',
     );
     return null;
@@ -1160,7 +1159,7 @@ class _Parser {
           refuse(
             args.arguments[0].offset,
             'speed factor',
-            "a speed factor is positive — reversing is the player's job",
+            "a speed factor is positive: reversing is the player's job",
           );
           return null;
         }
@@ -1201,7 +1200,7 @@ class _Parser {
         refuse(
           e.offset,
           'unknown combinator',
-          '"$name" is not an arrangement — ParExpr, SeqExpr, AtExpr, '
+          '"$name" is not an arrangement: ParExpr, SeqExpr, AtExpr, '
               'SpeedExpr or RepeatExpr',
         );
         return null;

@@ -4,9 +4,9 @@
 /// `span`/`spanSync`, `handle`) plus zone correlation and a typed
 /// self-description ([ServerInfo], published with `FlutterwareServer.info`),
 /// inert in release builds and on machines without flutterware. Adapters for
-/// shelf, SQL
-/// drivers and `package:logging` are copy-paste snippets over these
-/// primitives; see the design doc and `fixtures/probe_app/bin/example_server.dart`.
+/// shelf, SQL drivers and `package:logging` are snippets you copy, written
+/// over these primitives; `fixtures/probe_app/bin/example_server.dart` in
+/// flutterware's repository has them.
 ///
 /// The attacher side — [scanServerHandles], [attachToServer],
 /// [ServerAttachClient] — is what the GUI, `fw` and MCP read a live server

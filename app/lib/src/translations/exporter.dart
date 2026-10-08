@@ -6,8 +6,6 @@
 /// service the JSON is pushed to. That is what lets **one frame serve every
 /// key on it** instead of one cropped image per key, and it keeps the shot the
 /// run captured rather than a derivative of it.
-///
-/// Design: `2026-08-18-translation-index-design.md`.
 library;
 
 import 'dart:convert';

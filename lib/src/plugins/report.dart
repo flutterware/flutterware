@@ -8,9 +8,9 @@ import 'view.dart';
 
 /// Everything a plugin says about itself right now — **all of it data**.
 ///
-/// This is decision 2 of the overhaul plan made concrete. A native plugin draws
-/// a real Flutter widget for humans, but it emits one of these too, so the
-/// shell, `fw`, a file projection and an agent all read the same thing. Nothing
+/// A native plugin draws a real Flutter widget for humans, but it emits one of
+/// these too, so the shell, `fw`, a file projection and an agent all read the
+/// same thing. Nothing
 /// here may become a widget, a `Color`, or a closure: the moment it does, every
 /// non-GUI renderer loses that capability permanently.
 class PluginReport {

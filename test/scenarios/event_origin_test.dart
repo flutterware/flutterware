@@ -2,9 +2,6 @@ import 'package:flutterware/src/app_events/events.dart';
 import 'package:test/test.dart';
 
 /// Where an event was made, and the rules that keep it worth having.
-///
-/// Design: `docs/superpowers/specs/2026-08-29-comparison-events-channel-design.md`
-/// §8.
 void main() {
   setUp(() => appEventBuffer = AppEventBuffer());
   tearDown(() => appEventBuffer = null);

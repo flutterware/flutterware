@@ -596,8 +596,8 @@ class _Detail extends StatelessWidget {
         child: Text(
           selectedId == null
               ? 'Select a widget'
-              : 'The tree no longer has $selectedId.\nIt named a position, and '
-                    'the shape changed.',
+              : 'The tree no longer has $selectedId.\nThe id named a position, '
+                    'and the tree has changed shape.',
           textAlign: TextAlign.center,
           style: context.type.caption.copyWith(color: colors.mut),
         ),
@@ -634,7 +634,7 @@ class _Detail extends StatelessWidget {
             // is where this was, the last time it was on one.
             _Pair(
               label: 'shown',
-              value: 'offstage — in the tree, not on the screen',
+              value: 'offstage: in the tree but not on screen',
             ),
           if (it.source case var source?)
             _Pair(
@@ -677,7 +677,7 @@ class _Detail extends StatelessWidget {
             Text(
               // Not zero-filled, because "it has no box" and "its box is
               // empty" are different answers and only one of them is a bug.
-              'Lays nothing out of its own — a provider or a builder.',
+              'Lays nothing out of its own (a provider or a builder).',
               style: context.type.caption.copyWith(color: colors.mut),
             ),
           ] else ...[
@@ -688,8 +688,8 @@ class _Detail extends StatelessWidget {
               // `Scaffold` lays nothing out — and it did. Saying who is not
               // looking beats both lying and leaving a pane that stops after
               // the source line, where the gap reads as a broken tool.
-              'Structure and source only — a tree read from outside the app '
-              'carries no box and no properties.',
+              'Structure and source only: a tree read from outside the app '
+              'has no boxes or properties.',
               style: context.type.caption.copyWith(color: colors.mut),
             ),
           ],
@@ -809,10 +809,9 @@ int _styleRank(String name) {
 /// nobody labelled, is not a name either.
 ///
 /// The whole chain is deliberately not shown anywhere yet. The place for it is
-/// the three-way merge popover of `2026-08-18-style-detail-ux.md` § D, on this
-/// same row; putting a tooltip here in the meantime would be the second
-/// interaction on the target that popover wants, which is the trap
-/// `HoverCard`'s own doc records.
+/// a three-way merge popover on this same row; putting a tooltip here in the
+/// meantime would be the second interaction on the target that popover wants,
+/// which is the trap `HoverCard`'s own doc records.
 String _originOf(String? label) {
   if (label != null && label.isNotEmpty) {
     // The first group with nothing nested in it is the base of the chain;
@@ -826,7 +825,7 @@ String _originOf(String? label) {
   }
   // An absence of authorship, not a failure of the read — saying nothing here
   // would read as a gap in the tool.
-  return 'nothing labelled it — written inline, not a theme slot';
+  return 'nothing labelled it: written inline, not taken from the theme';
 }
 
 final _innermost = RegExp(r'\(([^()]*)\)');
@@ -1021,8 +1020,8 @@ class _MergeHead extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: FwSpacing.xs),
             child: Text(
-              'this widget’s style is inherit: false — it replaced what '
-              'was in scope rather than merging into it',
+              'this widget’s style is inherit: false, so it replaced the '
+              'style in scope instead of merging into it',
               style: context.type.micro.copyWith(color: colors.mut),
             ),
           ),

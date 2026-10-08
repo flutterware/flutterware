@@ -325,7 +325,7 @@ class ScenarioRunArgs {
   /// in `[1, 100]`: `percent` of each value's own ceiling, which is larger
   /// the shorter the value is (`TranslationIndex.expansionLength`). Applied
   /// through `TranslationIndex.expandPercent` for the request; null for every
-  /// ordinary run. Design: `2026-08-19-translation-max-lengths-design.md`.
+  /// ordinary run.
   final int? expandTranslations;
 }
 

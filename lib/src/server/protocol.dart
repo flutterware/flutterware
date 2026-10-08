@@ -4,8 +4,7 @@
 /// The wire half lives in `frames.dart` and is re-exported here, so importing
 /// this file still gets the whole protocol. The two are separate files because
 /// only this one needs `dart:io`: an inspector running inside a Flutter app on
-/// a phone has the frames and no filesystem to publish a handle into
-/// (`docs/superpowers/specs/2026-08-11-devbar-run-bridge-design.md`).
+/// a phone has the frames and no filesystem to publish a handle into.
 library;
 
 import 'dart:convert';

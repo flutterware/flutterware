@@ -253,7 +253,7 @@ List<ChangeRow> buildFileRows(
   if (file.isBinary) {
     return [
       ...fileComments,
-      FileNoticeRow(file, 'Binary file — no lines to show.'),
+      FileNoticeRow(file, 'Binary file, no lines to show.'),
     ];
   }
   if (file.patchBytes > ChangesLimits.filePatchBytes) {
@@ -261,15 +261,15 @@ List<ChangeRow> buildFileRows(
       ...fileComments,
       FileNoticeRow(
         file,
-        "This file's diff is ${(file.patchBytes / 1024).round()} KB — past "
-        'what the viewer expands. Open it in your editor.',
+        "This file's diff is ${(file.patchBytes / 1024).round()} KB, too "
+        'large to show here. Open it in your editor.',
       ),
     ];
   }
   if (file.hunks.isEmpty) {
     return [
       ...fileComments,
-      FileNoticeRow(file, 'No text changed — only the path or the mode.'),
+      FileNoticeRow(file, 'No text changed, only the path or the mode.'),
     ];
   }
   return [

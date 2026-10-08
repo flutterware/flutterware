@@ -140,14 +140,12 @@ class PreviewsPlugin extends NativePlugin<PreviewsCore> {
   /// all of them.
   StartupTask? _harnessTask(TesterPhaseReading reading) =>
       switch (reading.phase) {
-        TesterPhase.compiling => const StartupTask(
-          'Compiling the previews harness',
-        ),
+        TesterPhase.compiling => const StartupTask('Compiling the previews'),
         TesterPhase.bundling => const StartupTask(
           'Rebuilding the asset bundle',
         ),
-        TesterPhase.starting => const StartupTask('Starting the harness'),
-        TesterPhase.restarting => const StartupTask('Restarting the harness'),
+        TesterPhase.starting => const StartupTask('Starting the previews'),
+        TesterPhase.restarting => const StartupTask('Restarting the previews'),
         TesterPhase.reloading => StartupTask(
           'Reloading ${reading.files} '
           'edited file${reading.files == 1 ? '' : 's'}',
@@ -251,7 +249,7 @@ class PreviewsPlugin extends NativePlugin<PreviewsCore> {
   String? get busyWith {
     for (var session in _sessions.values) {
       if (session.phase == CatalogSessionPhase.starting) {
-        return session.busyWith ?? 'starting the catalog';
+        return session.busyWith ?? 'starting the previews';
       }
       if (session.busyWith case var busy?) return busy;
       // Not while it is failing: an engine that died has an error on the stage
@@ -691,7 +689,7 @@ class _CatalogPanelState extends State<_CatalogPanel> {
         // same claim as "there are none".
         var setup = widget.plugin.core.setupFor(path);
         if (setup == CatalogSetup.unknown) {
-          return const LoadingState(title: 'Looking for demos…');
+          return const LoadingState(title: 'Looking for previews…');
         }
         if (setup != CatalogSetup.ready) {
           return _NoPreviews(

@@ -152,7 +152,7 @@ void main() {
     // thumbnail comes from beside the page.
     await screen.tap('Run');
     await screen.tap('Brewline (devbar) · iPhone 16');
-    await screen.waitFor('no launcher — cannot reload');
+    await screen.waitFor('flutter run ended, cannot reload');
     await screen.waitFor('Thanks, Ada!');
     await screen.settle();
     await screen.shot('run');

@@ -78,9 +78,9 @@ class LaunchingPane extends StatelessWidget {
   String? get _note {
     if (elapsed case var since?) {
       return _late
-          ? '${_since(since)} in — longer than $_aColdBuild usually takes. '
-                'Whatever it is waiting on is in the log below.'
-          : '${_since(since)} in — $_aColdBuild usually finishes within '
+          ? '${_since(since)} so far, longer than $_aColdBuild usually '
+                'takes. What it is waiting on is in the log below.'
+          : '${_since(since)} so far; $_aColdBuild usually finishes within '
                 '${_since(_budget)}.';
     }
     return null;
@@ -161,7 +161,7 @@ class LaunchingPane extends StatelessWidget {
 ///
 /// Generous round numbers rather than measurements, and deliberately not
 /// per-project. The figure worth having is this project's own last successful
-/// launch, and nothing records one yet — see the design note.
+/// launch, and nothing records one yet.
 ///
 /// An unknown platform takes the generous branch along with the slow ones. The
 /// two ways to be wrong here are not symmetric: crying late at two minutes on

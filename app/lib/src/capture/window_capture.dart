@@ -22,9 +22,9 @@ import '../embedder/embedded_engine.dart';
 /// guest texture out of the tree for the frame this photographs — which leaves
 /// exactly the hole macOS was leaving anyway, on every host.
 ///
-/// See decision 5 of
-/// `docs/superpowers/specs/2026-07-27-gui-cli-mcp-architecture.md`, which
-/// records the measurement and why the OS-level alternative was rejected.
+/// The OS-level alternative, macOS `ScreenCaptureKit`, would need a Screen
+/// Recording permission and a visible, unoccluded window; the composite needs
+/// neither.
 abstract final class WindowCapture {
   /// Rasterizes [boundary] at [pixelRatio] and composites every live guest
   /// under it into the hole it left.

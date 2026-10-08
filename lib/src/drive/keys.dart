@@ -39,7 +39,7 @@ class KeyChord {
       throw TargetError(
         TargetFailure.notFound,
         '`$verb` needs something to press: a key name, or a chord like '
-        '`meta+k` — the last name fires and the ones before it are held.',
+        '`meta+k`, where the last name fires and the ones before it are held.',
       );
     }
     var trigger = _logicalKey(names.removeLast());
@@ -214,10 +214,9 @@ class KeyChord {
     }
     throw TargetError(
       TargetFailure.notFound,
-      'no key is called "$name". Names are `LogicalKeyboardKey` debug names '
-      'spelled any way that reads — `escape`, `enter`, `tab`, `arrowDown`, '
-      '`f2`, `keyK` — a single character like `k`, or one of '
-      '${_keyAliases.keys.join(', ')}.',
+      'no key is called "$name". Use a `LogicalKeyboardKey` debug name in '
+      'any spelling (`escape`, `enter`, `tab`, `arrowDown`, `f2`, `keyK`), a '
+      'single character like `k`, or one of ${_keyAliases.keys.join(', ')}.',
     );
   }
 
@@ -250,9 +249,9 @@ class KeyChord {
       throw TargetError(
         TargetFailure.notFound,
         '${key.debugName} is not in the key tables for $_keyPlatform, so no '
-        'keystroke can be built for it here — Flutter maps a different set of '
-        'keys per platform, and this one is missing from that set rather than '
-        'from your spelling. Pick another key.',
+        'keystroke can be built for it here. Flutter maps a different set of '
+        'keys on each platform, and this key is not in the set for this one. '
+        'Pick another key.',
       );
     }
   }

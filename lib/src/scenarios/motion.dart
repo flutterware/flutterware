@@ -11,8 +11,7 @@ import 'run_args.dart';
 ///
 /// A screenshot pair says where the app started and where it stopped. What it
 /// cannot say is what happened in between, which for a Hero flight or a
-/// cross-fade is the entire question. Design and measurements:
-/// `docs/superpowers/specs/2026-08-11-scenario-motion-capture-findings.md`.
+/// cross-fade is the entire question.
 ///
 /// Under `FakeAsync` the frames are the animation's *ideal* curve — exactly
 /// [interval] apart, no drops, identical run to run. That is what makes them

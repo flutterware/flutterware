@@ -162,8 +162,8 @@ class _Stage extends StatelessWidget {
             IconRender(image: image, role: role, size: 96),
             const Gap(FwSpacing.lg),
             Text(
-              'Nothing on a device shows this one — it is uploaded with the '
-              'release, or packaged.',
+              'No device shows this one. It is uploaded with the release, or '
+              'packaged.',
               textAlign: TextAlign.center,
               style: context.type.caption.copyWith(color: context.colors.mut),
             ),
@@ -372,7 +372,7 @@ class _NoImage extends StatelessWidget {
           child: Text(
             color == null
                 ? 'No image on disk for this role.'
-                : 'A colour rather than an image — $color, from colors.xml.',
+                : 'A colour instead of an image: $color, from colors.xml.',
             style: context.type.caption.copyWith(color: colors.mut),
           ),
         ),

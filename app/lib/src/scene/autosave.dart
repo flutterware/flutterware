@@ -175,11 +175,11 @@ class SceneAutosave {
       }
     }
     if (refused.isNotEmpty) {
-      _set(SceneSaveState.refused, 'not written — ${refused.join('; ')}');
+      _set(SceneSaveState.refused, 'not written: ${refused.join('; ')}');
     } else if (held.isNotEmpty) {
       _set(
         SceneSaveState.conflicted,
-        '${held.join(', ')} changed on disk — save to keep yours',
+        '${held.join(', ')} changed on disk. Save to keep your version.',
       );
     } else {
       _set(SceneSaveState.saved, '');

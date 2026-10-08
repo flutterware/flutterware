@@ -70,8 +70,8 @@ class FindingsTab extends StatelessWidget {
         title: 'Nothing changed',
         message:
             index.verdictGap ??
-            'Neither half found a row worse than identical. The other tabs '
-                'have everything that was compared.',
+            'No preview or scenario changed. The other tabs list everything '
+                'that was compared.',
       );
     }
     // **A row is read left to right, so it has a width.** Stretched across a

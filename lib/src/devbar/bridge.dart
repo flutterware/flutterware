@@ -1,8 +1,8 @@
 /// What connects a mounted [Devbar] to the channels a host reads.
 ///
 /// The devbar is the *plugin host* — where plugins are constructed, because
-/// that is where the app author writes them (Decision 2). This is the other
-/// half of that decision: when flutterware is watching, every descriptor-mode
+/// that is where the app author writes them. This is the other half: when
+/// flutterware is watching, every descriptor-mode
 /// plugin of every mounted devbar becomes a panel, and stops being one when the
 /// devbar unmounts.
 ///

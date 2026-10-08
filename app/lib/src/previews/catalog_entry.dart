@@ -38,7 +38,7 @@ class CatalogEntry {
   /// Empty means the signature declares none, not that it went unread. An entry
   /// can still declare knobs at runtime by reading `context.uiCatalog`, and
   /// those cost a compile and a frame to learn; these cost a parse. The two
-  /// coexist deliberately (`2026-07-27-knobs-static-and-runtime.md`).
+  /// coexist deliberately.
   final List<KnobDescriptor> knobs;
 
   /// The annotation's source text with the `@` stripped — `Preview(name: 'x')`.

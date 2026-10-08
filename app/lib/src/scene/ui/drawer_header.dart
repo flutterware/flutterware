@@ -80,8 +80,8 @@ class _SceneDrawerHeaderState extends State<SceneDrawerHeader> {
                 ? 'Open a motion to see its timeline'
                 : collapsed
                 ? 'Show the $thing'
-                : 'Fold the $thing away — the '
-                      '${isMotion ? 'motion' : 'parameter'} stays open',
+                : 'Fold the $thing away. The '
+                      '${isMotion ? 'motion' : 'parameter'} stays open.',
             icon: active == null || collapsed
                 ? Icons.keyboard_arrow_up
                 : Icons.keyboard_arrow_down,
@@ -132,7 +132,7 @@ class _SceneDrawerHeaderState extends State<SceneDrawerHeader> {
               // node, and the ones in other scenes named. Not a column of
               // the pane — the pane is the value.
               Tooltip(
-                message: 'Who reads it — click to step to a reader',
+                message: 'What reads it. Click to go to a reader.',
                 waitDuration: const Duration(milliseconds: 600),
                 child: Builder(
                   builder: (context) => Tappable(
@@ -172,7 +172,7 @@ class _SceneDrawerHeaderState extends State<SceneDrawerHeader> {
             ),
             _HeaderButton(
               tooltip: isMotion
-                  ? 'Close the motion — the scene as authored'
+                  ? 'Close the motion and show the scene as authored'
                   : 'Close the $thing',
               icon: Icons.close,
               size: FwIconSize.sm,

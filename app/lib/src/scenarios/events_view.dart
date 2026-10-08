@@ -143,8 +143,8 @@ class _ScenarioEventsViewState extends State<ScenarioEventsView> {
                         return Padding(
                           padding: const EdgeInsets.all(FwSpacing.lg),
                           child: Text(
-                            '${widget.dropped} more events were dropped: this '
-                            'transition hit the capture cap.',
+                            '${widget.dropped} more events were not kept: '
+                            'this transition reached the event limit.',
                             style: context.type.caption.copyWith(
                               color: colors.amber,
                             ),

@@ -15,11 +15,10 @@ import 'app_theme.dart';
 /// The eight shapes of finding the detail page has to render, drawn against
 /// the real [StepPage] at the width it ships at.
 ///
-/// Step 1 of `2026-08-31-comparison-detail-page-design.md`'s method: enumerate
-/// the states before drawing anything, because until they were listed only the
-/// first had ever been looked at — and *events only*, the commonest state on
-/// the branch that prompted the note, reached production having never been
-/// designed.
+/// The states are listed before anything is drawn, because until they were
+/// listed only the first had ever been looked at — and *events only*, the
+/// commonest state on the branch that prompted this, reached production having
+/// never been designed.
 ///
 /// Every one of these is the real widget over real decoded frames, so what
 /// they show about the split between picture and finding is what ships.

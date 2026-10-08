@@ -46,10 +46,7 @@ fvm dart tool/screenshots.dart   # writes build/screenshots/media/
 
 ## Windows
 
-Windows support is in progress.
-[The plan](docs/superpowers/specs/2026-09-14-windows-support-plan.md) says
-what works, what does not yet, and the order it gets fixed in. What a
-contributor needs today:
+Windows support is in progress. What a contributor needs today:
 
 - **Developer Mode** (Settings → System → For developers). `flutter pub get`
   links each plugin's Windows sources into

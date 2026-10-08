@@ -22,8 +22,7 @@ import 'channel_lines.dart';
 /// **Full width, in the header slot**, because the files tab already puts
 /// `0 files +0 -0` there and because a verdict is about both panes. Drawn
 /// inside the 320px index instead, the chips wrap to a second row, the shape
-/// line truncates and it costs the list ~110px of height. Design:
-/// `docs/superpowers/specs/2026-08-30-comparison-ui-pass-design.md` §1.
+/// line truncates and it costs the list ~110px of height.
 ///
 /// **Counted over findings, never over every row.** A comparison is hundreds
 /// of rows and a handful of findings, so everything here is O(findings) by
@@ -128,7 +127,7 @@ class ComparisonVerdict extends StatelessWidget {
   /// A system delta counts toward the `events/system` row and nothing above
   /// it. It cannot make a finding ([EventChannel.significant]), so an `events`
   /// chip that counted it would claim more steps than the list shows — the
-  /// subchannel row keeps the count, which is the door the design note wanted.
+  /// subchannel row keeps the count.
   static List<String> _facetsOf(ChannelDelta delta) => [
     if (!_isSystem(delta)) delta.channel,
     if (delta.subchannel case var sub?) '$_subPrefix$sub',
@@ -234,8 +233,7 @@ class ComparisonVerdict extends StatelessWidget {
         children: [
           // The four channels report; the knobs live in the Filter popover.
           // Subchannels used to sit here as sibling chips — ten equal-weight
-          // pills, a hierarchy drawn as a list — and the row was unreadable
-          // for exactly the reason option B was rejected in the design note.
+          // pills, a hierarchy drawn as a list — and the row was unreadable.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -393,7 +391,7 @@ class _Shape extends StatelessWidget {
     var line = Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: 'same change in $how — '),
+          TextSpan(text: 'same change in $how: '),
           TextSpan(
             // A delta with no values — a node or an event that came or went —
             // is named by its subject: `added` alone says nothing, and the

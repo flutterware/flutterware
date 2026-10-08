@@ -148,8 +148,8 @@ class SimctlDeviceSettings implements DeviceSettings {
       command: 'xcrun simctl ui $udid content_size',
       note: scale == null
           ? null
-          : '$answer is ×${scale.toStringAsFixed(2)} at any size — iOS scales '
-                'linearly',
+          : '$answer is ×${scale.toStringAsFixed(2)} at any size; iOS scales '
+                'text linearly',
     );
   }
 
@@ -215,7 +215,7 @@ class SimctlDeviceSettings implements DeviceSettings {
           'InvertColorsEnabled',
       note:
           'As written: the simulator has no command that reports this one, so '
-          'the value is the store we wrote rather than an answer.',
+          'this is the value flutterware last wrote.',
     );
   }
 
@@ -273,7 +273,7 @@ class SimctlDeviceSettings implements DeviceSettings {
     var tag = value.trim();
     if (tag.isEmpty) {
       throw DeviceRefusal(
-        'A language needs a BCP-47 tag — `fr`, `fr-FR`, `ja`.',
+        'A language needs a BCP-47 tag, like `fr`, `fr-FR` or `ja`.',
       );
     }
     var raw = await _defaultsRead(['-g', 'AppleLanguages']);
@@ -354,9 +354,9 @@ class SimctlDeviceSettings implements DeviceSettings {
       // Again, what the cost does not say: the picker draws the focus sentence
       // from [DeviceCost.takesFocus].
       note:
-          'simctl can neither rotate a simulator nor report which way up one '
-          'is. The value is the running app’s own geometry, and the turn goes '
-          'through the Simulator’s own menu.',
+          'simctl cannot rotate a simulator or report its orientation. The '
+          'value comes from the running app’s geometry, and rotating goes '
+          'through the Simulator’s Device menu.',
     );
   }
 
@@ -376,9 +376,8 @@ class SimctlDeviceSettings implements DeviceSettings {
     var before = await appSize?.call();
     if (before == null) {
       throw DeviceRefusal(
-        'Nothing can tell which way up this simulator is: simctl has no read '
-        'for it, and there is no app answering whose geometry could say. '
-        'Rotation needs the app running.',
+        'The simulator’s orientation is unknown: simctl cannot read it, and '
+        'no running app reports its geometry. Rotation needs the app running.',
         command: 'Simulator ▸ Device ▸ Rotate Left',
       );
     }
@@ -398,7 +397,7 @@ class SimctlDeviceSettings implements DeviceSettings {
     var click = await _osascript('osascript', ['-e', press]);
     if (click.exitCode != 0) {
       throw DeviceRefusal(
-        'The Simulator would not take the rotate: '
+        'The Simulator refused to rotate: '
         '${'${click.stderr}'.trim()}',
         command: 'Simulator ▸ Device ▸ $item',
       );
@@ -417,9 +416,9 @@ class SimctlDeviceSettings implements DeviceSettings {
     }
     if (!turned) {
       throw DeviceRefusal(
-        'The rotate went to the Simulator and the app is still $current. The '
-        'Simulator was probably not the front window — a menu click reports '
-        'success either way. Bring it forward and try again.',
+        'The Simulator was asked to rotate and the app is still $current. The '
+        'Simulator was probably not the front window (a menu click reports '
+        'success either way). Bring it forward and try again.',
         command: 'Simulator ▸ Device ▸ $item',
       );
     }
@@ -440,9 +439,8 @@ class SimctlDeviceSettings implements DeviceSettings {
     noun: 'A11y',
     reason:
         'No host command sets bold text on the iOS simulator. Writing '
-        'BoldTextEnabled invents a key nothing reads — it did not exist in the '
-        'domain before the write, it reads straight back afterwards, and no '
-        'Flutter app sees it before or after a relaunch. Measured 2026-08-24.',
+        'BoldTextEnabled creates a key nothing reads: no Flutter app sees it, '
+        'even after a relaunch.',
     command: 'Settings ▸ Accessibility ▸ Display & Text Size ▸ Bold Text',
   );
 
@@ -468,8 +466,8 @@ class SimctlDeviceSettings implements DeviceSettings {
   void _require(String value, Iterable<String> options, DeviceSettingId id) {
     if (options.contains(value)) return;
     throw DeviceRefusal(
-      '${id.name} on the iOS simulator takes ${options.join(', ')} — not '
-      '"$value".',
+      '${id.name} on the iOS simulator takes ${options.join(', ')}, and '
+      '"$value" is not one of them.',
     );
   }
 }
