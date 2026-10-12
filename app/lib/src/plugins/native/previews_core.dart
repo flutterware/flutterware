@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutterware/plugins.dart';
 import 'package:meta/meta.dart';
 // The tree types, not the umbrella: same rule as `headless_catalog.dart`, and
@@ -2852,7 +2853,7 @@ class PreviewsCore extends PluginCore {
       'build',
       'catalog',
       'screenshots',
-      _defaultFileName(address),
+      defaultFileName(address),
     ),
   };
 
@@ -3307,7 +3308,7 @@ class PreviewsCore extends PluginCore {
           'build',
           'catalog',
           'screenshots',
-          _defaultFileName(address),
+          defaultFileName(address),
         );
 
     var captured = await _rendererFor(packagePath, engine: arguments['engine'])
@@ -3543,14 +3544,56 @@ class PreviewsCore extends PluginCore {
   /// silently overwrote the first and two different addresses pointed at one
   /// file. An artifact that cannot be told apart from another artifact is not
   /// reproducible, which is the whole reason it carries an address.
-  static String _defaultFileName(Address address) {
+  ///
+  /// And it has to **fit**: a name is one path component, which a file system
+  /// caps at [_nameMax] bytes whatever the directory. `steps` alone runs past
+  /// that — its value is the whole step list as JSON — and so does a long
+  /// enough knob, and the write then throws for a picture that rendered fine.
+  /// So a value over [_longestValue] keeps its head and ends in a digest of
+  /// all of it, and the name as a whole is held to [_longestStem] the same
+  /// way. The digest is of what was cut rather than of what is left, so two
+  /// step lists that open alike are still two files.
+  ///
+  /// A name that already fits is spelled as it always was.
+  @visibleForTesting
+  static String defaultFileName(Address address) {
     var slug = _slug(address.segments.join('_'));
     var axes = address.axes.entries
-        .map((axis) => '${_slug(axis.key)}-${_slug(axis.value)}')
+        .map(
+          (axis) =>
+              '${_slug(axis.key)}-'
+              '${_fitted(_slug(axis.value), axis.value, _longestValue)}',
+        )
         .join('_');
-    return axes.isEmpty ? '$slug.png' : '${slug}__$axes.png';
+    var stem = axes.isEmpty ? slug : '${slug}__$axes';
+    var identity = jsonEncode([address.segments, address.axes]);
+    return '${_fitted(stem, identity, _longestStem)}.png';
   }
 
+  /// `NAME_MAX` — 255 bytes on APFS, ext4 and NTFS alike, and per path
+  /// *component* rather than per path.
+  static const _nameMax = 255;
+
+  /// What one axis may spend of the name before it is cut. A device id, a
+  /// size and a short knob all fit; a step list of more than one step does
+  /// not.
+  static const _longestValue = 40;
+
+  /// What the name may spend before its extension. A `full` picture writes its
+  /// pages beside it under the same stem, so the longest of those is what has
+  /// to fit.
+  static const _longestStem = _nameMax - '.page-9999.png'.length;
+
+  /// [slug] when it fits in [max], and otherwise its head followed by a digest
+  /// of [whole], the text it was a slug of.
+  static String _fitted(String slug, String whole, int max) {
+    if (slug.length <= max) return slug;
+    var digest = sha1.convert(utf8.encode(whole)).toString().substring(0, 8);
+    return '${slug.substring(0, max - digest.length - 1)}-$digest';
+  }
+
+  /// Every character outside the alphabet becomes `_`, so what comes out is
+  /// ASCII and its length is its size in bytes.
   static String _slug(String value) =>
       value.replaceAll(RegExp('[^A-Za-z0-9]+'), '_');
 
