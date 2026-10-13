@@ -311,12 +311,12 @@ void main() {
     // factor behind it for a folder that declares none.
     await run({});
     expect(runner.seenAxes.last.device, isNull);
-    expect(runner.seenUnspecified.last, 'iphone-13');
+    expect(runner.seenUnspecified.last, 'iphone-16');
     expect(
-      runner.seenAxes.last.harnessArgs(unspecifiedDevice: 'iphone-13'),
+      runner.seenAxes.last.harnessArgs(unspecifiedDevice: 'iphone-16'),
       allOf(
         containsPair('deviceUnspecified', 'true'),
-        containsPair('device', 'iphone-13'),
+        containsPair('device', 'iphone-16'),
       ),
     );
 
@@ -324,7 +324,7 @@ void main() {
     await run({'device': 'iphone-se'});
     expect(runner.seenAxes.last.device, 'iphone-se');
     expect(
-      runner.seenAxes.last.harnessArgs(unspecifiedDevice: 'iphone-13'),
+      runner.seenAxes.last.harnessArgs(unspecifiedDevice: 'iphone-16'),
       allOf(
         isNot(contains('deviceUnspecified')),
         containsPair('device', 'iphone-se'),
@@ -335,7 +335,7 @@ void main() {
     await run({'device': 'fit'});
     expect(runner.seenAxes.last.device, 'fit');
     expect(
-      runner.seenAxes.last.harnessArgs(unspecifiedDevice: 'iphone-13'),
+      runner.seenAxes.last.harnessArgs(unspecifiedDevice: 'iphone-16'),
       allOf(isNot(contains('deviceUnspecified')), isNot(contains('device'))),
     );
   });

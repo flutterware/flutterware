@@ -431,6 +431,13 @@ iOS 26.2:
 | `ipad` | `insetTop: 20` | 32 |
 | `ipad-pro-13` | screen 1024×1366 | 1032×1376 (the M4) |
 
+**Corrected 2026-10-08**, with the rest of the table, once frames stopped
+lending their safe areas: `device_frame`'s bodies now give the drawing and
+the table gives the numbers, measured again on iOS 26.2 by
+`tool/measure_devices.dart` — see `lib/src/devices.dart`. `tool/device_probe.dart`
+replaced `tool/keyboard_probe.dart`, and the mini was dropped. What follows is
+why it waited.
+
 **Left alone on purpose.** `app/test/previews/frames_test.dart` pins these
 numbers to `device_frame`'s own artwork for the five hand-drawn bodies, so
 correcting the table means correcting a drawing — a different piece of work,

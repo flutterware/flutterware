@@ -66,7 +66,7 @@ You never type a pixel size. Each listing brings its own:
 |---|---|---|---|
 | App Store | iPhone 6.9" | iPhone 16 Pro Max | 1320×2868 |
 | App Store | iPhone 6.5" | iPhone 12 Pro Max | 1284×2778 |
-| App Store | iPad 13" | iPad Pro 13" | 2048×2732 |
+| App Store | iPad 13" | iPad Pro 13" | 2064×2752 |
 | Google Play | Phone | a 20:9 Android phone | 1080×2160 |
 | Google Play | 10" tablet | an Android tablet | 1600×2560 |
 

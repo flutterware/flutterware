@@ -108,8 +108,10 @@ Person personFromJson(Map<String, Object?> json) {
   );
 }
 
-/// A device by its id when the table has it, and its geometry besides — a
-/// `Device(...)` the script made up is not in anybody's table.
+/// A device by its id when the table has it, and all of it besides — a
+/// `Device(...)` the script made up is not in anybody's table, and a custom
+/// phone that arrived without its keyboard would type with none and turn with
+/// its status bar still across the top.
 Map<String, Object?> deviceToJson(Device device) => {
   'id': device.id,
   'label': device.label,
@@ -124,15 +126,27 @@ Map<String, Object?> deviceToJson(Device device) => {
     device.insetBottom,
     device.insetLeft,
   ],
+  if (device.landscape case var landscape?)
+    'landscape': [
+      landscape.top,
+      landscape.right,
+      landscape.bottom,
+      landscape.left,
+    ],
+  'keyboard': device.keyboard,
+  'landscapeKeyboard': ?device.landscapeKeyboard,
+  'keypadKeyboard': ?device.keypadKeyboard,
+  'landscapeKeypadKeyboard': ?device.landscapeKeypadKeyboard,
 };
 
 Device deviceFromJson(Map<String, Object?> json) {
-  var id = json['id'] as String? ?? Devices.iphone16.id;
+  var id = json['id'] as String? ?? Devices.defaultPhone.id;
   if (deviceById(id) case var known?) return known;
   var insets = [
     for (var inset in json['insets'] as List? ?? const [0, 0, 0, 0])
       (inset as num).toDouble(),
   ];
+  double? number(String key) => (json[key] as num?)?.toDouble();
   return Device(
     id,
     json['label'] as String? ?? id,
@@ -148,5 +162,18 @@ Device deviceFromJson(Map<String, Object?> json) {
     insetRight: insets[1],
     insetBottom: insets[2],
     insetLeft: insets[3],
+    landscape: switch (json['landscape']) {
+      [num top, num right, num bottom, num left] => DeviceInsets(
+        top: top.toDouble(),
+        right: right.toDouble(),
+        bottom: bottom.toDouble(),
+        left: left.toDouble(),
+      ),
+      _ => null,
+    },
+    keyboard: number('keyboard') ?? 0,
+    landscapeKeyboard: number('landscapeKeyboard'),
+    keypadKeyboard: number('keypadKeyboard'),
+    landscapeKeypadKeyboard: number('landscapeKeypadKeyboard'),
   );
 }

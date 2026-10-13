@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import '../../address/address_scope.dart';
 import '../../embedder/embedded_engine.dart';
 import '../../previews/authoring.dart';
-import '../../previews/catalog_devices.dart';
+import '../../previews/devices.dart';
 import '../../previews/catalog_session.dart';
 import '../../previews/catalog_view.dart';
 import '../../previews/compiler_daemon_client.dart';

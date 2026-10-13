@@ -24,8 +24,9 @@ void main() {
     expect(landscape.insetTop, 0);
     expect(landscape.insetLeft, 47);
     expect(landscape.insetRight, 47);
-    // The home indicator stays at the interface bottom, and shrinks.
-    expect(landscape.insetBottom, 21);
+    // The home indicator stays at the interface bottom, and shrinks — to 20 on
+    // iOS 26, a point less than iOS 18 gave it.
+    expect(landscape.insetBottom, 20);
   });
 
   test('turning a device turns its keyboard too', () {
@@ -34,12 +35,12 @@ void main() {
     expect(Devices.iphone13.keyboard, 335);
     expect(
       Devices.iphone13.oriented(ScreenOrientation.landscape).keyboard,
-      248,
+      209,
     );
     // And the declaration survives the turn, or turning twice would lose it.
     expect(
       Devices.iphone13.oriented(ScreenOrientation.landscape).landscapeKeyboard,
-      248,
+      209,
     );
   });
 
@@ -97,6 +98,17 @@ void main() {
       same(Devices.iphone16),
     );
     expect(Devices.iphone16.oriented(null), same(Devices.iphone16));
+  });
+
+  test('a dropped phone still answers its id, with the phone that replaced '
+      'it', () {
+    // A saved address or a scenario config that names one goes on working;
+    // the picker, which is where the change is meant to show, no longer
+    // offers it.
+    expect(deviceById('iphone-13-mini'), same(Devices.iphone13));
+    expect(deviceById('android-medium'), same(Devices.androidTall));
+    expect(deviceIds, isNot(contains('iphone-13-mini')));
+    expect(deviceIds, isNot(contains('android-medium')));
   });
 
   test('the vocabulary is one list, portrait first', () {

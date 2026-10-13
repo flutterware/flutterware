@@ -434,7 +434,7 @@ sealed class WorldDevice {
 /// answers — notifications, links, preferences — so the world sees and plays
 /// it.
 final class Studio extends WorldDevice {
-  const Studio([this.device = Devices.iphone16]);
+  const Studio([this.device = Devices.defaultPhone]);
 
   final Device device;
 }

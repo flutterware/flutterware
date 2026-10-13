@@ -4,7 +4,6 @@ import 'dart:core';
 import 'package:collection/collection.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../third_party/device_frame/lib/device_frame.dart';
 import 'default_device_list.dart';
 import 'form_factor.dart';
 import 'knobs.dart';
@@ -54,7 +53,7 @@ class UICatalogAppState extends State<UICatalog> {
     useMosaic: false,
     availableDevices: defaultMobileDevices,
     single: SingleDeviceChoice(
-      device: Devices.ios.iPhoneSE,
+      device: defaultMobileDevice,
       orientation: Orientation.portrait,
       showFrame: true,
     ),
@@ -68,7 +67,7 @@ class UICatalogAppState extends State<UICatalog> {
     useMosaic: false,
     availableDevices: defaultDesktopDevices,
     single: SingleDeviceChoice(
-      device: Devices.macOS.macBookPro,
+      device: defaultDesktopDevice,
       orientation: Orientation.landscape,
       showFrame: true,
     ),

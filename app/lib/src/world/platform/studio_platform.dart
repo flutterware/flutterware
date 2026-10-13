@@ -34,7 +34,7 @@ class StudioPlatform {
     required String person,
     required Directory home,
     required String package,
-    Device device = Devices.iphone16,
+    Device device = Devices.defaultPhone,
   }) : platform = GuestPlatform(person: person, home: home) {
     answerPreferences(platform);
     answerSecureStorage(platform);

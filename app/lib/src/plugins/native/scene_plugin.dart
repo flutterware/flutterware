@@ -16,6 +16,7 @@ import '../../embedder/guest_texture.dart';
 import '../../previews/catalog_session.dart';
 import '../../previews/compiler_daemon_client.dart';
 
+import 'package:flutterware/devices.dart';
 import 'package:flutterware/scene_authoring.dart';
 
 import '../../scene/args_generate.dart';
@@ -1605,10 +1606,16 @@ class _NewSceneButtonState extends State<_NewSceneButton> {
       : widget.homes.first.folder;
   var _size = _sizes.first;
 
-  static const _sizes = [
+  static final _sizes = [
     (label: 'Banner 1024 × 500', width: 1024.0, height: 500.0),
     (label: 'Square 1080 × 1080', width: 1080.0, height: 1080.0),
-    (label: 'Phone 390 × 844', width: 390.0, height: 844.0),
+    (
+      label:
+          'Phone ${Devices.defaultPhone.width.round()} × '
+          '${Devices.defaultPhone.height.round()}',
+      width: Devices.defaultPhone.width,
+      height: Devices.defaultPhone.height,
+    ),
     (label: 'Badge 200 × 64', width: 200.0, height: 64.0),
   ];
 

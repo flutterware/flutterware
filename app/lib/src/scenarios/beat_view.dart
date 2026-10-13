@@ -269,7 +269,8 @@ class _NotificationShot extends StatelessWidget {
     }
     // No screen yet: the phone was locked, which is where a real one lands
     // anyway.
-    var size = Size(device?.width ?? 390, device?.height ?? 844);
+    var phone = device ?? Devices.defaultPhone;
+    var size = Size(phone.width, phone.height);
     return SizedBox(
       width: size.width,
       height: size.height,

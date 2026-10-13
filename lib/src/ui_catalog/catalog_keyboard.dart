@@ -74,14 +74,11 @@ class CatalogKeyboard {
     KeyboardMode.auto => requested ? _heightFor(variant) : 0,
   };
 
-  /// Null keypad means no shrink, exactly as `Device.keypadKeyboard`
-  /// documents: an iPad gives every field the same keyboard, Gboard swaps the
-  /// keys without moving the height, and a cell nobody has measured must never
-  /// guess downwards.
-  double _heightFor(KeyboardVariant variant) =>
-      variant == KeyboardVariant.keypad
-      ? (_deviceKeypadHeight ?? _deviceHeight)
-      : _deviceHeight;
+  double _heightFor(KeyboardVariant variant) => keyboardHeightFor(
+    variant,
+    letters: _deviceHeight,
+    keypad: _deviceKeypadHeight,
+  );
 
   KeyboardState get state => KeyboardState(
     mode: _mode,

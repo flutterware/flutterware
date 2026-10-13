@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:device_frame/device_frame.dart' hide Devices;
+// ignore: implementation_imports
+import 'package:flutterware/src/device_frames.dart';
 import 'package:flutterware/previews_guest.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -30,7 +31,7 @@ import 'protocol.dart';
 import '../ui/tree_row.dart';
 import 'app_chords.dart';
 import 'catalog_params.dart';
-import 'catalog_devices.dart';
+import 'devices.dart';
 import 'catalog_entry.dart';
 import 'catalog_session.dart';
 import 'knob_picker.dart';

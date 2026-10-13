@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../third_party/device_frame/lib/device_frame.dart';
 import 'app.dart';
+import 'default_device_list.dart';
 import 'form_factor.dart';
 import 'treeview.dart';
 
@@ -95,9 +96,9 @@ class _IndexPreview extends StatelessWidget {
       var widget = Center(child: value);
       mainWidget = DeviceFrame(
         device: switch (formFactor) {
-          FormFactor.mobile => Devices.android.smallPhone,
-          FormFactor.all => Devices.android.smallPhone,
-          FormFactor.desktop => Devices.windows.laptop,
+          FormFactor.mobile => defaultMobileDevice,
+          FormFactor.all => defaultMobileDevice,
+          FormFactor.desktop => defaultDesktopDevice,
         },
         screen: widget,
         isFrameVisible: false,

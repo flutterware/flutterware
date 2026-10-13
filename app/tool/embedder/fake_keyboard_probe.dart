@@ -17,7 +17,7 @@ import 'package:path/path.dart' as p;
 /// Drives a real catalog guest and checks that **the keyboard follows the
 /// app**, rather than following whatever the host last said.
 ///
-/// Not the measurement probe — that one is `tool/keyboard_probe.dart` at the
+/// Not the measurement probe — that one is `tool/device_probe.dart` at the
 /// repo root, a Flutter app that runs on a simulator to find out how tall a
 /// real keyboard is. This one takes those numbers as given and asks whether
 /// the fake one behaves.

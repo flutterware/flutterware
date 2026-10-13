@@ -211,8 +211,9 @@ class _Toolbar extends StatelessWidget {
 /// Four classes and a default, rather than nineteen devices: this control has to
 /// mean something on all four surfaces at once, and only a class does. Each
 /// surface resolves it to its own hardware, so picking "Small phone" gives the
-/// Android row a 360×640 with a gesture bar and the iOS row a 375×667 with a
-/// notch — which is the comparison somebody asking for a small phone wants.
+/// Android row a 360×780 with a punch hole and the iOS row a 375×667 with a
+/// home button — which is the comparison somebody asking for a small phone
+/// wants.
 class _SizePicker extends StatelessWidget {
   const _SizePicker({required this.size, required this.onSelect});
 

@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:device_frame/device_frame.dart' hide Devices;
+// ignore: implementation_imports
+import 'package:flutterware/src/device_frames.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutterware/world.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../previews/catalog_devices.dart' show deviceFrameFor;
-import '../previews/island_phone_frame.dart';
 import '../ui/browser_frame.dart';
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
