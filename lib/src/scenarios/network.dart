@@ -4,8 +4,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
+import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 
 import '../app_events/events.dart';
+import '../flutter_gpu_diagnosis.dart';
 import 'network_mode.dart';
 import 'network_store.dart';
 
@@ -94,6 +97,16 @@ class ScenarioNetworkPolicy {
   /// for the scenario's.
   int get requestsEver => _requestsEver;
   var _requestsEver = 0;
+
+  /// Every exchange [ScenarioNetwork.replay] refused because the recording
+  /// does not hold it, across every branch, as `METHOD url` in the order they
+  /// were first asked for.
+  ///
+  /// What fails the scenario when its body is over. A refused replay is a
+  /// picture of the recording's gap rather than of the app, and a scenario
+  /// that chose `replay` chose to have the network.
+  Iterable<String> get notRecorded => _notRecorded;
+  final _notRecorded = <String>{};
 
   /// Stated answers, most recent first — so re-stating a url mid-flow changes
   /// what it answers from there on, which is how "and now the list has the new
@@ -342,6 +355,9 @@ class ScenarioNetworkPolicy {
   void _record(ScenarioRequest request) {
     requests.add(request);
     _requestsEver++;
+    if (request.outcome == 'not-recorded') {
+      _notRecorded.add('${request.method} ${request.url}');
+    }
     recordAppEvent(
       request.status == null
           // Nothing answered it, so there is no status to show — the second
@@ -545,6 +561,61 @@ class _ScenarioHttpOverrides extends HttpOverrides {
       _FunnelClient(policy);
 }
 
+var _recordLaneSaid = false;
+
+void _sayRecordLaneOnce() {
+  if (_recordLaneSaid) return;
+  _recordLaneSaid = true;
+  var said = recordLaneNotice(
+    flutterGpu: readRasterizerFlags(Platform.executableArguments).flutterGpu,
+    dependsOnFlutterGpu: _resolvesFlutterGpu(Directory.current),
+  );
+  if (said != null) stderr.writeln('[flutterware] $said');
+}
+
+/// Whether the package config nearest [from] lists `flutter_gpu` — read from
+/// disk, because a test process cannot ask its own isolate. A workspace keeps
+/// one config at its root, so this is "some member uses it", which is the
+/// right side to be wrong on for a notice.
+bool _resolvesFlutterGpu(Directory from) {
+  for (Directory? dir = from.absolute; dir != null;) {
+    var config = File(p.join(dir.path, '.dart_tool', 'package_config.json'));
+    if (config.existsSync()) {
+      try {
+        return config.readAsStringSync().contains('"name": "flutter_gpu"');
+      } on FileSystemException {
+        return false;
+      }
+    }
+    var parent = dir.parent;
+    dir = parent.path == dir.path ? null : parent;
+  }
+  return false;
+}
+
+/// What a `record` run owes its author when the process it runs in cannot do
+/// what the runner's can, or null when it can.
+///
+/// The lanes do not make the same requests. The runner starts its tester with
+/// Flutter GPU on; a bare `flutter test` does not, and an app that draws a
+/// stand-in where its 3D view would be never fetches the model the view
+/// would have loaded. Recorded from there, the store silently lacks it, and
+/// the first replay under the runner is refused for a request nobody saw being
+/// skipped. Said only when the package can reach `flutter_gpu` at all.
+@visibleForTesting
+String? recordLaneNotice({
+  required bool flutterGpu,
+  required bool dependsOnFlutterGpu,
+}) {
+  if (flutterGpu || !dependsOnFlutterGpu) return null;
+  return 'This `record` run has no Flutter GPU (the tester was started '
+      'without `--enable-flutter-gpu`), and the package depends on '
+      '`flutter_gpu`. A view that falls back to a stand-in without it does '
+      'not make its requests, so they are not recorded, and a replay under '
+      '`fw run scenarios` will refuse them. Record with '
+      '`fw run scenarios run --network=record`, which runs with Flutter GPU.';
+}
+
 /// What every `HttpClient()` in the process is, for the length of one body.
 ///
 /// It routes rather than connects: a stub answers, else the mode does. The one
@@ -577,6 +648,7 @@ class _FunnelClient implements HttpClient {
         return _StubRequest(policy, verb, url, _Stub.of(recorded), 'replay');
       case ScenarioNetwork.live:
       case ScenarioNetwork.record:
+        if (policy.mode == ScenarioNetwork.record) _sayRecordLaneOnce();
         // Root zone, and the whole reason this file exists — see
         // [_newRealClient]. The sink is the caller's to close, which is what
         // `close_sinks` cannot see from here.
@@ -806,9 +878,8 @@ class ScenarioNetworkRefusal implements Exception {
   ///
   /// The most-read sentence in this file: it is what a suite meets the first
   /// time an endpoint moves. So it says what the store *does* hold for that
-  /// host, and when it was written — because "the url changed" and "the
-  /// recording is a year old" are the two things it is, and the store knows
-  /// both.
+  /// host — because "the url changed" is what it usually is, and the store
+  /// knows the urls.
   factory ScenarioNetworkRefusal.notRecorded(
     String method,
     Uri url,
@@ -827,7 +898,7 @@ class ScenarioNetworkRefusal implements Exception {
       rest:
           'The recording holds nothing for $method $url.\n'
           '\n'
-          '${_whatItHolds(keys, sameHost, url)}'
+          '${_whatItHolds(keys, sameHost, url, store.directory)}'
           '\n'
           'Record it:\n'
           '  fw run scenarios run --network=record\n'
@@ -860,10 +931,11 @@ class ScenarioNetworkRefusal implements Exception {
     List<String> keys,
     List<String> sameHost,
     Uri url,
+    String directory,
   ) {
     if (keys.isEmpty) {
       return 'Nothing has been recorded yet: the store at '
-          '`$defaultScenarioNetworkStore` is empty.\n';
+          '`$directory` is empty.\n';
     }
     if (sameHost.isEmpty) {
       return 'It holds ${_count(keys.length)}, none of them for '
