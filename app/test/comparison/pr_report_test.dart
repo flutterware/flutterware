@@ -345,6 +345,153 @@ void main() {
     expect(mosaic.height, greaterThan(0));
   });
 
+  // To somebody skimming a pull request for visual changes, "1 changed" is a
+  // screen that moved. One whose frames are identical has to say what moved
+  // instead, in the comment rather than one click away in the viewer.
+  group('a change no picture shows', () {
+    const logged = EventChannel(
+      added: ['log order token 9e2b7a06cd'],
+      removed: ['log order token 3c8f1d4fab'],
+    );
+    PixelChannel moved() => PixelChannel(
+      PixelDiff(
+        width: 6,
+        height: 6,
+        changedPixels: 36,
+        comparedPixels: 36,
+        sizeChanged: false,
+        clusters: const [],
+      ),
+    );
+
+    String comment(ComparisonArtifact artifact) => File(
+      writePrReport(
+        artifact: artifact,
+        cache: cache,
+        against: 'master',
+        directory: p.join(temp.path, 'report'),
+      ).commentPath,
+    ).readAsStringSync();
+
+    test('names what moved, in the heading and in the table', () {
+      var text = comment(
+        ComparisonArtifact(
+          previews: previews(const [
+            ComparedItem(
+              id: 'demo/receipt.dart#receipt',
+              state: ComparedState.changed,
+              events: logged,
+            ),
+          ]),
+        ),
+      );
+
+      expect(text, contains('against `master`: **1 changed (events only)**'));
+      expect(text, contains('| changed · events |'));
+    });
+
+    test('counts only the ones that moved off screen', () {
+      var text = comment(
+        ComparisonArtifact(
+          previews: previews([
+            ComparedItem(
+              id: 'demo/card.dart#card',
+              state: ComparedState.changed,
+              pixels: moved(),
+              events: logged,
+            ),
+            const ComparedItem(
+              id: 'demo/receipt.dart#receipt',
+              state: ComparedState.changed,
+              events: logged,
+            ),
+            const ComparedItem(
+              id: 'demo/label.dart#label',
+              state: ComparedState.changed,
+              texts: TextChannel(added: ['Pay'], removed: ['Buy']),
+              events: logged,
+            ),
+          ]),
+        ),
+      );
+
+      expect(
+        text,
+        contains(
+          'against `master`: '
+          '**3 changed (1 events only, 1 texts and events only)**',
+        ),
+      );
+      // A screen that moved reads as one, whatever else it did.
+      expect(text, contains('demo%2Fcard.dart%23card) | changed |'));
+      expect(text, contains('| changed · texts and events |'));
+    });
+
+    test('names a flow by what its steps moved on', () {
+      ScenarioComparison flow(String name, List<ComparedItem> steps) =>
+          ScenarioComparison(
+            scenario: 'test/shop_test.dart#$name',
+            state: ComparedState.changed,
+            items: steps,
+            branches: const [],
+            frames: const {},
+          );
+      var text = comment(
+        ComparisonArtifact(
+          previews: previews(const []),
+          scenarios: ScenarioResults.of(
+            ran: 2,
+            skipped: 0,
+            elapsed: const Duration(seconds: 1),
+            items: [
+              flow('Quiet', const [
+                ComparedItem(id: 'Home', state: ComparedState.same),
+                ComparedItem(
+                  id: 'Receipt',
+                  state: ComparedState.changed,
+                  events: logged,
+                ),
+              ]),
+              flow('Moved', [
+                const ComparedItem(
+                  id: 'Home',
+                  state: ComparedState.changed,
+                  events: logged,
+                ),
+                ComparedItem(
+                  id: 'Cart',
+                  state: ComparedState.changed,
+                  pixels: moved(),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      );
+
+      expect(text, contains('**2 changed (1 events only)**'));
+      expect(text, contains('shop_test.dart%23Quiet) | changed · events |'));
+      expect(text, contains('shop_test.dart%23Moved) | changed |'));
+    });
+
+    test('says nothing extra when every change is on screen', () {
+      var text = comment(
+        ComparisonArtifact(
+          previews: previews([
+            ComparedItem(
+              id: 'demo/card.dart#card',
+              state: ComparedState.changed,
+              pixels: moved(),
+            ),
+          ]),
+        ),
+      );
+
+      expect(text, contains('against `master`: **1 changed**'));
+      expect(text, isNot(contains(' only')));
+    });
+  });
+
   test('the folded summary says when the mosaic is a cap', () {
     var items = <ComparedItem>[];
     for (var index = 0; index < mosaicRowCap + 4; index++) {

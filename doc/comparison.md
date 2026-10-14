@@ -44,7 +44,9 @@ HTTP; opened as a local file it can't load its own frames.
 `--report` writes a `comment.md` and a `mosaic.png` of the changed screens,
 with the exported page under `web/`. The comment uses `__MOSAIC_URL__` and
 `__VIEWER_URL__` placeholders, for your workflow to replace once it has
-uploaded the files.
+uploaded the files. When a changed screen looks the same, the comment says what
+changed instead: `changed · events` in its row, and `1 changed (events only)`
+in the heading.
 
 ## In CI
 

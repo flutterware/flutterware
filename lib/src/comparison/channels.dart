@@ -524,8 +524,10 @@ class TextChannel {
 ///
 /// The mask survives, promoted to the job it was always good at. Collapsing
 /// digits is how `/cases/case_0` finds `/cases/case_1`; it is not licence to
-/// throw the payload away. Exactly the split [TreeDiff] draws between the
-/// signature that matches and the label that reads.
+/// throw the payload away, and it is not what a reader is shown either. A
+/// masked hex id comes out as `#c#f#d#f#ab`, which no longer reads as the id
+/// it was. Exactly the split [TreeDiff] draws between the signature that
+/// matches and the label that reads.
 class EventChannel {
   const EventChannel({
     required this.added,
@@ -611,9 +613,9 @@ class EventChannel {
     return EventChannel(
       added: [
         for (var entry in unpairedHead)
-          if (!moved.contains(entry)) mask(entry.$2),
+          if (!moved.contains(entry)) _key(entry.$2),
       ],
-      removed: [for (var entry in stillBase) mask(entry.$2)],
+      removed: [for (var entry in stillBase) _key(entry.$2)],
       deltas: ranked.take(maxEventDeltas).toList(),
       deltasDropped: ranked.length > maxEventDeltas
           ? ranked.length - maxEventDeltas
@@ -621,11 +623,13 @@ class EventChannel {
     );
   }
 
-  /// Events only on head, and only on base, as their masked form.
+  /// Events only on head, and only on base, as `<channel> <title>` with the
+  /// title as the app wrote it.
   ///
   /// Strings rather than deltas, and unchanged from the shape that shipped
-  /// first: an older reader of `index.json` sees exactly what it saw before,
-  /// and [deltas] is the field it ignores.
+  /// first: an older reader of `index.json` sees the strings it always saw,
+  /// and [deltas] is the field it ignores. A report written before the titles
+  /// were kept whole carries them masked.
   final List<String> added;
   final List<String> removed;
 
@@ -666,21 +670,22 @@ class EventChannel {
 
   /// The channel an `added`/`removed` line travelled on.
   ///
-  /// The one place a masked string is taken apart, and it is safe because
-  /// [mask] built it: the channel is everything before the first space, and a
-  /// channel name never contains one.
-  static String subchannelOf(String masked) {
-    var space = masked.indexOf(' ');
-    return space < 0 ? masked : masked.substring(0, space);
+  /// The one place such a line is taken apart, and it is safe because the
+  /// line is the channel, a space and the title: the channel is everything
+  /// before the first space, and a channel name never contains one.
+  static String subchannelOf(String line) {
+    var space = line.indexOf(' ');
+    return space < 0 ? line : line.substring(0, space);
   }
 
-  /// One event reduced to what makes it *that* event, for reading.
+  /// One event reduced to what makes it *that* event, for pairing.
   ///
   /// Channel and title with digit-runs collapsed to `#`, because an id in a
   /// path — `/order/8814` — is the commonest way one run's event differs from
-  /// another's for no reason worth a line. This is a **pairing key and a
-  /// label**, never a comparison key: what two events have to agree on to be
-  /// the same event, not what has to agree for nothing to have changed.
+  /// another's for no reason worth a line. This is a **pairing key** only,
+  /// never a comparison key and never a label: what two events have to agree
+  /// on to be the same event, not what has to agree for nothing to have
+  /// changed, and not what a reader recognises the event by.
   static String mask(Map<String, Object?> event) =>
       '${_subchannel(event)} ${_title(event).replaceAll(RegExp(r'\d+'), '#')}';
 
@@ -692,6 +697,8 @@ class EventChannel {
   /// deltas for one insertion — the same failure `#297` removed from drift.
   /// The exact key pairs the five that are identical and leaves the new one
   /// unmatched, which is what it is.
+  ///
+  /// Also the line an [added] or [removed] event is reported as.
   static String _key(Map<String, Object?> event) =>
       '${_subchannel(event)} ${_title(event)}';
 

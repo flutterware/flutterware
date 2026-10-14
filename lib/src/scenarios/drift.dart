@@ -12,6 +12,12 @@ abstract final class ScenarioDriftFacet {
   /// The captured surface — the step's digest.
   static const pixels = 'pixels';
 
+  /// What the app did on the way to the step, compared the way `fw compare`
+  /// compares it: the same pairing, and the `system` subchannel left out. A
+  /// random id in a log line moves no pixel, and compare would still call the
+  /// step changed on every pull request.
+  static const events = 'events';
+
   /// `SystemChrome`'s status-bar icon brightness, which the capture never
   /// contains: the frame around it is drawn from this field.
   static const statusBrightness = 'statusBrightness';
@@ -140,10 +146,10 @@ class ScenarioRunDrift {
     this.pixelsIgnored = false,
   });
 
-  /// True when the pixels were left out of the comparison because one of the
-  /// runs was on the real clock: its pictures came off live data and differ
-  /// from the last run's by weather. Said here so a reader of a quiet drift
-  /// knows what quiet covers.
+  /// True when the pixels and the events were left out of the comparison
+  /// because one of the runs was on the real clock: both came off live data
+  /// and differ from the last run's by weather. Said here so a reader of a
+  /// quiet drift knows what quiet covers.
   final bool pixelsIgnored;
 
   /// Steps both runs captured, both carrying a digest — the denominator.
@@ -234,7 +240,7 @@ class ScenarioRunDrift {
       // not fragile, and warning about those — most steps in most suites —
       // would train a reader to skip the line that matters.
       if (unanchored > 0) '$unanchored matched by position alone',
-      if (pixelsIgnored) 'pictures not compared (real clock)',
+      if (pixelsIgnored) 'pictures and events not compared (real clock)',
     ].join(' · ');
   }
 

@@ -10,6 +10,37 @@ import 'package:flutterware/comparison_report.dart';
 bool showsInPicture(ComparedItem item) =>
     item.state != ComparedState.changed || (item.pixels?.changed ?? false);
 
+/// The channels a `changed` [item] moved on when no picture shows it —
+/// `[events]` for a step that only logged something new. Empty when a picture
+/// does show the change.
+///
+/// What a reader skimming for visual changes has to be told: to them a
+/// `changed` row reads as a screen that moved.
+List<String> unseenChannels(ComparedItem item) =>
+    showsInPicture(item) ? const [] : item.channelsFired;
+
+/// [unseenChannels] for a whole flow: the channels its finding steps moved on,
+/// when not one of them shows its change in a picture.
+///
+/// Empty as soon as one does, and for a flow that gained or lost a step or a
+/// branch, which is a change to what the flow shows.
+List<String> scenarioUnseenChannels(ScenarioComparison scenario) {
+  if (scenario.state != ComparedState.changed || scenario.branches.isNotEmpty) {
+    return const [];
+  }
+  var channels = <String>{};
+  for (var step in scenario.items) {
+    if (!isComparedFinding(step.state)) continue;
+    if (showsInPicture(step)) return const [];
+    channels.addAll(step.channelsFired);
+  }
+  // In the order every item names them, whichever step fired first.
+  return [
+    for (var channel in const ['tree', 'texts', 'events'])
+      if (channels.contains(channel)) channel,
+  ];
+}
+
 /// The step a picture of [scenario] is taken from, or null when no finding
 /// step has frames.
 ///

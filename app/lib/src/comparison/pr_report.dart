@@ -37,7 +37,8 @@ class _MosaicRow {
     this.clusters = const [],
   });
 
-  /// The caption's first half, which always survives — it is one short word.
+  /// The caption's first half, which always survives — the state, and for a
+  /// pair of identical frames what moved instead: `changed (events)`.
   final String state;
 
   /// The caption's second half, elided from the left when it will not fit.
@@ -147,6 +148,7 @@ class _Finding {
     this.item,
     this.frames,
     this.showsInPicture = false,
+    this.unseen = const [],
   });
 
   final String id;
@@ -168,7 +170,25 @@ class _Finding {
 
   /// Whether [item]'s picture shows its change — see `showsInPicture`.
   final bool showsInPicture;
+
+  /// What a `changed` finding moved on when no picture shows it — see
+  /// `unseenChannels`. Empty when the change is on screen.
+  final List<String> unseen;
+
+  /// The state as the table and the mosaic name it: `changed`, or `changed ·
+  /// events` for a finding whose frames are identical. [separator] is what
+  /// goes between, since the mosaic's font has no `·`.
+  String stateLabel({String separator = ' · ', String end = ''}) =>
+      unseen.isEmpty
+      ? state.name
+      : '${state.name}$separator${_channelList(unseen)}$end';
 }
+
+/// `events`, `texts and events`, `tree, texts and events`.
+String _channelList(List<String> channels) => channels.length < 2
+    ? channels.join()
+    : '${channels.sublist(0, channels.length - 1).join(', ')} '
+          'and ${channels.last}';
 
 List<_Finding> _findings(ComparisonArtifact artifact) {
   var findings = <_Finding>[];
@@ -182,6 +202,7 @@ List<_Finding> _findings(ComparisonArtifact artifact) {
         delta: _delta(item),
         item: item,
         showsInPicture: showsInPicture(item),
+        unseen: unseenChannels(item),
       ),
     );
   }
@@ -206,6 +227,7 @@ List<_Finding> _findings(ComparisonArtifact artifact) {
         item: face,
         frames: face == null ? null : scenario.frames[face.id],
         showsInPicture: face != null && showsInPicture(face),
+        unseen: scenarioUnseenChannels(scenario),
       ),
     );
   }
@@ -260,7 +282,7 @@ _MosaicRow? _row(_Finding finding, {required ShotCache cache}) {
   var head = decode(shots?.head, finding.frames?.head);
   if (base == null && head == null) return null;
   return _MosaicRow(
-    state: finding.state.name,
+    state: finding.stateLabel(separator: ' (', end: ')'),
     id: finding.id,
     base: base,
     head: head,
@@ -380,8 +402,8 @@ _MosaicCell _scale(_MosaicRow row) {
 ///
 /// Drawn unmeasured it ran off the right edge of the canvas and was simply
 /// clipped, which cost the leaf and the symbol — the half that says *which*
-/// entry this is. So the id is elided from the **left** and the state, one
-/// short word, always survives: `changed  ...card.dart#TaskCardExample.new`.
+/// entry this is. So the id is elided from the **left** and the state, a
+/// word or two, always survives: `changed  ...card.dart#TaskCardExample.new`.
 @visibleForTesting
 String mosaicCaption(String state, String id, int width) {
   var prefix = '$state  ';
@@ -521,8 +543,11 @@ String _comment(
     unsure();
   } else {
     var summary = [
-      for (var entry in counts.entries)
-        if (_isFinding(entry.key)) '${entry.value} ${entry.key.name}',
+      for (var MapEntry(key: state, value: count) in counts.entries)
+        if (_isFinding(state))
+          state == ComparedState.changed
+              ? '$count changed${_unseenBreakdown(findings)}'
+              : '$count ${state.name}',
     ].join(' · ');
     buffer.writeln(
       '### Comparison against `$against`: **$summary**$notComparedClause\n',
@@ -567,7 +592,7 @@ String _comment(
             '[$delta]($viewerUrlPlaceholder#scenarios/'
             '${_component(finding.id)}/${_component(finding.item!.id)})';
       }
-      buffer.writeln('| $entry | ${finding.state.name} | $delta |');
+      buffer.writeln('| $entry | ${finding.stateLabel()} | $delta |');
     }
     if (findings.length > commentRowCap) {
       buffer.writeln(
@@ -594,6 +619,40 @@ String _comment(
     'inputs.</sub>',
   );
   return buffer.toString();
+}
+
+/// How many of the `changed` findings no picture shows, by what they moved on:
+/// ` (events only)` when that is every one of them, ` (1 events only)` when it
+/// is one of three, and nothing when all of them moved on screen.
+///
+/// The way a scenario run's drift breaks its count down by facet. "1 changed"
+/// reads as a screen that moved to anybody skimming for visual changes, and
+/// the viewer saying the frames are identical is a click away.
+String _unseenBreakdown(List<_Finding> findings) {
+  var changed = [
+    for (var finding in findings)
+      if (finding.state == ComparedState.changed) finding,
+  ];
+  var counts = <String, int>{};
+  for (var finding in changed) {
+    if (finding.unseen.isEmpty) continue;
+    var channels = _channelList(finding.unseen);
+    counts[channels] = (counts[channels] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return '';
+  if (counts.length == 1 && counts.values.single == changed.length) {
+    return ' (${counts.keys.single} only)';
+  }
+  // Most first, like drift's facets, and by name between equals so two
+  // comments on one branch read the same.
+  var ranked = counts.entries.toList()
+    ..sort(
+      (a, b) => a.value == b.value
+          ? a.key.compareTo(b.key)
+          : b.value.compareTo(a.value),
+    );
+  var groups = [for (var MapEntry(:key, :value) in ranked) '$value $key only'];
+  return ' (${groups.join(', ')})';
 }
 
 /// A fragment segment, escaped for the page *and* for markdown:

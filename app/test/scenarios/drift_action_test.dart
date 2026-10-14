@@ -441,6 +441,49 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
       ]);
     });
 
+    // A run read back off disk records its events files worktree-relative and
+    // carries no root, and this process was not started in that worktree. A
+    // reader resolving against the working directory finds no file on either
+    // side and reports two quiet runs.
+    test("reads each step's events from the worktree", () async {
+      Map<String, Object?> logged(String run, String message) {
+        var path = p.join('build', run, 'receipt.events.json');
+        File(p.join(root.path, path))
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(
+            jsonEncode([
+              {'channel': 'log', 'title': message},
+            ]),
+          );
+        return {
+          'auto': false,
+          'name': 'Receipt',
+          'digest': 'aaaa',
+          'events': path,
+          'eventCount': 1,
+          'eventChannels': {'log': 1},
+        };
+      }
+
+      var before = writeRun(p.join('build', 'base'), [
+        logged('base', 'order token 3c8f1d4fab'),
+      ]);
+      var after = writeRun(p.join('build', 'head'), [
+        logged('head', 'order token 9e2b7a06cd'),
+      ]);
+
+      var result =
+          (await core(_FakeRunner()).invoke(
+                'diff',
+                arguments: {'before': before.path, 'after': after.path},
+              ))!
+              as ScenarioDiffResult;
+
+      expect(result.comparison.changed.single.what, [
+        ScenarioDriftFacet.events,
+      ]);
+    });
+
     test('steps=all lifts the cap the wire puts on the lists', () async {
       var steps = [
         for (var i = 0; i < 30; i++)
