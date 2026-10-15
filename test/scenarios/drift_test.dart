@@ -1,6 +1,13 @@
 import 'package:flutterware/scenarios_report.dart';
 import 'package:test/test.dart';
 
+/// The events files the steps below point at, by path — what [_readEvents]
+/// opens instead of a disk.
+final _written = <String, List<Map<String, Object?>>>{};
+
+List<Map<String, Object?>> _readEvents(ScenarioRunStep step) =>
+    _written[step.events] ?? const [];
+
 ScenarioRunStep _step(
   String position, {
   String? digest,
@@ -10,18 +17,34 @@ ScenarioRunStep _step(
   double? keyboard,
   bool settled = true,
   bool landed = true,
-}) => ScenarioRunStep(
-  index: 1,
-  position: position,
-  auto: name == null,
-  name: name,
-  digest: digest,
-  statusBrightness: statusBrightness,
-  navBrightness: navBrightness,
-  keyboard: keyboard,
-  settled: settled,
-  landed: landed,
-);
+  List<AppEvent> events = const [],
+}) {
+  String? path;
+  if (events.isNotEmpty) {
+    path = 'events/${_written.length}.events.json';
+    _written[path] = [for (var event in events) event.toJson()];
+  }
+  return ScenarioRunStep(
+    index: 1,
+    position: position,
+    auto: name == null,
+    name: name,
+    digest: digest,
+    statusBrightness: statusBrightness,
+    navBrightness: navBrightness,
+    keyboard: keyboard,
+    settled: settled,
+    landed: landed,
+    events: path,
+    eventCount: events.isEmpty ? null : events.length,
+    eventChannels: events.isEmpty
+        ? null
+        : {
+            for (var channel in {for (var event in events) event.channel})
+              channel: events.where((event) => event.channel == channel).length,
+          },
+  );
+}
 
 ScenarioRunResult _run(
   List<ScenarioRunStep> steps, {
@@ -74,8 +97,157 @@ void main() {
     expect(drift.compared, 1);
     expect(drift.changed.single.what, [ScenarioDriftFacet.settled]);
     expect(drift.pixelsIgnored, isTrue);
-    expect(drift.summary, contains('pictures not compared (real clock)'));
+    expect(
+      drift.summary,
+      contains('pictures and events not compared (real clock)'),
+    );
     expect(ScenarioRunDrift.fromJson(drift.toJson()).pixelsIgnored, isTrue);
+  });
+
+  // `fw compare` makes a finding of any event outside `system` that differs,
+  // so a suite that logs a fresh id every run passed here and was flagged on
+  // every pull request.
+  group('events', () {
+    test('an event that differs is a drift where the frames are the same', () {
+      var drift = compareScenarioRuns(
+        _run([
+          _step(
+            '#1',
+            digest: 'aaaa',
+            name: 'Receipt',
+            events: [AppEvent.log('order token 3c8f1d4fab')],
+          ),
+        ]),
+        _run([
+          _step(
+            '#1',
+            digest: 'aaaa',
+            name: 'Receipt',
+            events: [AppEvent.log('order token 9e2b7a06cd')],
+          ),
+        ]),
+        readEvents: _readEvents,
+      );
+
+      expect(drift.changed.single.what, [ScenarioDriftFacet.events]);
+      expect(
+        drift.changed.single.label,
+        'Order a cappuccino · Receipt · (events)',
+      );
+      expect(drift.summary, '1 of 1 steps differ (1 events)');
+    });
+
+    test('the same events on both runs are no drift', () {
+      List<AppEvent> events() => [
+        AppEvent.request(method: 'GET', url: '/menu', status: 200),
+        AppEvent.log('menu shown'),
+      ];
+      var drift = compareScenarioRuns(
+        _run([_step('#1', digest: 'aaaa', events: events())]),
+        _run([_step('#1', digest: 'aaaa', events: events())]),
+        readEvents: _readEvents,
+      );
+
+      expect(drift.isEmpty, isTrue);
+    });
+
+    test('a field that differs inside an event is a drift too', () {
+      var drift = compareScenarioRuns(
+        _run([
+          _step(
+            '#1',
+            digest: 'aaaa',
+            events: [
+              AppEvent.request(method: 'GET', url: '/menu', status: 200),
+            ],
+          ),
+        ]),
+        _run([
+          _step(
+            '#1',
+            digest: 'aaaa',
+            events: [
+              AppEvent.request(method: 'GET', url: '/menu', status: 500),
+            ],
+          ),
+        ]),
+        readEvents: _readEvents,
+      );
+
+      expect(drift.changed.single.what, [ScenarioDriftFacet.events]);
+    });
+
+    // The framework's own platform-channel traffic carries per-process keys
+    // no project can pin, and compare does not count it either.
+    test('system chatter is not a drift, and its files are not opened', () {
+      var opened = 0;
+      var drift = compareScenarioRuns(
+        _run([
+          _step(
+            '#1',
+            digest: 'aaaa',
+            events: [
+              AppEvent.custom(
+                channel: AppChannel.system,
+                title: 'flutter/navigation',
+                detail: 'yi_iit',
+              ),
+            ],
+          ),
+        ]),
+        _run([
+          _step(
+            '#1',
+            digest: 'aaaa',
+            events: [
+              AppEvent.custom(
+                channel: AppChannel.system,
+                title: 'flutter/navigation',
+                detail: 'rhsu_hl',
+              ),
+            ],
+          ),
+        ]),
+        readEvents: (step) {
+          opened++;
+          return _readEvents(step);
+        },
+      );
+
+      expect(drift.isEmpty, isTrue);
+      expect(opened, 0);
+    });
+
+    test('an event on one run only is a drift', () {
+      var drift = compareScenarioRuns(
+        _run([_step('#1', digest: 'aaaa')]),
+        _run([
+          _step(
+            '#1',
+            digest: 'aaaa',
+            events: [AppEvent.log('retrying payment')],
+          ),
+        ]),
+        readEvents: _readEvents,
+      );
+
+      expect(drift.changed.single.what, [ScenarioDriftFacet.events]);
+    });
+
+    test('a run on the real clock does not compare its events', () {
+      var drift = compareScenarioRuns(
+        _run([
+          _step('#1', digest: 'aaaa', events: [AppEvent.log('token a1')]),
+        ], time: 'real'),
+        _run([
+          _step('#1', digest: 'aaaa', events: [AppEvent.log('token b2')]),
+        ], time: 'real'),
+        readEvents: _readEvents,
+      );
+
+      expect(drift.isEmpty, isTrue);
+      expect(drift.pixelsIgnored, isTrue);
+    });
   });
 
   test('a step whose pixels moved is named, with its shot name', () {

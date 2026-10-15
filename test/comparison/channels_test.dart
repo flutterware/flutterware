@@ -397,9 +397,22 @@ void main() {
         head: [for (var i = 1; i <= 6; i++) request('/orders/$i')],
       );
 
-      expect(diff.added, ['network POST /orders/#']);
+      expect(diff.added, ['network POST /orders/6']);
       expect(diff.removed, isEmpty);
       expect(diff.deltas, isEmpty);
+    });
+
+    // The mask pairs; it does not label. A hex id masked is `#c#f#d…`, which
+    // still pairs with nothing because its letters differ, and no longer reads
+    // as the random id a reader needs to recognise.
+    test('an event that came or went is shown as the app wrote it', () {
+      var diff = EventChannel.of(
+        base: [log('order token 3c8f1d4fab')],
+        head: [log('order token 9e2b7a06cd')],
+      );
+
+      expect(diff.removed, ['log order token 3c8f1d4fab']);
+      expect(diff.added, ['log order token 9e2b7a06cd']);
     });
 
     test('identical events on both sides say nothing at all', () {

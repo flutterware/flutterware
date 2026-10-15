@@ -13,6 +13,8 @@ import 'package:flutterware/src/scenarios/app_axes.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/scenarios/network_mode.dart';
 // ignore: implementation_imports
+import 'package:flutterware/src/scenarios/report_events_io.dart';
+// ignore: implementation_imports
 import 'package:flutterware/src/scenarios/selector.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
@@ -3966,6 +3968,7 @@ class ScenariosCore extends PluginCore {
                 // run was written, which a copied or moved checkout no longer
                 // names — and this one is what `diff` takes back.
                 baseline: _relative(previous.dir),
+                readEvents: _stepEvents,
               );
               drifts[outDir] = drift;
               // One point of a matrix is as good a witness as the whole of
@@ -4077,9 +4080,16 @@ class ScenariosCore extends PluginCore {
         read(before, 'before'),
         read(after, 'after'),
         baseline: _relative(before),
+        readEvents: _stepEvents,
       ),
     );
   }
+
+  /// A step's events off this worktree's disk. A run read back out of its
+  /// report records its paths worktree-relative and carries no root, so the
+  /// default reader would resolve them against wherever this process started.
+  List<Map<String, Object?>> _stepEvents(ScenarioRunStep step) =>
+      readStepEvents(step, root: host.worktree.path);
 
   /// Trims this package's old run directories, and says nothing about it.
   ///
