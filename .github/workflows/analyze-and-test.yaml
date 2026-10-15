@@ -270,7 +270,9 @@ jobs:
           printf 'dependency_overrides:\n  flutterware:\n    path: ../..\n' > pubspec_overrides.yaml
           flutter pub get
           flutter analyze
-          flutter test
+          # Every device and language the profiles declare, not only their
+          # heads: the demo's scenarios have to hold up on all of them.
+          flutter test --dart-define=fw.matrix=declared
 
   previews_audit_linux:
     name: Previews audit on Linux

@@ -38,6 +38,9 @@ void main() {
         await s.tap(ShopKeys.addToCart, shot: Shot('Cart'));
       },
       'a cold brew': () async {
+        // Below the fold on a short phone, where the lazy list has not built
+        // it yet.
+        await s.scrollTo('Cold brew');
         await s.tap('Cold brew');
         await s.tap(ShopKeys.addToCart, shot: Shot('Cart'));
         await s.tap(ShopKeys.placeOrder, shot: Shot('Order placed'));
