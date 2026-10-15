@@ -9,13 +9,14 @@ import '../previews/devices.dart';
 /// The form factor a scenario runs as when nothing at all chose one: no
 /// `?device=`, and no profile on its folder either. A phone, because that is
 /// the default form factor — an explicit [fitDeviceId] is how you ask for the
-/// bare test surface instead.
+/// bare test surface instead — and the same phone everything else defaults
+/// to, [Devices.defaultPhone].
 ///
 /// The last word, not the first. A folder's `flutter_test_config.dart` is
 /// asked before this, in the harness, where the profile is known — which is
 /// why an unspecified device travels as null all the way down rather than
 /// being resolved here.
-const defaultScenarioDeviceId = 'iphone-13';
+final defaultScenarioDeviceId = Devices.defaultPhone.id;
 
 /// What names one point of a matrix on disk — `iphone-16-fr`,
 /// `ipad-landscape-fr`, `iphone-16-fr-tea`, or `default` where the point named

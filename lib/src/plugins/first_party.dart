@@ -179,7 +179,7 @@ class PreviewsPackage extends PluginPackage {
   /// ```dart
   /// PreviewsPackage(app, directory: 'demo', canvases: [
   ///   PreviewCanvas('demo/src/mobile', devices: [Devices.iphone16]),
-  ///   PreviewCanvas('demo/src/desktop', devices: [Devices.macbookPro]),
+  ///   PreviewCanvas('demo/src/desktop', devices: [Devices.wideWindow]),
   /// ])
   /// ```
   ///

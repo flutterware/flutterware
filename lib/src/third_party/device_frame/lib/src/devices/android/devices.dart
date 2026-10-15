@@ -1,13 +1,17 @@
-import 'package:material_ui/material_ui.dart';
-
 import '../../info/info.dart';
-import 'oneplus_8_pro/device.dart' as i_oneplus_8_pro;
-import 'samsung_galaxy_a50/device.dart' as samsung_galaxy_a50;
+
+import 'samsung_galaxy_s20/device.dart' as i_samsung_galaxy_s20;
 import 'samsung_galaxy_note20/device.dart' as i_samsung_galaxy_note20;
 import 'samsung_galaxy_note20_ultra/device.dart'
     as i_samsung_galaxy_note20_ultra;
-import 'samsung_galaxy_s20/device.dart' as i_samsung_galaxy_s20;
+import 'samsung_galaxy_a50/device.dart' as samsung_galaxy_a50;
+import 'samsung_galaxy_s25/device.dart' as i_samsung_galaxy_s25;
+import 'oneplus_8_pro/device.dart' as i_oneplus_8_pro;
 import 'sony_xperia_1_ii/device.dart' as i_sony_xperia_1_ii;
+import 'google_pixel_9/device.dart' as i_google_pixel_9;
+import 'google_pixel_9_pro_xl/device.dart' as i_google_pixel_9_pro_xl;
+
+import 'package:material_ui/material_ui.dart';
 
 /// A set of iOS devices.
 class AndroidDevices {
@@ -21,9 +25,15 @@ class AndroidDevices {
 
   DeviceInfo get samsungGalaxyA50 => samsung_galaxy_a50.info;
 
+  DeviceInfo get samsungGalaxyS25 => i_samsung_galaxy_s25.info;
+
   DeviceInfo get onePlus8Pro => i_oneplus_8_pro.info;
 
   DeviceInfo get sonyXperia1II => i_sony_xperia_1_ii.info;
+
+  DeviceInfo get googlePixel9 => i_google_pixel_9.info;
+
+  DeviceInfo get googlePixel9ProXL => i_google_pixel_9_pro_xl.info;
 
   DeviceInfo get smallPhone => _smallPhone;
   static final _smallPhone = DeviceInfo.genericPhone(
@@ -152,8 +162,11 @@ class AndroidDevices {
     samsungGalaxyS20,
     samsungGalaxyNote20,
     samsungGalaxyNote20Ultra,
+    samsungGalaxyS25,
     onePlus8Pro,
     sonyXperia1II,
+    googlePixel9,
+    googlePixel9ProXL,
     smallPhone,
     mediumPhone,
     bigPhone,

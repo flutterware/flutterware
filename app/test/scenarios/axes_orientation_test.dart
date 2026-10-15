@@ -41,7 +41,7 @@ void main() {
     expect(args['insetTop'], '0');
     expect(args['insetLeft'], '47');
     expect(args['insetRight'], '47');
-    expect(args['insetBottom'], '21');
+    expect(args['insetBottom'], '20');
   });
 
   test('a device that cannot turn ignores the axis, everywhere', () {

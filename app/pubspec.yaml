@@ -44,7 +44,6 @@ dependencies:
   crypto:
   dart_mcp: ^0.5.2
   dart_style:
-  device_frame:
   diacritic:
   ffi:
   # `hooks_runner` takes a `FileSystem`.

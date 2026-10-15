@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../devbar.dart';
 import '../../../third_party/device_frame/lib/device_frame.dart';
+import '../../../ui_catalog/default_device_list.dart';
 import '../../../utils/value_stream.dart';
 import 'device_preview.dart';
 
@@ -10,7 +11,7 @@ import 'device_preview.dart';
 class DeviceFramePlugin extends DevbarPlugin {
   final DevbarState devbar;
   final showFrame = ValueStream<bool>(false);
-  final device = ValueStream<DeviceInfo>(Devices.ios.iPhoneSE);
+  final device = ValueStream<DeviceInfo>(defaultMobileDevice);
 
   DeviceFramePlugin._(this.devbar) {
     devbar.ui.addTab(Tab(text: 'Simulator'), _DeviceFramePanel(this));

@@ -28,6 +28,7 @@ import 'package:test_api/src/backend/test.dart' as backend;
 import '../canvases.dart';
 import '../clock.dart';
 import '../flutter_gpu_diagnosis.dart';
+import '../device_platform.dart';
 import '../devices.dart';
 import '../ui_catalog/fake_keyboard.dart';
 import '../drive/drive.dart';
@@ -583,14 +584,7 @@ VoidCallback _stageViewport(WidgetTester tester, StagedViewport viewport) {
       // machine" and the question is what a *rectangle* should be. Left as it
       // was until that is answered, because a change that trades one
       // disagreement for another is not a fix.
-      platform: switch (viewport.platform) {
-        DevicePlatform.ios => TargetPlatform.iOS,
-        DevicePlatform.android => TargetPlatform.android,
-        DevicePlatform.macos => TargetPlatform.macOS,
-        DevicePlatform.windows => TargetPlatform.windows,
-        DevicePlatform.linux => TargetPlatform.linux,
-        null => null,
-      },
+      platform: viewport.platform?.targetPlatform,
     ),
   );
   // After the metrics, because it reads the padding it is about to eat into.

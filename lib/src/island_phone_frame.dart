@@ -1,10 +1,11 @@
 /// The silhouette for an iPhone `device_frame` has no artwork for.
 ///
-/// The vendored bodies stop at the iPhone 13 generation, and everything after
-/// it used to fall through to `DeviceInfo.genericPhone` — a lozenge with an
-/// 80pt forehead, a 60pt chin and a camera dot punched above the glass. That is
-/// a 2016 Android reference phone, and reading it as an iPhone 16 is the whole
-/// complaint: the outline is half of what says *iPhone*.
+/// Every iPhone in [Devices.all] wears a hand-drawn body, but a screen size
+/// can arrive without one: a custom [Device] a project declares, or a model
+/// newer than the vendored artwork. Left to `DeviceInfo.genericPhone` it would
+/// come out as a lozenge with an 80pt forehead, a 60pt chin and a camera dot
+/// punched above the glass — a 2016 Android reference phone, and the outline is
+/// half of what says *iPhone*.
 ///
 /// So this draws one, from the [Device]'s own numbers rather than from a second
 /// set of measurements: an edge-to-edge screen at the device's size, a thin
@@ -13,8 +14,9 @@
 /// over it.
 library;
 
-import 'package:device_frame/device_frame.dart' hide Devices;
 import 'package:flutter/widgets.dart';
+
+import 'third_party/device_frame/lib/device_frame.dart' hide Devices;
 
 import 'devices.dart';
 

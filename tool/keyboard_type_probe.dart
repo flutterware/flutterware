@@ -1,8 +1,8 @@
 // Measures the software keyboard **per input type**, in logical pixels, on
-// this device in portrait. The sibling of `keyboard_probe.dart`, which cycles
-// orientations instead; the traps in its header apply here unchanged, and the
-// first one bites hardest: disconnect the simulator's hardware keyboard or
-// every reading is a confident zero.
+// this device in portrait. The sibling of `device_probe.dart`, which measures
+// the letters keyboard in every orientation; the traps in its header apply here
+// unchanged, and the first one bites hardest: disconnect the simulator's
+// hardware keyboard or every reading is a confident zero.
 //
 // The question it answers is not "how tall is each type" but **how many
 // classes there are** — a number pad and a phone pad may well be the same

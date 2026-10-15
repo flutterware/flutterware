@@ -228,7 +228,7 @@ class _Inspectors extends StatelessWidget {
                 SplashProblem(
                   Tone.warn,
                   'The branding sits 34dp inside the bottom safe area on '
-                  'iPhone 13 mini — under the home indicator. Set '
+                  'iPhone 13 — under the home indicator. Set '
                   '"branding_bottom_padding_ios" to at least 34.',
                   key: 'branding_bottom_padding_ios',
                   surface: SplashSurface.ios,
@@ -243,7 +243,7 @@ class _Inspectors extends StatelessWidget {
                 ),
               ],
               artifacts: const [],
-              device: Devices.iphone13Mini,
+              device: Devices.iphone13,
               onClose: () {},
             ),
           ),

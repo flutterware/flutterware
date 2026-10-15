@@ -106,7 +106,7 @@ enum AppStoreClass {
   /// 1284×2778. Required where there is no 6.9" set.
   iphone65('iphone-6-5', 'iPhone 6.5"', Devices.iphone12ProMax),
 
-  /// 2048×2732 — required of an app that runs on iPad.
+  /// 2064×2752 — required of an app that runs on iPad.
   ipad13('ipad-13', 'iPad 13"', Devices.iPadPro13);
 
   const AppStoreClass(this.id, this.label, this.device);

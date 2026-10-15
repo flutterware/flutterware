@@ -1,4 +1,5 @@
-import 'package:flutterware_app/src/previews/catalog_devices.dart';
+import 'package:flutterware/src/device_frames.dart';
+import 'package:flutterware_app/src/previews/devices.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -37,12 +38,12 @@ void main() {
   });
 
   group('the list is the only source', () {
-    test('a phone or tablet with no artwork is drawn from its own numbers', () {
-      // The generic half. An Android size is deliberate: it is named after a
-      // size class rather than a handset, so a silhouette of its kind is the
-      // whole claim. `frames_test.dart` covers the other two halves — the
-      // borrowed bodies, and the iPhone one we draw ourselves.
-      var device = deviceById('android-tall')!;
+    test('a tablet with no artwork is drawn from its own numbers', () {
+      // The generic half, which only the Android tablets still take:
+      // `device_frame` draws no Android tablet. `device_frames_test.dart`
+      // covers the other two halves — the borrowed bodies, and the iPhone one
+      // we draw ourselves.
+      var device = deviceById('android-small-tablet')!;
       expect(namedFrameFor(device.id), isNull, reason: 'no body to borrow');
       var chrome = deviceFrameFor(device)!;
 
