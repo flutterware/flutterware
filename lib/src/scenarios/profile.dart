@@ -184,7 +184,14 @@ ScenarioAssignment? scenarioAmbientAssignment;
 ///              --dart-define=fw.orientations=portrait,landscape \
 ///              --dart-define=fw.axes=brand=coffee,tea
 /// FW_DEVICES=iphone-se,iphone-16 FW_LANGUAGES=en,fr flutter test
+/// FW_MATRIX=declared flutter test
 /// ```
+///
+/// `fw.matrix=declared` is the runner's `--matrix=declared` for this lane:
+/// each folder runs every point its own profile declares, so one invocation
+/// covers a phone folder and a desktop folder, and each file compiles once
+/// instead of once per invocation. Like the runner's, it replaces the lists
+/// rather than adding to them.
 ///
 /// Both are read, the define wins, and the same pair of sources already serves
 /// `screenshots-destination` — one convention for "the host tells the test
@@ -498,7 +505,8 @@ ScenarioProfile? scenarioProbedProfile;
 Shots? scenarioProbedShots;
 
 /// The assignments one `flutter test` invocation should declare: the request's
-/// lists when it made any, and the profile's own heads when it did not.
+/// lists when it made any, and the profile's own heads when it did not — or
+/// every point it declares, under `fw.matrix=declared`.
 ///
 /// A device a run names but the table does not know is refused rather than
 /// approximated — running at the wrong screen produces a picture that is wrong
@@ -514,6 +522,7 @@ List<ScenarioAssignment> scenarioAssignments(
   String? languagesOverride,
   String? orientationsOverride,
   String? axesOverride,
+  String? matrixOverride,
 }) {
   var deviceIdList = _list(
     devicesOverride ?? _setting('devices', 'FW_DEVICES'),
@@ -524,6 +533,27 @@ List<ScenarioAssignment> scenarioAssignments(
   var orientationList = _list(
     orientationsOverride ?? _setting('orientations', 'FW_ORIENTATIONS'),
   );
+  var axesSetting = axesOverride ?? _setting('axes', 'FW_AXES');
+  var all = switch (matrixOverride ?? _setting('matrix', 'FW_MATRIX')) {
+    null => false,
+    'declared' => true,
+    var other => throw ArgumentError.value(
+      other,
+      'fw.matrix',
+      'accepted: declared (every point the folder profile declares)',
+    ),
+  };
+  if (all &&
+      (deviceIdList.isNotEmpty ||
+          languageList.isNotEmpty ||
+          orientationList.isNotEmpty ||
+          axesSetting != null)) {
+    throw ArgumentError(
+      '`fw.matrix=declared` reads devices, languages, orientations and app '
+      'axes from the profile. Drop the explicit lists, or keep them and drop '
+      '`fw.matrix`.',
+    );
+  }
 
   var devices = <Device?>[];
   if (deviceIdList.isNotEmpty) {
@@ -543,14 +573,14 @@ List<ScenarioAssignment> scenarioAssignments(
       devices.add(device);
     }
   } else {
-    devices.add(profile?.devices.firstOrNull);
+    devices.addAll(_unnamed(profile?.devices, all: all));
   }
 
   var languages = <String?>[];
   if (languageList.isNotEmpty) {
     languages.addAll(languageList);
   } else {
-    languages.add(profile?.languages.firstOrNull);
+    languages.addAll(_unnamed(profile?.languages, all: all));
   }
 
   var orientations = <ScreenOrientation?>[];
@@ -567,18 +597,18 @@ List<ScenarioAssignment> scenarioAssignments(
       orientations.add(orientation);
     }
   } else {
-    orientations.add(profile?.orientations.firstOrNull);
+    orientations.addAll(_unnamed(profile?.orientations, all: all));
   }
 
   var declared = profile?.axes ?? const <String, List<String>>{};
   if (appAxisProblems(declared) case [var problem, ...]) {
     throw ArgumentError.value(profile!.name, 'ScenarioProfile.axes', problem);
   }
-  var asked = _appAxes(axesOverride ?? _setting('axes', 'FW_AXES'));
+  var asked = _appAxes(axesSetting);
   var appAxes = {
     for (var MapEntry(key: name, value: values) in declared.entries)
       name: switch (asked[name]) {
-        null => [values.first],
+        null => all ? values : [values.first],
         var named => [
           for (var value in named)
             if (values.contains(value))
@@ -615,6 +645,16 @@ List<ScenarioAssignment> scenarioAssignments(
   ];
 }
 
+/// What an axis the run does not name runs at: the profile's first value, or
+/// every one under `fw.matrix=declared`. An axis the profile leaves empty is a
+/// single pass at the platform's own, either way.
+List<T?> _unnamed<T>(List<T>? declared, {required bool all}) => [
+  if (all && declared != null && declared.isNotEmpty)
+    ...declared
+  else
+    declared?.firstOrNull,
+];
+
 Map<String, List<String>> _appAxes(String? raw) {
   if (raw == null) return const {};
   try {
@@ -632,6 +672,7 @@ String? _setting(String define, String variable) {
     'languages' => const String.fromEnvironment('fw.languages'),
     'orientations' => const String.fromEnvironment('fw.orientations'),
     'axes' => const String.fromEnvironment('fw.axes'),
+    'matrix' => const String.fromEnvironment('fw.matrix'),
     _ => '',
   };
   if (defined.isNotEmpty) return defined;
