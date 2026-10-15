@@ -492,6 +492,20 @@ That declares one test per combination (`Counter [iPhone SE · en]`, and so on)
 from a single invocation and a single compile. The environment variables
 `FW_DEVICES` and `FW_LANGUAGES` do the same.
 
+To run what the folders declare instead of repeating it, pass
+`fw.matrix=declared` (or set `FW_MATRIX=declared`):
+
+```sh
+flutter test --dart-define=fw.matrix=declared
+```
+
+Each folder runs every point of its own profile, so one invocation covers a
+phone folder and a desktop folder, and every file compiles once. Running one
+invocation per folder with its own lists compiles the same files again each
+time. Like the runner's `--matrix=declared` below, it replaces the lists:
+combining it with `fw.devices`, `fw.languages`, `fw.orientations` or `fw.axes`
+is refused.
+
 With flutterware's runner you don't repeat the lists:
 `fw run scenarios run --matrix=declared` reads the folder profiles and runs
 every point they declare: each folder's devices, languages, orientations and
