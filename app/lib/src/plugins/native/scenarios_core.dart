@@ -4136,6 +4136,8 @@ class ScenariosCore extends PluginCore {
           log: run.log,
           error: run.error,
           drift: drift,
+          time: run.time,
+          animations: run.animations,
         );
     if (run.scenarios.isEmpty) return carrying(run.report, drift);
     var file = p.join(run.output, scenarioRunReportFile);

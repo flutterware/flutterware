@@ -122,6 +122,22 @@ ${names.map((n) => "  scenario('$n', (s) async {});").join('\n')}
       expect(result.toJson(), isNot(contains('notRun')));
     });
 
+    // The answer's package is a copy of the one written to `run.json`, and
+    // the copy used to leave the clock behind: every answer said `fake`.
+    test('says in its answer which clock it ran on', () async {
+      var result =
+          (await core(
+                _FakeRunner(),
+                others: {'live': _FakeRunner(ranOn: 'real')},
+                realTime: {'live'},
+              ).invoke('run', arguments: {'package': 'live'}))!
+              as ScenarioRunResult;
+
+      var package = result.packages.single;
+      expect(package.time, 'real');
+      expect(package.animations, 0.1);
+    });
+
     test('alone, refuses a run that names nothing, and says what to name', () {
       expect(
         () => run(core(_FakeRunner(), realTime: {'.'})),
@@ -979,6 +995,7 @@ class _FakeRunner extends ScenarioRunner {
     this.translations,
     this.alsoGreen = 0,
     this.unsettledSteps = const {},
+    this.ranOn,
   }) : super(packageRoot: '/none', directory: 'none', flutterSdkRoot: '/none');
 
   @override
@@ -986,6 +1003,9 @@ class _FakeRunner extends ScenarioRunner {
 
   final bool ok;
   final String? failure;
+
+  /// The clock the harness says it ran on, as a real one reports it.
+  final String? ranOn;
 
   /// How many steps each scenario captured — the thing the answer decides
   /// whether to carry.
@@ -1067,6 +1087,7 @@ class _FakeRunner extends ScenarioRunner {
     if (!matches) return {'ms': 1, 'scenarios': <Object?>[]};
     return {
       'ms': 5,
+      if (ranOn == 'real') ...{'time': 'real', 'animations': 0.1},
       'scenarios': [
         {
           'file': file == null
