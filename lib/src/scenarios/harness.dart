@@ -2009,6 +2009,7 @@ Future<Map<String, Object?>> _runOne(
     steps: steps,
     stepCount: steps.length,
     unchangedCount: steps.where((step) => step.unchanged).length,
+    unchangedVerbs: unchangedVerbsOf(steps),
     unsettledCount: steps.where((step) => !step.settled && step.waited).length,
     guessedCount: steps.where((step) => step.guessed != null).length,
     stillTicking: stillTickingOf(steps),

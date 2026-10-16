@@ -4,7 +4,7 @@ import 'package:flutterware/src/drive/lane.dart';
 import 'package:flutterware/src/drive/resolve.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// [Drive.scrollTo] with a positional finder.
+/// [Drive.scrollTo]: positional finders, and which scrollable it walks.
 ///
 /// flutter_test's `.first` and `.last` over nothing throw `No element` rather
 /// than match nothing, and `scrollUntilVisible` evaluates its finder on every
@@ -87,4 +87,88 @@ void main() {
       ),
     );
   });
+
+  // A text field holds a scrollable of its own, which refuses a drag — on
+  // iOS by its physics, elsewhere because its text fits — and tree order put
+  // it before the list.
+  testWidgets(
+    'walks the list, not the search field above it',
+    variant: TargetPlatformVariant({
+      TargetPlatform.android,
+      TargetPlatform.iOS,
+    }),
+    (tester) async {
+      await tester.pumpWidget(_searchAboveList());
+
+      await driveOn(tester).scrollTo('Row 57');
+
+      expect(find.text('Row 57'), findsOneWidget);
+    },
+  );
+
+  // A sheet leaves the page under it on stage, and the page's list came first
+  // in tree order while the barrier over it took every drag.
+  testWidgets('walks the sheet, not the page under it', (tester) async {
+    await tester.pumpWidget(_sheetOverList());
+    await tester.tap(find.text('View all'));
+    await tester.pumpAndSettle();
+
+    await driveOn(tester).scrollTo('Sheet row 40');
+
+    expect(find.text('Sheet row 40'), findsOneWidget);
+  });
 }
+
+Widget _searchAboveList() => MaterialApp(
+  home: Scaffold(
+    body: Column(
+      children: [
+        const TextField(),
+        Expanded(
+          child: ListView.builder(
+            itemCount: 100,
+            itemBuilder: (_, i) => ListTile(title: Text('Row $i')),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
+
+Widget _sheetOverList() => MaterialApp(
+  home: Scaffold(
+    body: Builder(
+      builder: (context) => Column(
+        children: [
+          // Above the sheet, so the centre a drag starts from is under
+          // the barrier and not under the sheet's own list.
+          SizedBox(
+            height: 200,
+            child: ListView.builder(
+              itemCount: 100,
+              itemBuilder: (_, i) => ListTile(title: Text('Page row $i')),
+            ),
+          ),
+          TextButton(
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              builder: (_) => Column(
+                children: [
+                  const TextField(),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: 100,
+                      itemBuilder: (_, i) =>
+                          ListTile(title: Text('Sheet row $i')),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            child: const Text('View all'),
+          ),
+        ],
+      ),
+    ),
+  ),
+);

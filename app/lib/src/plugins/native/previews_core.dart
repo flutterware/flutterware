@@ -1006,7 +1006,9 @@ class PreviewsCore extends PluginCore {
             'output',
             'Output file',
             required: false,
-            description: 'Where to write the PNG; a build path when omitted',
+            description:
+                'Where to write the PNG, relative to the worktree unless '
+                'absolute; a build path when omitted',
           ),
           const ActionParameter(
             'knobs',
@@ -1406,8 +1408,9 @@ class PreviewsCore extends PluginCore {
             'Output file',
             required: false,
             description:
-                'Where to write the PNG; a build path derived from the address '
-                'when omitted, the same as `screenshot` uses',
+                'Where to write the PNG, relative to the worktree unless '
+                'absolute; a build path derived from the address when omitted, '
+                'the same as `screenshot` uses',
           ),
           ActionParameter(
             'annotate',
@@ -2824,7 +2827,7 @@ class PreviewsCore extends PluginCore {
               ? null
               : (want.at!.$1.toDouble(), want.at!.$2.toDouble()),
           screenshot: want.picture
-              ? _outputFor(want, packagePath, address)
+              ? _outputFor(want.output, packagePath, address)
               : null,
           annotate: want.annotate,
           cropNode: want.node,
@@ -2838,24 +2841,26 @@ class PreviewsCore extends PluginCore {
 
   /// Where the PNG goes: what was asked for, or a path derived from the address.
   ///
-  /// Derived exactly as `screenshot` derives it, so asking twice with the same
+  /// `screenshot` and `inspect` both ask here, so asking twice with the same
   /// flags overwrites one file and asking with different flags does not.
-  String _outputFor(
-    _InspectRequest want,
-    String packagePath,
-    Address address,
-  ) => switch (want.output) {
-    var given? when given.isNotEmpty =>
-      p.isAbsolute(given) ? given : p.join(host.worktree.path, given),
-    _ => p.join(
-      host.worktree.path,
-      packagePath,
-      'build',
-      'catalog',
-      'screenshots',
-      defaultFileName(address),
-    ),
-  };
+  ///
+  /// A relative [given] is the worktree's, as every action's output path is.
+  /// Handed through as given, it was resolved by whichever process wrote the
+  /// file, against its own directory — the main checkout, for a client
+  /// working in a linked worktree.
+  String _outputFor(String? given, String packagePath, Address address) =>
+      switch (given) {
+        var given? when given.isNotEmpty =>
+          p.isAbsolute(given) ? given : p.join(host.worktree.path, given),
+        _ => p.join(
+          host.worktree.path,
+          packagePath,
+          'build',
+          'catalog',
+          'screenshots',
+          defaultFileName(address),
+        ),
+      };
 
   /// One observation, projected into whatever was asked about it.
   CatalogInspectResult _project(
@@ -3259,7 +3264,6 @@ class PreviewsCore extends PluginCore {
       requested,
       within: _requestedPackages(arguments),
     );
-    var packageRoot = p.join(host.worktree.path, packagePath);
     var entry = _scans[packagePath]!.entries.firstWhere((e) => e.id == entryId);
 
     var (deviceId, orientationId, viewport) = framingFor(
@@ -3301,15 +3305,11 @@ class PreviewsCore extends PluginCore {
       page: page,
     );
 
-    var output =
-        arguments['output'] as String? ??
-        p.join(
-          packageRoot,
-          'build',
-          'catalog',
-          'screenshots',
-          defaultFileName(address),
-        );
+    var output = _outputFor(
+      arguments['output'] as String?,
+      packagePath,
+      address,
+    );
 
     var captured = await _rendererFor(packagePath, engine: arguments['engine'])
         .capture(

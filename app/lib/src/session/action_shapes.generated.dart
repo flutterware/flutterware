@@ -4977,6 +4977,12 @@ final resultShapes = <String, ResultShape>{
         'doc': 'How many of those steps a verb acted for nothing on — pictures byte-identical to their parent\'s.',
       },
       <String, Object?>{
+        'name': 'unchangedVerbs',
+        'type': 'Map<String, int>',
+        'optional': true,
+        'doc': 'The verbs [unchangedCount]\'s steps ran, with how many each, most first: `{"wait": 10, "tap": 2}`.',
+      },
+      <String, Object?>{
         'name': 'unsettledCount',
         'type': 'int',
         'doc': 'How many of those steps were captured with the app still animating after a policy that **waited** for it to stop — `settled: false` with `waited: true`, the settle giving up with frames still scheduled.',
@@ -5399,6 +5405,12 @@ final resultShapes = <String, ResultShape>{
               'name': 'unchangedCount',
               'type': 'int',
               'doc': 'How many of those steps a verb acted for nothing on — pictures byte-identical to their parent\'s.',
+            },
+            <String, Object?>{
+              'name': 'unchangedVerbs',
+              'type': 'Map<String, int>',
+              'optional': true,
+              'doc': 'The verbs [unchangedCount]\'s steps ran, with how many each, most first: `{"wait": 10, "tap": 2}`.',
             },
             <String, Object?>{
               'name': 'unsettledCount',
@@ -5897,6 +5909,12 @@ final resultShapes = <String, ResultShape>{
                     'name': 'unchangedCount',
                     'type': 'int',
                     'doc': 'How many of those steps a verb acted for nothing on — pictures byte-identical to their parent\'s.',
+                  },
+                  <String, Object?>{
+                    'name': 'unchangedVerbs',
+                    'type': 'Map<String, int>',
+                    'optional': true,
+                    'doc': 'The verbs [unchangedCount]\'s steps ran, with how many each, most first: `{"wait": 10, "tap": 2}`.',
                   },
                   <String, Object?>{
                     'name': 'unsettledCount',

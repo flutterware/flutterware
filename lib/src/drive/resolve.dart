@@ -748,6 +748,53 @@ TargetError? refusalWhenNothingScrolls(
         );
 }
 
+/// The scrollable `scrollTo` walks: the first of [scrollables] a user could
+/// drag, where the walk's drag would land.
+///
+/// Tree order alone is what `flutter_test` defaults to, and it chose two
+/// things no finger can move. A text field holds a scrollable of its own,
+/// which refuses a drag — on iOS always, elsewhere while its text fits; on a
+/// consumer's sheet whose search field came before its list, the walk
+/// dragged the field fifty times and gave up. And a sheet or a dialog leaves
+/// the route under it on stage, so that route's lists come first in tree
+/// order while the barrier above them takes every drag. So a candidate has
+/// to accept a drag, as the scrollable itself decides before it takes one,
+/// and the walk's drag, which starts at its centre, has to reach it.
+///
+/// Failing that, the first that accepts a drag; failing that, the first,
+/// which is the old choice, so a walk that cannot work still fails with the
+/// refusal it always had.
+Element walkedScrollable(
+  WidgetController controller,
+  Iterable<Element> scrollables,
+) {
+  var draggable = [
+    for (var element in scrollables)
+      if (element case StatefulElement(state: ScrollableState(:var position))
+          when position.physics.shouldAcceptUserOffset(position))
+        element,
+  ];
+  return draggable.where((e) => _dragReaches(controller, e)).firstOrNull ??
+      draggable.firstOrNull ??
+      scrollables.first;
+}
+
+/// Whether a drag starting at [element]'s centre would reach it — what
+/// `flutter_test` warns about after the fact, asked before.
+bool _dragReaches(WidgetController controller, Element element) {
+  var render = element.renderObject;
+  if (render is! RenderBox || !render.hasSize) return false;
+  var view = TargetResolver._viewOf(render);
+  if (view == null) return false;
+  var result = controller.hitTestOnBinding(
+    render.localToGlobal(render.size.center(Offset.zero)),
+    viewId: view.flutterView.viewId,
+  );
+  return result.path.any(
+    (entry) => isRenderObjectAncestorOfTarget(render, entry.target),
+  );
+}
+
 /// The element `scrollTo` should jump to rather than walk toward: [target]'s
 /// one match once scrolled-away children are counted, provided it lives under
 /// a scrollable [scrollables] matches.

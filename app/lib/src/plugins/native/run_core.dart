@@ -1015,8 +1015,9 @@ class RunCore extends PluginCore {
               'Output path',
               required: false,
               description:
-                  "Where to write the PNG. A file beside the run's log when "
-                  'omitted, overwritten on each call.',
+                  'Where to write the PNG, relative to the worktree unless '
+                  "absolute. A file beside the run's log when omitted, "
+                  'overwritten on each call.',
             ),
             const ActionParameter(
               'logs',
@@ -1112,8 +1113,9 @@ class RunCore extends PluginCore {
               'Output path',
               required: false,
               description:
-                  "Where to write the PNG. A file beside the run's log when "
-                  'omitted, overwritten on each call.',
+                  'Where to write the PNG, relative to the worktree unless '
+                  "absolute. A file beside the run's log when omitted, "
+                  'overwritten on each call.',
             ),
             const ActionParameter(
               'maxSide',
@@ -4151,9 +4153,15 @@ class RunCore extends PluginCore {
   /// `runHandleKey` already carries the `app-` stem the handle and the log
   /// share, so the picture joins them rather than starting a third naming
   /// scheme.
+  ///
+  /// A relative [given] is the worktree's, as every action's output path is,
+  /// and never the server's own directory, which is the main checkout when
+  /// the client works in a linked worktree.
   String _screenshotPathFor(RunHandle handle, Object? given) =>
       given is String && given.isNotEmpty
-      ? given
+      ? p.isAbsolute(given)
+            ? given
+            : p.join(host.worktree.path, given)
       : p.join(
           runDir,
           '${runHandleKey(handle.worktree, handle.device, handle.entrypoint)}.png',

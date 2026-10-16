@@ -535,6 +535,7 @@ void main() {
           [for (var step in steps) step['unchanged']],
           [null, true, true, true],
         );
+        expect(outcome['unchangedVerbs'], {'tap': 2, 'screen': 1});
       } finally {
         stalled.deleteSync();
       }

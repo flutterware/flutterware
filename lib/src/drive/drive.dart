@@ -384,11 +384,12 @@ class Drive {
         }
       }
     }
+    var walked = walkedScrollable(controller, scrollable.evaluate());
     try {
       await controller.scrollUntilVisible(
         finder,
         step,
-        scrollable: scrollable.first,
+        scrollable: find.byElementPredicate((e) => identical(e, walked)),
         maxScrolls: maxScrolls,
       );
     } on StateError {

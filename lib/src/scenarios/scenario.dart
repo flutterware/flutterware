@@ -1947,10 +1947,11 @@ class ScenarioTester {
 
   /// Scrolls until [target] is on screen, then captures it there.
   ///
-  /// The scrollable is the first one on screen unless [within] names one — a
-  /// widget that *is* a `Scrollable` or contains one. A target that is built
-  /// but behind the viewport is jumped to directly, whichever direction and
-  /// axis that is. [step] is how far each drag travels toward the end of the
+  /// The scrollable is the first one on screen that a user could drag, unless
+  /// [within] names one — a widget that *is* a `Scrollable` or contains one.
+  /// A text field's own scrollable is not one a user can drag, and neither is
+  /// a list under a sheet or a dialog. A target that is built but behind the
+  /// viewport is jumped to directly, whichever direction and axis that is. [step] is how far each drag travels toward the end of the
   /// list when the target is not built yet; make it negative to walk back
   /// toward the start.
   ///
@@ -2013,6 +2014,7 @@ class ScenarioTester {
         }
         throw ScenarioTargetError(refusal.message);
       }
+      var walked = walkedScrollable(tester, scrollables);
       var onstage = finder.evaluate();
       // Built but behind the viewport: the walk only drags one way, so a
       // target the list has already scrolled past is unreachable however
@@ -2028,7 +2030,7 @@ class ScenarioTester {
           ? scrolledPastTarget(finder, scrollable)
           : null;
       _aimAtScroll(
-        scrollables.first,
+        walked,
         step,
         at: behind ?? (onstage.length == 1 ? onstage.single : null),
       );
@@ -2045,15 +2047,14 @@ class ScenarioTester {
         // condition — and the same tail, so the alignment it ends on and the
         // refusal it throws are the SDK's rather than a second version of
         // them. See [ScenarioFilm.scroll].
-        if ((_film, _boundsOf(scrollables.first.renderObject)) case (
+        if ((_film, _boundsOf(walked.renderObject)) case (
           var film?,
           var pane?,
         )) {
           await film.scroll(
             tester,
             pane: pane,
-            by: switch ((scrollables.first.widget as Scrollable)
-                .axisDirection) {
+            by: switch ((walked.widget as Scrollable).axisDirection) {
               AxisDirection.up => Offset(0, step),
               AxisDirection.down => Offset(0, -step),
               AxisDirection.left => Offset(step, 0),
@@ -2072,9 +2073,7 @@ class ScenarioTester {
         await tester.scrollUntilVisible(
           finder,
           step,
-          // The first, as `flutter_test` itself defaults to: nested scrollables
-          // are ordinary, and `within` is how a scenario says which one.
-          scrollable: scrollable.first,
+          scrollable: find.byElementPredicate((e) => identical(e, walked)),
           maxScrolls: maxScrolls,
         );
       } on StateError {
