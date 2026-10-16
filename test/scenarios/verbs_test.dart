@@ -273,6 +273,27 @@ void main() {
     });
   });
 
+  // Reported by a consumer: a text field holds a scrollable of its own, which
+  // no user can drag, and the walk chose it because it came first.
+  scenario('scrollTo walks the list, not the search field above it', (s) async {
+    await s.pumpWidget(const _SearchAboveListApp());
+
+    await s.scrollTo('Row 57');
+
+    expect(find.text('Row 57'), findsOneWidget);
+  });
+
+  // The same report: a sheet leaves the page under it on stage, so the
+  // page's lists come first while the barrier over them takes every drag.
+  scenario('scrollTo walks the sheet, not the page under it', (s) async {
+    await s.pumpWidget(const _SheetOverListApp());
+    await s.tap('View all');
+
+    await s.scrollTo('Sheet row 40');
+
+    expect(find.text('Sheet row 40'), findsOneWidget);
+  });
+
   scenario('scrollTo still refuses a target off screen that nothing scrolls', (
     s,
   ) async {
@@ -421,6 +442,74 @@ void main() {
       expect(captures[1].strayFrames, greaterThan(0));
     });
   });
+}
+
+/// A search field above a long list — the field's own scrollable first in
+/// tree order.
+class _SearchAboveListApp extends StatelessWidget {
+  const _SearchAboveListApp();
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Scaffold(
+      body: Column(
+        children: [
+          const TextField(),
+          Expanded(
+            child: ListView.builder(
+              itemCount: 100,
+              itemBuilder: (_, i) => ListTile(title: Text('Row $i')),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// A page with a list, and a sheet over it with a search field and a list of
+/// its own.
+class _SheetOverListApp extends StatelessWidget {
+  const _SheetOverListApp();
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Scaffold(
+      body: Builder(
+        builder: (context) => Column(
+          children: [
+            // Above the sheet, so the centre a drag starts from is under
+            // the barrier and not under the sheet's own list.
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                itemCount: 100,
+                itemBuilder: (_, i) => ListTile(title: Text('Page row $i')),
+              ),
+            ),
+            TextButton(
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                builder: (_) => Column(
+                  children: [
+                    const TextField(),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: 100,
+                        itemBuilder: (_, i) =>
+                            ListTile(title: Text('Sheet row $i')),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              child: const Text('View all'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _StaticApp extends StatelessWidget {

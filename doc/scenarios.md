@@ -116,7 +116,9 @@ or one off screen with nothing to scroll it into view. (Plain `flutter_test`
 only warns on a missed tap, so a test you migrate can start failing here.) A
 widget a lazy list hasn't built yet matches nothing. Use `scrollTo` for it. It
 also takes a positional finder like `find.text('Row 40').first`, and scrolls to
-it the same way as to `'Row 40'`.
+it the same way as to `'Row 40'`. It scrolls the first list on screen that a
+user could drag, so never a text field or a list under an open sheet. To scroll
+another one, name it with `within:`.
 
 `s.tester` is the real `WidgetTester`, for anything the verbs don't cover.
 Frames drawn through it are counted and reported on the next step, so the flow
