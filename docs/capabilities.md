@@ -1402,6 +1402,7 @@ packages: List<ScenarioRunPackage>
       failure: String?   # The error, when this is the step a scenario broke on.
     stepCount: int   # How many steps the scenario captured — which is [steps]`.length` unless they were left out of this copy.
     unchangedCount: int   # How many of those steps a verb acted for nothing on — pictures byte-identical to their parent's.
+    unchangedVerbs: Map<String, int>?   # The verbs [unchangedCount]'s steps ran, with how many each, most first: `{"wait": 10, "tap": 2}`.
     unsettledCount: int   # How many of those steps were captured with the app still animating after a policy that **waited** for it to stop — `settled: false` with `waited: true`, the settle giving up with frames still scheduled.
     guessedCount: int?   # How many steps drew work nothing announced, found only by turning the real event loop — see [ScenarioRunStep.guessed].
     stillTicking: List<String>?   # What kept asking for frames on the steps counted in [unsettledCount] — every step's [ScenarioRunStep.stillTicking], once each.

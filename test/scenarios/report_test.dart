@@ -270,6 +270,48 @@ void main() {
       ]);
     });
 
+    test('says which verbs its unchanged steps ran, most first', () {
+      var outcome = ScenarioRunOutcome.fromJson(
+        (jsonDecode(
+          jsonEncode(
+            ScenarioRunOutcome(
+              file: 'f',
+              name: 's',
+              ok: true,
+              steps: [
+                step(index: 1, verb: 'pumpWidget'),
+                step(index: 2, verb: 'tap', unchanged: true),
+                step(index: 3, verb: 'wait', unchanged: true),
+                step(index: 4, verb: 'wait', unchanged: true),
+                step(index: 5, verb: 'tap'),
+              ],
+            ),
+          ),
+        ) as Map).cast<String, Object?>()..remove('unchangedVerbs'),
+      );
+
+      expect(outcome.unchangedVerbs, {'wait': 2, 'tap': 1});
+      expect(outcome.unchangedVerbs.keys, ['wait', 'tap']);
+
+      // The copy a reader gets has no steps to recount from.
+      var back = ScenarioRunOutcome.fromJson(
+        (jsonDecode(jsonEncode(outcome.withoutSteps())) as Map)
+            .cast<String, Object?>(),
+      );
+      expect(back.unchangedVerbs, {'wait': 2, 'tap': 1});
+    });
+
+    test('leaves the verbs out when nothing was unchanged', () {
+      var outcome = ScenarioRunOutcome(
+        file: 'f',
+        name: 's',
+        ok: true,
+        steps: [step(index: 1, verb: 'tap')],
+      );
+
+      expect(outcome.toJson(), isNot(contains('unchangedVerbs')));
+    });
+
     test('trusts the counts on a trimmed copy', () {
       var trimmed = ScenarioRunOutcome(
         file: 'f',

@@ -29,6 +29,7 @@ void main() {
     int steps = 3,
     bool withTrees = true,
     Map<int, List<Map<String, Object?>>> events = const {},
+    Map<int, String> unchanged = const {},
   }) {
     var runDir = p.join(
       worktree.path,
@@ -94,6 +95,10 @@ void main() {
         'tree': p.relative('$base.tree.json', from: worktree.path),
         'texts': ['Total: $index', 'Pay'],
         'address': 'fw:///worktrees/wt/flutterware.scenarios/./x/$index',
+        if (unchanged[index] case var verb?) ...{
+          'verb': verb,
+          'unchanged': true,
+        },
         if (!ok && index == steps) 'failure': 'Expected "Total: 9"',
       });
     }
@@ -296,6 +301,21 @@ void main() {
             // The value to pass next, so browsing costs a refusal not a guess.
             contains('3-step.tree.json'),
           ),
+        ),
+      ),
+    );
+  });
+
+  test('the listing says which verbs changed nothing', () async {
+    writeRun(stamp: '100', ok: true, unchanged: {2: 'tap', 3: 'tap'});
+
+    await expectLater(
+      read(),
+      throwsA(
+        isA<ArgumentError>().having(
+          (e) => '${e.message}',
+          'message',
+          contains('2 unchanged (tap 2)'),
         ),
       ),
     );

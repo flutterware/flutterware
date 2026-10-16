@@ -3002,7 +3002,11 @@ class ScenariosCore extends PluginCore {
               outcome.name,
               '${outcome.stepCount} steps',
               if (outcome.unchangedCount > 0)
-                '${outcome.unchangedCount} unchanged',
+                [
+                  '${outcome.unchangedCount} unchanged',
+                  if (outcome.unchangedVerbs.isNotEmpty)
+                    '(${_counted(outcome.unchangedVerbs)})',
+                ].join(' '),
               if (outcome.unsettledCount > 0)
                 [
                   '${outcome.unsettledCount} still animating',
@@ -3027,6 +3031,11 @@ class ScenariosCore extends PluginCore {
         ? 'nothing readable in there'
         : 'directories there: ${children.join(', ')}';
   }
+
+  /// `wait 10, tap 2`.
+  static String _counted(Map<String, int> counts) =>
+      [for (var MapEntry(:key, :value) in counts.entries) '$key $value']
+          .join(', ');
 
   /// Runs the scenarios and keeps only what a store listing or a manual can
   /// use: the named shots, at the device's own resolution, in a tree laid out
