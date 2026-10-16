@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware/plugins.dart';
 import 'package:flutterware_app/src/address/address_scope.dart';
-import 'package:flutterware_app/src/previews/catalog_devices.dart';
+import 'package:flutterware_app/src/previews/devices.dart';
 import 'package:flutterware_app/src/previews/catalog_session.dart';
 import 'package:flutterware_app/src/previews/staged_device.dart';
 import 'package:flutterware_app/src/ui/theme.dart';

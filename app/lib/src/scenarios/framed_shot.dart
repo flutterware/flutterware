@@ -1,10 +1,9 @@
-// Theirs hidden, as everywhere but the one file that borrows their bodies:
-// `Devices` here is our offered table, which is what a shot is filed under.
-import 'package:device_frame/device_frame.dart' hide Devices;
-import 'package:material_ui/material_ui.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/device_frames.dart';
 import 'package:flutterware/store.dart' show StatusChrome;
+import 'package:material_ui/material_ui.dart';
 
-import '../previews/catalog_devices.dart';
+import '../previews/devices.dart';
 import '../plugins/native/scenarios_results.dart';
 import '../ui/theme.dart';
 import 'artifacts.dart';

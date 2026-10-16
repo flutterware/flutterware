@@ -8,13 +8,15 @@
 /// glyphs.
 library;
 
+// ignore: implementation_imports
+import 'package:flutterware/src/device_frames.dart' show canBeFramed;
 import 'package:material_ui/material_ui.dart';
 
 import '../address/address_scope.dart';
 import '../ui/design/design.dart';
 import '../ui/tappable.dart';
-import 'catalog_devices.dart';
 import 'catalog_session.dart';
+import 'devices.dart';
 
 /// What the guest is staged as, as one control: the device, which way up it is,
 /// and whether it is drawn inside a body.

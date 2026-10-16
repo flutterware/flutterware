@@ -253,7 +253,7 @@ void _regions(List<ScenarioStepCapture> captures) {
     });
     tearDown(() {
       var rising = captures[captures.length - 2].aim!;
-      expect(rising.height, 336, reason: "the iPhone 16's measurement");
+      expect(rising.height, 335, reason: "the iPhone 16's measurement");
       expect(rising.width, 393, reason: "the iPhone 16's width");
       expect(rising.toward, 'up');
       expect(rising.y + rising.height, 852, reason: 'flush with the bottom');

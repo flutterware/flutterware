@@ -19,7 +19,7 @@ import 'package:flutterware/src/ui_catalog/fake_keyboard.dart';
 void main() {
   var captures = <ScenarioStepCapture>[];
 
-  /// An iPhone 16, whose measured keyboard is 336 points tall.
+  /// An iPhone 16, whose measured keyboard is 335 points tall.
   void stageAPhone() {
     var phone = deviceById('iphone-16')!;
     scenarioRunArgs = ScenarioRunArgs.forAssignment(
@@ -44,11 +44,11 @@ void main() {
       await s.pumpWidget(const _Form());
       expect(s.keyboard.isUp, isFalse, reason: 'nothing focused yet');
       await s.tap(const Key('name'));
-      expect(s.keyboard.height, 336, reason: "the iPhone 16's measurement");
+      expect(s.keyboard.height, 335, reason: "the iPhone 16's measurement");
       // The whole point: the app is laid out against what is left. Measured
       // on the *body* — a `Scaffold` goes on filling the screen while it hands
       // its body what the keyboard did not take.
-      expect(s.tester.getSize(find.byKey(const Key('body'))).height, 852 - 336);
+      expect(s.tester.getSize(find.byKey(const Key('body'))).height, 852 - 335);
     });
   });
 
@@ -61,7 +61,7 @@ void main() {
     });
     tearDown(() {
       expect(captures.first.keyboard, isNull, reason: 'the pump, before focus');
-      expect(captures.last.keyboard, 336);
+      expect(captures.last.keyboard, 335);
     });
   });
 
@@ -81,7 +81,7 @@ void main() {
         s.tester.binding.clock.now().difference(before),
         greaterThanOrEqualTo(ScenarioKeyboard.raise),
       );
-      expect(s.keyboard.height, 336);
+      expect(s.keyboard.height, 335);
     });
 
     scenario('and `Settle.full` waits it out too', (s) async {
@@ -92,7 +92,7 @@ void main() {
       // animation.
       await s.pumpWidget(const _Form());
       await s.tap(const Key('name'), settle: Settle.full);
-      expect(s.keyboard.height, 336);
+      expect(s.keyboard.height, 335);
     });
 
     scenario('and it takes down the keyboard the loop itself let go of', (
@@ -101,12 +101,12 @@ void main() {
       // The round *after* is for this one, and nothing else can be: the focus
       // is still on the form when the loop starts and the form is gone by the
       // time it ends, so a policy that sampled only at the start would leave
-      // 336 points of keyboard staged over a screen with no field on it —
+      // 335 points of keyboard staged over a screen with no field on it —
       // for the next verb to start sliding away, one frame into its own
       // capture.
       await s.pumpWidget(const _Form());
       await s.tap(const Key('name'));
-      expect(s.keyboard.height, 336);
+      expect(s.keyboard.height, 335);
 
       await s.act('the app leaves the form', _leaveForm, settle: Settle.full);
       expect(s.keyboard.height, 0);
@@ -125,7 +125,7 @@ void main() {
       // here in the animation*, and the keyboard obeys it like anything else
       // the clock drives.
       expect(s.keyboard.height, greaterThan(0));
-      expect(s.keyboard.height, lessThan(336));
+      expect(s.keyboard.height, lessThan(335));
     });
   });
 
@@ -135,16 +135,16 @@ void main() {
     scenario('the keyboard never dips between two fields', (s) async {
       await s.pumpWidget(const _Form());
       await s.tap(const Key('name'));
-      expect(s.keyboard.height, 336);
+      expect(s.keyboard.height, 335);
       // The two frames right after the switch are where a dip would be, so
       // they are what this samples: `TextInput` defers its hide to a microtask
       // that cancels itself when something re-attaches, so moving between
       // fields produces no hide at all and nothing here needs a debounce.
       const oneFrame = Settle.frames(1, interval: Duration(milliseconds: 20));
       await s.tap(const Key('email'), settle: oneFrame);
-      expect(s.keyboard.height, 336, reason: 'the frame after the switch');
+      expect(s.keyboard.height, 335, reason: 'the frame after the switch');
       await s.wait(Duration.zero, settle: oneFrame);
-      expect(s.keyboard.height, 336, reason: 'and the one after that');
+      expect(s.keyboard.height, 335, reason: 'and the one after that');
     });
   });
 
@@ -159,7 +159,7 @@ void main() {
       // whole of how it gets out of the way. What arrives from the view is
       // what this is about.
       var media = MediaQuery.of(s.tester.element(find.byType(MaterialApp)));
-      expect(media.viewInsets.bottom, 336);
+      expect(media.viewInsets.bottom, 335);
       // The iPhone 16's home indicator is 34 points and the keyboard is over
       // it — measured as 0 on every device in the table.
       expect(media.padding.bottom, 0);
@@ -181,7 +181,7 @@ void main() {
             'message',
             allOf(
               contains('behind the software keyboard'),
-              contains('336'),
+              contains('335'),
               contains('s.keyboard.dismiss()'),
               // And pointedly *not* `scrollTo`: measured, it stops inside a
               // viewport that runs under the keyboard, so the next verb is
@@ -262,7 +262,7 @@ void main() {
           // the view back. So the *driver* has to, from between the replays,
           // unconditionally: it once believed the unmount had already zeroed
           // things and wrote nothing, and every branch after one that typed
-          // was laid out against 336 points of keyboard nobody had asked for.
+          // was laid out against 335 points of keyboard nobody had asked for.
           seen['does not type'] = MediaQuery.of(
             s.tester.element(find.byType(MaterialApp)),
           ).viewInsets.bottom;
@@ -270,7 +270,7 @@ void main() {
       });
     });
     tearDown(() {
-      expect(seen['types'], 336);
+      expect(seen['types'], 335);
       expect(
         seen['does not type'],
         0,
@@ -289,8 +289,8 @@ void main() {
       // The iPhone 16's measured keypad, 45 points under its letters
       // keyboard — so the layout meets the screen a phone would give it and
       // not one 45 points smaller.
-      expect(s.keyboard.height, 291);
-      expect(s.tester.getSize(find.byKey(const Key('body'))).height, 852 - 291);
+      expect(s.keyboard.height, 308);
+      expect(s.tester.getSize(find.byKey(const Key('body'))).height, 852 - 308);
     });
 
     scenario('and the morph between them needs no going down', (s) async {
@@ -301,10 +301,10 @@ void main() {
       await s.pumpWidget(const _Form(number: true));
       await s.tap(const Key('email'));
       expect(s.keyboard.variant, KeyboardVariant.letters);
-      expect(s.keyboard.height, 336);
+      expect(s.keyboard.height, 335);
       await s.tap(const Key('name'));
       expect(s.keyboard.variant, KeyboardVariant.keypad);
-      expect(s.keyboard.height, 291);
+      expect(s.keyboard.height, 308);
     });
 
     scenario('and the picture follows even when the height does not', (
@@ -320,7 +320,7 @@ void main() {
       expect(_drawnVariant(s), KeyboardVariant.letters);
       await s.tap(const Key('mail'));
       expect(s.keyboard.variant, KeyboardVariant.email);
-      expect(s.keyboard.height, 336, reason: 'the same height, on purpose');
+      expect(s.keyboard.height, 335, reason: 'the same height, on purpose');
       expect(_drawnVariant(s), KeyboardVariant.email);
     });
   });
@@ -333,7 +333,7 @@ void main() {
       await s.tap(const Key('name'));
       // The field takes focus and `TextInput.show` is still sent — the
       // platform simply shows nothing for it, because the app has its own
-      // input surface. Reading the show alone put 336 points of keyboard over
+      // input surface. Reading the show alone put 335 points of keyboard over
       // a screen that has none on the phone.
       expect(s.keyboard.isRequested, isFalse);
       expect(s.keyboard.isUp, isFalse);

@@ -9,9 +9,11 @@
 ///
 /// **Nearest wins**, and those four are the ladder in order — so a run reaches
 /// past a folder and the project, and a `scenario(network: ...)` reaches past
-/// all three. A run flag is not a master switch: `--network=record` against a
-/// scenario that states its own mode records nothing, and says so on stderr
-/// rather than leaving an empty store to be discovered later.
+/// all three. A run flag is not a master switch, with one exception:
+/// `--network=record` reaches a scenario that says `replay`, because both name
+/// the same recording. Against a scenario that says `off` or `live` it records
+/// nothing, and says so on stderr rather than leaving an empty store to be
+/// discovered later.
 ///
 /// Whatever the mode, a `s.network` stub always beats it — the mode governs
 /// what happens to the requests the scenario did not state an answer for.
@@ -63,9 +65,14 @@ enum ScenarioNetwork {
   /// connection at all.
   ///
   /// A request the recording does not hold is **refused**, naming the url and
-  /// the command that would record it. Answering it with a 404, or with
+  /// the command that would record it, and the scenario **fails** when its
+  /// body is over, listing every such url. Answering it with a 404, or with
   /// silence, would put the store's gaps into the pictures instead of into the
-  /// output.
+  /// output — and so would a green result over them. A recorded error status
+  /// is not a gap: it replays as what the server said.
+  ///
+  /// `--network=record` reaches a scenario that says this about itself; see
+  /// [record].
   replay,
 
   /// Requests go out, and what comes back is written to the recording.
@@ -74,7 +81,12 @@ enum ScenarioNetwork {
   /// in what I am missing" are the same command otherwise, and the one you
   /// wanted is whichever you did not get. What it fetches it overwrites; what
   /// it does not ask for it leaves, so one endpoint can be refreshed by
-  /// running one scenario.
+  /// running one scenario. What comes back unchanged is not rewritten, so a
+  /// re-record shows in a diff only where the network moved.
+  ///
+  /// As a run's `--network=record` it also reaches a scenario that says
+  /// `replay` about itself — refreshing a recording is what that scenario's
+  /// mode is for.
   ///
   /// The caller is handed the bytes that were written, not the bytes off the
   /// wire, so a `record` run and the `replay` runs after it draw the same

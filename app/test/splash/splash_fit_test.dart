@@ -258,8 +258,8 @@ void main() {
         expect(surface.splashSizeForDevice(device.id), isNotNull);
       }
       expect(
-        surface.splashSizeForDevice('iphone-13-mini'),
-        SplashScreenSize.smallPhone,
+        surface.splashSizeForDevice('iphone-16-plus'),
+        SplashScreenSize.largePhone,
       );
       expect(surface.splashSizeForDevice('ipad'), SplashScreenSize.tablet);
       expect(surface.splashSizeForDevice('nokia-3310'), isNull);

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../device_platform.dart';
 import '../devices.dart';
 import 'film.dart';
 import 'reel.dart';
@@ -191,14 +192,7 @@ class ScenarioRunArgs {
   );
 
   static TargetPlatform? _platformOf(Device? device) =>
-      switch (device?.platform) {
-        null => null,
-        DevicePlatform.ios => TargetPlatform.iOS,
-        DevicePlatform.android => TargetPlatform.android,
-        DevicePlatform.macos => TargetPlatform.macOS,
-        DevicePlatform.windows => TargetPlatform.windows,
-        DevicePlatform.linux => TargetPlatform.linux,
-      };
+      device?.platform.targetPlatform;
 
   final ScenarioRunAccessibility accessibility;
 

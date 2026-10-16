@@ -20,6 +20,27 @@ void main() {
     await s.pumpWidget(const MaterialApp(home: Text('hello')));
   });
 
+  group('a record run reaches a scenario that replays', () {
+    setUp(
+      () => scenarioRunArgs = const ScenarioRunArgs(
+        network: ScenarioNetwork.record,
+      ),
+    );
+    tearDown(() => scenarioRunArgs = null);
+
+    scenario('and records it', network: ScenarioNetwork.replay, (s) async {
+      expect(s.network.mode, ScenarioNetwork.record);
+      await s.pumpWidget(const MaterialApp(home: Text('hello')));
+    });
+
+    scenario('but not one that said live', network: ScenarioNetwork.live, (
+      s,
+    ) async {
+      expect(s.network.mode, ScenarioNetwork.live);
+      await s.pumpWidget(const MaterialApp(home: Text('hello')));
+    });
+  });
+
   group('a run beats the folder', () {
     // Armed after these scenarios are declared and left armed while they run,
     // which is `harness.dart`'s own ordering.

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutterware/devices.dart';
 import 'package:flutterware/scene.dart';
 import 'package:flutterware/scene_authoring.dart';
 
@@ -91,7 +92,10 @@ class _SceneCanvasState extends State<SceneCanvas> {
   /// it: the phone decides at runtime. Something still has to decide here,
   /// and that is a preview size rather than a property of the scene — the
   /// same distinction a device frame makes in the previews plugin.
-  static const _previewSize = Size(390, 844);
+  static final _previewSize = Size(
+    Devices.defaultPhone.width,
+    Devices.defaultPhone.height,
+  );
 
   bool get _isPreviewSize =>
       doc.root.width == null ||

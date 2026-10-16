@@ -1169,16 +1169,18 @@ class ScenariosCore extends PluginCore {
                   '`flutter test`. `replay` answers from the recording '
                   'committed beside the scenarios, offline and byte for byte; '
                   'a request the recording does not hold is refused, naming '
-                  'it. `record` goes out and writes what comes back, '
-                  'overwriting what it fetches and leaving the rest — run it '
-                  'once, read the diff, commit. `live` goes out and writes '
+                  'it, and fails the scenario. `record` goes out and writes '
+                  'what comes back, overwriting what changed and leaving the '
+                  'rest — run it once, read the diff, commit. `live` goes out '
+                  'and writes '
                   'nothing, which is the honest reading and the unrepeatable '
                   'one: the same suite run twice is two different runs, and a '
                   'scenario empties the image cache by design, so a suite pays '
                   "its round trips once per scenario. Beats what a folder's "
                   "`runScenarios(network: ...)` and the project's "
                   '`fw.network(...)` said; a `scenario(network: ...)` beats '
-                  'all three. The report says which modes ran.',
+                  'all three, except that `record` reaches a scenario that '
+                  'says `replay`. The report says which modes ran.',
             ),
             const ActionParameter(
               'jobs',

@@ -257,6 +257,100 @@ void main() {
     });
   });
 
+  // The runner's `--matrix=declared`, for the bare `flutter test` lane: CI
+  // runs every folder's own matrix in one invocation instead of one per
+  // folder, each restating the lists the profile already holds.
+  group('fw.matrix=declared', () {
+    test('runs every point the profile declares, crossed', () {
+      var assignments = scenarioAssignments(phones, matrixOverride: 'declared');
+
+      expect(assignments.map((a) => a.slug), [
+        'iphone-16-en',
+        'iphone-16-fr',
+        'iphone-se-en',
+        'iphone-se-fr',
+      ]);
+    });
+
+    test('takes the orientations and the app axes as well', () {
+      var assignments = scenarioAssignments(
+        const ScenarioProfile(
+          'tablets',
+          devices: [Devices.iPad, Devices.wideWindow],
+          orientations: [
+            ScreenOrientation.portrait,
+            ScreenOrientation.landscape,
+          ],
+          axes: {
+            'brand': ['coffee', 'tea'],
+          },
+        ),
+        matrixOverride: 'declared',
+      );
+
+      expect(assignments.map((a) => a.slug), [
+        'ipad-coffee',
+        'ipad-tea',
+        'ipad-landscape-coffee',
+        'ipad-landscape-tea',
+        'window-wide-coffee',
+        'window-wide-tea',
+      ]);
+    });
+
+    test('an axis the profile leaves empty is still one pass', () {
+      var assignments = scenarioAssignments(
+        const ScenarioProfile(
+          'one',
+          devices: [Devices.iphoneSe, Devices.iphone16],
+        ),
+        matrixOverride: 'declared',
+      );
+
+      expect(assignments.map((a) => a.device), [
+        Devices.iphoneSe,
+        Devices.iphone16,
+      ]);
+      expect(assignments.map((a) => a.language), [null, null]);
+    });
+
+    test('no profile is the bare test surface, as without it', () {
+      var assignments = scenarioAssignments(null, matrixOverride: 'declared');
+
+      expect(assignments.single.isEmpty, isTrue);
+    });
+
+    test('replaces the lists rather than adding to them', () {
+      expect(
+        () => scenarioAssignments(
+          phones,
+          matrixOverride: 'declared',
+          languagesOverride: 'de',
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '$e',
+            'message',
+            contains('Drop the explicit lists'),
+          ),
+        ),
+      );
+    });
+
+    test('a value it does not know is refused, not read as the default', () {
+      expect(
+        () => scenarioAssignments(phones, matrixOverride: 'full'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '$e',
+            'message',
+            allOf(contains('full'), contains('accepted: declared')),
+          ),
+        ),
+      );
+    });
+  });
+
   test('a landscape assignment hands down a device already turned', () {
     var assignment = ScenarioAssignment(
       device: Devices.iPad,

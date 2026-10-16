@@ -410,10 +410,10 @@ void main() {
     // Nothing chosen, so nothing is sent — only the fallback the host would
     // like used where a folder declares no profile.
     expect(runner.seenAxes.single.device, isNull);
-    expect(runner.seenUnspecified.single, 'iphone-13');
+    expect(runner.seenUnspecified.single, 'iphone-16');
     // And the chip reports what the run came back as, marked as not the
     // reader's own choice.
-    expect(find.text('iPhone 13 (default)'), findsOneWidget);
+    expect(find.text('iPhone 16 (default)'), findsOneWidget);
   });
 
   testWidgets('an app axis the folder declares gets a chip, and the address '

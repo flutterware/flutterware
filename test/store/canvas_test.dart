@@ -18,7 +18,7 @@ void main() {
     test('gets its sizes out of the device table', () {
       expect(AppStoreClass.iphone69.canvas.label, '1320×2868');
       expect(AppStoreClass.iphone65.canvas.label, '1284×2778');
-      expect(AppStoreClass.ipad13.canvas.label, '2048×2732');
+      expect(AppStoreClass.ipad13.canvas.label, '2064×2752');
     });
 
     test('composes nothing, because its canvases are its devices', () {

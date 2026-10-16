@@ -8,5 +8,5 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) => runScenarios(
   time: ScenarioTime.real(),
   // A phone, so a capture here is taken at a device size rather than the
   // tester's 800×600 — the case the blank-picture question was about.
-  profile: ScenarioProfile('live', devices: [Devices.iphone13Mini]),
+  profile: ScenarioProfile('live', devices: [Devices.iphone13]),
 );

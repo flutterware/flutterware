@@ -106,6 +106,9 @@ void main() {
         // not part of the key, so keeping them would write an `Authorization`
         // into a committed file for nothing.
         expect(meta.keys, isNot(contains('requestHeaders')));
+        // Nor when it was fetched: git knows when the bytes changed, and a
+        // stamp rewritten on every run puts every file in every diff.
+        expect(meta.keys, isNot(contains('recorded')));
 
         // The body is the exact bytes, in a file an editor opens as JSON.
         expect(File(p.join(store.path, bodyFile)).readAsStringSync(), body);
@@ -217,6 +220,44 @@ void main() {
       expect(hits, isEmpty);
     }, network: ScenarioNetwork.replay);
 
+    scenario('a stub still beats the store', (s) async {
+      s.network.store.write(
+        ScenarioRecording(
+          method: 'GET',
+          url: Uri.parse('$base/api/messages'),
+          status: 200,
+          body: utf8.encode('["recorded"]'),
+        ),
+      );
+      s.network.get('/api/messages', json: ['stated']);
+      await s.pumpWidget(_Blank());
+      var answer = await s.runAsync(
+        () async => (await http.get(Uri.parse('$base/api/messages'))).body,
+      );
+      expect(jsonDecode(answer!), ['stated']);
+    }, network: ScenarioNetwork.replay);
+  });
+
+  group('a replay that misses', () {
+    // Each of these refuses a request on purpose, so each fails when its body
+    // is over — which is the behaviour under test, caught here rather than
+    // reported. A failure from the body itself is caught too, and is then the
+    // one that does not match below.
+    var failures = <String>[];
+    late TestExceptionReporter reporter;
+    setUp(() {
+      failures = [];
+      reporter = reportTestException;
+      reportTestException = (details, description) =>
+          failures.add(details.exceptionAsString());
+    });
+    tearDown(() {
+      reportTestException = reporter;
+      expect(failures, hasLength(1));
+      expect(failures.single, contains('replays the network'));
+      expect(failures.single, contains('--network=record'));
+    });
+
     scenario('a miss names the url and what the store does hold', (s) async {
       s.network.store.write(
         ScenarioRecording(
@@ -254,6 +295,8 @@ void main() {
         }
       });
       expect(refusal, contains('Nothing has been recorded yet'));
+      // The store this run reads, not the default it might not be.
+      expect(refusal, contains(store.path));
     }, network: ScenarioNetwork.replay);
 
     scenario('the query string is part of the identity', (s) async {
@@ -278,21 +321,18 @@ void main() {
       expect(answers, ['["page one"]', 'refused']);
     }, network: ScenarioNetwork.replay);
 
-    scenario('a stub still beats the store', (s) async {
-      s.network.store.write(
-        ScenarioRecording(
-          method: 'GET',
-          url: Uri.parse('$base/api/messages'),
-          status: 200,
-          body: utf8.encode('["recorded"]'),
-        ),
-      );
-      s.network.get('/api/messages', json: ['stated']);
+    scenario('lists every miss once, across the whole body', (s) async {
       await s.pumpWidget(_Blank());
-      var answer = await s.runAsync(
-        () async => (await http.get(Uri.parse('$base/api/messages'))).body,
-      );
-      expect(jsonDecode(answer!), ['stated']);
+      await s.runAsync(() async {
+        for (var path in ['/api/a', '/api/b', '/api/a']) {
+          try {
+            await http.get(Uri.parse('$base$path'));
+          } on ScenarioNetworkRefusal {
+            // Refused, as expected; the failure comes at the end.
+          }
+        }
+      });
+      expect(s.network.notRecorded, ['GET $base/api/a', 'GET $base/api/b']);
     }, network: ScenarioNetwork.replay);
   });
 

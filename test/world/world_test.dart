@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware/devices.dart' show DeviceInsets;
 import 'package:flutterware/server.dart';
 import 'package:flutterware/src/world/protocol.dart';
 import 'package:flutterware/src/world/step_names.dart';
@@ -343,6 +344,37 @@ void main() {
     expect((back.width, back.height, back.pixelRatio), (800.0, 1280.0, 2.0));
     expect(back.insetTop, 24);
     expect(back.platform, DevicePlatform.android);
+  });
+
+  test('a made-up phone keeps its keyboard and its landscape', () {
+    // The geometry alone used to be all that travelled, so a custom phone
+    // typed with no keyboard and turned with its status bar still on top.
+    var device = const Device(
+      'kiosk-phone',
+      'Kiosk phone',
+      kind: DeviceKind.phone,
+      platform: DevicePlatform.ios,
+      group: 'Shop',
+      width: 400,
+      height: 870,
+      pixelRatio: 3,
+      insetTop: 60,
+      insetBottom: 34,
+      landscape: DeviceInsets(left: 60, right: 60, bottom: 20),
+      keyboard: 336,
+      landscapeKeyboard: 219,
+      keypadKeyboard: 291,
+    );
+    var back = deviceFromJson(deviceToJson(device));
+    expect(back.keyboard, 336);
+    expect(back.landscapeKeyboard, 219);
+    expect(back.keypadKeyboard, 291);
+    expect(back.landscapeKeypadKeyboard, isNull);
+    var turned = back.rotated();
+    expect(
+      (turned.insetTop, turned.insetLeft, turned.insetBottom),
+      (0.0, 60.0, 20.0),
+    );
   });
 }
 

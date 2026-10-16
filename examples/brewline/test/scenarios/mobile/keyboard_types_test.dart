@@ -72,39 +72,49 @@ class _SignUpState extends State<_SignUp> {
     debugShowCheckedModeBanner: false,
     home: Scaffold(
       appBar: AppBar(title: const Text('Sign up')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          spacing: 14,
-          children: [
-            const TextField(
-              key: Key('name'),
-              decoration: InputDecoration(labelText: 'Name'),
+      // Scrolls once the keyboard leaves less room than the form needs, which
+      // on an iPhone SE it does; on a taller phone the spacer still keeps the
+      // button at the bottom.
+      body: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                spacing: 14,
+                children: [
+                  const TextField(
+                    key: Key('name'),
+                    decoration: InputDecoration(labelText: 'Name'),
+                  ),
+                  const TextField(
+                    key: Key('email'),
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(labelText: 'Email'),
+                  ),
+                  const TextField(
+                    key: Key('site'),
+                    keyboardType: TextInputType.url,
+                    decoration: InputDecoration(labelText: 'Website'),
+                  ),
+                  const TextField(
+                    key: Key('phone'),
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(labelText: 'Phone'),
+                  ),
+                  const Spacer(),
+                  if (_done) const Text('Welcome aboard'),
+                  FilledButton(
+                    key: const Key('submit'),
+                    onPressed: () => setState(() => _done = true),
+                    child: const Text('Sign up'),
+                  ),
+                ],
+              ),
             ),
-            const TextField(
-              key: Key('email'),
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(labelText: 'Email'),
-            ),
-            const TextField(
-              key: Key('site'),
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(labelText: 'Website'),
-            ),
-            const TextField(
-              key: Key('phone'),
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(labelText: 'Phone'),
-            ),
-            const Spacer(),
-            if (_done) const Text('Welcome aboard'),
-            FilledButton(
-              key: const Key('submit'),
-              onPressed: () => setState(() => _done = true),
-              child: const Text('Sign up'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     ),
   );

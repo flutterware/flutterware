@@ -364,7 +364,14 @@ ScenarioNetwork? get resolvedScenarioNetwork =>
 /// both captured at declaration; the middle two are read here because they are
 /// not armed until the walk reaches this scenario.
 ///
-/// One losing combination says so out loud — see [recordOverriddenMessage].
+/// One exception: a `record` run reaches a scenario that said `replay`. The
+/// two name the same recording, one reading it and one writing it, so a
+/// scenario asking to be played back is asking for exactly what a record run
+/// refreshes — and the only place that scenario can say "use the recording"
+/// is on itself. `off`, `live` and every stub stay out of a run's reach.
+///
+/// The combinations a record run still cannot reach say so out loud — see
+/// [recordOverriddenMessage].
 ScenarioNetwork _reachOf(
   ScenarioNetwork? own,
   ScenarioNetwork? folder,
@@ -372,6 +379,9 @@ ScenarioNetwork _reachOf(
   String noticeKey,
 ) {
   var run = resolvedScenarioNetwork;
+  if (own == ScenarioNetwork.replay && run == ScenarioNetwork.record) {
+    return ScenarioNetwork.record;
+  }
   var reach =
       own ??
       run ??
@@ -428,10 +438,10 @@ final _recordOverridesSaid = <String>{};
 /// pairing shows itself — a scenario keeping `off` against a `live` run draws
 /// the blank image and reports the refusal on the step.
 ///
-/// A message rather than a rule. Letting `record` reach past [own] would put a
-/// special case inside a precedence ladder, and a ladder with an exception in
-/// it is what was misread here to begin with — it would also start recording
-/// for a scenario that deliberately said `live`.
+/// A scenario that said `replay` is not one of them: a record run records it
+/// — see [_reachOf]. What is left is `off` and `live`, and a message rather
+/// than the same exception, because both are a scenario deliberately saying
+/// it wants no recording: one keeps the network shut, the other wants today's.
 @visibleForTesting
 String? recordOverriddenMessage(
   String scenario,
@@ -439,7 +449,11 @@ String? recordOverriddenMessage(
   ScenarioNetwork? run,
 ) {
   if (run != ScenarioNetwork.record) return null;
-  if (own == null || own == ScenarioNetwork.record) return null;
+  if (own == null ||
+      own == ScenarioNetwork.replay ||
+      own == ScenarioNetwork.record) {
+    return null;
+  }
   return '"$scenario" sets `network: ${own.name}`, so this `record` run '
       'skipped it and recorded nothing for it. The nearest setting wins: a '
       '`scenario(network: ...)` overrides the run, and a run only overrides '
@@ -497,6 +511,32 @@ String? inertNetworkMessage(
       'the no-op manager a project writes for tests fails every url without '
       'opening anything. A manager whose `getFileStream` passes through to a '
       'plain `HttpClient` is caught like any other request.';
+}
+
+/// Why a scenario fails when `replay` refused requests the recording does not
+/// hold, or null when it refused none.
+///
+/// Failed once its body is over rather than on the first miss, so one run
+/// lists the whole gap instead of one url per attempt. `off` refuses without
+/// failing, because there a request is incidental — a decorative avatar is no
+/// reason to throw away a flow's other assertions. `replay` is a scenario
+/// asking for the network, and every picture after a refusal shows the
+/// recording's gap instead of the app: a green run over an empty store is the
+/// one outcome nobody can catch by reading the result.
+///
+/// A recorded error is not a miss. A 404 the server said is a recording of a
+/// 404, and a scenario about a missing page is entitled to it.
+@visibleForTesting
+String? notRecordedFailure(String scenario, List<String> missed, String store) {
+  if (missed.isEmpty) return null;
+  var listed = missed.take(10);
+  return '"$scenario" replays the network, and the recording at `$store` '
+      'holds nothing for ${missed.length == 1 ? 'one request' : '${missed.length} requests'} it made:\n'
+      '${listed.map((key) => '  $key\n').join()}'
+      '${missed.length > listed.length ? '  … and ${missed.length - listed.length} more\n' : ''}'
+      '\n'
+      'Record them and commit what comes back:\n'
+      '  fw run scenarios run --network=record';
 }
 
 ScenarioNetwork? get _scenarioNetworkFromHost {
@@ -764,6 +804,15 @@ Future<void> _runScenario(
         when !_recordOverridesSaid.contains(noticeKey) &&
             _inertNetworksSaid.add(noticeKey)) {
       stderr.writeln('[flutterware] $said');
+    }
+
+    if (notRecordedFailure(
+          description,
+          network.notRecorded.toList(),
+          network.store.directory,
+        )
+        case var said?) {
+      fail(said);
     }
   } finally {
     // Whatever happened — a film cut short by a failure is still a film, and
