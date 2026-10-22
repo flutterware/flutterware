@@ -50,6 +50,21 @@ void main() {
       );
     });
 
+    test('flutterware_render, and its pin on flutterware', () {
+      var bumped = withRenderConstraint(
+        withPackageVersion(read('render/pubspec.yaml'), '9.8.7'),
+        '9.8.7',
+      );
+      expect(bumped, contains('\nversion: 9.8.7 '));
+      expect(bumped, contains("\n  flutterware: '>=9.8.7 <9.8.8'\n"));
+    });
+
+    test("flutterware_render's changelog points at flutterware's, once", () {
+      var once = withRenderChangelogEntry(read('render/CHANGELOG.md'), '9.8.7');
+      expect(once, startsWith('## 9.8.7\n\nReleased with flutterware 9.8.7.'));
+      expect(withRenderChangelogEntry(once, '9.8.7'), once);
+    });
+
     test('the changelog gets one empty entry, once', () {
       var once = withChangelogEntry('## 0.6.0\n\n- A.\n', '0.6.1');
       expect(once, '## 0.6.1\n\n## 0.6.0\n\n- A.\n');

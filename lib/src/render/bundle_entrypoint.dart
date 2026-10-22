@@ -43,7 +43,7 @@ String generateRenderBundleEntrypoint({
   );
   return '''
 // GENERATED — flutterware render bundle harness. Do not edit.
-import 'package:flutterware/render.dart' as render;
+import 'package:flutterware_render/flutterware_render.dart' as render;
 import '$import' as renders;
 
 void main() => render.runRenderDriver(renders.$registrarName);

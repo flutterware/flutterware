@@ -5,8 +5,8 @@
 /// type pinned in the type argument — declared once in a package both the
 /// app and the server import. No code generation: the descriptor is the
 /// contract. The app binds implementations against it (see
-/// `package:flutterware/render.dart`); the server hands it back with typed
-/// args and gets a typed result.
+/// `package:flutterware_render/flutterware_render.dart`); the server hands it
+/// back with typed args and gets a typed result.
 library;
 
 import 'dart:typed_data';

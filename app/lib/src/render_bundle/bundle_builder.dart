@@ -49,6 +49,15 @@ Future<RenderBundleManifest> buildRenderBundle({
     );
   }
 
+  var packageConfig = requirePackageConfig(packageRoot);
+  if (!_resolvesPackage(packageConfig, 'flutterware_render')) {
+    throw StateError(
+      'A render bundle needs the flutterware_render package. '
+      'Add it to the project at $packageRoot:\n\n'
+      '  flutter pub add flutterware_render',
+    );
+  }
+
   var outDir = Directory(p.absolute(output))..createSync(recursive: true);
 
   // The registrar, wrapped in the driver, compiled to a kernel.
@@ -65,7 +74,6 @@ Future<RenderBundleManifest> buildRenderBundle({
   if (!entrypoint.existsSync() || entrypoint.readAsStringSync() != generated) {
     entrypoint.writeAsStringSync(generated);
   }
-  var packageConfig = requirePackageConfig(packageRoot);
   say('compiling $target (registrar: $registrar)');
   var dill = await compileToKernel(
     entrypoint: entrypoint.path,
@@ -123,6 +131,16 @@ Future<RenderBundleManifest> buildRenderBundle({
   );
   say('bundle ready: ${outDir.path}');
   return manifest;
+}
+
+/// The generated entrypoint imports the driver from flutterware_render, so a
+/// project without it would fail in the compiler with a bare "couldn't
+/// resolve the package".
+bool _resolvesPackage(String packageConfig, String name) {
+  var json = jsonDecode(File(packageConfig).readAsStringSync()) as Map;
+  return (json['packages'] as List? ?? const []).any(
+    (entry) => entry is Map && entry['name'] == name,
+  );
 }
 
 String _testerName(String platform) =>

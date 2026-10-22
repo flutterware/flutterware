@@ -32,6 +32,7 @@ void main() {
     p.join('app', 'integration_test'),
     p.join('examples', 'brewline'),
     p.join('fixtures', 'probe_app'),
+    'render',
     'web_demo',
   ];
 

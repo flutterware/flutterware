@@ -7,7 +7,8 @@
 /// Flutter nor `dart:io`, so a package importing it still compiles for the
 /// web; the server's door, which spawns guests, is
 /// `package:flutterware/render_client.dart`, and the app binds
-/// implementations through `package:flutterware/render.dart`.
+/// implementations through
+/// `package:flutterware_render/flutterware_render.dart`.
 library;
 
 export 'src/render/contract.dart';

@@ -74,16 +74,17 @@ Windows support is in progress. What a contributor needs today:
 A release is a GitHub release. Its version is the one master already names:
 
 1. `fvm dart tool/release.dart 0.6.1` moves the version everywhere it is
-   written and adds an empty `## 0.6.1` to `CHANGELOG.md`. Write that entry,
-   run `fvm flutter pub get`, and merge it as an ordinary PR.
+   written, `render/` included, and adds an empty `## 0.6.1` to
+   `CHANGELOG.md`. Write that entry, run `fvm flutter pub get`, and merge it
+   as an ordinary PR.
 2. On GitHub, create a release tagged `v0.6.1`, from master.
 
 The tag starts `.github/workflows/publish-on-pub.yaml`, which does the rest. It
 checks that the tag matches master's version and that master's CI passed on
 that commit. That CI includes installing the package from exactly what pub
 would upload and building the studio from it, on the pinned Flutter and on the
-newest stable. It then renders the pictures for `media/v0.6.1/`, publishes to
-pub.dev, syncs
+newest stable. It then renders the pictures for `media/v0.6.1/`, publishes
+flutterware and then flutterware_render to pub.dev, syncs
 [flutterware_example](https://github.com/flutterware/flutterware_example), and
 installs a fresh clone of it from pub.dev.
 
@@ -91,7 +92,10 @@ Two things are set up once, outside this repository:
 
 - **pub.dev**: under the package's *Admin* tab, automated publishing from
   GitHub Actions is enabled for `flutterware/flutterware`, with the tag pattern
-  `v{{version}}`.
+  `v{{version}}`. `flutterware_render` needs the same setting on its own
+  *Admin* tab. pub.dev only offers it once a package exists, so its first
+  version is published by hand: `cd render && fvm flutter pub publish`, after
+  flutterware's release of the same version is on pub.dev.
 - **The demo's deploy key**: `flutterware_example` has a deploy key with write
   access, and its private half is this repository's `EXAMPLE_DEPLOY_KEY`
   secret.

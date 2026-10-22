@@ -1,0 +1,35 @@
+name: flutterware_render
+description: 'Render Flutter widgets to SVG, PNG and PDF, in a test or from a Dart server. The render half of flutterware.'
+version: 0.6.0 # Keep it sync with flutterware
+homepage: https://flutterware.dev
+repository: https://github.com/flutterware/flutterware/tree/master/render
+issue_tracker: https://github.com/flutterware/flutterware/issues
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
+
+# No `web:`: the render driver speaks to its pool over stdio.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The release this one ships with: the capture pipeline imports flutterware's
+  # own sources (the offscreen mount, the wire protocol), which promise nothing
+  # across versions. A range rather than `0.6.0`, which pub's validator warns
+  # about. `tool/release.dart` moves it.
+  flutterware: '>=0.6.0 <0.6.1'
+  pdf: ^3.11.0
+  vector_math: ^2.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  material_ui: ^1.4.0

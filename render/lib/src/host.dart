@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutterware/render_contract.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'contract.dart';
 import 'model.dart';
 import 'render_capture.dart';
 

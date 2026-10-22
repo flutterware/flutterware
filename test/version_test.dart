@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutterware/src/constants.dart';
 import 'package:path/path.dart' as p;
+import 'package:pub_semver/pub_semver.dart';
 import 'package:test/test.dart';
 
 /// The version is written in three places and only one of them is checked by
@@ -39,6 +40,27 @@ void main() {
       versionIn(p.join('app', 'pubspec.yaml')).split('+').first,
       versionIn('pubspec.yaml'),
       reason: 'app/pubspec.yaml and pubspec.yaml must move together',
+    );
+  });
+
+  test('flutterware_render is the same release and allows only it', () {
+    var render = p.join('render', 'pubspec.yaml');
+    expect(
+      versionIn(render),
+      versionIn('pubspec.yaml'),
+      reason: 'render/pubspec.yaml and pubspec.yaml must move together',
+    );
+    var constraint = RegExp(
+      r"^  flutterware: '([^']*)'",
+      multiLine: true,
+    ).firstMatch(File(render).readAsStringSync())?.group(1);
+    var version = Version.parse(versionIn('pubspec.yaml'));
+    expect(
+      VersionConstraint.parse(constraint ?? ''),
+      VersionRange(min: version, includeMin: true, max: version.nextPatch),
+      reason:
+          'flutterware_render imports flutterware sources, so it depends on '
+          'only the release it ships with',
     );
   });
 }

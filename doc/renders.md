@@ -7,6 +7,15 @@ the command line, or from a Dart server that has no screen.
 The SVG and PDF are real vector documents: text stays text, and anything a
 vector format can't express is reported rather than silently dropped.
 
+## Add the package
+
+Rendering is in a separate package. Add it to the app that draws the render
+points:
+
+```shell
+flutter pub add flutterware_render
+```
+
 ## Declare what can be rendered
 
 A **render point** is a named, typed entry: what it's called and what
@@ -15,7 +24,7 @@ arguments it takes. The app then says how to draw each one:
 ```dart
 // lib/renders.dart
 import 'package:material_ui/material_ui.dart';
-import 'package:flutterware/render.dart';
+import 'package:flutterware_render/flutterware_render.dart';
 
 final monthlyChart = WidgetRender<ChartRequest>(
   'charts/monthly',
@@ -73,16 +82,17 @@ var chart = await pool.svg(
 print(chart.text);
 ```
 
-`render_client.dart` doesn't import Flutter. Keep the render points in a file
-that imports only `package:flutterware/render_contract.dart`, so the server
-and the app share them. The deployed server needs the bundle directory, not a
-Flutter SDK.
+`render_client.dart` is in `flutterware` and doesn't import Flutter, so the
+server doesn't need `flutterware_render`. Keep the render points in a file that
+imports only `package:flutterware/render_contract.dart`, so the server and the
+app share them. The deployed server needs the bundle directory, not a Flutter
+SDK.
 
 ## Render any widget, in your own code
 
-Without declaring anything, `package:flutterware/render.dart` also has
-`captureWidgetSvg`, `captureWidgetPdf` and `captureWidgetPng`, which render a
-widget offscreen from inside a Flutter app or test.
+Without declaring anything, `flutterware_render` also has `captureWidgetSvg`,
+`captureWidgetPdf` and `captureWidgetPng`, which render a widget offscreen from
+inside a Flutter app or test.
 
 ## Reference
 

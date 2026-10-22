@@ -52,6 +52,8 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   flutterware:
     path: ../..
+  flutterware_render:
+    path: ../../render
   hooks: ^2.2.0
   # `test/scenarios/events_test.dart` signs in over a real request.
   http:
