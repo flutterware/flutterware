@@ -8,9 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'package:flutterware/src/render/capture.dart';
-import 'package:flutterware/src/render/model.dart';
-import 'package:flutterware/src/render/svg_writer.dart';
+import 'package:flutterware_render/src/capture.dart';
+import 'package:flutterware_render/src/model.dart';
+import 'package:flutterware_render/src/svg_writer.dart';
 
 /// The consumer story this proves: a report generated with package:pdf's
 /// widget library wants a chart that is the app's own Flutter widget, not a
@@ -28,9 +28,9 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    var roboto = File('fixtures/probe_app/assets/fonts/Roboto-Regular.ttf')
+    var roboto = File('../fixtures/probe_app/assets/fonts/Roboto-Regular.ttf')
         .readAsBytesSync();
-    var robotoBold = File('fixtures/probe_app/assets/fonts/Roboto-Bold.ttf')
+    var robotoBold = File('../fixtures/probe_app/assets/fonts/Roboto-Bold.ttf')
         .readAsBytesSync();
     await tester.runAsync(
       () =>

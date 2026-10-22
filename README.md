@@ -21,7 +21,7 @@ app. Nothing in it can change.
 
 ![The studio drawing a test of the demo coffee shop as a flow of phone
 screenshots, a coding agent's session reporting the feature it was asked for
-with the two screens it changed, and the commands a terminal takes](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/hero.webp)
+with the two screens it changed, and the commands a terminal takes](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/hero.webp)
 
 ## Try it on your machine
 
@@ -51,19 +51,19 @@ also runs on Linux and Windows.
 
 | [Previews](doc/previews.md) | [Scenarios](doc/scenarios.md) |
 |:---|:---|
-| [![The demo's menu rendered on an iPhone 16 frame, with the list of its screens beside it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-previews.webp)](doc/previews.md) | [![A test of the demo drawn as a flow of phone screenshots](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-scenarios.webp)](doc/scenarios.md) |
+| [![The demo's menu rendered on an iPhone 16 frame, with the list of its screens beside it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-previews.webp)](doc/previews.md) | [![A test of the demo drawn as a flow of phone screenshots](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-scenarios.webp)](doc/scenarios.md) |
 | Your `@Preview` widgets on a device frame, in a live engine. Change the device, the language or the theme, turn knobs, read the widget tree. | Widget tests that keep a screenshot, the widget tree and the visible text of every step. The studio draws each run as a flow. |
 | **[Store screenshots](doc/store_screenshots.md)** | **[Translations](doc/translations.md)** |
-| [![App Store and Google Play rows of finished store images](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-store.webp)](doc/store_screenshots.md) | [![The translations table, each key beside a picture of it on screen](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-translations.webp)](doc/translations.md) |
+| [![App Store and Google Play rows of finished store images](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-store.webp)](doc/store_screenshots.md) | [![The translations table, each key beside a picture of it on screen](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-translations.webp)](doc/translations.md) |
 | App Store and Google Play images made from your tests, for every language, at the sizes each store asks for. The frame is a widget you write. | Every key in every language, next to a picture of where it appears. Missing and overlong strings are flagged. |
 | **[Run](doc/run.md)** | **[Comparison](doc/comparison.md)** |
-| [![The steps an agent took through the demo on an iPhone, one of them open](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-run.webp)](doc/run.md) | [![A branch's comparison: the tests whose screens changed, one open step by step](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-comparison.webp)](doc/comparison.md) |
+| [![The steps an agent took through the demo on an iPhone, one of them open](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-run.webp)](doc/run.md) | [![A branch's comparison: the tests whose screens changed, one open step by step](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-comparison.webp)](doc/comparison.md) |
 | Your app on a simulator, a phone or the desktop: its logs, network calls, widget tree and permissions, and every tap an agent made, step by step. | What a branch changed on screen. `fw compare` renders both sides from git and exports a page to link from the pull request. |
 | **[Changes](doc/changes.md)** | **[Server](doc/server_inspection.md)** |
-| [![A branch's files, the ones the project pins first, one open on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-changes.webp)](doc/changes.md) | [![A Dart server's requests, one open on its queries, an N+1 flagged](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-server.webp)](doc/server_inspection.md) |
+| [![A branch's files, the ones the project pins first, one open on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-changes.webp)](doc/changes.md) | [![A Dart server's requests, one open on its queries, an N+1 flagged](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-server.webp)](doc/server_inspection.md) |
 | Your branch's diff with the files that matter listed first, and notes you can leave for your agent. | The requests your Dart backend handles, the SQL each one ran, and N+1 queries flagged. |
 | **[Launcher icon](doc/launcher_icon.md)** | **[Splash screen](doc/native_splash.md)** |
-| [![The launcher icon panel: the demo's Android icons in each mask shape, and its themed icon on a home screen](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-launcher-icon.webp)](doc/launcher_icon.md) | [![The splash panel: every launch surface a config produces, on Android and iOS, in light and in dark](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/card-native-splash.webp)](doc/native_splash.md) |
+| [![The launcher icon panel: the demo's Android icons in each mask shape, and its themed icon on a home screen](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-launcher-icon.webp)](doc/launcher_icon.md) | [![The splash panel: every launch surface a config produces, on Android and iOS, in light and in dark](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/card-native-splash.webp)](doc/native_splash.md) |
 | Every app icon, as each platform will show it, and what's wrong with them. | What each platform shows at launch, read from the generated files. |
 
 <!-- /site -->

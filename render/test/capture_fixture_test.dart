@@ -7,10 +7,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutterware/src/render/capture.dart';
-import 'package:flutterware/src/render/model.dart';
-import 'package:flutterware/src/render/pdf_writer.dart';
-import 'package:flutterware/src/render/svg_writer.dart';
+import 'package:flutterware_render/src/capture.dart';
+import 'package:flutterware_render/src/model.dart';
+import 'package:flutterware_render/src/pdf_writer.dart';
+import 'package:flutterware_render/src/svg_writer.dart';
 
 final _boundaryKey = GlobalKey();
 
@@ -21,13 +21,13 @@ void main() {
     addTearDown(tester.view.reset);
 
     var robotoRegular = _fileBytes(
-      'fixtures/probe_app/assets/fonts/Roboto-Regular.ttf',
+      '../fixtures/probe_app/assets/fonts/Roboto-Regular.ttf',
     );
     var robotoBold = _fileBytes(
-      'fixtures/probe_app/assets/fonts/Roboto-Bold.ttf',
+      '../fixtures/probe_app/assets/fonts/Roboto-Bold.ttf',
     );
     var robotoItalic = _fileBytes(
-      'app/lib/src/utils/fonts/Roboto/Roboto-Italic.ttf',
+      '../app/lib/src/utils/fonts/Roboto/Roboto-Italic.ttf',
     );
     var materialIcons = _materialIconsBytes();
 

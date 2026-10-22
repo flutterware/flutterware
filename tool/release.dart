@@ -18,7 +18,12 @@
 /// * the picture links in `README.md` and `doc/` — `media/v<version>/`, the
 ///   folder the release renders;
 /// * the demo's `flutterware:` constraint — `^<version>`, so a clone resolves
-///   the release its code was written against.
+///   the release its code was written against;
+/// * `render/pubspec.yaml` — flutterware_render, which projects take from git
+///   at this release's tag, and its `flutterware:` constraint, which names
+///   exactly this release;
+/// * the `ref: v<version>` of that git dependency in `doc/renders.md` and
+///   `render/README.md`, so the snippet a reader copies names this release.
 ///
 /// `CHANGELOG.md` gets an empty `## <version>`. The release refuses an empty
 /// entry, so it is written in the PR rather than remembered afterwards.
@@ -67,6 +72,16 @@ void main(List<String> args) {
     p.join('examples', 'brewline', 'pubspec.yaml'),
     (s) => withDemoConstraint(s, version),
   );
+  edit(
+    p.join('render', 'pubspec.yaml'),
+    (s) => withRenderConstraint(withPackageVersion(s, version), version),
+  );
+  for (var doc in [
+    p.join('doc', 'renders.md'),
+    p.join('render', 'README.md'),
+  ]) {
+    edit(doc, (s) => withRenderRef(s, version));
+  }
   edit('CHANGELOG.md', (s) => withChangelogEntry(s, version));
   relinkPictures(root, version);
 
@@ -102,6 +117,22 @@ String withDemoConstraint(String pubspec, String version) => _replaceOnce(
   RegExp(r'^  flutterware: \^[^\s#]+', multiLine: true),
   (_) => '  flutterware: ^$version',
 );
+
+String withRenderConstraint(String pubspec, String version) => _replaceOnce(
+  pubspec,
+  RegExp(r'^  flutterware: [^\s#]+', multiLine: true),
+  (_) => '  flutterware: $version',
+);
+
+/// The tag in the flutterware_render git dependency a doc shows, wherever it
+/// is shown: a doc may carry the snippet more than once, but never not at all.
+String withRenderRef(String doc, String version) {
+  var ref = RegExp(r'^(\s*)ref: v[^\s]+$', multiLine: true);
+  if (!ref.hasMatch(doc)) {
+    throw StateError('expected a `ref: v<version>` line, found none');
+  }
+  return doc.replaceAllMapped(ref, (m) => '${m[1]}ref: v$version');
+}
 
 String withChangelogEntry(String changelog, String version) {
   if (changelog.startsWith('## $version\n')) return changelog;

@@ -50,6 +50,23 @@ void main() {
       );
     });
 
+    test('flutterware_render, and its pin on flutterware', () {
+      var bumped = withRenderConstraint(
+        withPackageVersion(read('render/pubspec.yaml'), '9.8.7'),
+        '9.8.7',
+      );
+      expect(bumped, contains('\nversion: 9.8.7 '));
+      expect(bumped, contains('\n  flutterware: 9.8.7\n'));
+    });
+
+    for (var doc in ['doc/renders.md', 'render/README.md']) {
+      test('the flutterware_render git ref in $doc', () {
+        var bumped = withRenderRef(read(doc), '9.8.7');
+        expect(bumped, contains('\n      ref: v9.8.7\n'));
+        expect(bumped, isNot(contains(RegExp(r'ref: v(?!9\.8\.7\n)'))));
+      });
+    }
+
     test('the changelog gets one empty entry, once', () {
       var once = withChangelogEntry('## 0.6.0\n\n- A.\n', '0.6.1');
       expect(once, '## 0.6.1\n\n## 0.6.0\n\n- A.\n');

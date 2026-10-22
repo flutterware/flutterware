@@ -16,7 +16,7 @@
 /// [RenderRegistry], receiving a [RenderHost].
 library;
 
-export 'render_contract.dart'
+export 'package:flutterware/render_contract.dart'
     show
         DocumentRender,
         PdfResult,
@@ -31,8 +31,8 @@ export 'render_contract.dart'
         UnsupportedPolicy,
         WidgetRender;
 
-export 'src/render/driver.dart' show runRenderDriver;
-export 'src/render/host.dart'
+export 'src/driver.dart' show runRenderDriver;
+export 'src/host.dart'
     show
         BoundDocumentRender,
         BoundRender,
@@ -42,10 +42,12 @@ export 'src/render/host.dart'
         RenderHost,
         RenderOptionsToCapture,
         RenderRegistry;
-export 'src/render/model.dart'
-    show CaptureOptions, RenderFont, TextCluster, TextRun;
-export 'src/render/offscreen.dart' show OffscreenWidget;
-export 'src/render/render_capture.dart'
+export 'src/model.dart' show CaptureOptions, RenderFont, TextCluster, TextRun;
+
+// ignore: implementation_imports
+export 'package:flutterware/src/render/offscreen.dart' show OffscreenWidget;
+
+export 'src/render_capture.dart'
     show
         capturePdf,
         captureSvg,

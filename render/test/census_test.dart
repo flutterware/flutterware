@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutterware/src/render/capture.dart';
-import 'package:flutterware/src/render/model.dart';
+import 'package:flutterware_render/src/capture.dart';
+import 'package:flutterware_render/src/model.dart';
 
 /// The capture census: run the recorder over a battery of everyday Material
 /// surfaces and count what falls outside the vector lanes — unhandled canvas

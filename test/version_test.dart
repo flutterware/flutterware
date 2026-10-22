@@ -41,4 +41,24 @@ void main() {
       reason: 'app/pubspec.yaml and pubspec.yaml must move together',
     );
   });
+
+  test('flutterware_render is the same release and names it exactly', () {
+    var render = p.join('render', 'pubspec.yaml');
+    expect(
+      versionIn(render),
+      versionIn('pubspec.yaml'),
+      reason: 'render/pubspec.yaml and pubspec.yaml must move together',
+    );
+    var constraint = RegExp(
+      r'^  flutterware:\s*(\S+)',
+      multiLine: true,
+    ).firstMatch(File(render).readAsStringSync())?.group(1);
+    expect(
+      constraint,
+      versionIn('pubspec.yaml'),
+      reason:
+          'flutterware_render imports flutterware sources, so it depends on '
+          'exactly the release it is tagged with',
+    );
+  });
 }

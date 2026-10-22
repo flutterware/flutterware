@@ -4,11 +4,12 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutterware/render_contract.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/render/protocol.dart';
 
-import 'contract.dart';
 import 'host.dart';
 import 'model.dart';
-import 'protocol.dart';
 import 'render_capture.dart';
 
 /// Runs the render guest: loads the bundle's fonts, runs [registrar], and

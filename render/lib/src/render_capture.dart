@@ -2,10 +2,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/render/offscreen.dart';
 
 import 'capture.dart';
 import 'model.dart';
-import 'offscreen.dart';
 import 'pdf_writer.dart';
 import 'svg_writer.dart';
 

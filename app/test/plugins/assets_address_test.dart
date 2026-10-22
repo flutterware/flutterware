@@ -11,7 +11,7 @@ void main() {
   const keys = [
     'assets/logo.png',
     'assets/images/icons/star.png',
-    'packages/flutterware/assets/figma_logo.png',
+    'packages/flutter_scene/assets/royal_esplanade.png',
     'fonts/Roboto-Regular.ttf',
     'logo.png',
   ];

@@ -17,7 +17,7 @@ one of these "bugs" breaks the case it stands for.
 | `icons/heart.svg` | a declaration in **map form** (`- path:`) |
 | `animations/pulse.json` | 2 layers, 30fps, frames 0–60, 2 markers — the Lottie metadata the core reads without the `lottie` package |
 | `fonts/Roboto-{Regular,Bold}.ttf` | a family with two weights |
-| `packages/flutterware/assets/figma_logo.png` | **not here** — it comes from the `flutterware` dependency, and is the fixture for D3 (dependency assets belong to the bundle that pulls them in) |
+| `packages/flutter_scene/assets/royal_esplanade.png` | **not here** — it comes from the `flutter_scene` dependency, and is the fixture for D3 (dependency assets belong to the bundle that pulls them in) |
 
 ## What is wrong on purpose
 

@@ -21,7 +21,6 @@
 library;
 
 export 'src/ui_catalog/form_factor.dart' show FormFactor;
-export 'src/ui_catalog/figma.dart' show Figma;
 export 'src/ui_catalog/knob.dart' show PickerStyle;
 export 'src/ui_catalog/knobs.dart' show Knobs;
 export 'src/ui_catalog/ui_catalog.dart'

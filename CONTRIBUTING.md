@@ -74,8 +74,9 @@ Windows support is in progress. What a contributor needs today:
 A release is a GitHub release. Its version is the one master already names:
 
 1. `fvm dart tool/release.dart 0.6.1` moves the version everywhere it is
-   written and adds an empty `## 0.6.1` to `CHANGELOG.md`. Write that entry,
-   run `fvm flutter pub get`, and merge it as an ordinary PR.
+   written, `render/` included, and adds an empty `## 0.6.1` to
+   `CHANGELOG.md`. Write that entry, run `fvm flutter pub get`, and merge it
+   as an ordinary PR.
 2. On GitHub, create a release tagged `v0.6.1`, from master.
 
 The tag starts `.github/workflows/publish-on-pub.yaml`, which does the rest. It

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutterware/render.dart';
+import 'package:flutterware_render/flutterware_render.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 /// The whole app-side story of the render contract, in-process: a shared

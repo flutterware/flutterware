@@ -2,13 +2,12 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
-
-import 'contract.dart';
+import 'package:flutterware/render_contract.dart';
 
 // The policy vocabulary and the result/warning types are the wire contract,
 // shared with the pure-Dart side through `render_contract.dart`; the capture
 // re-exports them so in-process users need one import.
-export 'contract.dart'
+export 'package:flutterware/render_contract.dart'
     show
         PdfResult,
         PngResult,

@@ -11,10 +11,10 @@ import 'dart:convert';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutterware/render.dart';
-import 'package:flutterware/src/render/capture.dart';
-import 'package:flutterware/src/render/model.dart';
-import 'package:flutterware/src/render/svg_writer.dart';
+import 'package:flutterware_render/flutterware_render.dart';
+import 'package:flutterware_render/src/capture.dart';
+import 'package:flutterware_render/src/model.dart';
+import 'package:flutterware_render/src/svg_writer.dart';
 import 'package:flutterware/src/scene/core/values.dart';
 import 'package:flutterware/src/scene/layered_text.dart';
 

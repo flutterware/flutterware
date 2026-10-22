@@ -58,6 +58,9 @@ jobs:
       # and never executed, which is how the inspection wire format sat
       # unguarded while looking covered.
       - run: flutter test
+      # flutterware_render's tests, for the same reason.
+      - run: flutter test
+        working-directory: render
       - run: dart tool/prepare_submit.dart
       - name: "check for uncommitted changes"
         run: |

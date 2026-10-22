@@ -1,5 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:flutterware/render.dart';
+import 'package:flutterware_render/flutterware_render.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 /// The example app's render points — what `fw render bundle` compiles into

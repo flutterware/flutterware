@@ -126,6 +126,26 @@ resolution: the deployed image still needs nothing but the bundle directory,
 which carries its own `flutter_tester`. Nothing was published under the old
 name.
 
+**Amended 2026-10-21: the name came back, for the other half.** Folding put
+the *capture* pipeline in `flutterware` too, and with it `package:pdf` (and
+`vector_math`, used only by the PDF writer) became dependencies of the
+runtime package. flutterware 0.6.0 shipped that way: every app adding it for
+the devbar or the scenarios resolved `pdf`, `archive`, `barcode`, `bidi`,
+`image`, `path_parsing` and `xml`, and took their version ranges into its own
+solve. That is the cost the repo works to keep out of the runtime package,
+and it is a bigger one than a second published package. So `render/` is
+`flutterware_render` again, holding what the 09-09 package did *not*: the
+library that was `render.dart` (now `flutterware_render.dart`, the name pub
+asks a package's one library to have), the capture, the writers,
+`RenderHost` and the driver. The contract and the client stay in
+`flutterware`, because the CLI needs them. It is **not published**
+(`publish_to: none`): a project takes it from git, `path: render`, at the
+`v<version>` tag of the flutterware it uses. It pins `flutterware` exactly,
+since it imports the offscreen mount and the wire protocol from
+flutterware's `src/`, which is what makes the tag the whole contract.
+`render/` still rides in flutterware's archive so the hosted copy keeps it as
+a workspace member, which the studio's tests depend on.
+
 ### 1. The app team's contract package (pure Dart, shared)
 
 ```dart

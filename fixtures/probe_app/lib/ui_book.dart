@@ -11,7 +11,6 @@ void main() async {
       catalog: () => catalog,
       appBuilder: (context, child) =>
           MaterialApp(debugShowCheckedModeBanner: false, home: child),
-      figmaLinksPath: '_ui_catalog_figma_links.json',
     ),
   );
 }
@@ -31,26 +30,23 @@ Map<String, dynamic> get otherBooks => {};
 class _DashboardBook extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Figma(
-      links: ['https://www.figma.com/design/aaa/bbb?node-id=93-2293'],
-      child: DashboardTile(
-        title: context.knobs.string('title', 'My title'),
-        count: context.knobs.int('count', 1, min: 0, max: 100),
-        logoStyle: context.knobs.picker('logoStyle', {
-          for (var v in FlutterLogoStyle.values) v.toString(): v,
-        }, FlutterLogoStyle.markOnly),
-        logoSize: context.knobs.double('logoSize', 100),
-        redBackground: context.knobs.bool('redBackground', false),
-        dateTime: context.knobs.dateTime('dateTime', DateTime(2024)),
-        dateOnly: context.knobs.dateTime(
-          'dateOnly',
-          DateTime(2024),
-          dateOnly: true,
-        ),
-        nullableDateTime: context.knobs.nullableDateTime(
-          'nullableDateTime',
-          null,
-        ),
+    return DashboardTile(
+      title: context.knobs.string('title', 'My title'),
+      count: context.knobs.int('count', 1, min: 0, max: 100),
+      logoStyle: context.knobs.picker('logoStyle', {
+        for (var v in FlutterLogoStyle.values) v.toString(): v,
+      }, FlutterLogoStyle.markOnly),
+      logoSize: context.knobs.double('logoSize', 100),
+      redBackground: context.knobs.bool('redBackground', false),
+      dateTime: context.knobs.dateTime('dateTime', DateTime(2024)),
+      dateOnly: context.knobs.dateTime(
+        'dateOnly',
+        DateTime(2024),
+        dateOnly: true,
+      ),
+      nullableDateTime: context.knobs.nullableDateTime(
+        'nullableDateTime',
+        null,
       ),
     );
   }
