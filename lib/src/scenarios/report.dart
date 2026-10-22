@@ -428,6 +428,20 @@ class ScenarioRunPackage {
 List<String> stillTickingOf(Iterable<ScenarioRunStep> steps) =>
     {for (var step in steps) ...step.stillTicking}.toList();
 
+/// Which verbs [steps]' unchanged ones ran, with how many each, most first —
+/// what [ScenarioRunOutcome.unchangedVerbs] says of a scenario.
+Map<String, int> unchangedVerbsOf(Iterable<ScenarioRunStep> steps) {
+  var counts = <String, int>{};
+  for (var step in steps) {
+    if (!step.unchanged) continue;
+    var verb = step.verb ?? 'step';
+    counts[verb] = (counts[verb] ?? 0) + 1;
+  }
+  var ordered = counts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return Map.fromEntries(ordered);
+}
+
 /// One scenario's verdict, and the steps it captured on the way to it.
 class ScenarioRunOutcome {
   factory ScenarioRunOutcome.fromJson(Map<String, Object?> json) {
@@ -456,6 +470,13 @@ class ScenarioRunOutcome {
         json['unchangedCount'],
         steps.where((step) => step.unchanged).length,
       ),
+      unchangedVerbs: switch (json['unchangedVerbs']) {
+        Map raw => {
+          for (var MapEntry(:key, :value) in raw.entries)
+            if (value is int) '$key': value,
+        },
+        _ => unchangedVerbsOf(steps),
+      },
       unsettledCount: _int(
         json['unsettledCount'],
         steps.where((step) => !step.settled && step.waited).length,
@@ -486,6 +507,7 @@ class ScenarioRunOutcome {
     this.steps = const [],
     this.stepCount = 0,
     this.unchangedCount = 0,
+    this.unchangedVerbs = const {},
     this.unsettledCount = 0,
     this.guessedCount = 0,
     this.stillTicking = const [],
@@ -542,6 +564,16 @@ class ScenarioRunOutcome {
   /// reason: the summary is the copy a reader gets, and this is the number
   /// that makes a stall visible in it.
   final int unchangedCount;
+
+  /// The verbs [unchangedCount]'s steps ran, with how many each, most first:
+  /// `{"wait": 10, "tap": 2}`.
+  ///
+  /// A count alone says how many and not what to look at, and the answer
+  /// decides it: a run of taps is a stalled walk, a wait that changed nothing
+  /// is usually harmless. A consumer read it out of `run.json` with a script,
+  /// three times in one session. Carried beside the count for the reason it
+  /// is.
+  final Map<String, int> unchangedVerbs;
 
   /// How many of those steps were captured with the app still animating after
   /// a policy that **waited** for it to stop — `settled: false` with
@@ -624,6 +656,7 @@ class ScenarioRunOutcome {
     steps: keep,
     stepCount: stepCount,
     unchangedCount: unchangedCount,
+    unchangedVerbs: unchangedVerbs,
     unsettledCount: unsettledCount,
     guessedCount: guessedCount,
     stillTicking: stillTicking,
@@ -661,6 +694,7 @@ class ScenarioRunOutcome {
         steps: keep,
         stepCount: stepCount,
         unchangedCount: unchangedCount,
+        unchangedVerbs: unchangedVerbs,
         unsettledCount: unsettledCount,
         guessedCount: guessedCount,
         stillTicking: stillTicking,
@@ -692,6 +726,7 @@ class ScenarioRunOutcome {
     'steps': steps,
     'stepCount': stepCount,
     'unchangedCount': unchangedCount,
+    if (unchangedVerbs.isNotEmpty) 'unchangedVerbs': unchangedVerbs,
     'unsettledCount': unsettledCount,
     if (guessedCount > 0) 'guessedCount': guessedCount,
     if (stillTicking.isNotEmpty) 'stillTicking': stillTicking,
