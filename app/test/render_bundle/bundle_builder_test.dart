@@ -35,7 +35,7 @@ void registerRenders(RenderHost host) {}
       );
   }
 
-  test('a project without flutterware_render is told to add it', () async {
+  test('a project without flutterware_render is told how to add it', () async {
     resolve(['flutter', 'flutterware']);
     await expectLater(
       buildRenderBundle(
@@ -48,7 +48,7 @@ void registerRenders(RenderHost host) {}
         isA<StateError>().having(
           (e) => e.message,
           'message',
-          contains('flutter pub add flutterware_render'),
+          contains(renderDependency),
         ),
       ),
     );

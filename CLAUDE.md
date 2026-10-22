@@ -56,7 +56,7 @@ This is a pub workspace (`workspace:` in root `pubspec.yaml`) with two member pa
 - `/` — the published `flutterware` package. Contains the runtime libraries that Flutter apps depend on (`lib/devbar.dart`, `lib/flutter_test.dart`, `lib/feature_flag.dart`, `lib/previews.dart`, `lib/ui_catalog.dart`, `lib/router_outlet.dart`) plus the user-facing CLI entry point `bin/flutterware.dart`.
 - `app/` — `flutterware_app`, the Flutter desktop GUI (`publish_to: none`). Implements the actual tools the user sees: test runner, dependency manager, launcher icon editor, etc.
 - `examples/brewline` — the demo app a stranger clones; a workspace member here (see the toolchain section).
-- `render/` — `flutterware_render`, the published package that renders widgets to SVG, PNG and PDF (see the scenarios section for why it is separate).
+- `render/` — `flutterware_render`, the package that renders widgets to SVG, PNG and PDF. Not on pub.dev: projects take it from git at a release tag (see the scenarios section for why it is separate).
 - `fixtures/probe_app` — flutterware's own fixture: probes and deliberately wrong cases the tools are tested on. Not a sample.
 - `site/` — flutterware.dev, the home page and the docs: a [Jaspr](https://jaspr.site) package and a workspace member, rendered once to static HTML. **The docs are the guides in `doc/`, never a copy**: each is a page under `/docs/`, and `doc/README.md` is both the first of them and their menu — every table in it is a group, named by the heading above, and every row a guide (`site/lib/docs.dart`). A guide with no row, a row with no guide, or a link between guides that lands on no heading fails the build, so add a guide by writing it and giving it a row. **The home page's words are the README's, never a copy** either: the text between `<!-- site:name -->` and `<!-- /site -->` in `README.md` is a region that `site/lib/content.dart` renders by name, and its pictures are looked up by file name in the README and `doc/`. Reword the README or redraw a picture and the page follows on its next build; what is said only on the page is in `site/lib/home.dart`. How it looks is `site/web/style.css`, and its two fonts are files in `site/web/fonts/`, so the page asks no font service for anything. **Two things hold it in the workspace** until Jaspr catches up with the analyzer the studio is written against: `pubspec_overrides.yaml` keeps `analyzer` on 13 (Jaspr's builder declares 12, runs on 13), and the Jaspr tool — whose own code does not compile on 13 — is installed, not depended on: `fvm dart pub global activate jaspr_cli 0.23.5` once, then `cd site && fvm dart pub global run jaspr_cli:jaspr build` writes `site/build/jaspr/`. `fvm dart test` there checks the README and the guides still have what the pages render. CI builds it, puts the studio demo under `demo/`, and deploys both to GitHub Pages.
 
@@ -211,7 +211,9 @@ Design: `docs/superpowers/specs/2026-07-30-scenarios-design.md`.
 
 The same discipline covers the render feature, which is published through
 three doors in two packages. `render/` is **`flutterware_render`**, a
-workspace member published beside flutterware at the same version:
+workspace member at flutterware's version that is **not on pub.dev**
+(`publish_to: none`): a project takes it as a git dependency with
+`path: render` and `ref: v<flutterware version>`.
 `package:flutterware_render/flutterware_render.dart` is the vector capture
 pipeline (`captureSvg`/`capturePdf`, `RenderHost`, the bundle's driver), and
 it is the only place `package:pdf` may be a dependency — **the runtime
@@ -222,13 +224,11 @@ compiles for the web) and `lib/render_client.dart` (`RenderPool`, which a
 pure-Dart server drives a bundle with) stay in flutterware, because the CLI
 needs them and `flutterware` cannot depend on `flutterware_render`.
 
-`render/` also rides in flutterware's own archive: pub applies the root
-`.pubignore` when publishing `render/`, so excluding it there would empty its
-own archive. Consumers never see it, but the hosted copy keeps it as a
-workspace member, which is why `app/` may take it as a dev dependency.
-`flutterware_render` pins `flutterware` to one release (`>=X <X+1 patch`),
-since it imports flutterware's `src/`; `tool/release.dart` moves both
-numbers, and the release publishes it from the same tag, after flutterware.
+`render/` also rides in flutterware's own archive (minus its tests), so the
+hosted copy keeps it as a workspace member: that is what lets `app/` take it
+as a dev dependency. Consumers never resolve it. `flutterware_render` pins
+`flutterware` exactly, since it imports flutterware's `src/`;
+`tool/release.dart` moves its version, that pin and the `ref:` in the docs.
 Design: `docs/superpowers/specs/2026-08-31-widget-export-design.md`.
 
 ## Common commands

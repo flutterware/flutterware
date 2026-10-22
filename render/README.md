@@ -5,10 +5,16 @@ vector documents: text stays text, and anything a vector format can't express
 is reported in the result's warnings.
 
 This is the drawing half of [flutterware](https://pub.dev/packages/flutterware)'s
-renders. Add it to the app that draws:
+renders. It is not on pub.dev: add it from GitHub, at the tag of the
+flutterware version your app uses.
 
-```shell
-flutter pub add flutterware_render
+```yaml
+dependencies:
+  flutterware_render:
+    git:
+      url: https://github.com/flutterware/flutterware
+      path: render
+      ref: v0.7.0
 ```
 
 ## Render a widget

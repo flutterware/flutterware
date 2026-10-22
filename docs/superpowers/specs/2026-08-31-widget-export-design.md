@@ -138,14 +138,13 @@ and it is a bigger one than a second published package. So `render/` is
 library that was `render.dart` (now `flutterware_render.dart`, the name pub
 asks a package's one library to have), the capture, the writers,
 `RenderHost` and the driver. The contract and the client stay in
-`flutterware`, because the CLI needs them. `render/` cannot be pubignored from
-flutterware's archive: pub applies the root `.pubignore` when publishing the
-member too, and the package came out empty. So it rides along, invisible to
-consumers, and stays a member of the hosted copy. It pins `flutterware` to
-one release, since it imports the offscreen mount and the wire protocol from
-flutterware's `src/`; an exact pin is refused by the publish validator as a
-warning, which fails the release's dry run, hence `>=X <X+1 patch`. The
-release publishes it from the same tag, after flutterware.
+`flutterware`, because the CLI needs them. It is **not published**
+(`publish_to: none`): a project takes it from git, `path: render`, at the
+`v<version>` tag of the flutterware it uses. It pins `flutterware` exactly,
+since it imports the offscreen mount and the wire protocol from
+flutterware's `src/`, which is what makes the tag the whole contract.
+`render/` still rides in flutterware's archive so the hosted copy keeps it as
+a workspace member, which the studio's tests depend on.
 
 ### 1. The app team's contract package (pure Dart, shared)
 

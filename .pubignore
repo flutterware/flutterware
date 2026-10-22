@@ -50,9 +50,7 @@ app/test/scene/*
 app/integration_test/
 
 # flutterware_render's tests, which read fonts from `fixtures/`. The rest of
-# `render/` stays: pub reads this file when publishing `render/` too, so
-# leaving the package out here would leave it out of its own archive. It costs
-# consumers nothing, since only this pubspec's dependencies reach them; the
-# hosted copy keeps it as a workspace member, which is what lets the studio's
-# tests depend on it.
+# `render/` stays, so the hosted copy keeps it as a workspace member: the
+# studio's tests depend on it. It costs consumers nothing, since only this
+# pubspec's dependencies reach them.
 render/test/

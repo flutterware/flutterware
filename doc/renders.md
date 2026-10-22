@@ -9,12 +9,21 @@ vector format can't express is reported rather than silently dropped.
 
 ## Add the package
 
-Rendering is in a separate package. Add it to the app that draws the render
-points:
+Rendering is in a separate package, `flutterware_render`. It is not on
+pub.dev, so add it from GitHub to the app that draws the render points, at the
+tag of the flutterware version the app uses:
 
-```shell
-flutter pub add flutterware_render
+```yaml
+# pubspec.yaml
+dependencies:
+  flutterware_render:
+    git:
+      url: https://github.com/flutterware/flutterware
+      path: render
+      ref: v0.7.0
 ```
+
+When you upgrade flutterware, change `ref` to the new version's tag.
 
 ## Declare what can be rendered
 

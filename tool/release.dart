@@ -19,12 +19,14 @@
 ///   folder the release renders;
 /// * the demo's `flutterware:` constraint — `^<version>`, so a clone resolves
 ///   the release its code was written against;
-/// * `render/pubspec.yaml` — flutterware_render, published from the same tag,
-///   and its `flutterware:` constraint, which allows only this release.
+/// * `render/pubspec.yaml` — flutterware_render, which projects take from git
+///   at this release's tag, and its `flutterware:` constraint, which names
+///   exactly this release;
+/// * the `ref: v<version>` of that git dependency in `doc/renders.md` and
+///   `render/README.md`, so the snippet a reader copies names this release.
 ///
 /// `CHANGELOG.md` gets an empty `## <version>`. The release refuses an empty
 /// entry, so it is written in the PR rather than remembered afterwards.
-/// `render/CHANGELOG.md` gets an entry that points at it.
 library;
 
 import 'dart:io';
@@ -74,11 +76,13 @@ void main(List<String> args) {
     p.join('render', 'pubspec.yaml'),
     (s) => withRenderConstraint(withPackageVersion(s, version), version),
   );
+  for (var doc in [
+    p.join('doc', 'renders.md'),
+    p.join('render', 'README.md'),
+  ]) {
+    edit(doc, (s) => withRenderRef(s, version));
+  }
   edit('CHANGELOG.md', (s) => withChangelogEntry(s, version));
-  edit(
-    p.join('render', 'CHANGELOG.md'),
-    (s) => withRenderChangelogEntry(s, version),
-  );
   relinkPictures(root, version);
 
   stdout.writeln('''
@@ -114,27 +118,25 @@ String withDemoConstraint(String pubspec, String version) => _replaceOnce(
   (_) => '  flutterware: ^$version',
 );
 
-/// One release of flutterware, written as a range: pub's validator warns about
-/// an exact version, and a warning fails the release's dry run.
 String withRenderConstraint(String pubspec, String version) => _replaceOnce(
   pubspec,
-  RegExp(r"^  flutterware: '[^'\n]*'", multiLine: true),
-  (_) => "  flutterware: '>=$version <${Version.parse(version).nextPatch}'",
+  RegExp(r'^  flutterware: [^\s#]+', multiLine: true),
+  (_) => '  flutterware: $version',
 );
+
+/// The tag in the flutterware_render git dependency a doc shows, wherever it
+/// is shown: a doc may carry the snippet more than once, but never not at all.
+String withRenderRef(String doc, String version) {
+  var ref = RegExp(r'^(\s*)ref: v[^\s]+$', multiLine: true);
+  if (!ref.hasMatch(doc)) {
+    throw StateError('expected a `ref: v<version>` line, found none');
+  }
+  return doc.replaceAllMapped(ref, (m) => '${m[1]}ref: v$version');
+}
 
 String withChangelogEntry(String changelog, String version) {
   if (changelog.startsWith('## $version\n')) return changelog;
   return '## $version\n\n$changelog';
-}
-
-/// flutterware_render ships with flutterware and has no changes of its own to
-/// list, so its entry is written for it.
-String withRenderChangelogEntry(String changelog, String version) {
-  if (changelog.startsWith('## $version\n')) return changelog;
-  return '## $version\n\n'
-      'Released with flutterware $version. What changed is in its '
-      '[changelog](https://pub.dev/packages/flutterware/changelog).\n\n'
-      '$changelog';
 }
 
 String _replaceOnce(

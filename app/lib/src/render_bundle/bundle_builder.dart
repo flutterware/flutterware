@@ -6,6 +6,7 @@ import 'package:flutterware/render_client.dart';
 import 'package:flutterware/src/render/bundle_entrypoint.dart';
 import 'package:path/path.dart' as p;
 
+import '../constants.dart';
 import '../embedder/compiler.dart';
 import '../embedder/flutter_cache.dart';
 import '../previews/asset_bundle.dart';
@@ -52,9 +53,10 @@ Future<RenderBundleManifest> buildRenderBundle({
   var packageConfig = requirePackageConfig(packageRoot);
   if (!_resolvesPackage(packageConfig, 'flutterware_render')) {
     throw StateError(
-      'A render bundle needs the flutterware_render package. '
-      'Add it to the project at $packageRoot:\n\n'
-      '  flutter pub add flutterware_render',
+      'A render bundle needs the flutterware_render package. Add it under '
+      '`dependencies:` in $packageRoot/pubspec.yaml, then run '
+      '`flutter pub get`:\n\n'
+      '$renderDependency',
     );
   }
 
@@ -132,6 +134,15 @@ Future<RenderBundleManifest> buildRenderBundle({
   say('bundle ready: ${outDir.path}');
   return manifest;
 }
+
+/// flutterware_render is not on pub.dev: a project takes it from git, at the
+/// tag of the flutterware release it runs.
+final renderDependency = '''
+  flutterware_render:
+    git:
+      url: https://github.com/flutterware/flutterware
+      path: render
+      ref: v$flutterwareVersion''';
 
 /// The generated entrypoint imports the driver from flutterware_render, so a
 /// project without it would fail in the compiler with a bare "couldn't

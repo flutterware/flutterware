@@ -15,8 +15,7 @@ name: Release
 #            on it — which includes installing from exactly what pub would
 #            upload, on the pin and on the newest stable
 #   pictures media/v<version>/, rendered from this tag
-#   publish  pub.dev, through dart-lang/setup-dart's publish workflow, then
-#            flutterware_render from render/
+#   publish  pub.dev, through dart-lang/setup-dart's publish workflow
 #   demo     github.com/flutterware/flutterware_example synced, and a fresh
 #            clone of it installed from pub.dev — what a stranger does first
 on:
@@ -122,17 +121,6 @@ jobs:
     permissions:
       id-token: write
     uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
-
-  # flutterware_render, from the same tag and at the same version. After
-  # flutterware, because it allows no other release of it. Its own
-  # Admin tab on pub.dev needs the same `v{{version}}` pattern.
-  publish_render:
-    needs: publish
-    permissions:
-      id-token: write
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
-    with:
-      working-directory: render
 
   # What a stranger does first, done by the release instead: the demo repo is
   # brought up to this version, then cloned fresh and installed from pub.dev
