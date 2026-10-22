@@ -19,6 +19,7 @@
 /// browser. The disk-facing reader lives in `report_io.dart`.
 library;
 
+import '../comparison/channels.dart' show EventChannel;
 import '../plugins/address.dart';
 import '../plugins/artifact.dart';
 import '../plugins/plugin_result.dart';
@@ -1514,6 +1515,15 @@ List<T> _listOf<T>(Object? value, T Function(Map<String, Object?>) decode) => [
 /// included the status bar, and a comparison that reads that as "nothing
 /// moved" is worse than one that says nothing at all.
 ///
+/// The events are among them, compared by [EventChannel] exactly as `fw
+/// compare` compares them, `system` chatter excluded. A suite that logs a
+/// fresh id on every run is a suite compare flags on every pull request, so
+/// this has to flag it first. [readEvents] opens a step's events file; the
+/// default resolves its path against [ScenarioRunStep.root], which is empty on
+/// a run read back out of a report, so a host that read one passes a reader
+/// that knows the worktree. A step with nothing outside `system` on either
+/// side cannot differ, and its file is never opened.
+///
 /// **Which steps.** A step carrying a digest in both runs. A step with no
 /// digest is not compared on its other facets either, and a scenario with no
 /// digested step at all is not looked at: a notification beat captured no
@@ -1549,6 +1559,8 @@ ScenarioRunDrift compareScenarioRuns(
   ScenarioRunResult before,
   ScenarioRunResult after, {
   String? baseline,
+  List<Map<String, Object?>> Function(ScenarioRunStep step) readEvents =
+      readStepEvents,
 }) {
   var changed = <ScenarioStepDrift>[];
   var added = <ScenarioStepDrift>[];
@@ -1558,8 +1570,8 @@ ScenarioRunDrift compareScenarioRuns(
   var unanchored = 0;
 
   var shared = _scenarios(before).intersection(_scenarios(after));
-  // A run on the real clock drew its pictures off live data, so two of them
-  // differ by weather. Everything the pixels do not carry — status bar tint,
+  // A run on the real clock drew its pictures and its responses off live data,
+  // so two of them differ by weather. Everything else — status bar tint,
   // keyboard height, whether a step settled — is still compared.
   var live =
       before.packages.any((p) => p.isRealTime) ||
@@ -1584,7 +1596,11 @@ ScenarioRunDrift compareScenarioRuns(
     compared++;
     if (step.pairing == _Pairing.name) nameMatched++;
     if (step.pairing == _Pairing.position) unanchored++;
-    var moved = was.difference(step.record!, pixels: !live);
+    var moved = was.difference(
+      step.record!,
+      live: live,
+      readEvents: readEvents,
+    );
     if (moved.isNotEmpty) changed.add(step.drift.movedIn(moved));
   }
 
@@ -1654,9 +1670,14 @@ class _Compared {
 
   /// Which of [ScenarioDriftFacet] disagree between this and [other], in the
   /// order the facets are declared, so two reports of the same drift read the
-  /// same way.
-  List<String> difference(_Compared other, {required bool pixels}) => [
-    if (pixels && step.digest != other.step.digest) ScenarioDriftFacet.pixels,
+  /// same way. [live] leaves out what a real-clock run drew off live data.
+  List<String> difference(
+    _Compared other, {
+    required bool live,
+    required List<Map<String, Object?>> Function(ScenarioRunStep) readEvents,
+  }) => [
+    if (!live && step.digest != other.step.digest) ScenarioDriftFacet.pixels,
+    if (!live && _eventsDiffer(other, readEvents)) ScenarioDriftFacet.events,
     if (step.statusBrightness != other.step.statusBrightness)
       ScenarioDriftFacet.statusBrightness,
     if (step.navBrightness != other.step.navBrightness)
@@ -1665,6 +1686,22 @@ class _Compared {
     if (step.settled != other.step.settled) ScenarioDriftFacet.settled,
     if (step.landed != other.step.landed) ScenarioDriftFacet.landed,
   ];
+
+  /// Whether the two transitions differ outside `system`, which is the only
+  /// difference `fw compare` makes a finding of. Most steps log nothing else
+  /// on either side, and those are answered from the counts.
+  bool _eventsDiffer(
+    _Compared other,
+    List<Map<String, Object?>> Function(ScenarioRunStep) readEvents,
+  ) {
+    if (step.notableEventCount == 0 && other.step.notableEventCount == 0) {
+      return false;
+    }
+    return EventChannel.of(
+      base: readEvents(step),
+      head: readEvents(other.step),
+    ).significant;
+  }
 }
 
 /// Every step of a run, with what pairs it against the other run's.
