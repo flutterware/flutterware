@@ -6,7 +6,7 @@ query that runs once per row is flagged as an N+1. The studio shows all this in
 the **Server** panel, and the command line and agents read the same data.
 
 ![The Server panel: the demo's requests, one open on its waterfall, with the
-query it runs once per row flagged as an N+1](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/server.webp)
+query it runs once per row flagged as an N+1](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/server.webp)
 
 This works only for servers written in Dart. A server takes part by importing
 `package:flutterware/server.dart` and calling it from its own process. A

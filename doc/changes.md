@@ -5,7 +5,7 @@ project listed first. It's the studio's home for reviewing work before a pull
 request, including work an agent did.
 
 ![The changes screen: the files the project pins first, and one of them open
-on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/changes.webp)
+on its diff](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/changes.webp)
 
 ## Turn it on
 

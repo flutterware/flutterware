@@ -5,7 +5,7 @@ test you'd write anyway, and you also get a picture of every screen it went
 through, on every device and in every language you declare.
 
 ![A scenario run drawn as a flow: the demo's shop, one phone screenshot per
-step, branching where the scenario splits](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/scenarios.webp)
+step, branching where the scenario splits](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/scenarios.webp)
 
 ```dart
 import 'package:flutterware/flutter_test.dart';
@@ -700,7 +700,7 @@ the platform's real fonts. Treat its pictures as the reference, and use plain
 ## What a run leaves behind
 
 ![One step of a run: the screen it captured, and the widget tree, semantics,
-texts and events recorded with it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/scenarios-step.webp)
+texts and events recorded with it](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/scenarios-step.webp)
 
 In the studio, opening a scenario runs it and draws the flow. The command line
 and an agent use the same actions and get the same results:

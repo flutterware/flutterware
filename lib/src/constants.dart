@@ -11,7 +11,7 @@ const forceCompileOption = 'force-compile';
 /// that can be wrong. Compiled in, it is a fact about the build.
 ///
 /// `test/version_test.dart` fails if this and the two pubspecs disagree.
-const flutterwareVersion = '0.6.0';
+const flutterwareVersion = '0.7.0';
 
 /// Set by the launcher when `app/` is the checkout being edited rather than a
 /// copy under `~/.flutterware`.

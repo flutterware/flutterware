@@ -5,7 +5,7 @@ it runs: logs, network calls, the widget tree, device settings, and taps and
 typing from the studio, the command line or a coding agent.
 
 ![The Run screen: the steps an agent took through the demo app on an iPhone,
-one of them open on the screen it left](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.6.0/run.webp)
+one of them open on the screen it left](https://raw.githubusercontent.com/flutterware/flutterware/media/v0.7.0/run.webp)
 
 ## Turn it on
 

@@ -1,3 +1,9 @@
+## 0.7.0
+
+- Rendering moved to a separate package, `flutterware_render`, added from git.
+  See [Renders](doc/renders.md).
+- flutterware no longer depends on `pdf`.
+
 ## 0.6.0
 
 A fresh start: flutterware is now a desktop studio for your Flutter project,

@@ -1,6 +1,6 @@
 name: flutterware_render
 description: Render Flutter widgets to SVG, PNG and PDF, in a test or from a Dart server.
-version: 0.6.0 # Keep it sync with flutterware
+version: 0.7.0 # Keep it sync with flutterware
 # Not on pub.dev: a project takes it as a git dependency, at the tag of the
 # flutterware release it uses (see doc/renders.md).
 publish_to: none
@@ -16,7 +16,7 @@ dependencies:
   # Exactly the release this one is tagged with: the capture pipeline imports
   # flutterware's own sources (the offscreen mount, the wire protocol), which
   # promise nothing across versions. `tool/release.dart` moves it.
-  flutterware: 0.6.0
+  flutterware: 0.7.0
   pdf: ^3.11.0
   vector_math: ^2.1.0
 
