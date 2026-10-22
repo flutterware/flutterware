@@ -76,6 +76,3 @@ dev_dependencies:
   test:
   yaml:
 
-flutter:
-  assets:
-    - assets/

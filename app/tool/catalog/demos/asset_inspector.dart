@@ -430,8 +430,8 @@ final _deep = [
 
 final _dependencyAssets = [
   _asset(
-    'packages/flutterware/assets/figma_logo.png',
-    package: 'flutterware',
+    'packages/flutter_scene/assets/royal_esplanade.png',
+    package: 'flutter_scene',
     length: 3815,
   ),
 ];

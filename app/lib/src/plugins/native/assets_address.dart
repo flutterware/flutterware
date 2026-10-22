@@ -18,9 +18,9 @@ class AssetPlace {
   final String package;
 
   /// The asset key as the engine knows it — `assets/logo.png`, or
-  /// `packages/flutterware/assets/figma_logo.png` for a dependency's. Null when
-  /// the address names the package and stops there, which is where selecting
-  /// the plugin off the rail leaves you.
+  /// `packages/flutter_scene/assets/royal_esplanade.png` for a dependency's.
+  /// Null when the address names the package and stops there, which is where
+  /// selecting the plugin off the rail leaves you.
   final String? assetKey;
 
   @override

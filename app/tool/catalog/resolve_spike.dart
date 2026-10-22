@@ -172,7 +172,6 @@ Future<void> main(List<String> args) async {
     print('  annotation   ${entry.annotationType}');
     print('  name         ${entry.name}');
     print('  id           ${entry.declaredId ?? '(derived)'}');
-    print('  figma        ${entry.figma ?? '-'}');
     var shell = entry.wrapper == null ? null : shells[entry.wrapper];
     if (shell == null) {
       print('  shell        (none)');
@@ -396,7 +395,6 @@ class _ResolvedEntry {
     required this.annotationType,
     required this.name,
     required this.declaredId,
-    required this.figma,
     required this.wrapper,
     required this.target,
   });
@@ -406,7 +404,6 @@ class _ResolvedEntry {
   final String annotationType;
   final String name;
   final String? declaredId;
-  final String? figma;
 
   /// The function `wrapper:` names — recovered as an element even though the
   /// field's static type is `Widget Function(Widget)`, which erases it. This is
@@ -477,7 +474,6 @@ void _collectEntries(
           annotationType: type.element.name ?? '?',
           name: _field(value, 'name')?.toStringValue() ?? symbol,
           declaredId: _field(value, 'id')?.toStringValue(),
-          figma: _field(value, 'figma')?.toStringValue(),
           wrapper: _field(value, 'wrapper')?.toFunctionValue(),
           target: element,
         ),

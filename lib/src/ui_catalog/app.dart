@@ -9,8 +9,6 @@ import 'form_factor.dart';
 import 'knobs.dart';
 import 'detail.dart';
 import 'device_choice_panel.dart';
-import 'figma/provider.dart';
-import 'figma/service.dart';
 import 'index.dart';
 import 'search.dart';
 import 'treeview.dart';
@@ -24,7 +22,6 @@ class UICatalog extends StatefulWidget {
   final String title;
   final Map<String, dynamic> Function() catalog;
   final Widget Function(BuildContext, Widget) appBuilder;
-  final FigmaUserConfig figmaConfig;
   final FormFactorPicker? formFactor;
 
   UICatalog({
@@ -32,13 +29,8 @@ class UICatalog extends StatefulWidget {
     required this.title,
     required this.catalog,
     required this.appBuilder,
-    String? figmaApiToken,
-    String? figmaLinksPath,
     this.formFactor,
-  }) : figmaConfig = FigmaUserConfig(
-         apiToken: figmaApiToken,
-         linksPath: figmaLinksPath,
-       );
+  });
 
   @override
   State<UICatalog> createState() => UICatalogAppState();
@@ -116,28 +108,23 @@ class UICatalogAppState extends State<UICatalog> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light(useMaterial3: true),
       home: Scaffold(
-        body: FigmaProvider(
-          userConfig: widget.figmaConfig,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Menu(
-                title: widget.title,
-                entries: entries,
-                selected: selected,
-                onSelect: (e) {
-                  setState(() {
-                    _selected = e?.path;
-                  });
-                },
-              ),
-              Expanded(
-                child: selected == null
-                    ? SizedBox()
-                    : _detailOrListing(selected),
-              ),
-            ],
-          ),
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Menu(
+              title: widget.title,
+              entries: entries,
+              selected: selected,
+              onSelect: (e) {
+                setState(() {
+                  _selected = e?.path;
+                });
+              },
+            ),
+            Expanded(
+              child: selected == null ? SizedBox() : _detailOrListing(selected),
+            ),
+          ],
         ),
       ),
     );

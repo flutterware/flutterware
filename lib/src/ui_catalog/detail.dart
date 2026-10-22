@@ -3,7 +3,6 @@ import 'package:material_ui/material_ui.dart';
 import '../third_party/device_frame/lib/device_frame.dart';
 import 'app.dart';
 import 'device_choice_panel.dart';
-import 'figma/view.dart';
 import 'axes_controls.dart';
 import 'knobs.dart';
 import 'knobs_editor.dart';
@@ -142,17 +141,7 @@ class _DetailViewState extends State<DetailView> {
       children: [
         breadcrumb,
         toolbar,
-        Expanded(
-          child: FigmaView(
-            entry: widget.entry,
-            floatDefaultWidth: () {
-              // TODO(xha): try to use _deviceFrameKey.currentState to get the
-              // actual size of the element inside the phone frame
-              return 300;
-            },
-            child: mainWidget,
-          ),
-        ),
+        Expanded(child: mainWidget),
         if (knobs.knobs.isNotEmpty) ...[
           Divider(),
           SizedBox(height: 200, child: KnobsEditor(knobs, key: _knobsPanelKey)),
