@@ -45,8 +45,6 @@ platforms:
   windows:
 
 dependencies:
-  built_collection: ^5.1.1
-  built_value: ^8.3.0
   clock: ^1.1.0
   collection: ^1.16.0
   crypto: ^3.0.0
@@ -61,18 +59,12 @@ dependencies:
   material_ui: ^1.4.0
   meta: ^1.7.0
   path: ^1.8.0
-  pool: ^1.5.0
-  stream_channel: ^2.1.0
   test_api: '>=0.6.0 <0.8.0'
   web: ^1.1.0
-  web_socket_channel: ^3.0.0
 
 dev_dependencies:
   analyzer:
-  build_runner:
-  built_value_generator:
   dart_style:
-  json_serializable:
   lints:
   # A real PDF for the scenarios' document digest to read.
   pdf:
