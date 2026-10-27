@@ -278,6 +278,7 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
                 // opening a session on this surface rather than something to
                 // remember.
                 logger: LogClient.writeTo(stderr),
+                mcp: true,
               ));
     } on SessionException catch (e) {
       // A session that cannot open — no SDK above the running dart, no

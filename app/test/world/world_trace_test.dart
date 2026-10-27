@@ -801,6 +801,28 @@ void main() {
       ]);
     });
 
+    test("hands over a mail's link with the characters the page wrote by "
+        'number, as the page means them', () {
+      trace.addPerson(
+        'Leo',
+        email: 'leo@example.com',
+        links: const DeclaredLinks(hosts: {'links.shop.test'}),
+      );
+      // How ASP.NET writes a token: its `+` and `/` by number, in the link
+      // and in the text that shows it.
+      var link = 'https://links.shop.test/join?token=a&#x2B;b&#x2F;c&amp;t=1';
+      lab(10, 'mail', {
+        'to': 'leo@example.com',
+        'subject': 'Ana invited you',
+        'html':
+            '<p>Ana invited you.</p><a href="$link">Join</a>'
+            '<p>Or paste $link</p><p>Not a link: &amp;#43;</p>',
+      });
+      var mail = trace.outbox().single;
+      expect(mail.link, 'https://links.shop.test/join?token=a+b/c&t=1');
+      expect(mail.links, ['https://links.shop.test/join?token=a+b/c&t=1']);
+    });
+
     test('a message another service sent is drawn as its own, and joins the '
         'step before it by time', () {
       trace.addPerson('Leo', email: 'leo@example.com');

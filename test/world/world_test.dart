@@ -40,6 +40,8 @@ class _Owner {
   ];
 }
 
+enum _Backend { staging }
+
 void main() {
   test('declares people as the script makes them, then is set up', () async {
     var owner = _Owner();
@@ -48,7 +50,10 @@ void main() {
       w.person(
         'Ana',
         email: 'ana.${w.id}@example.com',
-        app: const Launch('Shop', knobs: {'port': 8090, 'staff': true}),
+        app: const Launch(
+          'Shop',
+          knobs: {'port': 8090, 'staff': true, 'backend': _Backend.staging},
+        ),
         on: const Studio(Devices.iPad),
       );
       w.person('Leo', phone: '+32470000001');
@@ -65,7 +70,8 @@ void main() {
     ];
     expect(ana.email, 'ana.$id@example.com');
     expect(ana.app!.entrypoint, 'Shop');
-    expect(ana.app!.knobs, {'port': 8090, 'staff': true});
+    // An enum by its constant's name, which is how Run takes one.
+    expect(ana.app!.knobs, {'port': 8090, 'staff': true, 'backend': 'staging'});
     expect((ana.on as Studio).device, same(Devices.iPad));
     expect(leo.phone, '+32470000001');
     expect(leo.app, isNull);

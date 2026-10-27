@@ -179,6 +179,16 @@ guest's while the studio went on listening on it. An owner's socket, and a
 door, are now knocked on as a daemon's are, and a handle or door whose
 socket is gone is forgotten rather than trusted.
 
+**The MCP server never owned one** (2026-10-27). It opens a session per
+tool call and disposes it as the call returns, so a world it opened with no
+studio to send it to closed with the `open` call: a second consumer's
+`status` right after found nothing open. And `hold` over MCP would have
+printed the world's log onto the protocol and kept the call waiting until
+close. Both are refused now, before anything starts, naming the studio and
+a background `--hold=true` as the two ways to keep a world. Which process
+should own an agent's world when there is no studio (the MCP process for
+its lifetime, or the studio opened for it) is still open.
+
 ### A sketch
 
 Sketched on a coffee shop with a staff dashboard and a customer phone app —

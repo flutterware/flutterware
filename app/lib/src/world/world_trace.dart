@@ -1186,7 +1186,8 @@ class WorldTrace {
     var words = [
       for (var key in const ['body', 'title', 'subject', 'text'])
         if (payload[key] case String text) text,
-      if (html != null) html.replaceAll(_hidden, ' ').replaceAll(_tag, ' '),
+      if (html != null)
+        _unescape(html.replaceAll(_hidden, ' ').replaceAll(_tag, ' ')),
     ].join('\n');
     var person = _recipientOf(event);
     var found = {
@@ -1249,11 +1250,39 @@ class WorldTrace {
     caseSensitive: false,
   );
 
-  /// An attribute's value as the page means it: `&amp;` back to `&`.
-  static String _unescape(String value) => value
-      .replaceAll('&amp;', '&')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'");
+  /// HTML as the page means it: `&amp;` back to `&`, and a character written
+  /// by its number back to itself. ASP.NET writes a token's `+` as `&#x2B;`,
+  /// and a link handed over with the reference still in it carries a token
+  /// the server refuses. One pass, so `&amp;#43;` stays the text `&#43;`. A
+  /// name this does not know is left as written.
+  static String _unescape(String value) =>
+      value.replaceAllMapped(_reference, (match) {
+        if (match[1] case var named?) {
+          return _named[named]!;
+        }
+        var code = match[2] != null
+            ? int.tryParse(match[2]!, radix: 16)
+            : int.tryParse(match[3]!);
+        if (code == null ||
+            code == 0 ||
+            code > 0x10FFFF ||
+            (code >= 0xD800 && code <= 0xDFFF)) {
+          return match[0]!;
+        }
+        return String.fromCharCode(code);
+      });
+
+  static const _named = {
+    'amp': '&',
+    'quot': '"',
+    'apos': "'",
+    'lt': '<',
+    'gt': '>',
+    'nbsp': '\u00A0',
+  };
+  static final _reference = RegExp(
+    r'&(?:(amp|quot|apos|lt|gt|nbsp)|#[xX]([0-9a-fA-F]{1,6})|#([0-9]{1,7}));',
+  );
 
   static final _code = RegExp(r'(?<!\d)\d{4,8}(?!\d)');
 

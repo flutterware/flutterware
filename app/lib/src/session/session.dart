@@ -250,6 +250,7 @@ class Session {
     FlutterSdkPath? flutterSdk,
     Directory? appToolDirectory,
     LogClient? logger,
+    bool mcp = false,
   }) async {
     var root = findRepoRoot(start.path);
     if (root == null) {
@@ -286,6 +287,7 @@ class Session {
         // [DaemonConfig.forPackage] — which is what stops `fw` and a panel
         // starting two daemons for one package.
         appToolDirectory: appToolDirectory ?? findAppToolDirectory(),
+        mcp: mcp,
       ),
       flutterSdk: sdk,
     );
