@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutterware/plugins.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/terminal_environment.dart';
+
 /// What a [ScriptSource] said when it was asked, or why it could not be.
 ///
 /// The two good answers are different in kind, and that difference is the
@@ -66,11 +68,17 @@ Future<ScriptOutcome> runDefineScript(
 
   ProcessResult result;
   try {
-    result = await Process.run(dartExecutable, [
-      'run',
-      source.path,
-      ...source.args,
-    ], workingDirectory: worktreePath).timeout(timeout);
+    // In a new terminal's environment, because `dart run` runs the package's
+    // build hooks, and they rerun from scratch whenever the PATH differs from
+    // the last run's. See [terminalEnvironment].
+    var environment = await terminalEnvironment();
+    result = await Process.run(
+      dartExecutable,
+      ['run', source.path, ...source.args],
+      workingDirectory: worktreePath,
+      environment: environment,
+      includeParentEnvironment: false,
+    ).timeout(timeout);
   } on TimeoutException {
     return ScriptOutcome.failed(
       '${source.path} did not answer within ${timeout.inSeconds}s',

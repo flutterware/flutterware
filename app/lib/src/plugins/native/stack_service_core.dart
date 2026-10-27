@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../../session/job.dart';
 import '../../ui/age.dart';
+import '../../utils/terminal_environment.dart';
 import '../plugin_host.dart';
 import 'dev_stack_results.dart';
 
@@ -277,9 +278,10 @@ abstract class StackServiceCore {
 
   /// [argvFor], with an executable this process has to go and find first.
   ///
-  /// Async because a [ToolRun] is answered by a login shell, and a login shell
-  /// costs a subprocess and a profile read. Every other kind is already known,
-  /// so this is a no-op for them and the extra `await` is free.
+  /// Async because a [ToolRun] is looked up on the terminal's PATH, and the
+  /// first lookup in a session has to read it from a shell. Every other kind
+  /// is already known, so this is a no-op for them and the extra `await` is
+  /// free.
   ///
   /// Throws rather than falling back to the bare name. Spawning `uv` and
   /// hoping is how you get an `ENOENT` reported from inside a health check
@@ -291,18 +293,15 @@ abstract class StackServiceCore {
     var found = await findTool(run.name);
     if (found == null) {
       throw ActionRefusal(
-        "Could not find `${run.name}` on your shell's PATH, so there is "
-        "nothing to run. A GUI started from the Dock has launchd's PATH "
-        "rather than your shell's, so this can be a tool that works fine in a "
-        'terminal — put it somewhere your login shell sees (~/.zprofile or '
-        '~/.bash_profile rather than ~/.zshrc), or name its full path with '
+        '`${run.name}` is not on the PATH a new terminal window has, so '
+        'nothing was run. Install it, or name its full path with '
         'StackRun.command.',
       );
     }
     return [found, ...run.args];
   }
 
-  /// Where [name] lives, asked of the login shell, or null.
+  /// Where [name] lives on the terminal's PATH, or null.
   ///
   /// Cached for the process rather than per service: PATH is a property of the
   /// machine, and five services asking about `uv` is one question.
@@ -847,134 +846,25 @@ String describeRun(StackRun run) => switch (run) {
 
 /// Every tool this process has looked up, and what it found — null for one it
 /// looked for and could not find, which is worth remembering too: a missing
-/// executable does not appear halfway through a session, and asking a login
-/// shell twice for the same bad news costs the same as asking for good news.
+/// executable does not appear halfway through a session.
 final _tools = <String, String?>{};
 
-/// Where [name] lives, according to the user's shell.
+/// Where [name] lives on the PATH a new terminal window has.
 ///
-/// **Two shells, in order, and the second one is not belt-and-braces.** A
-/// login shell (`-lc`) reads `~/.zprofile` and `~/.bash_profile`; a great deal
-/// of real PATH editing lives in `~/.zshrc`, which only an interactive shell
-/// reads. Asking only the first would refuse tools that are plainly there, and
-/// asking only the second would run a user's whole interactive startup for
-/// every lookup. Both are bounded by a timeout and given no stdin, because an
-/// interactive shell that decides to prompt must not become a hang.
-///
-/// The name is passed as an *argument*, never interpolated into the script, so
-/// there is nothing in it that can become shell syntax.
+/// The same PATH the tool is then spawned with — see [terminalEnvironment] —
+/// so what is found here is what runs. Resolved to an absolute path anyway,
+/// so the command a reader sees names the executable that ran.
 @visibleForTesting
 Future<String?> lookUpTool(String name) async {
   if (_tools.containsKey(name)) return _tools[name];
-  // **This process's own PATH first, and no shell at all when it answers.**
-  // Not merely an optimisation: measured on one machine, `uv` is at
-  // `/opt/homebrew/bin/uv` according to a login shell and at
-  // `~/.local/bin/uv` according to an interactive one, and the second is the
-  // one the user's terminal actually runs. Whatever launched the GUI is the
-  // better authority on which of those was meant, so it is asked first — the
-  // same rule [augmentedPath] follows by appending rather than prepending.
-  if (_onPath(name) case var found?) return _tools[name] = found;
-  var shell = Platform.environment['SHELL'] ?? '/bin/sh';
-  for (var flags in const ['-lc', '-ic']) {
-    try {
-      var result = await Process.run(shell, [
-        flags,
-        r'command -v -- "$1" || true',
-        shell,
-        name,
-      ], stdoutEncoding: systemEncoding).timeout(const Duration(seconds: 10));
-      var found = firstLineOf('${result.stdout}');
-      // `command -v` prints shell builtins and aliases as bare words. Only an
-      // absolute path is something [Process.start] can spawn.
-      if (found != null && found.startsWith('/')) return _tools[name] = found;
-    } on Object {
-      // A shell that will not start, or one that hung: try the next, then
-      // report not-found, which is what the caller has to handle anyway.
-    }
-  }
-  return _tools[name] = null;
+  var environment = await terminalEnvironment();
+  return _tools[name] = executableOnPath(name, environment['PATH'] ?? '');
 }
 
 /// Forgets what [lookUpTool] found. For tests, and for nothing else — a PATH
 /// does not change under a running session.
 @visibleForTesting
-void debugResetToolLookups() {
-  _tools.clear();
-  _loginPath = null;
-}
-
-/// [name] on this process's `PATH`, as an absolute path, or null.
-///
-/// Walked here rather than handed to a shell, because a shell is a subprocess
-/// and this is the common case.
-String? _onPath(String name) {
-  if (name.contains('/')) return null;
-  for (var dir in (Platform.environment['PATH'] ?? '').split(':')) {
-    if (dir.isEmpty) continue;
-    var file = File(p.join(dir, name));
-    try {
-      // Any execute bit. A file on PATH that nobody may run is not the answer,
-      // and reporting it would only move the failure to the spawn.
-      if (file.statSync().mode & 0x49 != 0) return file.path;
-    } on FileSystemException {
-      // Not there, or a directory we cannot stat. Next.
-    }
-  }
-  return null;
-}
-
-String? _loginPath;
-
-/// This process's `PATH`, widened by whatever a login shell has and it does
-/// not.
-///
-/// **A GUI started from the Dock does not have your PATH.** It has launchd's —
-/// roughly `/usr/bin:/bin:/usr/sbin:/sbin` — so `uv`, `pyenv`, `nvm`'s node
-/// and everything Homebrew put in `/opt/homebrew/bin` are simply absent from
-/// it. A service declared as `['uv', 'run', …]` then works when the GUI was
-/// started from a terminal and fails when it was started from the Dock, which
-/// is the worst possible distribution of outcomes: the failure looks like the
-/// machine rather than like the launcher.
-///
-/// **Appended, never prepended.** Anything that resolves in this process today
-/// resolves to the same thing afterwards; only names that resolved to nothing
-/// start resolving. A project venv or a wrapper deliberately put first by
-/// whoever launched the GUI keeps winning, which a login shell's own ordering
-/// would quietly overturn.
-///
-/// Asked once per process, and the shell's answer is a list of directories —
-/// nothing here runs anything the user's profile does not already run every
-/// time they open a terminal.
-Future<String> augmentedPath() async {
-  var mine = Platform.environment['PATH'] ?? '';
-  if (_loginPath == null) {
-    var shell = Platform.environment['SHELL'] ?? '/bin/sh';
-    for (var flags in const ['-lc', '-ic']) {
-      try {
-        var result = await Process.run(shell, [
-          flags,
-          r'printf %s "$PATH"',
-        ], stdoutEncoding: systemEncoding).timeout(const Duration(seconds: 10));
-        var said = '${result.stdout}'.trim();
-        if (said.contains('/')) {
-          _loginPath = said;
-          break;
-        }
-      } on Object {
-        // A shell that will not start, or one that hung. The process keeps the
-        // PATH it already had, which is what it would have had anyway.
-      }
-    }
-    _loginPath ??= '';
-  }
-  var seen = mine.split(':').where((e) => e.isNotEmpty).toSet();
-  var extra = [
-    for (var entry in _loginPath!.split(':'))
-      if (entry.isNotEmpty && seen.add(entry)) entry,
-  ];
-  if (extra.isEmpty) return mine;
-  return mine.isEmpty ? extra.join(':') : '$mine:${extra.join(':')}';
-}
+void debugResetToolLookups() => _tools.clear();
 
 /// How long ago [at] was, in the shortest form that is still true.
 ///
@@ -983,13 +873,19 @@ Future<String> augmentedPath() async {
 String? stackAge(DateTime? at) => ageOf(at);
 
 /// The real thing, and the value [StackServiceCore.runProcess] is restored to.
+///
+/// In the environment a new terminal window has, so a command that works when
+/// typed works here, and a `dart run` in it finds its build hooks as the
+/// terminal left them.
 Future<ProcessResult> defaultRunProcess(
   List<String> command, {
   String? workingDirectory,
-}) => Process.run(
+}) async => Process.run(
   command.first,
   command.skip(1).toList(),
   workingDirectory: workingDirectory,
+  environment: await terminalEnvironment(),
+  includeParentEnvironment: false,
 );
 
 String combinedOutput(ProcessResult result) {

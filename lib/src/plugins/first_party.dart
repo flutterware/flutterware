@@ -1791,8 +1791,8 @@ final class OwnedStackService extends StackService {
   /// loud rather than pretending to a check it cannot make.
   final Ready ready;
 
-  /// Environment the process is started with, on top of the one it would have
-  /// inherited.
+  /// Environment the process is started with, on top of the one a new
+  /// terminal window has.
   ///
   /// For what a config file can state as a fact — the name of a binary the
   /// service should call, a flag that only means anything in development.
@@ -2118,14 +2118,18 @@ final class HttpReady extends Ready {
 /// repository open by computing `Platform.resolvedExecutable` into a `dart`
 /// variable and prepending it to six commands, under ten lines of comment
 /// explaining why. A consumer reached for `['fvm', 'dart', 'run', …]` instead —
-/// a committed file naming a version manager, which is worse in a way worth
-/// spelling out: `fvm` has to be *found*, and a GUI started from the Dock does
-/// not have the PATH your shell does.
+/// a committed file naming a version manager, which then only works on the
+/// machines that have it.
 ///
-/// Which is what the third kind is for. A [StackRun.tool] names an executable
-/// that is genuinely not ours to supply — `uv`, `node`, a vendor CLI — and has
-/// the *login shell* find it, so it works from the Dock as well as from a
-/// terminal, and says which executable is missing when it is missing.
+/// The third kind, [StackRun.tool], names an executable that is genuinely not
+/// ours to supply — `uv`, `node`, a vendor CLI — and checks it is there before
+/// anything runs, so a missing one is reported by name.
+///
+/// Every kind runs in the environment a new terminal window has, whether the
+/// studio was opened from the Dock, from a terminal or by an agent. A command
+/// that works when you type it works here, and a `dart run` finds its build
+/// hooks as your terminal left them instead of rebuilding them. On CI and on
+/// Windows it is the environment flutterware itself was started with.
 sealed class StackRun {
   const StackRun();
 
@@ -2154,34 +2158,18 @@ sealed class StackRun {
   /// naming its own interpreter.
   const factory StackRun.script(String path, {List<String> args}) = ScriptRun;
 
-  /// An executable found the way *your shell* would find it, not the way this
-  /// process would.
+  /// An executable looked up on the PATH a new terminal window has.
   ///
   /// ```dart
   /// StackRun.tool('uv', args: ['run', 'uvicorn', 'app:api'])
   /// ```
   ///
-  /// The difference is not academic and it is not rare: **a GUI started from
-  /// the Dock does not have your shell's PATH.** It has launchd's, which is
-  /// roughly `/usr/bin:/bin:/usr/sbin:/sbin` — so `uv`, `pyenv`, `nvm`'s node,
-  /// anything Homebrew put in `/opt/homebrew/bin`, and anything an installer
-  /// appended to `~/.zprofile` are all absent. A [StackRun.command] naming one
-  /// of those works in a terminal, works when the GUI was launched from a
-  /// terminal, and fails from the Dock — which is the worst possible
-  /// distribution of outcomes, because it makes the failure look like the
-  /// machine rather than the launcher.
-  ///
-  /// So this asks the login shell where the thing is, once per session, and
-  /// spawns the absolute path it names. When the shell cannot find it either,
-  /// the service **refuses to start and says which executable is missing** —
-  /// rather than spawning it and reporting whatever `ENOENT` looks like from
-  /// inside a health check.
-  ///
-  /// The limit worth knowing: a login shell reads `~/.zprofile` and
-  /// `~/.bash_profile`, not `~/.zshrc`, which is where a lot of PATH editing
-  /// actually lives. An interactive shell is asked as a second attempt for
-  /// exactly that reason. If both miss it, the fix is a PATH your login shell
-  /// can see — which is also what every other tool on your machine wants.
+  /// A [StackRun.command] naming `uv` runs with that PATH too. What this adds
+  /// is the check: the executable is looked up before anything is spawned, the
+  /// command shown is its full path, and when it is not there the service
+  /// **refuses to start and says which executable is missing**, instead of
+  /// spawning it and reporting whatever `ENOENT` looks like from inside a
+  /// health check.
   ///
   /// For a Dart script in this project, prefer [StackRun.script]: flutterware
   /// supplies the SDK and there is nothing to find.

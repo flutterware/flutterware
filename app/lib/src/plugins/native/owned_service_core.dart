@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../../run/define_scripts.dart';
 import '../../session/job.dart';
 import '../../utils/run_dir.dart';
+import '../../utils/terminal_environment.dart';
 import 'dev_stack_results.dart';
 import 'service_handle.dart';
 import 'stack_service_core.dart';
@@ -615,7 +616,7 @@ class OwnedServiceCore extends StackServiceCore {
     // `argvOf` is where a StackRun.tool is looked up, and a tool that cannot
     // be found is a refusal rather than a failed transition.
     var argv = await argvOf(declaration.start);
-    var path = await augmentedPath();
+    var environment = await terminalEnvironment();
 
     // **The orphan check.** A port held by something we did not start is the
     // one failure that reads as nonsense otherwise: the spawn succeeds, the
@@ -656,16 +657,14 @@ class OwnedServiceCore extends StackServiceCore {
         '/bin/sh',
         ['-c', r'exec "$@" > "$FW_RUN_LOG" 2>&1 < /dev/null', 'sh', ...argv],
         workingDirectory: workingDirectory,
-        // Merged over the one this process has, not replacing it: a service
-        // still needs a HOME and a PATH, and a declaration that had to restate
-        // them would be a declaration nobody could write.
-        //
-        // The PATH is the widened one — see [augmentedPath] — because the
-        // shell below resolves the executable against the environment it is
-        // handed, so this is also what makes `['uv', 'run', …]` work from a
-        // GUI started in the Dock. A declaration may still override it, which
-        // is what `env:` is for.
-        environment: {'PATH': path, ...declaredEnv, 'FW_RUN_LOG': logPath},
+        // The environment of a new terminal window, whichever way this
+        // process was started — see [terminalEnvironment]. The shell below
+        // resolves the executable against it, so `['uv', 'run', …]` works
+        // from a studio opened in the Dock, and a Dart service finds its build
+        // hooks as a terminal's `dart run` left them. A declaration's `env:`
+        // goes on top.
+        environment: {...environment, ...declaredEnv, 'FW_RUN_LOG': logPath},
+        includeParentEnvironment: false,
         mode: ProcessStartMode.detached,
       );
       handle = ServiceHandle(

@@ -15,6 +15,7 @@ import 'package:flutterware_app/src/shell/workspace.dart';
 import 'package:flutterware_app/src/shell/worktree.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
 import 'package:flutterware_app/src/utils/run_dir.dart';
+import 'package:flutterware_app/src/utils/terminal_environment.dart';
 import 'package:path/path.dart' as p;
 
 /// Owned services, against **real processes**.
@@ -559,30 +560,47 @@ void main() {
   });
 
   group('the environment', () {
-    test('a service is given the PATH your shell has', () async {
+    test("a service gets a new terminal's environment, not ours", () async {
+      // Whichever way flutterware was started — the Dock, a terminal, an
+      // agent's MCP server — the service sees the same variables, so a Dart
+      // service's build hooks are not rebuilt for a PATH that merely moved.
+      // A variable this process has that a shell would not set by itself.
+      var ours = Platform.environment.keys.firstWhere(
+        (key) =>
+            RegExp(r'^[A-Z][A-Z0-9_]*$').hasMatch(key) &&
+            !const {
+              'PATH',
+              'HOME',
+              'PWD',
+              'OLDPWD',
+              'SHLVL',
+              'IFS',
+              'PPID',
+            }.contains(key) &&
+            !key.startsWith('PS'),
+      );
+      debugTerminalEnvironment = {
+        'PATH': '/usr/bin:/bin',
+        'HOME': Platform.environment['HOME'] ?? '/',
+        'FROM_THE_TERMINAL': 'yes',
+      };
+      addTearDown(() => debugTerminalEnvironment = null);
       var service = owned(
         sleeper(
           'worker',
           ready: const Ready.processAlive(),
-          script: r'echo "PATH=$PATH"; sleep 60',
+          script:
+              r'echo "PATH=$PATH TERMINAL=$FROM_THE_TERMINAL OURS=${'
+              '$ours'
+              r':-unset}"; sleep 60',
         ),
       );
 
       await service.start();
       spawned.add(handleOnDisk()!['pid']! as int);
-      var line = service.lastOutput
-          .split('\n')
-          .firstWhere((l) => l.startsWith('PATH='));
-      var given = line.substring('PATH='.length).split(':').toSet();
-      // **Widened, never narrowed.** Everything this process could resolve is
-      // still resolvable — a service that stopped seeing a wrapper the GUI was
-      // launched with would be a regression nobody could explain — and
-      // whatever a login shell adds is there on top, which is what makes `uv`
-      // and `ffmpeg` reachable from a GUI started in the Dock.
-      for (var entry in (Platform.environment['PATH'] ?? '').split(':')) {
-        if (entry.isEmpty) continue;
-        expect(given, contains(entry));
-      }
+      expect(service.lastOutput, contains('PATH=/usr/bin:/bin '));
+      expect(service.lastOutput, contains('TERMINAL=yes'));
+      expect(service.lastOutput, contains('OURS=unset'));
     });
 
     test('a computed one refuses the start when it cannot answer', () async {
@@ -667,10 +685,7 @@ void main() {
             'message',
             allOf(
               contains('fw-definitely-not-a-real-binary'),
-              // The sentence has to explain the shape of the failure, because
-              // "works in my terminal" is exactly what the reader will have
-              // just observed.
-              contains('Dock'),
+              contains('terminal'),
             ),
           ),
         ),
@@ -678,20 +693,22 @@ void main() {
       expect(handleOnDisk(), isNull);
     });
 
-    test('the PATH we already have answers first', () async {
-      // A login shell and an interactive shell can disagree about where a tool
-      // is — measured on one machine, `uv` is Homebrew's to one and
-      // `~/.local/bin`'s to the other. Whatever launched the GUI is the better
-      // authority on which was meant, so it is asked before any shell is.
+    test("a tool is looked up on the terminal's PATH, not ours", () async {
+      var bin = Directory.systemTemp.createTempSync('fw_tool_');
+      addTearDown(() => bin.deleteSync(recursive: true));
+      var tool = File(p.join(bin.path, 'fw-only-in-the-terminal'))
+        ..writeAsStringSync('#!/bin/sh\n');
+      Process.runSync('chmod', ['+x', tool.path]);
+      debugTerminalEnvironment = {'PATH': bin.path};
       debugResetToolLookups();
-      addTearDown(debugResetToolLookups);
-      var found = await lookUpTool('sh');
-      expect(found, isNotNull);
-      var onOurPath = (Platform.environment['PATH'] ?? '')
-          .split(':')
-          .map((dir) => '$dir/sh')
-          .where((path) => File(path).existsSync());
-      expect(onOurPath, contains(found));
+      addTearDown(() {
+        debugTerminalEnvironment = null;
+        debugResetToolLookups();
+      });
+
+      expect(await lookUpTool('fw-only-in-the-terminal'), tool.path);
+      // On this process's PATH, and not the terminal's.
+      expect(await lookUpTool('sh'), isNull);
     });
 
     test('a tool that is there is spawned by absolute path', () async {

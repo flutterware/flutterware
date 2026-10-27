@@ -1485,3 +1485,65 @@ A monorepo-shaped declaration — four services, two kinds, a computed port, an
 executable to look up, both kinds of environment — round-trips through the
 config JSON with nothing landing in the unreadable bucket
 (`test/plugins/dev_stack_config_test.dart`).
+
+## Every process gets a new terminal's environment (2026-10-27)
+
+Supersedes *A service gets the PATH you have, not the one the Dock has*. Widening
+our PATH fixed the missing `uv`, and left a PATH that still depended on how
+flutterware was started. A consumer building worlds measured what that costs a
+Dart service: Dart's build hooks hash the variables they read — `PATH`,
+`ANDROID_HOME`, `HOME`, `TMPDIR` and a few prefixes (`hooks_runner`'s
+`includeHookEnvironmentVariable`) — and rerun every hook when one differs from
+the run before. About **50s** for a server that depends on webcrypto, at every
+switch between a terminal and the studio.
+
+So `terminalEnvironment()` (`app/lib/src/utils/terminal_environment.dart`) reads
+the environment a new terminal window would have, once per process, and every
+spawn on the user's behalf gets exactly that with `includeParentEnvironment:
+false`: an owned service, a delegated service's probe and commands (through
+`defaultRunProcess`), `StackRun.tool`'s lookup, and `runDefineScript` — which
+also covers Run's knob scripts.
+
+**Read from the variables a terminal starts with, not from ours.** The first
+idea, a login shell started from this process, is not idempotent: macOS's
+`path_helper` reorders a PATH it is handed, and a profile that prepends does it
+again, so the answer still depended on the parent. The shell is instead started
+from launchd's PATH plus the variables that describe the user (HOME, USER,
+TMPDIR, locale, SSH agent), as `-l -i` because `~/.zprofile` and `~/.zshrc` both
+edit PATH. Measured on this machine: the variables the hooks hash come out
+identical from a launchd-like parent, from this session's environment, and from
+the MCP server's (which has fvm's SDK prepended). The read takes ~0.7s.
+
+Two exceptions keep our own environment: Windows, where a desktop app already
+has the user's, and CI (`CI` set), where the runner's environment — a setup
+step's PATH — is the right one and a profile is not. A shell that hangs or
+prints nothing parseable falls back to ours, with a log line. The output is
+bracketed by markers and read until the end marker rather than until EOF,
+because an interactive profile can leave a job holding stdout open.
+
+### Measured
+
+In `fixtures/probe_app`, `dart run tool/stack.dart port`, alternating a new
+terminal (`env -i` + `zsh -l -i`) with flutterware's `runDefineScript` started
+from an MCP-like environment:
+
+| | before | after |
+|---|---|---|
+| flutterware after a terminal run | 4.2s (hooks rerun) | 1.4–1.5s (cache hit) |
+| a terminal run after flutterware | 4.0s (hooks rerun) | 1.1–1.3s (cache hit) |
+
+One trap in measuring it: this workspace shares one hooks cache across its
+packages, so a harness started with `dart run` under another environment
+invalidates it by itself. Start the harness as `dart <file>`.
+
+### What it does not cover
+
+- `dart run flutterware` itself runs the workspace's hooks under whatever
+  started it, so the MCP server costs one rebuild per start when its client's
+  environment differs from a terminal's. Once per start, not per switch.
+- Run's `flutter run`, the world script, the config loader and the previews
+  daemon still inherit our environment. The helper is there for them.
+- `StackRun.script` still runs `dart <path>`, which skips build hooks, so a Dart
+  server that needs native assets cannot use it as its `start`.
+- A variable set only in the shell that launched flutterware (an activated
+  venv, direnv) no longer reaches a service. `env:` is the way to say it.

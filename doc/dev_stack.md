@@ -53,8 +53,11 @@ pipes and `$(...)` need `sh -c`, as in the probe above.
 
 `StackRun.script('tool/stack.dart', args: ['up'])` runs a Dart script from your
 project with the same Dart SDK flutterware runs on. Use it when the logic is
-more than one line, or to avoid depending on what's on the `PATH` of a studio
-started from the Dock.
+more than one line.
+
+Everything runs with the environment a new terminal window has, whether the
+studio was opened from the Dock, from a terminal or by an agent. A command that
+works when you type it works here.
 
 ### Two kinds of probe
 
