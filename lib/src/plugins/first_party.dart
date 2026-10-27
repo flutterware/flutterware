@@ -1334,6 +1334,46 @@ class DevStack extends Plugin {
         );
       }
     }
+    for (var service in services) {
+      for (var need in service.needs) {
+        if (!seen.contains(need)) {
+          throw StateError(
+            'Service "${service.id}" needs "$need", but no service in this '
+            'DevStack has that id. The ids are: ${seen.join(', ')}.',
+          );
+        }
+      }
+    }
+    if (_circleIn(services) case var circle?) {
+      throw StateError(
+        'Services in this DevStack need each other in a circle: '
+        '${circle.join(' → ')}. None of them could be started first.',
+      );
+    }
+  }
+
+  /// The first circle [StackService.needs] makes, as the ids around it with
+  /// the first one repeated at the end, or null when there is none.
+  static List<String>? _circleIn(List<StackService> services) {
+    var byId = {for (var service in services) service.id: service};
+    var done = <String>{};
+    var path = <String>[];
+    List<String>? visit(String id) {
+      if (done.contains(id)) return null;
+      if (path.contains(id)) return [...path.sublist(path.indexOf(id)), id];
+      path.add(id);
+      for (var need in byId[id]?.needs ?? const <String>[]) {
+        if (visit(need) case var circle?) return circle;
+      }
+      path.removeLast();
+      done.add(id);
+      return null;
+    }
+
+    for (var service in services) {
+      if (visit(service.id) case var circle?) return circle;
+    }
+    return null;
   }
 
   /// The one-service shorthand, and what this plugin took before it took a
@@ -1390,6 +1430,7 @@ sealed class StackService {
     this.id, {
     this.name,
     this.workingDirectory,
+    this.needs = const [],
     this.poll = const Duration(seconds: 10),
     this.commandTimeout = const Duration(minutes: 10),
     this.commands = const [],
@@ -1404,6 +1445,7 @@ sealed class StackService {
     StackRun? start,
     StackRun? stop,
     String? workingDirectory,
+    List<String> needs,
     Duration poll,
     Duration commandTimeout,
     bool stopIsDestructive,
@@ -1418,6 +1460,7 @@ sealed class StackService {
     required StackRun start,
     required Ready ready,
     String? workingDirectory,
+    List<String> needs,
     Map<String, String> env,
     Map<String, ValueSource> envFrom,
     Duration stopGrace,
@@ -1436,6 +1479,21 @@ sealed class StackService {
   /// Where this service's commands run, relative to the worktree root. The
   /// worktree root itself when null.
   final String? workingDirectory;
+
+  /// The services that have to be up before this one starts, by [id].
+  ///
+  /// ```dart
+  /// StackService.owned('server', needs: ['db'], …)
+  /// ```
+  ///
+  /// `ensure` reads it: asked for the server, it brings up the database
+  /// first, waits until it is up, then starts the server. A service that does
+  /// not come up stops everything that needs it. `start` on its own starts
+  /// only the one service.
+  ///
+  /// Every id must be another service in the same [DevStack], and the needs
+  /// must not go round in a circle. Both are checked when the config loads.
+  final List<String> needs;
 
   /// How often to re-read this service's state while something is watching.
   ///
@@ -1491,6 +1549,7 @@ sealed class StackService {
     'kind': kind,
     if (name != null) 'name': name,
     if (workingDirectory != null) 'workingDirectory': workingDirectory,
+    if (needs.isNotEmpty) 'needs': needs,
     'poll': poll.inMilliseconds,
     'commandTimeout': commandTimeout.inMilliseconds,
     if (commands.isNotEmpty) 'commands': [for (var c in commands) c.toJson()],
@@ -1660,6 +1719,7 @@ final class DelegatedStackService extends StackService {
     this.start,
     this.stop,
     super.workingDirectory,
+    super.needs,
     super.poll,
     super.commandTimeout,
     this.stopIsDestructive = false,
@@ -1706,6 +1766,7 @@ final class DelegatedStackService extends StackService {
       start: StackRun.fromJson(json['start']),
       stop: StackRun.fromJson(json['stop']),
       workingDirectory: json['workingDirectory'] as String?,
+      needs: _needs(json['needs']),
       poll: _millis(json['poll']) ?? const Duration(seconds: 10),
       commandTimeout:
           _millis(json['commandTimeout']) ?? const Duration(minutes: 10),
@@ -1721,6 +1782,10 @@ final class DelegatedStackService extends StackService {
 
 Duration? _millis(Object? raw) =>
     raw is int && raw > 0 ? Duration(milliseconds: raw) : null;
+
+List<String> _needs(Object? raw) => [
+  for (var id in raw is List ? raw : const []) ?(id is String ? id : null),
+];
 
 /// See [StackService.owned].
 ///
@@ -1771,6 +1836,7 @@ final class OwnedStackService extends StackService {
     required this.start,
     required this.ready,
     super.workingDirectory,
+    super.needs,
     this.env = const {},
     this.envFrom = const {},
     this.stopGrace = const Duration(seconds: 5),
@@ -1877,6 +1943,7 @@ final class OwnedStackService extends StackService {
       start: start,
       ready: ready,
       workingDirectory: json['workingDirectory'] as String?,
+      needs: _needs(json['needs']),
       env: {
         for (var entry in (json['env'] as Map? ?? const {}).entries)
           if (entry.value is String) '${entry.key}': entry.value! as String,

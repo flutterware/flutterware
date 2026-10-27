@@ -897,6 +897,10 @@ void main() {
       var core = coreWith(sleeper('server', ready: const Ready.processAlive()));
 
       expect(core.report.actions.map((a) => a.id), [
+        // The stack's, not the service's: there whatever the stack holds, so a
+        // caller has one verb for "leave it all up" however many services
+        // there are.
+        'ensure',
         'status',
         'start',
         'stop',

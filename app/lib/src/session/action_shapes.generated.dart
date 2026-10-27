@@ -2243,6 +2243,40 @@ final resultShapes = <String, ResultShape>{
       },
     ],
   }),
+  'DevStackRunResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'DevStackRunResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'command',
+        'type': 'String',
+        'doc': 'What was actually run, joined — so a caller that wants to run it directly next time can.',
+      },
+      <String, Object?>{
+        'name': 'exitCode',
+        'type': 'int',
+        'optional': true,
+        'doc': 'Null when the command has not exited — see [timedOut].',
+      },
+      <String, Object?>{
+        'name': 'ok',
+        'type': 'bool',
+        'doc': 'Whether the action did what was asked.',
+      },
+      <String, Object?>{'name': 'timedOut', 'type': 'bool', 'optional': true},
+      <String, Object?>{
+        'name': 'output',
+        'type': 'String',
+        'optional': true,
+        'doc': 'Combined stdout and stderr, trimmed to the tail.',
+      },
+      <String, Object?>{
+        'name': 'reading',
+        'type': 'Map<String, Object?>',
+        'optional': true,
+        'doc': 'The probe run immediately afterwards, when the command was one that changes the state.',
+      },
+    ],
+  }),
   'FontFactsResult': ResultShape.fromJson(<String, Object?>{
     'type': 'FontFactsResult',
     'fields': <Object?>[
@@ -6838,6 +6872,45 @@ final resultShapes = <String, ResultShape>{
         'name': 'changed',
         'type': 'bool',
         'doc': 'Something the scan depends on had moved since the last read.',
+      },
+    ],
+  }),
+  'StackEnsureResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'StackEnsureResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'ok', 'type': 'bool'},
+      <String, Object?>{
+        'name': 'services',
+        'type': 'List<Map<String, Object?>>',
+      },
+    ],
+  }),
+  'StackReading': ResultShape.fromJson(<String, Object?>{
+    'type': 'StackReading',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'state', 'type': 'String'},
+      <String, Object?>{
+        'name': 'detail',
+        'type': 'String',
+        'optional': true,
+        'doc': 'One line beside the status — `slot 8200-8208 · 4 containers`.',
+      },
+      <String, Object?>{
+        'name': 'services',
+        'type': 'List<Map<String, Object?>>',
+        'optional': true,
+      },
+      <String, Object?>{
+        'name': 'failure',
+        'type': 'String',
+        'optional': true,
+        'doc': 'Why the probe could not be believed.',
+      },
+      <String, Object?>{
+        'name': 'checkedAt',
+        'type': 'String',
+        'optional': true,
+        'doc': 'When this was read.',
       },
     ],
   }),

@@ -547,7 +547,14 @@ void main() {
     test('are what fw and an agent see, with stop marked destructive', () {
       var core = coreWith(localEnvConfig());
       var actions = {for (var a in core.report.actions) a.id: a};
-      expect(actions.keys, ['status', 'start', 'stop', 'logs', 'restart']);
+      expect(actions.keys, [
+        'ensure',
+        'status',
+        'start',
+        'stop',
+        'logs',
+        'restart',
+      ]);
       expect(actions['stop']!.danger, isTrue);
       expect(actions['stop']!.confirm, isTrue);
       expect(actions['start']!.danger, isFalse);
@@ -1096,6 +1103,8 @@ void main() {
       expect(
         [for (var a in core.report.actions) a.id],
         [
+          // The stack's own, so not prefixed: it spans the services.
+          'ensure',
           'stack.status',
           'stack.start',
           'stack.stop',
@@ -1119,7 +1128,7 @@ void main() {
       var core = coreWith(localEnvConfig());
       expect(
         [for (var a in core.report.actions) a.id],
-        ['status', 'start', 'stop', 'logs', 'restart'],
+        ['ensure', 'status', 'start', 'stop', 'logs', 'restart'],
       );
       core.dispose();
     });

@@ -74,6 +74,9 @@ List<String> get shapeSources => [
   // Same reason: the worlds results write their own `toJson`, keyed by what
   // an agent reads rather than by the fields of the world they describe.
   'lib/src/plugins/native/worlds_results.dart',
+  // Same reason: the dev stack's results — a reading, a command's run, what
+  // `ensure` did — write their own `toJson`, which leaves out what is empty.
+  'lib/src/plugins/native/dev_stack_results.dart',
 ];
 
 /// Relative to the `app/` package, which is where the generator and both tests

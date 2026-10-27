@@ -42,6 +42,7 @@ void main() {
         'server',
         name: 'API server',
         workingDirectory: 'packages/server',
+        needs: ['stack'],
         start: StackRun.script('bin/server_local.dart'),
         ready: Ready.httpFrom(
           localEnv(['port', 'server']),
@@ -53,6 +54,7 @@ void main() {
         'worker',
         name: 'Queue worker',
         workingDirectory: 'packages/worker',
+        needs: ['stack', 'server'],
         start: StackRun.script('bin/worker_local.dart'),
         ready: Ready.processAlive(),
         env: {'FFMPEG_BIN': 'ffmpeg', 'CONVERT_BIN': 'convert'},
@@ -136,6 +138,69 @@ void main() {
       expect(
         (readBack()[1] as OwnedStackService).poll,
         const Duration(seconds: 3),
+      );
+    });
+
+    test('what each service needs comes back, and none means none', () {
+      var read = readBack();
+      expect(read[0].needs, isEmpty);
+      expect(read[1].needs, ['stack']);
+      expect(read[2].needs, ['stack', 'server']);
+      expect(read[3].needs, isEmpty);
+    });
+  });
+
+  group('needs are checked when the config loads', () {
+    StackService service(String id, {List<String> needs = const []}) =>
+        StackService.delegated(
+          id,
+          needs: needs,
+          probe: Probe.exitCode(StackRun.command(['true'])),
+        );
+
+    test('a need must name another service', () {
+      expect(
+        () => DevStack(
+          services: [
+            service('server', needs: ['db']),
+          ],
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('"server" needs "db", but no service'),
+          ),
+        ),
+      );
+    });
+
+    test('needs must not go round in a circle', () {
+      expect(
+        () => DevStack(
+          services: [
+            service('a', needs: ['b']),
+            service('b', needs: ['a']),
+          ],
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('a → b → a'),
+          ),
+        ),
+      );
+    });
+
+    test('a service cannot need itself', () {
+      expect(
+        () => DevStack(
+          services: [
+            service('a', needs: ['a']),
+          ],
+        ),
+        throwsA(isA<StateError>()),
       );
     });
   });

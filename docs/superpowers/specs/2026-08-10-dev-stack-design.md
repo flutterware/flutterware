@@ -1561,3 +1561,39 @@ hooks...Running build hooks...`), in front of whatever the script said. The
 filter `runDefineScript` already had for that is shared now: a command's
 combined output and an owned service's log, as shown, leave it out.
 
+## `needs` and `ensure` (2026-10-27)
+
+What a caller that needs the stack — an agent before it launches the app, a
+world before it opens — wants is one call that leaves everything up, rather
+than knowing the order and polling. So a service declares `needs: [ids]`, and
+`DevStackCore.ensure(ids)` (action `ensure`, ids optional, all when absent)
+walks them depth-first: each service after what it needs, otherwise in
+declaration order.
+
+Per service: wait out a start or stop already in flight (someone pressed the
+button), look, and if it is not up, `start()` it. Both kinds' `start` already
+do the right thing for the rest — an owned one adopts a live process and waits
+for readiness, a delegated one runs its command and re-probes — so `ensure` adds
+only the waiting: an owned service still `starting` (alive, not answering yet)
+is polled until it answers or its state moves on. A start refused because
+someone else claimed the service in the gap is waited for, not reported.
+
+A failure holds back only what needs it, directly or not; an independent
+service still comes up. The result is per service, in the order taken:
+`alreadyUp`, `started`, `failed` (with why and what it printed) or `skipped`
+(with which need did not come up), plus `port` and `url` where flutterware knows
+them — an owned service with port or HTTP readiness. That is the address a world
+needs to hand its app; a delegated service's ports belong to its own commands.
+
+Sequential, not parallel by level. Two independent services start one after the
+other. Simpler to read in a log, and no stack in evidence has enough
+independent services for it to matter yet.
+
+`DevStack` refuses a need naming no service and needs in a circle when the config
+loads; `ensure` refuses the same shapes again, before starting anything, for a
+config written by a flutterware that did not check. `start` on its own still
+starts one service: the per-service button means that service.
+
+`dev_stack_results.dart` joined the generator's sources, so `ensure`, `status`
+and the run result now have published shapes in `docs/capabilities.md`.
+

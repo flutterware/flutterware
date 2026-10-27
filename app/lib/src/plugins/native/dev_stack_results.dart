@@ -339,3 +339,97 @@ class DevStackRunResult implements PluginResult {
     if (reading != null) 'reading': reading!.toJson(),
   };
 }
+
+/// What `ensure` did to one service.
+enum EnsureOutcome {
+  /// It was up when `ensure` looked, and was left alone.
+  alreadyUp,
+
+  /// `ensure` started it, or waited for a start already in flight, and it came
+  /// up.
+  started,
+
+  /// It did not come up. [EnsuredService.failure] says why.
+  failed,
+
+  /// It was not started, because something it needs did not come up.
+  skipped;
+
+  bool get isUp => this == alreadyUp || this == started;
+}
+
+/// One service, as `ensure` left it.
+class EnsuredService {
+  const EnsuredService({
+    required this.id,
+    required this.name,
+    required this.outcome,
+    this.reading,
+    this.port,
+    this.url,
+    this.failure,
+    this.output = '',
+  });
+
+  final String id;
+
+  /// What the panel calls it.
+  final String name;
+
+  final EnsureOutcome outcome;
+
+  /// The last look at it. Null for a service that was skipped, which nothing
+  /// looked at.
+  final StackReading? reading;
+
+  /// The port it answers on, when flutterware knows it: an owned service with
+  /// a port or HTTP readiness check. What a caller hands the app.
+  final int? port;
+
+  /// `http://localhost:<port>`, for an owned service whose readiness check is
+  /// an HTTP request.
+  final String? url;
+
+  /// Why it is not up, for [EnsureOutcome.failed] and [EnsureOutcome.skipped].
+  final String? failure;
+
+  /// What its start printed, or the end of its log. Kept for a failure, where
+  /// it is usually the explanation.
+  final String output;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'name': name,
+    'outcome': outcome.name,
+    if (port != null) 'port': port,
+    if (url != null) 'url': url,
+    if (failure != null) 'failure': failure,
+    if (output.isNotEmpty) 'output': output,
+    if (reading != null) 'reading': reading!.toJson(),
+  };
+}
+
+/// What `ensure` hands back: every service it went through, in the order it
+/// went, the ones each depends on first.
+class StackEnsureResult implements PluginResult {
+  const StackEnsureResult(this.services);
+
+  final List<EnsuredService> services;
+
+  /// Whether every service asked for, and everything they need, is up.
+  bool get ok => services.every((service) => service.outcome.isUp);
+
+  /// The service by [id], or null when `ensure` did not go through it.
+  EnsuredService? operator [](String id) {
+    for (var service in services) {
+      if (service.id == id) return service;
+    }
+    return null;
+  }
+
+  @override
+  Map<String, Object?> toJson() => {
+    'ok': ok,
+    'services': [for (var service in services) service.toJson()],
+  };
+}

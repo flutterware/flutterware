@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutterware/plugins.dart';
 import 'package:meta/meta.dart';
 
+import '../../session/job.dart';
 import '../../utils/run_dir.dart';
 import '../plugin_core.dart';
 import '../plugin_host.dart';
@@ -153,6 +154,226 @@ class DevStackCore extends PluginCore {
         service.refresh().then((reading) => readings[service.id] = reading),
     ]);
     return readings;
+  }
+
+  // ── ensure ───────────────────────────────────────────────────────────────
+
+  /// Brings up the services named by [ids], and every service they need
+  /// first, then says how each one ended up. Every service when [ids] is
+  /// empty.
+  ///
+  /// The order is [StackService.needs]: a service starts only once everything
+  /// it needs is up. One that is already up is left alone; one that someone
+  /// else is starting is waited for rather than started twice. One that does
+  /// not come up is reported with why and what it printed, and nothing that
+  /// needs it is started. Services that do not depend on it still are.
+  ///
+  /// What a caller that needs the stack calls before it runs: an agent before
+  /// it launches the app, a world before it opens. The result carries each
+  /// service's port and URL where flutterware knows them, so the caller does
+  /// not have to ask the project's tools a second time.
+  ///
+  /// Refuses, starting nothing, when an id or a need names no service, names
+  /// one this build cannot read, or the needs go round in a circle.
+  Future<StackEnsureResult> ensure([Iterable<String> ids = const []]) async {
+    var order = _ensureOrder(ids);
+    var notUp = <String>{};
+    var results = <EnsuredService>[];
+    for (var service in order) {
+      var blocked = [
+        for (var need in service.declaration.needs)
+          if (notUp.contains(need)) _labelOf(need),
+      ];
+      if (blocked.isNotEmpty) {
+        notUp.add(service.id);
+        results.add(
+          EnsuredService(
+            id: service.id,
+            name: service.label,
+            outcome: EnsureOutcome.skipped,
+            failure:
+                'Not started, because it needs ${blocked.join(' and ')}, '
+                'which did not come up.',
+          ),
+        );
+        continue;
+      }
+      var ensured = await _ensureOne(service);
+      if (!ensured.outcome.isUp) notUp.add(service.id);
+      results.add(ensured);
+    }
+    return StackEnsureResult(results);
+  }
+
+  /// [ids] and everything they need, each after what it needs and otherwise in
+  /// declaration order.
+  List<StackServiceCore> _ensureOrder(Iterable<String> ids) {
+    var byId = {for (var service in _services) service.id: service};
+    var requested = ids.isEmpty ? byId.keys.toList() : ids.toList();
+    var order = <StackServiceCore>[];
+    var path = <String>[];
+    void visit(String id, String? neededBy) {
+      if (order.any((service) => service.id == id)) return;
+      if (path.contains(id)) {
+        var circle = [...path.sublist(path.indexOf(id)), id];
+        throw ActionRefusal(
+          'These services need each other in a circle: '
+          '${circle.join(' → ')}. None of them can start first, so nothing '
+          'was started.',
+        );
+      }
+      var service = byId[id];
+      if (service == null) {
+        var reason = [
+          for (var unreadable in _unreadable)
+            if (unreadable.id == id) unreadable.reason,
+        ].firstOrNull;
+        var subject = neededBy == null
+            ? 'There is no service "$id"'
+            : '"$neededBy" needs "$id", but there is no service "$id"';
+        throw ActionRefusal(
+          reason == null
+              ? '$subject. The services are: ${byId.keys.join(', ')}. '
+                    'Nothing was started.'
+              : '"$id" cannot be read, so it cannot be started: $reason '
+                    'Nothing was started.',
+        );
+      }
+      path.add(id);
+      for (var need in service.declaration.needs) {
+        visit(need, id);
+      }
+      path.removeLast();
+      order.add(service);
+    }
+
+    for (var id in requested) {
+      visit(id, null);
+    }
+    return order;
+  }
+
+  String _labelOf(String id) =>
+      [
+        for (var service in _services)
+          if (service.id == id) service.label,
+      ].firstOrNull ??
+      id;
+
+  /// One service, brought up or explained.
+  Future<EnsuredService> _ensureOne(StackServiceCore service) async {
+    EnsuredService ended(
+      EnsureOutcome outcome,
+      StackReading reading, {
+      String? failure,
+      String output = '',
+    }) => EnsuredService(
+      id: service.id,
+      name: service.label,
+      outcome: outcome,
+      reading: reading,
+      port: outcome.isUp ? service.port : null,
+      url: outcome.isUp ? service.url : null,
+      failure: failure,
+      output: output,
+    );
+
+    var started = false;
+    while (true) {
+      // A start or stop already in flight, from the panel or another caller,
+      // is let finish rather than refused: what it leaves is what to look at.
+      while (service.busy != null && !service.isDisposed) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      var reading = await service.refresh();
+      if (reading.state == StackState.starting) {
+        reading = await _whileStarting(service, reading);
+      }
+      if (reading.state == StackState.up) {
+        return ended(
+          started ? EnsureOutcome.started : EnsureOutcome.alreadyUp,
+          reading,
+        );
+      }
+      if (started || service.isDisposed) {
+        return ended(
+          EnsureOutcome.failed,
+          reading,
+          failure:
+              reading.failure ?? 'It is ${reading.state.name} after its start.',
+        );
+      }
+      if (!service.canStart) {
+        return ended(
+          EnsureOutcome.failed,
+          reading,
+          failure:
+              '${reading.failure ?? 'It is ${reading.state.name}.'} It has no '
+              'start command, so flutterware cannot bring it up.',
+        );
+      }
+      DevStackRunResult result;
+      try {
+        result = await service.start();
+      } on Object catch (e) {
+        // Someone else claimed it between the look and the start. Wait for
+        // theirs.
+        if (service.busy != null) continue;
+        return ended(
+          EnsureOutcome.failed,
+          reading,
+          failure: e is ActionRefusal ? e.message : '$e',
+        );
+      }
+      started = true;
+      reading = result.reading ?? await service.refresh();
+      if (reading.state == StackState.starting) {
+        reading = await _whileStarting(service, reading);
+      }
+      if (reading.state == StackState.up) {
+        return ended(EnsureOutcome.started, reading);
+      }
+      return ended(
+        EnsureOutcome.failed,
+        reading,
+        failure: _whyNotUp(result, reading),
+        output: result.output,
+      );
+    }
+  }
+
+  /// Polls a service that is running and not answering yet until it answers,
+  /// stops starting, or [StackService.commandTimeout] runs out.
+  Future<StackReading> _whileStarting(
+    StackServiceCore service,
+    StackReading reading,
+  ) async {
+    var deadline = DateTime.now().add(service.declaration.commandTimeout);
+    // An owned service's look is a pid check and a connect; a delegated one's
+    // is a process, so it is asked less often.
+    var interval = service is OwnedServiceCore
+        ? const Duration(milliseconds: 250)
+        : const Duration(seconds: 1);
+    while (reading.state == StackState.starting &&
+        !service.isDisposed &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(interval);
+      reading = await service.refresh();
+    }
+    return reading;
+  }
+
+  static String _whyNotUp(DevStackRunResult result, StackReading reading) {
+    if (reading.failure case var failure?) return failure;
+    if (result.timedOut) return result.stderr;
+    if (result.exitCode case var code? when code != 0) {
+      return 'Its start command exited with code $code.';
+    }
+    // An owned start has no exit code, and says what went wrong here.
+    if (result.exitCode == null && result.stderr.trim().isNotEmpty) {
+      return result.stderr.trim();
+    }
+    return 'It is ${reading.state.name} after its start command ran.';
   }
 
   /// What any service is still working on, or null. Read by the capture
@@ -309,6 +530,32 @@ class DevStackCore extends PluginCore {
       : StatusBadge.none;
 
   List<PluginAction> get _actions => [
+    // Not on a stack this machine only watches: with nothing to start, there
+    // is nothing to bring up.
+    if (_services.any((service) => service.canStart))
+      PluginAction(
+        'ensure',
+        'Bring up everything',
+        returns: StackEnsureResult,
+        description:
+            'Brings services up with the services they need, in order, and '
+            'waits until each one is up. A service that is already up is left '
+            'alone. If one does not come up, nothing that needs it is '
+            'started, and the result says why with what it printed. Each '
+            'service comes back with its port and URL when flutterware knows '
+            'them. Without `services`, it brings up every service.',
+        parameters: [
+          ActionParameter(
+            'services',
+            'Services',
+            required: false,
+            repeatable: true,
+            description:
+                'The services to bring up, by id: '
+                '${_services.map((service) => service.id).join(', ')}.',
+          ),
+        ],
+      ),
     for (var service in _services)
       ...service.actions(prefix: _prefixFor(service.id)),
   ];
@@ -334,6 +581,7 @@ class DevStackCore extends PluginCore {
     String actionId, {
     Map<String, Object?> arguments = const {},
   }) async {
+    if (actionId == 'ensure') return ensure(_ids(arguments['services']));
     for (var service in _services) {
       var prefix = _prefixFor(service.id);
       if (!actionId.startsWith(prefix)) continue;
@@ -353,5 +601,12 @@ class DevStackCore extends PluginCore {
     super.dispose();
   }
 }
+
+/// A list of ids however it arrived: a list, or one string the CLI joined
+/// with commas.
+List<String> _ids(Object? raw) => [
+  for (var part in raw is List ? raw : '${raw ?? ''}'.split(','))
+    if ('$part'.trim().isNotEmpty) '$part'.trim(),
+];
 
 PluginCore devStackCoreFactory(PluginHost host) => DevStackCore(host);

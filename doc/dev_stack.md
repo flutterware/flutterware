@@ -81,9 +81,31 @@ would read as "up" forever.
 itself couldn't tell). With `services`, a stack that's partly up shows as
 `up 3/4` instead of a single colour.
 
+### Services that need other services
+
+A service can name the services it needs, and `ensure` brings those up first:
+
+```dart
+StackService.owned(
+  'server',
+  needs: ['db'],
+  start: StackRun.script('bin/server.dart'),
+  ready: Ready.http(8080, path: '/health', timeout: Duration(seconds: 30)),
+),
+```
+
+`fw run dev_stack ensure --services=server` starts `db`, waits until it's up,
+then starts `server`. A service that's already up is left alone. If `db`
+doesn't come up, `server` isn't started, and the result says why and shows what
+`db` printed. Without `--services`, it brings up every service. Each service in
+the result has its port and URL when flutterware knows them.
+
+**Bring up** on one service starts only that service.
+
 ## From the command line or an agent
 
 ```shell
+fw run dev_stack ensure     # brings every service up, in order
 fw run dev_stack status     # runs the probe now
 fw run dev_stack logs       # a declared command, by its id
 ```

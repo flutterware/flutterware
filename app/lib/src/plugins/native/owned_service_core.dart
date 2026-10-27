@@ -147,6 +147,15 @@ class OwnedServiceCore extends StackServiceCore {
 
   String? get _address => _port == null ? null : 'localhost:$_port';
 
+  @override
+  int? get port => _port;
+
+  @override
+  String? get url => switch ((declaration.ready, _port)) {
+    (HttpReady(), var port?) => 'http://localhost:$port',
+    _ => null,
+  };
+
   String get _portSourceLabel => switch (_portSource) {
     ScriptSource(:var path, :var args) =>
       '`${[p.basename(path), ...args].join(' ')}`',

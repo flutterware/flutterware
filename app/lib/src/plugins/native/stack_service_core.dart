@@ -396,6 +396,14 @@ abstract class StackServiceCore {
   /// Takes it down.
   Future<DevStackRunResult> stop();
 
+  /// The port it answers on, when flutterware knows it. Only an owned service
+  /// with a port or HTTP readiness check does: a delegated one's ports belong
+  /// to the project's own commands.
+  int? get port => null;
+
+  /// `http://localhost:<port>`, when the readiness check is an HTTP request.
+  String? get url => null;
+
   /// Claims the service for a transition, so the next one refuses rather than
   /// racing it.
   @protected
