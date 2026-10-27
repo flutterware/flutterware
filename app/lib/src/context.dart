@@ -14,10 +14,16 @@ class AppContext {
   /// and `fw capture` reads it, and neither knows about the other.
   final SettleRegistry settle;
 
+  /// Whether this session answers one MCP tool call: opened for the call and
+  /// disposed when it returns, in a process whose stdout is the protocol.
+  /// Whatever a core holds in memory is gone with the call.
+  final bool mcp;
+
   AppContext({
     required this.logger,
     Directory? appToolDirectory,
     SettleRegistry? settle,
+    this.mcp = false,
   }) : settle = settle ?? SettleRegistry(),
        appToolDirectory = appToolDirectory ?? Directory.current;
 
@@ -26,6 +32,7 @@ class AppContext {
       logger: logger ?? this.logger,
       appToolDirectory: appToolDirectory,
       settle: settle,
+      mcp: mcp,
     );
   }
 }

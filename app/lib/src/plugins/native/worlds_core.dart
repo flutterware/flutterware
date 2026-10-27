@@ -136,8 +136,10 @@ class WorldsCore extends PluginCore {
           'up. Each is then a Run app on the device `studio-<name>`, so '
           '`flutterware_act` with that `device` drives it. When the studio '
           "has this worktree open, the world opens there, its people's apps "
-          'live on screen, and the studio owns it; otherwise it lives in this '
-          'process and closes when this process does. Every other process '
+          'live on screen, and the studio owns it. Otherwise, from `fw`, it '
+          'lives as long as the command, or until Ctrl-C with `hold`; over '
+          'MCP it is refused, because the MCP server keeps nothing between '
+          'calls. Every other process '
           'reaches it: `status`, `invoke`, `restart` and `close` are answered '
           'by whichever process owns it.',
       parameters: [
@@ -161,7 +163,7 @@ class WorldsCore extends PluginCore {
               'Open the world in this process, even with the studio open, and '
               'keep both until it is interrupted. For `fw`, whose process '
               'would otherwise end — and close the world — as soon as the '
-              'world is open',
+              'world is open. Refused over MCP',
         ),
       ],
     ),
@@ -650,6 +652,19 @@ class WorldsCore extends PluginCore {
         '`worlds status`, `invoke`, `restart` and `close` reach it from here.',
       );
     }
+    // Opened here, the world would close as this call returns, with its
+    // people's apps built and started for nothing.
+    if (host.workspace.appContext.mcp) {
+      throw WorldRefusal(
+        'No studio has this checkout open, so nothing would keep '
+        '${file.name} open: the MCP server closes a world when the call that '
+        'opened it returns. Open the studio on this checkout '
+        '(`dart run flutterware`) and open the world again, and it opens '
+        'there. Or run '
+        '`dart run flutterware run worlds open --world=${file.id} --hold=true` '
+        'in a background shell, which keeps it open until you stop it.',
+      );
+    }
     var opened = _open = OpenWorld(
       file: file,
       worktree: host.worktree.path,
@@ -777,6 +792,18 @@ class WorldsCore extends PluginCore {
     required Map<String, Object?> knobs,
     required bool hold,
   }) async {
+    // Held, the world prints its log to stdout and keeps the call waiting
+    // until it closes: over MCP that is the protocol, and a tool call that
+    // never answers.
+    if (hold && host.workspace.appContext.mcp) {
+      throw WorldRefusal(
+        '`hold` is for a terminal. Over MCP it would keep this call waiting '
+        'until the world closes. Open the studio on this checkout and open '
+        'the world without `hold`, or run '
+        '`dart run flutterware run worlds open --world=$world --hold=true` in '
+        'a background shell.',
+      );
+    }
     var elsewhere = _open == null ? openElsewhere() : null;
     if (elsewhere != null && elsewhere.world == world) {
       // Open already, somewhere: an opening asked twice is the one there.

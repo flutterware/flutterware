@@ -82,7 +82,8 @@ users through your server's API.
   `w.person(email:, phone:)` and the studio shows them next to the person.
 - `Launch` names an entry point and the [knobs](run.md#knobs) its `main` is
   called with. That is how a person starts signed in: a session token, a
-  server URL or a starting page are all knobs.
+  server URL or a starting page are all knobs. A knob of an enum type takes
+  the constant or its name: `'env': Env.local` or `'env': 'local'`.
 - `on:` picks the device: `on: Studio(Devices.iPad)` for a tablet, or
   `on: Studio(Devices.window)` for someone at a desktop, which runs the same
   app in a 1280 × 800 window inside a browser the studio draws. The default
@@ -185,6 +186,9 @@ it says so: `done in 30.1 s, across reload.2`.
 From the command line, `open` opens the world in the studio when the studio
 has this checkout open. Otherwise the world lives as long as the command
 does, so pass `--hold=true` to keep it open in your terminal until Ctrl-C.
+The MCP server keeps nothing between calls, so with no studio on the
+checkout it refuses to open a world, and it refuses `hold`. Open the studio
+first, or run the `--hold=true` command in a background shell.
 
 ```shell
 fw run worlds list
@@ -261,9 +265,9 @@ Each person's app is a Run app on the device `studio-<name>`. An agent opens
 a world with `flutterware_invoke` and drives Leo's app with `flutterware_act`
 and `device: "studio-leo"`, using the same verbs as for any other app.
 
-A world belongs to the process that opened it (the studio, `fw` or the MCP
-server), and a checkout has one world open at a time. Other processes can
-still reach it: the process that owns the world answers
+A world belongs to the process that opened it (the studio, or `fw` with
+`--hold=true`), and a checkout has one world open at a time. Other processes
+can still reach it: the process that owns the world answers
 `fw run worlds status`, `trace`, `invoke`, `reload`, `restart` and `close`.
 So an agent can run an action on a world you opened in the studio, and you
 can close a world an agent left open in a terminal.
@@ -273,9 +277,9 @@ server is sent to the studio, because neither of them can show a person's
 app. The world opens in the studio with its people's apps on screen, so you
 and the agent see the same world, and its log says who asked. The agent's
 answer says where the world opened, and everything the agent does next
-reaches it as usual. `--hold=true` keeps the world in the process that asked
-instead. A world opened before the studio stays where it is; close it and
-open it again to see it in the studio.
+reaches it as usual. From `fw`, `--hold=true` keeps the world in the process
+that asked instead. A world opened before the studio stays where it is;
+close it and open it again to see it in the studio.
 
 ## See what a tap caused
 

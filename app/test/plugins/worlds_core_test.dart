@@ -22,13 +22,11 @@ void main() {
   late WorldsCore core;
   late Process studio;
 
-  setUp(() async {
-    root = Directory.systemTemp.createTempSync('worlds_core');
-    File(p.join(root.path, 'tool', 'worlds', 'lab.dart'))
-      ..createSync(recursive: true)
-      ..writeAsStringSync('void main(List<String> args) {}');
+  /// The core as a surface has it: [mcp] for the MCP server's, whose session
+  /// lasts one call.
+  WorldsCore coreFor({bool mcp = false}) {
     var worktree = Worktree(path: root.path);
-    core = WorldsCore(
+    return WorldsCore(
       PluginHost(
         id: worldsPluginId,
         label: 'Worlds',
@@ -37,7 +35,7 @@ void main() {
           root: worktree.path,
           declared: [Pkg('.')],
           discovered: const ['.'],
-          appContext: AppContext(logger: LogClient.print()),
+          appContext: AppContext(logger: LogClient.print(), mcp: mcp),
           flutterSdk: FlutterSdkPath('/tmp/flutter'),
         ),
         config: {
@@ -52,6 +50,14 @@ void main() {
         },
       ),
     )..unsupported = null;
+  }
+
+  setUp(() async {
+    root = Directory.systemTemp.createTempSync('worlds_core');
+    File(p.join(root.path, 'tool', 'worlds', 'lab.dart'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('void main(List<String> args) {}');
+    core = coreFor();
     // Another process, alive for as long as the test: the studio, as far as
     // the files say.
     studio = await Process.start('sleep', const ['60']);
@@ -100,6 +106,61 @@ void main() {
     ]);
     // Nothing of it lives here.
     expect(core.open, isNull);
+  });
+
+  group('over MCP', () {
+    setUp(() {
+      core.dispose();
+      core = coreFor(mcp: true);
+    });
+
+    test(
+      'a world nothing would keep open is refused before it starts',
+      () async {
+        await expectLater(
+          core.invoke('open', arguments: {'world': 'lab'}),
+          throwsA(
+            isA<WorldRefusal>().having(
+              (refusal) => refusal.message,
+              'message',
+              allOf(
+                startsWith('No studio has this checkout open'),
+                contains('--world=lab --hold=true'),
+              ),
+            ),
+          ),
+        );
+        expect(core.open, isNull);
+        expect(WorldHandle.read(root.path), isNull);
+      },
+    );
+
+    test('hold is refused: it would keep the call waiting', () async {
+      await expectLater(
+        core.invoke('open', arguments: {'world': 'lab', 'hold': true}),
+        throwsA(
+          isA<WorldRefusal>().having(
+            (refusal) => refusal.message,
+            'message',
+            startsWith('`hold` is for a terminal.'),
+          ),
+        ),
+      );
+    });
+
+    test('the studio still opens it', () async {
+      var door = await WorldOwnerServer.start((_, _) async => lab.toJson());
+      addTearDown(door.close);
+      WorldDoor(
+        worktree: root.path,
+        pid: studio.pid,
+        socket: door.socket,
+      ).write();
+      var opened =
+          (await core.invoke('open', arguments: {'world': 'lab'}))!
+              as WorldStateResult;
+      expect(opened.note, startsWith('Opened in the studio'));
+    });
   });
 
   test("the studio's refusal is said in its words", () async {

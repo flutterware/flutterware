@@ -95,7 +95,6 @@ void main() {
           ('port', KnobKind.integer),
           ('staff', KnobKind.boolean),
           ('scale', KnobKind.number),
-          ('backend', KnobKind.picker),
         ])
           ParameterKnob(
             KnobDescriptor(
@@ -105,6 +104,16 @@ void main() {
               defaultValue: null,
             ),
           ),
+        ParameterKnob(
+          KnobDescriptor(
+            name: 'backend',
+            kind: KnobKind.picker,
+            value: 'dev',
+            defaultValue: 'dev',
+            options: ['dev', 'staging', 'prod'],
+          ),
+          enumType: 'shared.Backend',
+        ),
       ],
       undrawable: [(name: 'timeout', reason: 'is a Duration')],
     );
@@ -116,8 +125,29 @@ void main() {
           'port': '8090',
           'staff': 'true',
           'scale': 2,
+          'backend': 'staging',
         }, scan),
-        {'server': '8090', 'port': 8090, 'staff': true, 'scale': 2.0},
+        {
+          'server': '8090',
+          'port': 8090,
+          'staff': true,
+          'scale': 2.0,
+          'backend': 'staging',
+        },
+      );
+    });
+
+    test('takes an enum by the name of one of its constants', () {
+      expect(
+        () => knobsForMain('Ana', 'Lab', {'backend': 'local'}, scan),
+        throwsA(
+          isA<WorldRefusal>().having(
+            (e) => e.message,
+            'message',
+            "Ana's knob backend is \"local\", and `main` takes shared.Backend "
+                'there: one of dev, staging, prod.',
+          ),
+        ),
       );
     });
 
@@ -134,10 +164,10 @@ void main() {
       );
     });
 
-    test('refuses a value of the wrong type, an enum, and a Duration', () {
+    test('refuses a value of the wrong type, and a Duration', () {
       for (var knobs in [
         {'port': 'eighty'},
-        {'backend': 'staging'},
+        {'backend': 2},
         {'timeout': 5},
       ]) {
         expect(

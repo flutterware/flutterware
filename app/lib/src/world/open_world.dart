@@ -19,6 +19,7 @@ import '../run/entrypoint_knobs.dart';
 import '../run/handle.dart';
 import '../run/journal.dart';
 import '../session/job.dart';
+import '../utils/parameter_knobs.dart';
 import 'app_guest.dart';
 import 'declared_links.dart';
 import 'guest_launcher.dart';
@@ -929,7 +930,7 @@ Map<String, Object?> knobsForMain(
       'parameter is not a knob: give it a default.',
     );
   }
-  var byName = {for (var knob in scan.knobs) knob.name: knob.knob};
+  var byName = {for (var knob in scan.knobs) knob.name: knob};
   return {
     for (var MapEntry(:key, :value) in given.entries)
       key: switch (byName[key]) {
@@ -940,16 +941,17 @@ Map<String, Object?> knobsForMain(
               : "$person's knob $key is not a parameter of $entry's main. It "
                     'takes ${byName.keys.isEmpty ? 'none' : byName.keys.join(', ')}.',
         ),
-        var knob => _asKind(person, key, value, knob.kind),
+        var knob => _asKind(person, key, value, knob),
       },
   };
 }
 
-Object? _asKind(String person, String name, Object? value, KnobKind kind) {
+Object? _asKind(String person, String name, Object? value, ParameterKnob knob) {
   if (value == null) return null;
+  var kind = knob.knob.kind;
+  var said = value is String ? '"$value"' : '$value';
   Never wrong() => throw WorldRefusal(
-    "$person's knob $name is ${value is String ? '"$value"' : value}, and "
-    '`main` takes a ${kind.name} there.',
+    "$person's knob $name is $said, and `main` takes a ${kind.name} there.",
   );
   return switch (kind) {
     KnobKind.string => value is String ? value : '$value',
@@ -970,10 +972,18 @@ Object? _asKind(String person, String name, Object? value, KnobKind kind) {
       String() => double.tryParse(value) ?? wrong(),
       _ => wrong(),
     },
-    KnobKind.picker => throw WorldRefusal(
-      "$person's knob $name is an enum, which a person's app cannot be "
-      'started with yet. Take a String and look the value up in `main`.',
-    ),
+    // By the name of one of its constants, as Run takes it: `local` for
+    // `Env.local`. The guest's entry turns the name back into the constant.
+    KnobKind.picker => switch (value) {
+      String()
+          when knob.enumType != null && knob.knob.options.contains(value) =>
+        value,
+      _ => throw WorldRefusal(
+        "$person's knob $name is $said, and `main` takes "
+        '${knob.enumType ?? 'an enum'} there: one of '
+        '${knob.knob.options.join(', ')}.',
+      ),
+    },
   };
 }
 

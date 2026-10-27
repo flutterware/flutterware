@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+// ignore: implementation_imports
+import 'package:flutterware/src/ui_catalog/knob.dart';
 import 'package:package_config/package_config.dart';
 import 'package:path/path.dart' as p;
 
@@ -11,6 +13,8 @@ import '../embedder/resident_compiler.dart';
 import '../embedder/seed_kernel.dart';
 import '../embedder/source_invalidator.dart';
 import '../previews/asset_bundle.dart';
+import '../run/entrypoint_knobs.dart';
+import '../run/wrapper_import.dart';
 import 'plugin_registrant.dart';
 
 /// An app's own `main`, built to run in embedded guests — one kernel for every
@@ -98,6 +102,7 @@ class AppGuestBuild {
 
   /// Writes the entry and compiles it whole, into [kernel].
   Future<CompileOutcome> compile() async {
+    _writeEnumKnobs();
     var entry = _writeEntry(
       await dartPluginRegistrations(
         packageConfig: packageConfig,
@@ -136,6 +141,8 @@ class AppGuestBuild {
   /// reloads from — and answers how many files that was beside the outcome.
   Future<(int, CompileOutcome)> recompile() async {
     var compiler = _compiler!;
+    // Before the sweep, so an enum parameter added to `main` since is in it.
+    _writeEnumKnobs();
     var changed = _invalidator.sweep(compiler.sources, compiledAt: _compiledAt);
     _compiledAt = DateTime.now();
     return (changed.length, await compiler.compile(changed));
@@ -169,15 +176,40 @@ class AppGuestBuild {
   Future<PackageConfig> _resolution() =>
       loadPackageConfigUri(Uri.file(packageConfig));
 
+  late final String _packageName = RegExp(r'^name:\s*(\S+)', multiLine: true)
+      .firstMatch(File(p.join(package, 'pubspec.yaml')).readAsStringSync())!
+      .group(1)!;
+
+  /// The library that turns [entrypoint]'s enum knobs back into constants.
+  ///
+  /// Beside Run's own wrapper, because the entry point's imports are spelled
+  /// from there: written anywhere else, a relative one would name another
+  /// file.
+  String get _enumKnobsFile => p.joinAll([
+    package,
+    ...p.posix.split(wrapperDirectory),
+    '${p.posix.withoutExtension(entrypoint).replaceAll('/', '_')}_world_knobs.dart',
+  ]);
+
+  /// Writes [_enumKnobsFile] from `main` as it is declared now, unless it
+  /// already says that: an unchanged file is not recompiled.
+  void _writeEnumKnobs() {
+    var source = enumKnobsSource(
+      scanEntrypointKnobs(packageRoot: package, entrypoint: entrypoint),
+      entryImport: wrapperImportOf(entrypoint, package: _packageName),
+    );
+    var file = File(_enumKnobsFile);
+    if (file.existsSync() && file.readAsStringSync() == source) return;
+    file
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync(source);
+  }
+
   String _writeEntry(List<PluginRegistration> plugins) {
-    var name = RegExp(
-      r'^name:\s*(\S+)',
-      multiLine: true,
-    ).firstMatch(File(p.join(package, 'pubspec.yaml')).readAsStringSync())!;
     // A `lib/` entry point by its package URI; anything else — a `demo/` or
     // `tool/` entry point, which no package URI reaches — by its file.
     var main = entrypoint.startsWith('lib/')
-        ? 'package:${name.group(1)}/${entrypoint.substring(4)}'
+        ? 'package:$_packageName/${entrypoint.substring(4)}'
         : '${Uri.file(p.join(package, entrypoint))}';
     var entry = File(p.join(buildDir, 'entry.dart'))
       ..createSync(recursive: true)
@@ -194,6 +226,7 @@ import 'package:flutterware/previews_guest.dart'
     show GuestKeyboard, GuestLogs, GuestTextInput, WorldSteps, installWorldInput;
 import 'package:flutterware/run_guest.dart';
 import '$main' as app;
+import '${Uri.file(_enumKnobsFile)}' as enums;
 ${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/${plugin.file}' as plugin$i;"].join('\n')}
 
 /// The guest's binding, for what only a binding can do for an app whose
@@ -248,14 +281,44 @@ void main() => GuestLogs.instance.install<Object?>(() {
     var knobs = (jsonDecode(
       File(Platform.environment['FW_KNOBS_FILE']!).readAsStringSync(),
     ) as Map).cast<String, Object?>();
+    // An enum arrives as the name of one of its constants.
     return Function.apply(app.main, const [], {
-      for (var knob in knobs.entries) Symbol(knob.key): knob.value,
+      for (var MapEntry(:key, :value) in knobs.entries)
+        Symbol(key): switch ((enums.enumKnobs[key], value)) {
+          (var constant?, String name) => constant(name),
+          _ => value,
+        },
     });
   });
 });
 ''');
     return entry.path;
   }
+}
+
+/// The library a guest entry turns enum knobs back into constants with: each
+/// enum `main` takes, by its parameter's name, from the name of one of its
+/// constants — `local` for `Env.local` — which is how a knob carries one, in
+/// Run as in a world.
+///
+/// It imports what the entry point imports, and the entry point itself for an
+/// enum declared there, so each enum is spelled as `main` spells it. Those
+/// imports are kept out of the entry, where a name one of them exports could
+/// clash with the names the entry uses.
+String enumKnobsSource(EntrypointKnobs scan, {String? entryImport}) {
+  var enums = [
+    for (var knob in scan.knobs)
+      if (knob.knob.kind == KnobKind.picker && knob.enumType != null) knob,
+  ];
+  return '''
+// Generated by flutterware's world guest (app/lib/src/world/app_guest.dart).
+// Do not edit.
+${enums.isEmpty ? '' : [...scan.imports, if (entryImport != null) "import '$entryImport';"].join('\n')}
+
+final enumKnobs = <String, Object Function(String name)>{
+${[for (var knob in enums) "  r'${knob.name}': (name) => ${knob.enumType}.values.byName(name),"].join('\n')}
+};
+''';
 }
 
 /// [path], emptied and made: a person's home as their guest starts. A world

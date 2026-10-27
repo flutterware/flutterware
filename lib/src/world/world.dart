@@ -186,8 +186,18 @@ final class World {
     if (!_people.add(name)) {
       throw ArgumentError.value(name, 'name', 'Two people have this name');
     }
-    if (app != null) {
-      for (var MapEntry(:key, :value) in app.knobs.entries) {
+    // An enum travels as the name of its constant, as Run's knobs do.
+    var launch = app == null
+        ? null
+        : Launch(
+            app.entrypoint,
+            knobs: {
+              for (var MapEntry(:key, :value) in app.knobs.entries)
+                key: value is Enum ? value.name : value,
+            },
+          );
+    if (launch != null) {
+      for (var MapEntry(:key, :value) in launch.knobs.entries) {
         try {
           jsonEncode(value);
         } on JsonUnsupportedObjectError {
@@ -195,7 +205,7 @@ final class World {
             value,
             'knobs',
             "$name's knob $key is not a value an app can be started with: "
-                'a string, a number, a bool, or a list or map of them',
+                'a string, a number, a bool, an enum, or a list or map of them',
           );
         }
       }
@@ -206,7 +216,7 @@ final class World {
       phone: phone,
       userId: userId,
       password: password,
-      app: app,
+      app: launch,
       on: on,
     );
     _send(WorldMessage.person, personToJson(person));
@@ -415,6 +425,9 @@ final class Person {
 /// An app to start: one of the entry points the project declares for Run, by
 /// its name, and the knobs its `main` is called with — by parameter name, as
 /// Run calls it.
+///
+/// A knob of an enum type takes the constant, or the constant's name:
+/// `'env': Env.local` and `'env': 'local'` start the app the same way.
 final class Launch {
   const Launch(this.entrypoint, {this.knobs = const {}});
 

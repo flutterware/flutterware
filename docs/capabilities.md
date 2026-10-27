@@ -2810,7 +2810,7 @@ Takes no parameters.
 
 #### `open` — Open
 
-Runs the world script in its package and starts every person it declares, each app in an embedded guest; answers once they are all up. Each is then a Run app on the device `studio-<name>`, so `flutterware_act` with that `device` drives it. When the studio has this worktree open, the world opens there, its people's apps live on screen, and the studio owns it; otherwise it lives in this process and closes when this process does. Every other process reaches it: `status`, `invoke`, `restart` and `close` are answered by whichever process owns it.
+Runs the world script in its package and starts every person it declares, each app in an embedded guest; answers once they are all up. Each is then a Run app on the device `studio-<name>`, so `flutterware_act` with that `device` drives it. When the studio has this worktree open, the world opens there, its people's apps live on screen, and the studio owns it. Otherwise, from `fw`, it lives as long as the command, or until Ctrl-C with `hold`; over MCP it is refused, because the MCP server keeps nothing between calls. Every other process reaches it: `status`, `invoke`, `restart` and `close` are answered by whichever process owns it.
 
 ```sh
 fw run worlds open --world=<choice> [--knobs=…] [--hold=…]
@@ -2837,7 +2837,7 @@ Exits 1 when `ok` is false, so a job can gate on this action.
 |---|---|---|---|---|
 | `world` | choice | yes | — | Which world, by its file name |
 | `knobs` | string | no | — | The world's knob values, `name=value` pairs split by `;`: `language=fr;network=offline` |
-| `hold` | boolean | no | — | Open the world in this process, even with the studio open, and keep both until it is interrupted. For `fw`, whose process would otherwise end — and close the world — as soon as the world is open |
+| `hold` | boolean | no | — | Open the world in this process, even with the studio open, and keep both until it is interrupted. For `fw`, whose process would otherwise end — and close the world — as soon as the world is open. Refused over MCP |
 
 #### `status` — Status
 
