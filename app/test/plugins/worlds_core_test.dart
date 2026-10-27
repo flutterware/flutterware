@@ -24,7 +24,7 @@ void main() {
 
   /// The core as a surface has it: [mcp] for the MCP server's, whose session
   /// lasts one call.
-  WorldsCore coreFor({bool mcp = false}) {
+  WorldsCore coreFor({bool mcp = false, List<String> needs = const []}) {
     var worktree = Worktree(path: root.path);
     return WorldsCore(
       PluginHost(
@@ -43,7 +43,10 @@ void main() {
             {
               'path': '.',
               'worlds': [
-                {'path': 'tool/worlds/lab.dart'},
+                {
+                  'path': 'tool/worlds/lab.dart',
+                  if (needs.isNotEmpty) 'needs': needs,
+                },
               ],
             },
           ],
@@ -106,6 +109,42 @@ void main() {
     ]);
     // Nothing of it lives here.
     expect(core.open, isNull);
+  });
+
+  group('a world that needs dev stack services', () {
+    setUp(() {
+      core.dispose();
+      core = coreFor(needs: ['server']);
+    });
+
+    test('lists what it needs', () async {
+      var listed = (await core.invoke('list'))! as WorldListResult;
+      expect(listed.toJson()['worlds'], [
+        {
+          'id': 'lab',
+          'name': 'Lab',
+          'package': '.',
+          'path': 'tool/worlds/lab.dart',
+          'needs': ['server'],
+        },
+      ]);
+    });
+
+    test('is refused before it starts in a project with no dev stack', () async {
+      await expectLater(
+        core.openWorld('lab'),
+        throwsA(
+          isA<WorldRefusal>().having(
+            (e) => e.message,
+            'message',
+            'Lab needs server, but this project declares no dev stack. '
+                'Declare them with DevStack in tool/flutterware.dart, or take '
+                '`needs:` off the world.',
+          ),
+        ),
+      );
+      expect(core.open, isNull);
+    });
   });
 
   group('over MCP', () {

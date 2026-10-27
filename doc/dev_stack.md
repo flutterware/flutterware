@@ -183,7 +183,9 @@ the result says why and shows what `db` printed. Without `--services`, it brings
 up every service. Each service in the result has its port and URL when
 flutterware knows them.
 
-**Bring up** on one service starts only that service.
+**Bring up** on one service starts only that service. A
+[world](worlds.md#a-world-on-your-dev-stack) that names services in
+`needs:` brings them up the same way when it opens.
 
 ## History
 

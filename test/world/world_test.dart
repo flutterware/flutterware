@@ -43,6 +43,61 @@ class _Owner {
 enum _Backend { staging }
 
 void main() {
+  test('reads the services it was opened with', () async {
+    var owner = _Owner();
+    WorldService? server;
+    Object? missing;
+    var served = owner.serve((w) {
+      server = w.service('server');
+      try {
+        w.service('cache');
+      } on Object catch (error) {
+        missing = error;
+      }
+    });
+    owner.send(WorldMessage.open, {
+      'services': [
+        const WorldService('server', name: 'API server', port: 8123).toJson(),
+        {'id': 'db', 'name': 'Database'},
+      ],
+    });
+    await owner.next(WorldMessage.setUp);
+
+    expect(server!.name, 'API server');
+    expect(server!.port, 8123);
+    expect(server!.url, isNull);
+    expect(
+      '$missing',
+      'This world does not need "cache". It needs server, db. Add "cache" to '
+          "`needs:` on the world's WorldScript in tool/flutterware.dart.",
+    );
+    expect(
+      WorldService.fromJson({
+        'id': 'server',
+        'name': 'API server',
+        'port': 8123,
+        'url': 'http://localhost:8123',
+      }).url,
+      Uri.parse('http://localhost:8123'),
+    );
+
+    owner.send(WorldMessage.close);
+    await served;
+  });
+
+  test('a world opened with no services says how to get one', () async {
+    var owner = _Owner();
+    var served = owner.serve((w) => w.service('server'));
+    owner.send(WorldMessage.open);
+    var failed = await owner.next(WorldMessage.failed);
+
+    expect(failed['error'], startsWith('This world was opened with no dev '));
+    expect(failed['error'], contains('`needs:`'));
+
+    owner.send(WorldMessage.close);
+    await served;
+  });
+
   test('declares people as the script makes them, then is set up', () async {
     var owner = _Owner();
     var served = owner.serve((w) async {

@@ -1,4 +1,6 @@
 import 'package:flutterware/plugins.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/world/world.dart' show WorldService;
 
 import '../../world/guest_platform.dart';
 import '../../world/open_world.dart';
@@ -30,6 +32,7 @@ class WorldListEntry {
     required this.package,
     required this.path,
     this.description,
+    this.needs = const [],
   });
 
   WorldListEntry.of(WorldFile file)
@@ -39,6 +42,7 @@ class WorldListEntry {
         package: file.package,
         path: file.path,
         description: file.description,
+        needs: file.needs,
       );
 
   /// What `worlds open` takes.
@@ -48,12 +52,16 @@ class WorldListEntry {
   final String path;
   final String? description;
 
+  /// The dev stack services opening it brings up first.
+  final List<String> needs;
+
   Map<String, Object?> toJson() => {
     'id': id,
     'name': name,
     'package': package,
     'path': path,
     'description': ?description,
+    if (needs.isNotEmpty) 'needs': needs,
   };
 }
 
@@ -70,6 +78,7 @@ class WorldStateResult implements PluginResult, ReportsFailure {
     this.people = const [],
     this.actions = const [],
     this.knobs = const [],
+    this.services = const [],
     this.log = const [],
     this.note,
   });
@@ -96,6 +105,7 @@ class WorldStateResult implements PluginResult, ReportsFailure {
           for (var knob in world.knobs.values)
             WorldKnobEntry(knob.name, knob.value, options: knob.options),
         ],
+        services: world.services,
         log: world.log.length > 20
             ? world.log.sublist(world.log.length - 20)
             : [...world.log],
@@ -130,6 +140,10 @@ class WorldStateResult implements PluginResult, ReportsFailure {
             options: [...(knob['options'] as List? ?? const []).cast<String>()],
           ),
     ],
+    services: [
+      for (var service in json['services'] as List? ?? const [])
+        if (service is Map) WorldService.fromJson(service.cast()),
+    ],
     log: [...(json['log'] as List? ?? const []).cast<String>()],
     note: note ?? json['note'] as String?,
   );
@@ -149,6 +163,9 @@ class WorldStateResult implements PluginResult, ReportsFailure {
   final List<WorldPersonEntry> people;
   final List<WorldActionEntry> actions;
   final List<WorldKnobEntry> knobs;
+
+  /// The dev stack services it runs on, and where each one answers.
+  final List<WorldService> services;
 
   /// The script's last lines: its progress, and what it printed.
   final List<String> log;
@@ -172,6 +189,8 @@ class WorldStateResult implements PluginResult, ReportsFailure {
     if (actions.isNotEmpty)
       'actions': [for (var action in actions) action.toJson()],
     if (knobs.isNotEmpty) 'knobs': [for (var knob in knobs) knob.toJson()],
+    if (services.isNotEmpty)
+      'services': [for (var service in services) service.toJson()],
     if (log.isNotEmpty) 'log': log,
     'note': ?note,
   };

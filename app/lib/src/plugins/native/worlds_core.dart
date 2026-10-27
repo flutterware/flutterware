@@ -9,6 +9,7 @@ import '../../run/entrypoints.dart';
 import '../../world/open_world.dart';
 import '../../world/world_files.dart';
 import '../../world/world_owner.dart';
+import '../../world/world_stack.dart';
 import '../../world/world_trace.dart'
     show TraceLevel, TraceSettled, TracedStep, settle;
 import '../plugin_core.dart';
@@ -56,6 +57,10 @@ class WorldsCore extends PluginCore {
 
   /// Why no world opens here — [worldsUnsupported] — shown on every world.
   String? unsupported = worldsUnsupported();
+
+  /// What brings up the services a world needs: the session's dev stack, set
+  /// by the session when the project declares one.
+  WorldStack? stack;
 
   var _worlds = <WorldFile>[];
   OpenWorld? _open;
@@ -131,7 +136,8 @@ class WorldsCore extends PluginCore {
       'Open',
       returns: WorldStateResult,
       description:
-          'Runs the world script in its package and starts every person it '
+          'Brings up the dev stack services the world needs, runs the world '
+          'script in its package once they answer, and starts every person it '
           'declares, each app in an embedded guest; answers once they are all '
           'up. Each is then a Run app on the device `studio-<name>`, so '
           '`flutterware_act` with that `device` drives it. When the studio '
@@ -645,6 +651,9 @@ class WorldsCore extends PluginCore {
       );
     }
     if (file.problem case var problem?) throw WorldRefusal(problem);
+    if (file.needs.isNotEmpty && stack == null) {
+      throw WorldRefusal(noDevStackFor(file));
+    }
     if (openElsewhere() case var other?) {
       throw WorldRefusal(
         '${other.name} is open in another process on this worktree (pid '
@@ -673,6 +682,7 @@ class WorldsCore extends PluginCore {
       entrypoints: _entrypoints(),
       guests: guests,
       onChanged: notifyChanged,
+      stack: stack,
     );
     onCreated?.call(opened);
     notifyChanged();

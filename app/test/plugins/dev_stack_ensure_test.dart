@@ -16,6 +16,8 @@ import 'package:flutterware_app/src/shell/worktree.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
 import 'package:flutterware_app/src/utils/run_dir.dart';
 import 'package:flutterware_app/src/utils/terminal_environment.dart';
+import 'package:flutterware_app/src/world/open_world.dart' show WorldRefusal;
+import 'package:flutterware_app/src/world/world_stack.dart';
 import 'package:path/path.dart' as p;
 
 /// `ensure`: several services brought up in the order their `needs` say.
@@ -169,7 +171,7 @@ void main() {
       ).config,
     );
 
-    var result = await core.ensure(['server']);
+    var result = await core.ensure(ids: ['server']);
 
     expect([for (var s in result.services) s.id], ['db', 'server']);
     expect(result['db']!.outcome, EnsureOutcome.started);
@@ -325,7 +327,7 @@ void main() {
       var core = coreWith(raw({'db': []}));
 
       await expectLater(
-        core.ensure(['dbb']),
+        core.ensure(ids: ['dbb']),
         throwsA(
           isA<ActionRefusal>().having(
             (e) => e.message,
@@ -382,6 +384,92 @@ void main() {
       expect([for (var s in listed.services) s.id], ['db', 'cache']);
     },
   );
+
+  group('for a world', () {
+    test('says what it starts and how each ended, then answers each '
+        'one', () async {
+      var core = coreWith(
+        DevStack(
+          services: [
+            server(needs: ['db']),
+            scripted('db'),
+          ],
+        ).config,
+      );
+      var said = <String>[];
+
+      var services = await DevStackForWorlds(core)
+          .bringUp(['server'], say: said.add);
+
+      expect([for (var s in services) s.id], ['db', 'server']);
+      expect([for (var s in services) s.name], ['The db', 'The server']);
+      expect(said, [
+        'Starting The db',
+        'The db started',
+        'Starting The server',
+        'The server started',
+      ]);
+
+      said.clear();
+      await DevStackForWorlds(core).bringUp(['server'], say: said.add);
+      expect(said, ['The db is up', 'The server is up']);
+    });
+
+    test('a service that does not come up fails the world with why', () async {
+      failingUp['db'] = 'Cannot connect to the Docker daemon.';
+      var core = coreWith(
+        DevStack(
+          services: [
+            server(needs: ['db']),
+            scripted('db'),
+          ],
+        ).config,
+      );
+      var said = <String>[];
+
+      await expectLater(
+        DevStackForWorlds(core).bringUp(['server'], say: said.add),
+        throwsA(
+          isA<WorldRefusal>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              startsWith('The db did not come up, so the world did not start'),
+              endsWith('The Dev stack panel has its log.'),
+            ),
+          ),
+        ),
+      );
+      expect(said.first, 'Starting The db');
+      expect(said, contains('  Cannot connect to the Docker daemon.'));
+      expect(
+        said.last,
+        'The server: Not started, because it needs The db, which did not '
+        'come up.',
+      );
+      expect(handleOnDisk(), isNull);
+    });
+
+    test('a need that names no service says where needs are written', () async {
+      var core = coreWith(DevStack(services: [scripted('db')]).config);
+
+      await expectLater(
+        DevStackForWorlds(core).bringUp(['api'], say: (_) {}),
+        throwsA(
+          isA<WorldRefusal>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('There is no service "api"'),
+              contains('`needs:` on its WorldScript'),
+            ),
+          ),
+        ),
+      );
+      expect(DevStackForWorlds(core).nameOf('db'), 'The db');
+      expect(DevStackForWorlds(core).nameOf('api'), 'api');
+    });
+  });
 }
 
 /// Dies on the spot, saying why, unless the scripted `db` has come up.

@@ -9,6 +9,7 @@ class WorldFile {
     required this.path,
     required this.name,
     this.description,
+    this.needs = const [],
     this.problem,
   });
 
@@ -23,6 +24,10 @@ class WorldFile {
 
   final String? description;
 
+  /// The dev stack services it runs on, by id: brought up before its script
+  /// starts.
+  final List<String> needs;
+
   /// Why it cannot be opened — its file is not there, or this machine is not
   /// one a world opens on — or null.
   final String? problem;
@@ -32,7 +37,7 @@ class WorldFile {
 }
 
 /// The worlds one package's declaration lists, as the manifest carries it:
-/// `{path, worlds: [{path, name?, description?}]}`. A world that cannot open
+/// `{path, worlds: [{path, name?, description?, needs?}]}`. A world that cannot open
 /// is still listed, with the reason: its file is not there, or [unsupported],
 /// why none opens on this machine.
 List<WorldFile> declaredWorlds({
@@ -52,6 +57,10 @@ List<WorldFile> declaredWorlds({
                 entry['name'] as String? ??
                 worldName(p.posix.basenameWithoutExtension(path)),
             description: entry['description'] as String?,
+            needs: [
+              for (var need in entry['needs'] as List? ?? const [])
+                if (need is String) need,
+            ],
             problem: File(p.join(packageRoot, path)).existsSync()
                 ? unsupported
                 : '$package/$path does not exist.',

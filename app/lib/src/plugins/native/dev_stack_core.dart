@@ -223,9 +223,17 @@ class DevStackCore extends PluginCore {
   /// service's port and URL where flutterware knows them, so the caller does
   /// not have to ask the project's tools a second time.
   ///
+  /// [onStarting] is told the name of each service as `ensure` starts it, and
+  /// [onEnsured] how each one ended, as it ends: what a world opening shows in
+  /// its log while it waits.
+  ///
   /// Refuses, starting nothing, when an id or a need names no service, names
   /// one this build cannot read, or the needs go round in a circle.
-  Future<StackEnsureResult> ensure([Iterable<String> ids = const []]) async {
+  Future<StackEnsureResult> ensure({
+    Iterable<String> ids = const [],
+    void Function(String name)? onStarting,
+    void Function(EnsuredService service)? onEnsured,
+  }) async {
     var order = _ensureOrder(ids);
     var notUp = <String>{};
     var results = <EnsuredService>[];
@@ -236,21 +244,22 @@ class DevStackCore extends PluginCore {
       ];
       if (blocked.isNotEmpty) {
         notUp.add(service.id);
-        results.add(
-          EnsuredService(
-            id: service.id,
-            name: service.label,
-            outcome: EnsureOutcome.skipped,
-            failure:
-                'Not started, because it needs ${blocked.join(' and ')}, '
-                'which did not come up.',
-          ),
+        var skipped = EnsuredService(
+          id: service.id,
+          name: service.label,
+          outcome: EnsureOutcome.skipped,
+          failure:
+              'Not started, because it needs ${blocked.join(' and ')}, '
+              'which did not come up.',
         );
+        results.add(skipped);
+        onEnsured?.call(skipped);
         continue;
       }
-      var ensured = await _ensureOne(service);
+      var ensured = await _ensureOne(service, onStarting: onStarting);
       if (!ensured.outcome.isUp) notUp.add(service.id);
       results.add(ensured);
+      onEnsured?.call(ensured);
     }
     return StackEnsureResult(results);
   }
@@ -311,7 +320,10 @@ class DevStackCore extends PluginCore {
       id;
 
   /// One service, brought up or explained.
-  Future<EnsuredService> _ensureOne(StackServiceCore service) async {
+  Future<EnsuredService> _ensureOne(
+    StackServiceCore service, {
+    void Function(String name)? onStarting,
+  }) async {
     EnsuredService ended(
       EnsureOutcome outcome,
       StackReading reading, {
@@ -364,6 +376,7 @@ class DevStackCore extends PluginCore {
       }
       DevStackRunResult result;
       try {
+        onStarting?.call(service.label);
         result = await service.start();
       } on Object catch (e) {
         // Someone else claimed it between the look and the start. Wait for
@@ -663,7 +676,7 @@ class DevStackCore extends PluginCore {
     String actionId, {
     Map<String, Object?> arguments = const {},
   }) async {
-    if (actionId == 'ensure') return ensure(_ids(arguments['services']));
+    if (actionId == 'ensure') return ensure(ids: _ids(arguments['services']));
     if (actionId == 'history') {
       var limit = arguments['limit'] as int? ?? 20;
       return StackHistoryResult(_historyStore.read(limit: limit));

@@ -7470,6 +7470,12 @@ final resultShapes = <String, ResultShape>{
         'optional': true,
       },
       <String, Object?>{
+        'name': 'services',
+        'type': 'List<Map<String, Object?>>',
+        'optional': true,
+        'doc': 'The dev stack services it runs on, and where each one answers.',
+      },
+      <String, Object?>{
         'name': 'log',
         'type': 'List<String>',
         'optional': true,
