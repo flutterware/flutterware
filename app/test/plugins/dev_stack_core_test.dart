@@ -147,7 +147,7 @@ void main() {
       expect(ran, isEmpty);
       var text = core.report.view.toText();
       expect(text, contains('State: unknown'));
-      expect(text, contains('`fw run dev_stack status` checks it'));
+      expect(text, contains('Run `fw run dev_stack status` to check it'));
 
       responses['stack doctor'] = ProcessResult(0, 0, 'All checks passed.', '');
       await core.invoke('status');
@@ -939,7 +939,7 @@ void main() {
       expect(result.timedOut, isTrue);
       expect(result.exitCode, isNull, reason: '0 would say it worked');
       expect(result.ok, isFalse);
-      expect(result.stderr, contains('not stopped'));
+      expect(result.stderr, contains('the command is still running'));
       expect(
         core.service.busy,
         isNull,
@@ -1093,8 +1093,11 @@ void main() {
       var text = core.report.view.toText();
       // The hint is only worth reading if the action it names exists, and
       // with two services the bare `status` does not.
-      expect(text, contains('`fw run dev_stack stack.status` checks it'));
-      expect(text, contains('`fw run dev_stack server.status` checks it'));
+      expect(text, contains('Run `fw run dev_stack stack.status` to check it'));
+      expect(
+        text,
+        contains('Run `fw run dev_stack server.status` to check it'),
+      );
       expect(text, isNot(contains('`fw run dev_stack status`')));
       core.dispose();
     });

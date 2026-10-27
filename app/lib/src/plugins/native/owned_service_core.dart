@@ -214,8 +214,8 @@ class OwnedServiceCore extends StackServiceCore {
     if (source is! ScriptSource) {
       return (
         null,
-        'only a ValueSource.script can compute $what — the other sources '
-            'answer about the machine rather than about this project.',
+        'Only ValueSource.script can give $what here. Write a script in '
+            'your project that prints it.',
       );
     }
     var outcome = await runDefineScript(
@@ -227,8 +227,8 @@ class OwnedServiceCore extends StackServiceCore {
     if (outcome.value case var value?) return (value, null);
     return (
       null,
-      '${source.path} printed a list of ${outcome.options.length}; '
-          '$what is one value.',
+      '${source.path} printed ${outcome.options.length} values, and $what '
+          'is one value. Make it print only one.',
     );
   }
 
@@ -346,8 +346,8 @@ class OwnedServiceCore extends StackServiceCore {
             at: at,
             detail: 'its port is not known',
             failure:
-                'The port could not be worked out, so nothing can be started '
-                'or checked. $problem',
+                'Its port could not be found, so it cannot be started or '
+                'checked. $problem',
           ),
         );
       }
@@ -358,10 +358,10 @@ class OwnedServiceCore extends StackServiceCore {
             at: at,
             detail: 'localhost:$port is taken',
             failure:
-                'Something is listening on localhost:$port and flutterware '
-                'did not start it — there is no handle for it in ${runDir()}. '
-                'It may be this service run by hand, or another worktree. '
-                'Find it with `lsof -nP -iTCP:$port -sTCP:LISTEN`.',
+                'Something flutterware did not start is listening on '
+                'localhost:$port. It may be this service started by hand, or '
+                "another worktree's copy. Run "
+                '`lsof -nP -iTCP:$port -sTCP:LISTEN` to find it.',
           ),
         );
       }
@@ -406,9 +406,9 @@ class OwnedServiceCore extends StackServiceCore {
         at: at,
         detail: 'pid ${handle.pid} · up ${_short(handle.uptime)}',
         failure:
-            'It has been running for ${_short(handle.uptime)} and '
-            '${ready.why}. Either it is broken, or the readiness check '
-            'describes something it does not do.',
+            'It has been running for ${_short(handle.uptime)}, but '
+            '${ready.why}. Check its log. If the service works, its `ready:` '
+            'in tool/flutterware.dart checks the wrong thing.',
       ),
     );
   }
@@ -491,10 +491,8 @@ class OwnedServiceCore extends StackServiceCore {
         'Restart',
         returns: DevStackRunResult,
         description:
-            'Stops it and starts it again — the operation you want after '
-            'editing what it runs, and the one a `stop` followed by a `start` '
-            'gets wrong when the stop half fails and the start half adopts the '
-            'process that was meant to go.',
+            'Stops it and starts it again, for after you change what it runs. '
+            'If the stop does not finish, it is not started again.',
       ),
     if (!_declares('logs'))
       PluginAction(
@@ -502,10 +500,7 @@ class OwnedServiceCore extends StackServiceCore {
         'Logs',
         returns: DevStackRunResult,
         description:
-            'The tail of what this service has written since it was started. '
-            'flutterware redirected its output to a file it owns, so nothing '
-            'has to be declared for this and it still works after the GUI has '
-            'been restarted.',
+            'Shows the end of what it has printed since it was started.',
       ),
   ];
 
@@ -525,9 +520,9 @@ class OwnedServiceCore extends StackServiceCore {
         ok: false,
         output: stopped.output,
         stderr:
-            'It was not restarted: the stop did not finish, so starting now '
-            'would adopt the process that was meant to go and report the old '
-            'code as new.',
+            'It was not started again, because the stop did not finish. The '
+            'old process may still be running. Check its log, then stop it '
+            'again.',
         reading: stopped.reading,
       );
     }
@@ -552,8 +547,8 @@ class OwnedServiceCore extends StackServiceCore {
         exitCode: null,
         ok: true,
         output: log.isEmpty
-            ? 'Nothing has been logged. $label has not been started from here, '
-                  'or it has said nothing yet.'
+            ? 'Nothing has been logged yet. Either $label has not been '
+                  'started, or it has printed nothing.'
             : log,
       ),
     );
@@ -569,9 +564,9 @@ class OwnedServiceCore extends StackServiceCore {
       // equivalent of. Said plainly rather than failing somewhere less legible
       // — the same refusal `launch.dart` makes for the same reason.
       throw UnsupportedError(
-        'Owned services are implemented for macOS and Linux hosts. A '
-        'delegated service works everywhere, because the command that starts '
-        'the process belongs to the project rather than to us.',
+        'flutterware can start $label itself only on macOS and Linux. On '
+        'Windows, declare it with StackService.delegated and your own start '
+        'and stop commands.',
       );
     }
     // **Claimed before the first await.** Everything below has to go and ask
@@ -610,7 +605,8 @@ class OwnedServiceCore extends StackServiceCore {
         nothingToDo: true,
         output:
             'Already running as pid ${live.pid}, started '
-            '${stackAge(live.startedAt) ?? 'just now'}. Nothing was spawned.',
+            '${stackAge(live.startedAt) ?? 'just now'}. Nothing new was '
+            'started.',
         stderr: up ? '' : (reading.failure ?? ''),
         reading: reading,
       );
@@ -627,18 +623,15 @@ class OwnedServiceCore extends StackServiceCore {
     await _lookUpPort(fresh: true);
     if (_portProblem case var problem?) {
       throw ActionRefusal(
-        'Cannot start $label: its port could not be worked out, so nothing '
-        'was spawned. $problem\n'
-        'If the port comes from the stack, bring the stack up first — the '
-        'slot is allocated there.',
+        'Cannot start $label: its port could not be found. '
+        '${_sentence(problem)}\n'
+        'If your stack gives out the port, bring the stack up first.',
       );
     }
     var (declaredEnv, envProblem) = await _resolveEnv();
     if (envProblem != null) {
       throw ActionRefusal(
-        'Cannot start $label: $envProblem Nothing was spawned — a service '
-        'started with a variable silently missing fails somewhere else, '
-        'later, for a reason nothing on screen explains.',
+        'Cannot start $label: ${_sentence(envProblem)} Nothing was started.',
       );
     }
     // `argvOf` is where a StackRun.tool is looked up, and a tool that cannot
@@ -654,11 +647,10 @@ class OwnedServiceCore extends StackServiceCore {
     if (_port case var port?) {
       if (await _accepts(port)) {
         throw ActionRefusal(
-          'Something is already listening on localhost:$port, and it is not '
-          'anything flutterware started — there is no handle for it in '
-          '${runDir()}. Starting $label now would fail on the bound port. '
-          'Find what holds it with `lsof -nP -iTCP:$port -sTCP:LISTEN`, or '
-          'point the declaration at another port.',
+          'Cannot start $label: something flutterware did not start is '
+          'already listening on localhost:$port. Run '
+          '`lsof -nP -iTCP:$port -sTCP:LISTEN` to find it, then stop it or '
+          'give $label another port.',
         );
       }
     }
@@ -760,14 +752,14 @@ class OwnedServiceCore extends StackServiceCore {
         handle.delete();
         _handle = null;
         return 'It exited ${_short(handle.uptime)} after it was started. '
-            'Its last output is above.';
+            'Check its output.';
       }
       var ready = await _checkReady();
       if (ready.ok) return null;
       if (!DateTime.now().isBefore(deadline)) {
         return 'It is running as pid ${handle.pid}, but ${ready.why} after '
-            '${_short(handle.uptime)}. It was left running — check the log, '
-            'or give the readiness check a longer `timeout:`.';
+            '${_short(handle.uptime)}. It was left running. Check its log, '
+            'or give `ready:` a longer `timeout:`.';
       }
       await Future<void>.delayed(const Duration(milliseconds: 200));
     }
@@ -801,10 +793,9 @@ class OwnedServiceCore extends StackServiceCore {
         ok: !taken,
         nothingToDo: true,
         output: taken
-            ? 'Nothing here to stop: flutterware holds no process for $label. '
+            ? 'Nothing to stop: flutterware did not start what is running. '
                   '${reading.failure ?? ''}'
-            : 'Nothing to stop: no process for $label is recorded in '
-                  '${runDir()}, and none is running.',
+            : 'Nothing to stop: $label is not running.',
         reading: reading,
       );
     }
@@ -1024,25 +1015,26 @@ class OwnedServiceCore extends StackServiceCore {
     }
   }
 
+  /// [text] ending in a full stop, for a script's own words quoted mid-message.
+  static String _sentence(String text) {
+    var trimmed = text.trimRight();
+    return trimmed.endsWith('.') ? trimmed : '$trimmed.';
+  }
+
   @override
   String get statusDescription =>
-      'Checks whether the process flutterware started is still there, and '
-      'whether it is answering — $readyDescription. Every other surface shows '
-      'a cached reading and how old it is; this is the one that goes and '
-      'looks.';
+      'Checks that the process flutterware started is still running and '
+      'answering: $readyDescription.';
 
   @override
   String get startDescription =>
-      'Spawns `${describeRun(declaration.start)}` detached, records its pid, '
-      'and waits until $readyDescription. Safe to call when you only want to '
-      'be sure: a process that is already running is adopted rather than '
-      'started again, whichever session started it.';
+      'Starts `${describeRun(declaration.start)}` and waits until '
+      '$readyDescription. If it is already running, it is left as it is.';
 
   @override
   String get stopDescription =>
-      'Signals the process group — SIGINT, then SIGTERM, then SIGKILL, with '
-      '${_short(declaration.stopGrace)} between them — so the service and '
-      'anything it spawned go together.';
+      'Stops the process and everything it started: SIGINT, then SIGTERM, '
+      'then SIGKILL, ${_short(declaration.stopGrace)} apart.';
 }
 
 /// Whether the thing is usable, and one fragment saying why not.

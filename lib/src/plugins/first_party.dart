@@ -1328,9 +1328,8 @@ class DevStack extends Plugin {
     for (var service in services) {
       if (!seen.add(service.id)) {
         throw StateError(
-          'Duplicate service id "${service.id}" in DevStack. Every service '
-          'needs its own — the id is what an action, a teardown step and a '
-          'cached reading are keyed on.',
+          'Two services in this DevStack have the id "${service.id}". Give '
+          'each service its own id.',
         );
       }
     }
@@ -1347,7 +1346,7 @@ class DevStack extends Plugin {
     if (_circleIn(services) case var circle?) {
       throw StateError(
         'Services in this DevStack need each other in a circle: '
-        '${circle.join(' → ')}. None of them could be started first.',
+        '${circle.join(' → ')}. Remove one of these needs.',
       );
     }
   }

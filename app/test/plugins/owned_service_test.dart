@@ -319,7 +319,7 @@ void main() {
       // local port — instant when nothing is there — answers it up front.
       expect((await service.refresh()).state, StackState.unavailable);
       expect(service.status.message, 'port taken');
-      expect(service.reading.failure, contains('did not start it'));
+      expect(service.reading.failure, contains('flutterware did not start'));
       expect(service.reading.failure, contains('lsof'));
       // And no teardown step, because there is no pid here to signal: a
       // checkbox that could only report "nothing to stop" lies about what it
@@ -474,9 +474,9 @@ void main() {
             (e) => e.message,
             'message',
             allOf(
-              contains('could not be worked out'),
+              contains('could not be found'),
               contains('no slot for this worktree'),
-              contains('nothing was spawned'),
+              contains('Cannot start'),
             ),
           ),
         ),
@@ -631,7 +631,7 @@ void main() {
             allOf(
               contains('MODEL_TOOLS_DIR'),
               contains('the model tools are not installed'),
-              contains('Nothing was spawned'),
+              contains('Nothing was started'),
             ),
           ),
         ),

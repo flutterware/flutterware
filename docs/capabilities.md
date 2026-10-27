@@ -2688,7 +2688,7 @@ events: List<Map<String, Object?>>
 
 #### `status` — Check
 
-Runs the declared probe and reports what state the stack is in, with the time it was read. Every other surface shows a cached reading and how old it is; this is the one that goes and looks.
+Runs the probe now and reports the state, with when it was checked.
 
 ```sh
 fw run dev_stack status
@@ -2708,7 +2708,7 @@ Takes no parameters.
 
 #### `start` — Bring up
 
-Runs the declared start command and re-probes when it returns. Idempotent by contract — a stack that is already up should come back up as a no-op, which is what makes this safe to call when you only want to be sure.
+Runs the start command, then checks the state. On a service that is already up, the command should do nothing.
 
 ```sh
 fw run dev_stack start
@@ -2730,7 +2730,7 @@ Takes no parameters.
 
 #### `stop` — Tear down
 
-Runs the declared stop command and re-probes when it returns.
+Runs the stop command, then checks the state.
 
 ```sh
 fw run dev_stack stop

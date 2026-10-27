@@ -616,8 +616,8 @@ abstract class StackServiceCore {
     } on TimeoutException {
       var output =
           'Still running after ${waited.inSeconds}s. flutterware stopped '
-          'waiting but has not stopped the command, so check on it yourself if '
-          'it should have finished. For a command meant to keep running, set a '
+          'waiting, but the command is still running. If it should have '
+          'finished, check on it. For a command that keeps running, set a '
           'shorter `timeout:` on its StackCommand.';
       recordRun(command: line, output: output, ranFor: endBusy());
       notifyChanged();
@@ -839,8 +839,8 @@ abstract class StackServiceCore {
       // better one.
       if (reading.state == StackState.unknown)
         ViewText(
-          'Not checked yet. `fw run dev_stack ${prefix}status` checks it, and '
-          'every surface shows its answer from then on.',
+          'Not checked yet. Run `fw run dev_stack ${prefix}status` to check '
+          'it.',
         ),
       ViewField('Working directory', workingDirectory),
       ...extraViewRows(),

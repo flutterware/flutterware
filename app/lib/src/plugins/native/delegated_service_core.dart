@@ -148,7 +148,9 @@ class DelegatedServiceCore extends StackServiceCore {
         StackReading(
           state: StackState.unavailable,
           at: DateTime.now(),
-          failure: '${argv.first}: $e',
+          failure:
+              'Could not run `${argv.first}`: '
+              '${e is ProcessException ? e.message : e}',
         ),
       );
     }
@@ -237,8 +239,8 @@ class DelegatedServiceCore extends StackServiceCore {
   Future<DevStackRunResult> _transition(StackRun? run, String what) async {
     if (run == null) {
       throw ActionRefusal(
-        'No `$what` is declared for this stack, so flutterware can only watch '
-        'it. Add one to tool/flutterware.dart, or run it yourself.',
+        'No `$what` command is declared for $label, so flutterware can only '
+        'check it. Add one in tool/flutterware.dart, or run it yourself.',
       );
     }
     if (problemWith(run) case var problem?) throw ActionRefusal(problem);
@@ -249,21 +251,16 @@ class DelegatedServiceCore extends StackServiceCore {
 
   @override
   String get statusDescription =>
-      'Runs the declared probe and reports what state the stack is in, with '
-      'the time it was read. Every other surface shows a cached reading and '
-      'how old it is; this is the one that goes and looks.';
+      'Runs the probe now and reports the state, with when it was checked.';
 
   @override
   String get startDescription =>
-      'Runs the declared start command and re-probes when it returns. '
-      'Idempotent by contract — a stack that is already up should come back up '
-      'as a no-op, which is what makes this safe to call when you only want to '
-      'be sure.';
+      'Runs the start command, then checks the state. On a service that is '
+      'already up, the command should do nothing.';
 
   @override
   String get stopDescription => stopIsDestructive
-      ? 'Runs the declared stop command, which this project has marked as '
-            'destroying data — volumes go with it and the next bring-up starts '
-            'from empty.'
-      : 'Runs the declared stop command and re-probes when it returns.';
+      ? 'Runs the stop command, which this project marks as deleting data. '
+            'The next start begins from empty.'
+      : 'Runs the stop command, then checks the state.';
 }

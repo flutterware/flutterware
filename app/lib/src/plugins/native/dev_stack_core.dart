@@ -268,8 +268,8 @@ class DevStackCore extends PluginCore {
         var circle = [...path.sublist(path.indexOf(id)), id];
         throw ActionRefusal(
           'These services need each other in a circle: '
-          '${circle.join(' → ')}. None of them can start first, so nothing '
-          'was started.',
+          '${circle.join(' → ')}. Nothing was started. Remove one of these '
+          'needs in tool/flutterware.dart.',
         );
       }
       var service = byId[id];
@@ -359,7 +359,7 @@ class DevStackCore extends PluginCore {
           reading,
           failure:
               '${reading.failure ?? 'It is ${reading.state.name}.'} It has no '
-              'start command, so flutterware cannot bring it up.',
+              'start command, so flutterware cannot start it.',
         );
       }
       DevStackRunResult result;
