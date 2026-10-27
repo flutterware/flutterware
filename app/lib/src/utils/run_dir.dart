@@ -123,6 +123,15 @@ String? flutterwareDirOverride;
 /// has legitimately been up since Monday, and the age gate, which spares a
 /// launch that started thirty seconds ago.
 ///
+/// `svc-*.json` — an owned dev-stack service's handle — follows the same rule
+/// as `app-*.json`, and its `.log` follows the handle rather than the clock.
+/// The rules differ from a run's because the shapes differ: a dev server that
+/// has been up since Monday is normal, so the age gate alone would sweep the
+/// handle of a live process and hand the next `start` a free port that is not
+/// free. And its log is the *only* account of what it has been doing —
+/// flutterware redirected its stdout there and nothing else has a copy — so a
+/// log a live handle names is spared at any age.
+///
 /// `devices.json` is never swept: there is exactly one, it is small, and the
 /// next daemon overwrites it. Deleting it would only make a cold `fw devices`
 /// answer "nothing has ever looked" about a machine that had a device list a
@@ -152,6 +161,22 @@ Future<int> sweepRunDir({
   var deleted = 0;
   // Keys whose daemon is still there, so its log and lock stay with it.
   var serving = <String>{};
+  // Logs an owned service is still writing into. Collected before anything is
+  // deleted, because the rule is about the handle rather than about the log's
+  // own name: the two are named for the same service but not with the same
+  // stem, so the `.log` rule below cannot work it out on its own.
+  var liveServiceLogs = <String>{};
+  for (var entity in entries) {
+    var name = p.basename(entity.path);
+    if (entity is! File ||
+        !name.startsWith('svc-') ||
+        !name.endsWith('.json')) {
+      continue;
+    }
+    var json = _readHandle(entity);
+    if (json == null || !_handleProcessIsAlive(json)) continue;
+    if (json['logPath'] case String log) liveServiceLogs.add(log);
+  }
 
   for (var entity in entries) {
     var name = p.basename(entity.path);
@@ -189,6 +214,7 @@ Future<int> sweepRunDir({
     }
     var key = name.substring(0, name.lastIndexOf('.'));
     if (serving.contains(key)) continue;
+    if (liveServiceLogs.contains(entity.path)) continue;
     if (!_isOlderThan(entity, cutoff)) continue;
     if (_delete(entity)) deleted++;
   }
@@ -196,12 +222,13 @@ Future<int> sweepRunDir({
   for (var entity in entries) {
     var name = p.basename(entity.path);
     if (entity is! File ||
-        !name.startsWith('app-') ||
+        !(name.startsWith('app-') || name.startsWith('svc-')) ||
         !name.endsWith('.json')) {
       continue;
     }
     if (!_isOlderThan(entity, cutoff)) continue;
-    if (_launcherIsAlive(entity)) continue;
+    var json = _readHandle(entity);
+    if (json != null && _handleProcessIsAlive(json)) continue;
     if (_delete(entity)) deleted++;
   }
 
@@ -294,27 +321,36 @@ void debugResetRunDirSweep() => _sweptThisProcess = false;
 
 final _daemonKey = RegExp(r'^[0-9a-f]{16}$');
 
-/// Whether a run handle's `flutter run` is still there.
+/// A handle file as a map, or null when nothing can read it.
 ///
-/// Read straight out of the file rather than through `RunHandle`, so the
-/// sweeper stays a leaf: it must not pull the VM-service client in behind it,
-/// and the one field it needs is a number.
-bool _launcherIsAlive(File handle) {
+/// Read straight out of the file rather than through `RunHandle` or
+/// `ServiceHandle`, so the sweeper stays a leaf: it must not pull the
+/// VM-service client in behind it, and the fields it needs are a number and a
+/// path.
+Map<String, Object?>? _readHandle(File handle) {
   try {
     var json = jsonDecode(handle.readAsStringSync());
-    if (json is! Map) return false;
-    var pid = json['launcherPid'] as int? ?? 0;
-    // Current, not merely alive — a recycled pid would shield a dead run's
-    // handle from every sweep. A handle old enough to sweep is exactly the
-    // kind old enough to have had its pid recycled.
-    var startedAt = DateTime.tryParse('${json['startedAt']}');
-    return startedAt == null
-        ? isProcessAlive(pid)
-        : isProcessCurrent(pid, startedAt);
+    return json is Map ? json.cast<String, Object?>() : null;
   } on Object {
-    // Unreadable is not "alive": a handle nothing can parse is litter.
-    return false;
+    return null;
   }
+}
+
+/// Whether the process a handle names is still there.
+///
+/// `launcherPid` for a run's handle, `pid` for an owned service's. Two names
+/// because the thing being pointed at differs — one is the `flutter run` that
+/// carries an app, the other is the service itself — and there is no reading
+/// under which either could mean the other.
+bool _handleProcessIsAlive(Map<String, Object?> json) {
+  var pid = json['launcherPid'] as int? ?? json['pid'] as int? ?? 0;
+  // Current, not merely alive — a recycled pid would shield a dead handle from
+  // every sweep. A handle old enough to sweep is exactly the kind old enough to
+  // have had its pid recycled.
+  var startedAt = DateTime.tryParse('${json['startedAt']}');
+  return startedAt == null
+      ? isProcessAlive(pid)
+      : isProcessCurrent(pid, startedAt);
 }
 
 /// Whether [pid] is a process this user could signal.

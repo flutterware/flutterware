@@ -72,7 +72,15 @@ The SDK is pinned in `.fvmrc` and installed by [fvm](https://fvm.app). Every Flu
 fvm install && fvm flutter pub get
 ```
 
-`fvm install` is a no-op (~0.2s) when the version is already in `~/fvm/versions`; on a new machine it downloads it, which takes minutes.
+`fvm install` is a no-op *in effect* when the version is already in `~/fvm/versions`; on a new machine it downloads it, which takes minutes.
+
+**It is not a no-op in time, and the reason is a bug you can fix in one command.** Measured 2026-08-25: `fvm install` **11.2s**, `fvm dart --version` **4.4s**, against **0.008s** for the SDK's own `dart --version`. fvm 4.1.x runs `git fsck --connectivity-only` over its bare Flutter mirror (`~/fvm/cache.git`, 1.1M objects, 440MiB) on *every* invocation that has a project pin — 3.3s of CPU, every time. Upstream fixed it in **4.1.5** (*"perf: skip git-cache maintenance when running Flutter or Dart through an already-installed SDK"*); 4.0.5 never had it. If `fvm --version` says anything between 4.1.0 and 4.1.4:
+
+```sh
+dart pub global activate fvm
+```
+
+Every `fvm flutter analyze`, `fvm flutter test` and `fvm dart tool/…` in this repo pays that 3.3s until you do. Nothing flutterware *ships* pays it — `runDefineScript` and `StackRun.script` spawn `<flutterSdk>/bin/dart` directly, because a config file may not name an interpreter — so this is a cost on the dev loop, not on users. The full diagnosis is in `docs/superpowers/specs/2026-08-10-dev-stack-design.md` § "Where the four seconds went".
 
 `examples/brewline` is the demo app a stranger clones. It is a workspace member here, so the root `fvm flutter pub get` resolves it against this checkout, while its committed pubspec names the *published* `flutterware: ^0.6.0` — pub lets a member's hosted constraint be met by the workspace's own package. `tool/publish_example.dart` drops the `resolution: workspace` line when it projects the tracked tree to github.com/flutterware/flutterware_example, and CI's *Demo export* job resolves, analyzes and tests that projection from the staged clone. Bumping flutterware's version means bumping brewline's constraint in the same change, or the root stops resolving — `tool/release.dart` does both.
 

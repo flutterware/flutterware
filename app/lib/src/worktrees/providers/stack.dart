@@ -57,7 +57,11 @@ class RunDirStackProbe implements StackProbe {
       if (!file.existsSync()) return null;
       var json = jsonDecode(await file.readAsString());
       if (json is! Map) return null;
-      var reading = StackReading.fromJson(json.cast<String, Object?>());
+      // The whole worktree as one reading, because the column has one line.
+      // A checkout declaring four services reads as `up 3/4` here, which is
+      // the same sentence a single delegated service's containers already
+      // produce — see [StackCache.aggregate].
+      var reading = StackCache.fromJson(json.cast<String, Object?>()).aggregate;
       // A reading with no clock cannot be aged, and an un-ageable reading is
       // worse than none: it would sit in the column looking current forever.
       return reading.isKnown && reading.at != null ? reading : null;

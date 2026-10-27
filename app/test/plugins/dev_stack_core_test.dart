@@ -34,27 +34,26 @@ void main() {
   /// Every core gets the same scripted process, set per instance.
   DevStackCore coreWith(Map<String, Object?> config) =>
       DevStackCore(
-          PluginHost(
-            id: devStackPluginId,
-            label: 'Dev stack',
-            worktree: Worktree(path: project.path),
-            workspace: Workspace(
-              root: project.path,
-              declared: [],
-              discovered: [],
-              appContext: AppContext(logger: LogClient.print()),
-              flutterSdk: FlutterSdkPath('/tmp/flutter'),
-            ),
-            config: config,
+        PluginHost(
+          id: devStackPluginId,
+          label: 'Dev stack',
+          worktree: Worktree(path: project.path),
+          workspace: Workspace(
+            root: project.path,
+            declared: [],
+            discovered: [],
+            appContext: AppContext(logger: LogClient.print()),
+            flutterSdk: FlutterSdkPath('/tmp/flutter'),
           ),
-        )
-        ..runProcess = (command, {workingDirectory}) async {
-          ran.add([
-            ...command,
-            if (workingDirectory != null) '@$workingDirectory',
-          ]);
-          return resultFor(command);
-        };
+          config: config,
+        ),
+      )..scriptProcess((command, {workingDirectory}) async {
+        ran.add([
+          ...command,
+          if (workingDirectory != null) '@$workingDirectory',
+        ]);
+        return resultFor(command);
+      });
 
   /// A stack delegated to a project's own CLI, as `DevStack.background(...)`
   /// emits it.
@@ -75,6 +74,25 @@ void main() {
     ],
   ).config;
 
+  /// [localEnvConfig] with the single service's `probe` replaced, or removed
+  /// when [probe] is null — the two shapes a build that cannot read the
+  /// declaration sees.
+  Map<String, Object?> configWithProbe(Object? probe) {
+    var config = localEnvConfig();
+    var service = {
+      ...(config['services']! as List).cast<Map<String, Object?>>().single,
+    };
+    if (probe == null) {
+      service.remove('probe');
+    } else {
+      service['probe'] = probe;
+    }
+    return {
+      ...config,
+      'services': [service],
+    };
+  }
+
   setUp(() {
     runDir = Directory.systemTemp.createTempSync('fw-stack-run-');
     project = Directory.systemTemp.createTempSync('fw-stack-project-');
@@ -93,18 +111,18 @@ void main() {
   group('the config a project writes', () {
     test('survives the trip through the manifest', () {
       var core = coreWith(localEnvConfig());
-      expect(core.declaredProbeCommand, 'stack doctor');
-      expect(core.declaredDirectory, 'packages/server');
-      expect(core.stopIsDestructive, isTrue);
-      expect(core.canControl, isTrue);
-      expect([for (var c in core.commands) c.id], ['logs', 'restart']);
-      expect(core.pollInterval, const Duration(seconds: 10));
+      expect(core.service.declaredProbeCommand, 'stack doctor');
+      expect(core.service.declaredDirectory, 'packages/server');
+      expect(core.service.stopIsDestructive, isTrue);
+      expect(core.service.canControl, isTrue);
+      expect([for (var c in core.service.commands) c.id], ['logs', 'restart']);
+      expect(core.service.pollInterval, const Duration(seconds: 10));
       core.dispose();
     });
 
     test('resolves the working directory against the worktree', () {
       var core = coreWith(localEnvConfig());
-      expect(core.workingDirectory, '${project.path}/packages/server');
+      expect(core.service.workingDirectory, '${project.path}/packages/server');
       core.dispose();
     });
   });
@@ -129,7 +147,7 @@ void main() {
       expect(ran, isEmpty);
       var text = core.report.view.toText();
       expect(text, contains('State: unknown'));
-      expect(text, contains('`fw run dev_stack status` runs the probe'));
+      expect(text, contains('Run `fw run dev_stack status` to check it'));
 
       responses['stack doctor'] = ProcessResult(0, 0, 'All checks passed.', '');
       await core.invoke('status');
@@ -144,13 +162,13 @@ void main() {
     test('reads back what a previous probe cached', () async {
       var first = coreWith(localEnvConfig());
       responses['stack doctor'] = ProcessResult(0, 0, 'All checks passed.', '');
-      await first.refresh();
+      await first.service.refresh();
       first.dispose();
 
       var second = coreWith(localEnvConfig());
       await second.computeAll();
-      expect(second.reading.state, StackState.up);
-      expect(second.reading.detail, 'All checks passed.');
+      expect(second.service.reading.state, StackState.up);
+      expect(second.service.reading.detail, 'All checks passed.');
       // The point of the cache: a cold read says something true and spawns
       // nothing to do it.
       expect(ran.length, 1);
@@ -160,35 +178,92 @@ void main() {
 
   group('a probe the core does not hold', () {
     test('the refusal is not written into the shared cache', () async {
-      var config = localEnvConfig()..remove('probe');
-      var blind = coreWith(config);
-      var refused = await blind.refresh();
-      expect(refused.state, StackState.unavailable);
-      expect(refused.failure, contains('No probe is declared'));
+      var blind = coreWith(configWithProbe(null));
+      // It never becomes a lifecycle at all, which is what makes this
+      // structural rather than a flag somebody has to remember to set: a
+      // service with nothing to probe has no reading to write, so the cache
+      // file — shared by every process on the worktree — cannot be poisoned
+      // by a build that could not read the declaration.
+      expect(blind.services, isEmpty);
+      expect(blind.unreadable.single.reason, contains('No probe is declared'));
       blind.dispose();
 
-      // The refusal is a fact about that build's reading of the config, not
-      // about the stack — and the cache file is shared by every process on
-      // the worktree. A process that could read the probe must not inherit
-      // "no probe is declared" from one that could not.
       var sighted = coreWith(localEnvConfig());
       await sighted.computeAll();
-      expect(sighted.reading.state, StackState.unknown);
+      expect(sighted.service.reading.state, StackState.unknown);
       sighted.dispose();
     });
 
     test('a declared probe this build cannot read is named as such', () async {
-      var config = localEnvConfig();
-      config['probe'] = {
-        'run': {'exec': 'a-shape-from-the-future'},
-        'shape': 'exitCode',
-      };
-      var core = coreWith(config);
-      var refused = await core.refresh();
-      expect(refused.state, StackState.unavailable);
+      var core = coreWith(
+        configWithProbe({
+          'run': {'exec': 'a-shape-from-the-future'},
+          'shape': 'exitCode',
+        }),
+      );
+      expect(core.services, isEmpty);
       // Not "no probe is declared": one *is*, and the sentence saying
       // otherwise about a working config was the consumer-reported symptom.
-      expect(refused.failure, contains('flutterware cannot read'));
+      expect(
+        core.unreadable.single.reason,
+        contains('flutterware cannot read'),
+      );
+      // Still on the panel, named, with the reason — the row is the only
+      // thing that says a service was declared at all.
+      expect(core.report.status.tone, Tone.error);
+      expect(core.report.view.toString(), contains('flutterware cannot read'));
+      core.dispose();
+    });
+
+    test('a kind this build does not know is named too', () {
+      var core = coreWith({
+        'services': [
+          {'id': 'mesh', 'kind': 'sidecar', 'name': 'Service mesh'},
+        ],
+      });
+      expect(core.services, isEmpty);
+      expect(core.unreadable.single.reason, contains('service kind "sidecar"'));
+      core.dispose();
+    });
+
+    test('an owned service with nothing to run is named too', () {
+      var core = coreWith({
+        'services': [
+          {'id': 'server', 'kind': 'owned', 'name': 'API server'},
+        ],
+      });
+      expect(core.services, isEmpty);
+      // Its own sentence, not the delegated one: the missing field is
+      // different and so is the fix.
+      expect(
+        core.unreadable.single.reason,
+        contains('No start command is declared'),
+      );
+      core.dispose();
+    });
+
+    test('an owned service whose readiness will not read is named too', () {
+      var core = coreWith({
+        'services': [
+          {
+            'id': 'server',
+            'kind': 'owned',
+            'start': {
+              'command': ['sleep', '30'],
+            },
+            'ready': {'ready': 'logLine', 'pattern': 'listening on'},
+          },
+        ],
+      });
+      // **Not ready, and not silently ready either.** A check this build
+      // cannot read has to make the whole service unreadable: adopting the
+      // service and dropping the check would render "we could not read how to
+      // tell" as "it is up".
+      expect(core.services, isEmpty);
+      expect(
+        core.unreadable.single.reason,
+        contains('flutterware cannot read'),
+      );
       core.dispose();
     });
   });
@@ -202,7 +277,7 @@ void main() {
         'Doctor for the dev stack\n  docker … OK\nAll checks passed.',
         '',
       );
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.up);
       expect(reading.detail, 'All checks passed.');
       expect(core.report.status.tone, Tone.good);
@@ -212,7 +287,7 @@ void main() {
     test('non-zero is down', () async {
       var core = coreWith(localEnvConfig());
       responses['stack doctor'] = ProcessResult(0, 1, '2 check(s) failed.', '');
-      expect((await core.refresh()).state, StackState.down);
+      expect((await core.service.refresh()).state, StackState.down);
       expect(core.report.status.message, 'down');
       core.dispose();
     });
@@ -227,16 +302,18 @@ void main() {
           '\x1B[32mAll checks passed.\x1B[0m',
           '',
         );
-        expect((await core.refresh()).detail, 'All checks passed.');
+        expect((await core.service.refresh()).detail, 'All checks passed.');
         core.dispose();
       },
     );
 
     test('a command that cannot be spawned is unavailable, not down', () async {
       var core = coreWith(localEnvConfig())
-        ..runProcess = (command, {workingDirectory}) async =>
-            throw const ProcessException('stack', [], 'No such file');
-      var reading = await core.refresh();
+        ..scriptProcess(
+          (command, {workingDirectory}) async =>
+              throw const ProcessException('stack', [], 'No such file'),
+        );
+      var reading = await core.service.refresh();
       // The distinction the five-state design exists for: a probe that could
       // not run says nothing about whether the stack is up.
       expect(reading.state, StackState.unavailable);
@@ -260,7 +337,7 @@ void main() {
          "services":[{"name":"postgres","port":8200,"state":"up"},
                      {"name":"identity","port":8201,"state":"starting"}]}
       ''', '');
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.up);
       expect(reading.detail, 'slot 8200-8208');
       expect(reading.services.map((s) => s.name), ['postgres', 'identity']);
@@ -282,7 +359,7 @@ void main() {
                      {"name":"sync","port":8202,"state":"starting"},
                      {"name":"mail","port":8203,"state":"up"}]}
       ''', '');
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.up);
       expect(reading.isPartial, isTrue);
       expect(reading.serviceCount, (3, 4));
@@ -304,7 +381,7 @@ void main() {
         '{"state":"unavailable","detail":"Something else is on :8080."}',
         '',
       );
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.unavailable);
       expect(reading.failure, 'Something else is on :8080.');
       core.dispose();
@@ -317,7 +394,7 @@ void main() {
       responses['stack doctor'] = ProcessResult(0, 0, '''
         {"state":"up","services":[{"name":"postgres"},{"name":"identity"}]}
       ''', '');
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.serviceCount, isNull);
       expect(reading.isPartial, isFalse);
       expect(core.report.status.message, 'up');
@@ -338,7 +415,7 @@ void main() {
         '{"state":"up","detail":"4 containers"}',
         'Running build hooks...\nnote: using cached layer',
       );
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.up);
       expect(reading.detail, '4 containers');
       core.dispose();
@@ -352,7 +429,7 @@ void main() {
         '',
         'Cannot connect to the Docker daemon.',
       );
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.unavailable);
       // Not "printed something that is not JSON": that buries the sentence
       // explaining the problem under a complaint about the format.
@@ -363,7 +440,7 @@ void main() {
     test('reports unavailable when it cannot say what it is up to', () async {
       var core = coreWith(jsonConfig());
       responses['stack doctor'] = ProcessResult(0, 0, 'not json at all', '');
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.unavailable);
       // Quoted rather than paraphrased — whatever it said is more use than a
       // complaint about the format.
@@ -374,7 +451,7 @@ void main() {
     test('falls back to naming the format when it said nothing', () async {
       var core = coreWith(jsonConfig());
       responses['stack doctor'] = ProcessResult(0, 1, '', '');
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
       expect(reading.state, StackState.unavailable);
       expect(reading.failure, contains('not JSON'));
       core.dispose();
@@ -385,7 +462,7 @@ void main() {
     test('run the declared command and re-probe', () async {
       var core = coreWith(localEnvConfig());
       responses['stack doctor'] = ProcessResult(0, 0, 'All checks passed.', '');
-      var result = await core.start();
+      var result = await core.service.start();
       expect(result.ok, isTrue);
       expect(result.command, 'stack up');
       // Up, then the probe — the caller asked whether it came up, not whether
@@ -397,7 +474,7 @@ void main() {
 
     test('run in the declared working directory', () async {
       var core = coreWith(localEnvConfig());
-      await core.start();
+      await core.service.start();
       expect(ran.first.last, '@${project.path}/packages/server');
       core.dispose();
     });
@@ -405,21 +482,23 @@ void main() {
     test('refuse to overlap', () async {
       var core = coreWith(localEnvConfig());
       var completer = Completer<ProcessResult>();
-      core.runProcess = (command, {workingDirectory}) => completer.future;
-      var first = core.start();
-      expect(core.busy, 'start');
-      await expectLater(core.stop(), throwsA(isA<ActionRefusal>()));
+      core.service.runProcess = (command, {workingDirectory}) =>
+          completer.future;
+      var first = core.service.start();
+      expect(core.service.busy, 'start');
+      await expectLater(core.service.stop(), throwsA(isA<ActionRefusal>()));
       completer.complete(ProcessResult(0, 0, '', ''));
       await first;
-      expect(core.busy, isNull);
+      expect(core.service.busy, isNull);
       core.dispose();
     });
 
     test('a transition wins over the last reading while it is in flight', () async {
       var core = coreWith(localEnvConfig());
       var completer = Completer<ProcessResult>();
-      core.runProcess = (command, {workingDirectory}) => completer.future;
-      var pending = core.start();
+      core.service.runProcess = (command, {workingDirectory}) =>
+          completer.future;
+      var pending = core.service.start();
       // The probe cannot see a compose project that has not finished coming up,
       // so the status must not fall back to what it last said.
       expect(core.report.status.message, 'bringing up');
@@ -436,14 +515,15 @@ void main() {
       // doing, only how long it has been doing it.
       var core = coreWith(localEnvConfig());
       var completer = Completer<ProcessResult>();
-      core.runProcess = (command, {workingDirectory}) => completer.future;
-      expect(core.busyFor, isNull);
-      var pending = core.start();
-      expect(core.busyFor, isNotNull);
-      expect(core.busyFor!.inSeconds, lessThan(2));
+      core.service.runProcess = (command, {workingDirectory}) =>
+          completer.future;
+      expect(core.service.busyFor, isNull);
+      var pending = core.service.start();
+      expect(core.service.busyFor, isNotNull);
+      expect(core.service.busyFor!.inSeconds, lessThan(2));
       completer.complete(ProcessResult(0, 0, '', ''));
       await pending;
-      expect(core.busyFor, isNull);
+      expect(core.service.busyFor, isNull);
       core.dispose();
     });
 
@@ -455,8 +535,8 @@ void main() {
             probe: Probe.exitCode(StackRun.command(['check'])),
           ).config,
         );
-        expect(core.canControl, isFalse);
-        await expectLater(core.start(), throwsA(isA<ActionRefusal>()));
+        expect(core.service.canControl, isFalse);
+        await expectLater(core.service.start(), throwsA(isA<ActionRefusal>()));
         expect([for (var a in core.report.actions) a.id], ['status']);
         core.dispose();
       },
@@ -467,7 +547,15 @@ void main() {
     test('are what fw and an agent see, with stop marked destructive', () {
       var core = coreWith(localEnvConfig());
       var actions = {for (var a in core.report.actions) a.id: a};
-      expect(actions.keys, ['status', 'start', 'stop', 'logs', 'restart']);
+      expect(actions.keys, [
+        'ensure',
+        'history',
+        'status',
+        'start',
+        'stop',
+        'logs',
+        'restart',
+      ]);
       expect(actions['stop']!.danger, isTrue);
       expect(actions['stop']!.confirm, isTrue);
       expect(actions['start']!.danger, isFalse);
@@ -507,11 +595,11 @@ void main() {
     test('offers a step only when there is something to tear down', () async {
       var core = coreWith(localEnvConfig());
       responses['stack doctor'] = ProcessResult(0, 1, 'down', '');
-      await core.refresh();
+      await core.service.refresh();
       expect(core.report.teardown, isEmpty);
 
       responses['stack doctor'] = ProcessResult(0, 0, '4 containers', '');
-      await core.refresh();
+      await core.service.refresh();
       var step = core.report.teardown.single;
       expect(step.id, 'stop');
       expect(step.phase, TeardownPhase.infra);
@@ -527,7 +615,7 @@ void main() {
         DevStack.background(probe: Probe.exitCode(StackRun.command(['check'])))
             .config,
       );
-      await core.refresh();
+      await core.service.refresh();
       expect(core.report.teardown, isEmpty);
       core.dispose();
     });
@@ -623,7 +711,7 @@ void main() {
         '',
       );
 
-      await core.refresh();
+      await core.service.refresh();
 
       expect(ran.single, [
         '/tmp/flutter/bin/dart',
@@ -634,7 +722,7 @@ void main() {
         // script path mean what a person typing it would mean.
         '@${p.join(project.path, 'packages/server')}',
       ]);
-      expect(core.reading.state, StackState.up);
+      expect(core.service.reading.state, StackState.up);
       core.dispose();
     });
 
@@ -645,9 +733,31 @@ void main() {
       writeScript();
       var core = coreWith(scriptConfig());
 
-      await core.refresh();
+      await core.service.refresh();
 
       expect(ran.single, isNot(contains('run')));
+      core.dispose();
+    });
+
+    test('its start and its commands are run with `run`', () async {
+      // Run once, not on a timer, so the hooks cost nothing worth saving — and
+      // `run` is what builds the native assets a server may need.
+      writeScript();
+      var core = coreWith(scriptConfig());
+
+      await core.service.start();
+      await core.service.runCommand('logs');
+
+      var withRun = [
+        for (var command in ran)
+          if (command.contains('run')) command[3],
+      ];
+      expect(withRun, ['up', 'logs']);
+      expect(ran.first.take(3), [
+        '/tmp/flutter/bin/dart',
+        'run',
+        'tool/local_env.dart',
+      ]);
       core.dispose();
     });
 
@@ -656,7 +766,7 @@ void main() {
       // panel is asking.
       var core = coreWith(scriptConfig());
       expect(
-        core.declaredProbeCommand,
+        core.service.declaredProbeCommand,
         'dart tool/local_env.dart status --json',
       );
       core.dispose();
@@ -667,7 +777,7 @@ void main() {
       // the useful sentence buried in it. This is the sentence.
       var core = coreWith(scriptConfig());
 
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
 
       expect(reading.state, StackState.unavailable);
       expect(reading.failure, contains('tool/local_env.dart does not exist'));
@@ -698,10 +808,10 @@ void main() {
         ],
       });
 
-      expect(core.declaredProbeCommand, 'stack doctor');
-      expect(core.canStart, isTrue);
-      expect(core.canStop, isTrue);
-      expect([for (var c in core.commands) c.id], ['logs']);
+      expect(core.service.declaredProbeCommand, 'stack doctor');
+      expect(core.service.canStart, isTrue);
+      expect(core.service.canStop, isTrue);
+      expect([for (var c in core.service.commands) c.id], ['logs']);
       core.dispose();
     });
   });
@@ -714,9 +824,9 @@ void main() {
             .config,
       );
 
-      await core.refresh();
+      await core.service.refresh();
 
-      expect(core.effectivePoll, const Duration(seconds: 10));
+      expect(core.service.effectivePoll, const Duration(seconds: 10));
       core.dispose();
     });
 
@@ -726,20 +836,19 @@ void main() {
       // tool's cost model in a comment.
       var core =
           coreWith(
-              DevStack.background(
-                probe: Probe.exitCode(StackRun.command(['check'])),
-                poll: const Duration(milliseconds: 10),
-              ).config,
-            )
-            ..runProcess = (command, {workingDirectory}) async {
-              await Future<void>.delayed(const Duration(milliseconds: 100));
-              return ProcessResult(0, 0, '', '');
-            };
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+              poll: const Duration(milliseconds: 10),
+            ).config,
+          )..scriptProcess((command, {workingDirectory}) async {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            return ProcessResult(0, 0, '', '');
+          });
 
-      await core.refresh();
+      await core.service.refresh();
 
       expect(
-        core.effectivePoll.inMilliseconds,
+        core.service.effectivePoll.inMilliseconds,
         greaterThanOrEqualTo(400),
         reason: 'a probe may not occupy more than a quarter of its interval',
       );
@@ -753,17 +862,22 @@ void main() {
       var spawns = 0;
       var core =
           coreWith(
-              DevStack.background(
-                probe: Probe.exitCode(StackRun.command(['check'])),
-              ).config,
-            )
-            ..runProcess = (command, {workingDirectory}) {
-              spawns++;
-              return completer.future;
-            };
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+            ).config,
+          )..scriptProcess((command, {workingDirectory}) {
+            spawns++;
+            return completer.future;
+          });
 
-      var first = core.refresh();
-      var second = core.refresh();
+      var first = core.service.refresh();
+      var second = core.service.refresh();
+      // The same future, which is what "joins" means — the second caller gets
+      // the look in flight rather than one of its own. Asserted on the future
+      // rather than on the spawn count alone, because the spawn is now a turn
+      // away: an argv can need resolving before there is anything to run.
+      expect(identical(first, second), isTrue);
+      await Future<void>.delayed(Duration.zero);
       expect(spawns, 1);
 
       completer.complete(ProcessResult(0, 0, '', ''));
@@ -779,21 +893,20 @@ void main() {
       // the rest of the session.
       var core =
           coreWith(
-              DevStack.background(
-                probe: Probe.exitCode(StackRun.command(['check'])),
-              ).config,
-            )
-            ..runProcess = (command, {workingDirectory}) {
-              return Completer<ProcessResult>().future;
-            }
-            ..probeTimeout = const Duration(milliseconds: 20);
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+            ).config,
+          )..scriptProcess(
+            (command, {workingDirectory}) => Completer<ProcessResult>().future,
+          );
+      core.service.probeTimeout = const Duration(milliseconds: 20);
 
-      var reading = await core.refresh();
+      var reading = await core.service.refresh();
 
       expect(reading.state, StackState.unavailable);
       expect(reading.failure, contains('did not answer'));
       // And the guard is clear, so the next poll is not blocked by the dead one.
-      expect(core.isProbing, isFalse);
+      expect(core.service.isProbing, isFalse);
       core.dispose();
     });
   });
@@ -807,34 +920,34 @@ void main() {
     test('releases the stack instead of holding it forever', () async {
       var core =
           coreWith(
-              DevStack.background(
-                probe: Probe.exitCode(StackRun.command(['check'])),
-                start: StackRun.command(['up']),
-                commandTimeout: const Duration(milliseconds: 20),
-                commands: [
-                  StackCommand('logs', 'Logs', StackRun.command(['logs'])),
-                ],
-              ).config,
-            )
-            ..runProcess = (command, {workingDirectory}) =>
-                command.first == 'logs'
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+              start: StackRun.command(['up']),
+              commandTimeout: const Duration(milliseconds: 20),
+              commands: [
+                StackCommand('logs', 'Logs', StackRun.command(['logs'])),
+              ],
+            ).config,
+          )..scriptProcess(
+            (command, {workingDirectory}) => command.first == 'logs'
                 ? Completer<ProcessResult>().future
-                : Future.value(ProcessResult(0, 0, 'ok', ''));
+                : Future.value(ProcessResult(0, 0, 'ok', '')),
+          );
 
-      var result = await core.runCommand('logs');
+      var result = await core.service.runCommand('logs');
 
       expect(result.timedOut, isTrue);
       expect(result.exitCode, isNull, reason: '0 would say it worked');
       expect(result.ok, isFalse);
-      expect(result.stderr, contains('not stopped'));
+      expect(result.stderr, contains('the command is still running'));
       expect(
-        core.busy,
+        core.service.busy,
         isNull,
         reason: 'the claim on the stack is what has to end',
       );
 
       // The whole point: the next command is not refused by the dead one.
-      var after = await core.start();
+      var after = await core.service.start();
       expect(after.ok, isTrue);
       core.dispose();
     });
@@ -842,24 +955,24 @@ void main() {
     test('a StackCommand timeout beats the stack default', () async {
       var core =
           coreWith(
-              DevStack.background(
-                probe: Probe.exitCode(StackRun.command(['check'])),
-                commandTimeout: const Duration(seconds: 30),
-                commands: [
-                  StackCommand(
-                    'logs',
-                    'Logs',
-                    StackRun.command(['logs']),
-                    timeout: const Duration(milliseconds: 20),
-                  ),
-                ],
-              ).config,
-            )
-            ..runProcess = (command, {workingDirectory}) =>
-                Completer<ProcessResult>().future;
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+              commandTimeout: const Duration(seconds: 30),
+              commands: [
+                StackCommand(
+                  'logs',
+                  'Logs',
+                  StackRun.command(['logs']),
+                  timeout: const Duration(milliseconds: 20),
+                ),
+              ],
+            ).config,
+          )..scriptProcess(
+            (command, {workingDirectory}) => Completer<ProcessResult>().future,
+          );
 
       // Resolves at all, rather than waiting the stack's 30s.
-      var result = await core.runCommand('logs');
+      var result = await core.service.runCommand('logs');
       expect(result.timedOut, isTrue);
       expect(result.stderr, contains('0s'));
       core.dispose();
@@ -870,54 +983,295 @@ void main() {
     test('are reported apart as well as combined', () async {
       var core =
           coreWith(
-              DevStack.background(
-                probe: Probe.exitCode(StackRun.command(['check'])),
-                start: StackRun.command(['up']),
-              ).config,
-            )
-            ..runProcess = (command, {workingDirectory}) => Future.value(
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+              start: StackRun.command(['up']),
+            ).config,
+          )..scriptProcess(
+            (command, {workingDirectory}) => Future.value(
               ProcessResult(
                 0,
                 0,
                 'started 4 containers',
-                'Running build '
-                    'hooks...',
+                'Pulling postgres:16...',
               ),
-            );
+            ),
+          );
 
-      var result = await core.start();
+      var result = await core.service.start();
 
       expect(result.stdout, 'started 4 containers');
       expect(
         result.stderr,
-        'Running build hooks...',
+        'Pulling postgres:16...',
         reason: 'the half a renderer wants to put somewhere else',
       );
       expect(
         result.output,
-        'started 4 containers\nRunning build hooks...',
+        'started 4 containers\nPulling postgres:16...',
         reason: 'and the merged order is still what the panel draws',
       );
       expect(result.toJson()['stdout'], 'started 4 containers');
       core.dispose();
     });
 
+    test('what `dart run` says about itself stays out of the output', () async {
+      // A script's start is `dart run` now, and the CLI's progress arrives on
+      // stderr with no newline — in front of whatever the script said.
+      var core =
+          coreWith(
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+              start: StackRun.command(['up']),
+            ).config,
+          )..scriptProcess(
+            (command, {workingDirectory}) => Future.value(
+              ProcessResult(
+                0,
+                0,
+                'listening on 8080',
+                'Running build hooks...Running build hooks...slot 3 in use',
+              ),
+            ),
+          );
+
+      var result = await core.service.start();
+
+      expect(result.output, 'listening on 8080\nslot 3 in use');
+      core.dispose();
+    });
+
     test('a one-stream command does not carry its output twice', () async {
       var core =
           coreWith(
-              DevStack.background(
-                probe: Probe.exitCode(StackRun.command(['check'])),
-                start: StackRun.command(['up']),
-              ).config,
-            )
-            ..runProcess = (command, {workingDirectory}) =>
-                Future.value(ProcessResult(0, 0, 'quiet success', ''));
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+              start: StackRun.command(['up']),
+            ).config,
+          )..scriptProcess(
+            (command, {workingDirectory}) =>
+                Future.value(ProcessResult(0, 0, 'quiet success', '')),
+          );
 
-      var json = (await core.start()).toJson();
+      var json = (await core.service.start()).toJson();
       expect(json['output'], 'quiet success');
       expect(json.containsKey('stdout'), isFalse);
       expect(json.containsKey('stderr'), isFalse);
       core.dispose();
     });
   });
+
+  group('several services', () {
+    /// A stack and a server, which is the shape the plugin was pluralised for.
+    Map<String, Object?> twoServices() => DevStack(
+      services: [
+        StackService.delegated(
+          'stack',
+          name: 'Local stack',
+          probe: Probe.exitCode(StackRun.command(['stack', 'doctor'])),
+          start: StackRun.command(['stack', 'up']),
+          stop: StackRun.command(['stack', 'down']),
+          commands: [
+            StackCommand('logs', 'Logs', StackRun.command(['stack', 'logs'])),
+          ],
+        ),
+        StackService.delegated(
+          'server',
+          name: 'API server',
+          probe: Probe.exitCode(StackRun.command(['server', 'health'])),
+          start: StackRun.command(['server', 'up']),
+          commands: [
+            StackCommand('logs', 'Logs', StackRun.command(['server', 'logs'])),
+          ],
+        ),
+      ],
+    ).config;
+
+    test('a reading nobody has taken names the action that takes it', () async {
+      var core = coreWith(twoServices());
+      await core.computeAll();
+      var text = core.report.view.toText();
+      // The hint is only worth reading if the action it names exists, and
+      // with two services the bare `status` does not.
+      expect(text, contains('Run `fw run dev_stack stack.status` to check it'));
+      expect(
+        text,
+        contains('Run `fw run dev_stack server.status` to check it'),
+      );
+      expect(text, isNot(contains('`fw run dev_stack status`')));
+      core.dispose();
+    });
+
+    test('every action names the service it acts on', () {
+      var core = coreWith(twoServices());
+      expect(
+        [for (var a in core.report.actions) a.id],
+        [
+          // The stack's own, so not prefixed: they span the services.
+          'ensure',
+          'history',
+          'stack.status',
+          'stack.start',
+          'stack.stop',
+          'stack.logs',
+          'server.status',
+          'server.start',
+          'server.logs',
+        ],
+        reason:
+            'the service is in the id, not in an argument — both configs in '
+            'evidence declare a command whose own argument is called `service`',
+      );
+      // And `server` has no `stop`, so it is not offered one.
+      expect([
+        for (var a in core.report.actions) a.id,
+      ], isNot(contains('server.stop')));
+      core.dispose();
+    });
+
+    test('one service keeps the bare ids it always had', () {
+      var core = coreWith(localEnvConfig());
+      expect(
+        [for (var a in core.report.actions) a.id],
+        ['ensure', 'history', 'status', 'start', 'stop', 'logs', 'restart'],
+      );
+      core.dispose();
+    });
+
+    test('an unreadable service still forces the prefix', () {
+      // Otherwise fixing the unreadable one — which is what the panel tells
+      // you to do — would silently rename every action the other one offers.
+      var config = twoServices();
+      var services = (config['services']! as List).cast<Map<String, Object?>>();
+      var core = coreWith({
+        'services': [
+          services.first,
+          {'id': 'server', 'kind': 'from-the-future'},
+        ],
+      });
+      expect(core.services.single.id, 'stack');
+      expect([
+        for (var a in core.report.actions) a.id,
+      ], contains('stack.status'));
+      core.dispose();
+    });
+
+    test('invoke reaches the service the id names', () async {
+      var core = coreWith(twoServices());
+      await core.invoke('server.start');
+      // `start` re-probes when it returns, and it probes *that* service.
+      expect(
+        [for (var command in ran) command.take(2).join(' ')],
+        ['server up', 'server health'],
+      );
+
+      ran.clear();
+      await core.invoke('stack.logs');
+      expect(ran.single.take(2), ['stack', 'logs']);
+
+      ran.clear();
+      await expectLater(
+        core.invoke('server.recreate'),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(ran, isEmpty);
+      core.dispose();
+    });
+
+    test('the sidebar counts services the way it counts containers', () async {
+      var core = coreWith(twoServices());
+      responses['stack doctor'] = ProcessResult(0, 0, '', '');
+      responses['server health'] = ProcessResult(0, 1, '', '');
+      await core.refreshAll();
+      expect(core.report.status.message, 'up 1/2');
+      expect(core.report.status.tone, Tone.warn);
+
+      responses['server health'] = ProcessResult(0, 0, '', '');
+      await core.refreshAll();
+      expect(core.report.status.message, 'up');
+      expect(core.report.status.tone, Tone.good);
+      core.dispose();
+    });
+
+    test('each service is a sidebar child, and one service is none', () async {
+      var core = coreWith(twoServices());
+      responses['stack doctor'] = ProcessResult(0, 0, '', '');
+      responses['server health'] = ProcessResult(0, 1, '', '');
+      await core.refreshAll();
+      expect([for (var c in core.report.children) c.id], ['stack', 'server']);
+      expect(
+        [for (var c in core.report.children) c.label],
+        ['Local stack', 'API server'],
+      );
+      expect(core.report.children.last.status.message, 'down');
+      core.dispose();
+
+      // A single child under a row that says the same thing is an expander
+      // that expands to itself.
+      var one = coreWith(localEnvConfig());
+      expect(one.report.children, isEmpty);
+      one.dispose();
+    });
+
+    test('teardown offers a step per service that is up', () async {
+      var core = coreWith(twoServices());
+      responses['stack doctor'] = ProcessResult(0, 0, '', '');
+      responses['server health'] = ProcessResult(0, 0, '', '');
+      await core.refreshAll();
+      // `server` declares no `stop`, so it has no step rather than a dead one.
+      expect([for (var s in core.report.teardown) s.id], ['stack.stop']);
+      core.dispose();
+    });
+
+    test('the cache keeps a reading per service, in one file', () async {
+      var first = coreWith(twoServices());
+      responses['stack doctor'] = ProcessResult(0, 0, 'four containers', '');
+      responses['server health'] = ProcessResult(0, 1, '', '');
+      await first.refreshAll();
+      first.dispose();
+
+      expect(
+        runDir.listSync().whereType<File>().where(
+          (f) => p.basename(f.path).startsWith('stack-'),
+        ),
+        hasLength(1),
+        reason: 'one file per worktree is what the explorer column reads',
+      );
+
+      ran.clear();
+      var second = coreWith(twoServices());
+      await second.computeAll();
+      expect(second.services.first.reading.state, StackState.up);
+      expect(second.services.first.reading.detail, 'four containers');
+      expect(second.services.last.reading.state, StackState.down);
+      expect(ran, isEmpty, reason: 'a cold read spawns nothing');
+      second.dispose();
+    });
+
+    test('two services cannot share an id', () {
+      expect(
+        () => DevStack(
+          services: [
+            StackService.delegated(
+              'stack',
+              probe: Probe.exitCode(StackRun.command(['a'])),
+            ),
+            StackService.delegated(
+              'stack',
+              probe: Probe.exitCode(StackRun.command(['b'])),
+            ),
+          ],
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+  });
+}
+
+/// The single service, for the configs above — every one of them declares one.
+///
+/// The container is what a shell talks to; the lifecycle is per service, so a
+/// test asserting on a probe or a transition is asserting about one of these.
+extension on DevStackCore {
+  DelegatedServiceCore get service => only! as DelegatedServiceCore;
 }

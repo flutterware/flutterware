@@ -1276,9 +1276,392 @@ class LauncherIconPackage extends PluginPackage {
   const LauncherIconPackage(super.pkg);
 }
 
-/// A long-lived external thing whose lifecycle is **delegated to project
-/// commands** and whose state is polled — the docker stack, the emulator suite,
-/// the database container the app talks to in development.
+/// Everything that has to be up for this project's app to work locally.
+///
+/// A list, because a project has more than one: the docker stack *and* the API
+/// server *and* the worker that reads its queue. Each entry is a
+/// [StackService] with its own state, its own control and its own commands,
+/// and the panel is the list of them.
+///
+/// Two kinds, and the discriminator is **who owns the process** — a question a
+/// config author can answer without knowing anything about flutterware. A
+/// [StackService.delegated] is one the project's own CLI owns: `up` returns and
+/// leaves something running, `status` answers, `down` exists. A
+/// [StackService.owned] is one flutterware spawns and holds the pid of, which
+/// is what a process you would otherwise keep in a terminal tab and stop with
+/// Ctrl-C has to be.
+///
+/// ```dart
+/// fw.use(DevStack(services: [
+///   StackService.delegated('stack',
+///     name: 'Local stack',
+///     workingDirectory: 'packages/server',
+///     probe: Probe.json(StackRun.script('tool/local_env.dart',
+///         args: ['status', '--json'])),
+///     start: StackRun.script('tool/local_env.dart', args: ['up']),
+///     stop: StackRun.script('tool/local_env.dart', args: ['down']),
+///     stopIsDestructive: true),
+///   StackService.owned('server',
+///     name: 'API server',
+///     workingDirectory: 'packages/server',
+///     start: StackRun.script('bin/server_local.dart'),
+///     ready: Ready.http(8100, path: '/health',
+///         timeout: Duration(seconds: 30))),
+/// ]));
+/// ```
+///
+/// **Ids are how everything else names a service.** `fw run dev_stack
+/// server.start` and an agent's `flutterware_invoke` both address one entry by
+/// its [StackService.id], and a teardown step carries it too. With a single
+/// service declared the prefix is dropped and the actions are the bare
+/// `start` / `stop` / `status` they have always been, so a project that
+/// declares one thing sees exactly what it saw before.
+///
+/// `Dev` is a safety word and the reason this is not called `Services`: the
+/// plugin can run a `stop` that drops a database, and a name that scopes it to
+/// local development is the cheapest guard against someone pointing it at
+/// something real.
+class DevStack extends Plugin {
+  DevStack({required this.services, String? label})
+    : super('flutterware.dev_stack', label: label ?? 'Dev stack') {
+    var seen = <String>{};
+    for (var service in services) {
+      if (!seen.add(service.id)) {
+        throw StateError(
+          'Two services in this DevStack have the id "${service.id}". Give '
+          'each service its own id.',
+        );
+      }
+    }
+    for (var service in services) {
+      for (var need in service.needs) {
+        if (!seen.contains(need)) {
+          throw StateError(
+            'Service "${service.id}" needs "$need", but no service in this '
+            'DevStack has that id. The ids are: ${seen.join(', ')}.',
+          );
+        }
+      }
+    }
+    if (_circleIn(services) case var circle?) {
+      throw StateError(
+        'Services in this DevStack need each other in a circle: '
+        '${circle.join(' → ')}. Remove one of these needs.',
+      );
+    }
+  }
+
+  /// The first circle [StackService.needs] makes, as the ids around it with
+  /// the first one repeated at the end, or null when there is none.
+  static List<String>? _circleIn(List<StackService> services) {
+    var byId = {for (var service in services) service.id: service};
+    var done = <String>{};
+    var path = <String>[];
+    List<String>? visit(String id) {
+      if (done.contains(id)) return null;
+      if (path.contains(id)) return [...path.sublist(path.indexOf(id)), id];
+      path.add(id);
+      for (var need in byId[id]?.needs ?? const <String>[]) {
+        if (visit(need) case var circle?) return circle;
+      }
+      path.removeLast();
+      done.add(id);
+      return null;
+    }
+
+    for (var service in services) {
+      if (visit(service.id) case var circle?) return circle;
+    }
+    return null;
+  }
+
+  /// The one-service shorthand, and what this plugin took before it took a
+  /// list. Declares a single [StackService.delegated] with the id `stack`.
+  ///
+  /// Kept because it is what every config pinning an older flutterware already
+  /// says, and because one delegated stack remains the common case. It is a
+  /// spelling of the list, not a different plugin: the panel, the actions and
+  /// the cache are the same either way.
+  DevStack.background({
+    required Probe probe,
+    StackRun? start,
+    StackRun? stop,
+    String? workingDirectory,
+    Duration poll = const Duration(seconds: 10),
+    Duration commandTimeout = const Duration(minutes: 10),
+    bool stopIsDestructive = false,
+    List<StackCommand> commands = const [],
+    String? label,
+  }) : this(
+         label: label,
+         services: [
+           StackService.delegated(
+             'stack',
+             name: label ?? 'Dev stack',
+             probe: probe,
+             start: start,
+             stop: stop,
+             workingDirectory: workingDirectory,
+             poll: poll,
+             commandTimeout: commandTimeout,
+             stopIsDestructive: stopIsDestructive,
+             commands: commands,
+           ),
+         ],
+       );
+
+  final List<StackService> services;
+
+  @override
+  Map<String, Object?> get config => {
+    'services': [for (var service in services) service.toJson()],
+  };
+}
+
+/// One thing in the [DevStack] with a lifecycle of its own.
+///
+/// The discriminator between the kinds is **who owns the process** — which is
+/// a question a config author can answer without knowing anything about
+/// flutterware. A [StackService.delegated] is one the project's own CLI owns:
+/// `up` returns and leaves something running, `status` answers, `down` exists.
+sealed class StackService {
+  const StackService(
+    this.id, {
+    this.name,
+    this.workingDirectory,
+    this.needs = const [],
+    this.poll = const Duration(seconds: 10),
+    this.commandTimeout = const Duration(minutes: 10),
+    this.commands = const [],
+  });
+
+  /// A lifecycle the project's own commands own. flutterware polls [probe] and
+  /// runs [start] / [stop] when told to; it holds no process and no pid.
+  const factory StackService.delegated(
+    String id, {
+    String? name,
+    required Probe probe,
+    StackRun? start,
+    StackRun? stop,
+    String? workingDirectory,
+    List<String> needs,
+    Duration poll,
+    Duration commandTimeout,
+    bool stopIsDestructive,
+    List<StackCommand> commands,
+  }) = DelegatedStackService;
+
+  /// A process flutterware spawns and holds itself: it has the pid, it owns
+  /// the log, and stopping it is a signal rather than someone else's command.
+  const factory StackService.owned(
+    String id, {
+    String? name,
+    required StackRun start,
+    required Ready ready,
+    String? workingDirectory,
+    List<String> needs,
+    Map<String, String> env,
+    Map<String, ValueSource> envFrom,
+    Duration stopGrace,
+    Duration poll,
+    Duration commandTimeout,
+    List<StackCommand> commands,
+  }) = OwnedStackService;
+
+  /// Stable within the plugin — what an action, a teardown step and a cached
+  /// reading are keyed on. `stack`, `server`, `worker`.
+  final String id;
+
+  /// What a human and an agent call it. [id] when null.
+  final String? name;
+
+  /// Where this service's commands run, relative to the worktree root. The
+  /// worktree root itself when null.
+  final String? workingDirectory;
+
+  /// The services that have to be up before this one starts, by [id].
+  ///
+  /// ```dart
+  /// StackService.owned('server', needs: ['db'], …)
+  /// ```
+  ///
+  /// `ensure` reads it: asked for the server, it brings up the database
+  /// first, waits until it is up, then starts the server. A service that does
+  /// not come up stops everything that needs it. `start` on its own starts
+  /// only the one service.
+  ///
+  /// Every id must be another service in the same [DevStack], and the needs
+  /// must not go round in a circle. Both are checked when the config loads.
+  final List<String> needs;
+
+  /// How often to re-read this service's state while something is watching.
+  ///
+  /// The declaration says the timescale; the shell decides whether to look at
+  /// all. Only this declaration knows how fast the subject changes — a docker
+  /// stack does not come up twice a minute — and only the shell knows about
+  /// window focus and which panel is on screen. So the shell scales this rather
+  /// than replacing it, and a service that is nowhere on screen is not polled.
+  ///
+  /// The defaults differ by kind because the reading costs differ by two orders
+  /// of magnitude: a delegated service spawns its probe, and an owned one asks
+  /// whether a pid is alive and whether a socket accepts.
+  ///
+  /// Only the studio polls. `fw` and the MCP server never do: they report the
+  /// reading the last check left in the shared cache, from whichever process
+  /// ran it, and on a worktree nothing has checked yet that reading is
+  /// `unknown`. The `status` action is what goes and looks, and every surface
+  /// reads its answer afterwards.
+  final Duration poll;
+
+  /// How long to wait for `start`, `stop` or a [StackCommand] before giving up
+  /// on it. [StackCommand.timeout] overrides this per command.
+  ///
+  /// It bounds the wait, not the process. Nothing is killed when this expires:
+  /// a `docker compose up` interrupted half way through leaves the stack in an
+  /// indeterminate state, and flutterware does not own a delegated command well
+  /// enough to make that call. What it does end is flutterware's *claim* on the
+  /// service — without which one command that never returns takes every later
+  /// one with it, because a transition in flight is what refuses the next.
+  ///
+  /// So the default is generous rather than tight: ten minutes is longer than
+  /// any bring-up that is actually working and short enough that a session
+  /// recovers on its own. A command that is *meant* to run forever — `logs
+  /// --follow` — wants a [StackCommand.timeout] of a few seconds instead, and
+  /// really wants a streaming kind, which does not exist yet.
+  final Duration commandTimeout;
+
+  /// Everything else this service can be asked to do: logs, restart, recreate,
+  /// prune.
+  ///
+  /// Each spawns a **new process**. There is deliberately no way to write to a
+  /// running service's stdin: a service that outlives the GUI has no stdin to
+  /// write to, and every tool that offers real control offers it over a socket
+  /// or an HTTP port, which is another command.
+  final List<StackCommand> commands;
+
+  Map<String, Object?> toJson();
+
+  /// The fields every kind carries, so a reader can pick the kind apart from
+  /// the rest and the two do not drift.
+  Map<String, Object?> baseJson(String kind) => {
+    'id': id,
+    'kind': kind,
+    if (name != null) 'name': name,
+    if (workingDirectory != null) 'workingDirectory': workingDirectory,
+    if (needs.isNotEmpty) 'needs': needs,
+    'poll': poll.inMilliseconds,
+    'commandTimeout': commandTimeout.inMilliseconds,
+    if (commands.isNotEmpty) 'commands': [for (var c in commands) c.toJson()],
+  };
+
+  /// Every service a `config` map declares, in declaration order.
+  ///
+  /// Reads the flat shape too — `probe`/`start`/`stop` at the top level, with
+  /// no `services` list — because that is what a project pinning an older
+  /// flutterware writes, and a config that stops being read is a panel that
+  /// stops knowing anything. It becomes one delegated service with the id
+  /// `stack`, which is exactly what [DevStack.background] declares today.
+  static List<StackService> listFromConfig(Map<String, Object?> config) {
+    if (config['services'] case List raw) {
+      return [
+        for (var entry in raw)
+          if (entry is Map) ?fromJson(entry.cast<String, Object?>()),
+      ];
+    }
+    if (config['probe'] == null) return const [];
+    return [
+      ?fromJson({...config, 'id': 'stack'}),
+    ];
+  }
+
+  /// Reads back what [toJson] wrote.
+  ///
+  /// An entry with no `kind` is delegated, which is what every config written
+  /// before there was a second kind means. An entry this build cannot read
+  /// comes back as an [UnreadableStackService] rather than as null, so it is
+  /// still named on the panel with the reason — *the config declared
+  /// something and this build cannot read it* and *the config declared
+  /// nothing* are different sentences with different fixes, and silently
+  /// dropping the row tells you neither.
+  ///
+  /// Null only when there is no id, which is the one thing nothing can be
+  /// reported under.
+  static StackService? fromJson(Map<String, Object?> json) {
+    var id = json['id'];
+    if (id is! String || id.isEmpty) return null;
+    var name = json['name'] as String?;
+    switch (json['kind']) {
+      case 'owned':
+        var read = OwnedStackService.fromJson(json);
+        if (read != null) return read;
+        return UnreadableStackService(
+          id,
+          name: name,
+          reason: json['start'] == null
+              ? 'No start command is declared, so there is nothing to run.'
+              : 'The config declares a start command or a readiness check this '
+                    'version of flutterware cannot read, perhaps one written '
+                    'for a newer version. Run `dart run flutterware` again, or '
+                    'simplify the declaration.',
+        );
+      case null || 'delegated':
+        var read = DelegatedStackService.fromJson(json);
+        if (read != null) return read;
+        // Two sentences, because they have different fixes — and the pair was
+        // reported from the field, where a working config was told "No probe
+        // is declared" by a build that simply could not read the one it had.
+        return UnreadableStackService(
+          id,
+          name: name,
+          reason: json['probe'] == null
+              ? 'No probe is declared, so flutterware cannot tell what state '
+                    'this service is in.'
+              : 'The config declares a probe this version of flutterware '
+                    'cannot read, perhaps one written for a newer version. '
+                    'Run `dart run flutterware` again, or simplify the '
+                    'declaration.',
+        );
+      case 'unreadable':
+        return UnreadableStackService(
+          id,
+          name: name,
+          reason: json['reason'] as String? ?? 'It could not be read.',
+        );
+      case var kind:
+        return UnreadableStackService(
+          id,
+          name: name,
+          reason:
+              'This version of flutterware does not know the service kind '
+              '"$kind", perhaps one written for a newer version. Upgrade the '
+              'flutterware running here.',
+        );
+    }
+  }
+}
+
+/// A service the config declared and this build cannot read.
+///
+/// It has no lifecycle and no actions — it exists so the row is still on the
+/// panel, named, saying why. A future kind read by an older flutterware lands
+/// here rather than disappearing, which is the difference between a confusing
+/// panel and a wrong one.
+final class UnreadableStackService extends StackService {
+  const UnreadableStackService(super.id, {super.name, required this.reason});
+
+  /// What to say instead of a state.
+  final String reason;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'kind': 'unreadable',
+    if (name != null) 'name': name,
+    'reason': reason,
+  };
+}
+
+/// See [StackService.delegated].
 ///
 /// It owns nothing. flutterware runs [probe] to find out what is going on
 /// and runs [start] / [stop] when told to; the project's own CLI stays the
@@ -1319,30 +1702,28 @@ class LauncherIconPackage extends PluginPackage {
 /// ));
 /// ```
 ///
-/// Named `.background` for what it requires of the tool, not for how this
-/// is implemented: the command must return, leaving something running behind
-/// it. A tool you stop with Ctrl-C — `firebase emulators:start`, `tilt up`,
-/// `ngrok http` — cannot be declared this way, because there is no `stop` to
-/// name and nothing to ask whether it is up. That is a second constructor,
-/// `.foreground`, which is designed but not built: no project has needed it
-/// yet, and its readiness check wants a real tool to be designed against.
-/// The constructor is named now so that adding it is an addition rather than
-/// a rename.
+/// Delegated is a requirement on the tool, not a description of how this is
+/// implemented: the command must return, leaving something running behind it.
+/// A tool you stop with Ctrl-C — `firebase emulators:start`, `tilt up`,
+/// `ngrok http`, a plain `dart bin/server.dart` — cannot be declared this way,
+/// because there is no `stop` to name and nothing to ask whether it is up.
+/// That is `StackService.owned`, where flutterware holds the process itself
+/// — and with it a pid to check, a log to keep and a stop to get right.
 ///
-/// One per project. A second stack needs an id the registry can resolve, and
-/// v1's registry is keyed on the exact id.
-class DevStack extends Plugin {
-  DevStack.background({
+final class DelegatedStackService extends StackService {
+  const DelegatedStackService(
+    super.id, {
+    super.name,
     required this.probe,
     this.start,
     this.stop,
-    this.workingDirectory,
-    this.poll = const Duration(seconds: 10),
-    this.commandTimeout = const Duration(minutes: 10),
+    super.workingDirectory,
+    super.needs,
+    super.poll,
+    super.commandTimeout,
     this.stopIsDestructive = false,
-    this.commands = const [],
-    String? label,
-  }) : super('flutterware.dev_stack', label: label ?? 'Dev stack');
+    super.commands,
+  });
 
   /// How to find out what state the stack is in.
   final Probe probe;
@@ -1355,64 +1736,437 @@ class DevStack extends Plugin {
   /// Takes it down. Null has the same meaning as a null [start].
   final StackRun? stop;
 
-  /// Where the commands run, relative to the worktree root. The worktree root
-  /// itself when null.
-  final String? workingDirectory;
-
-  /// How often to re-run [probe] while something is watching.
-  ///
-  /// The plugin declares the timescale; the shell decides whether to poll at
-  /// all. Only this declaration knows how fast the subject changes — a docker
-  /// stack does not come up twice a minute — and only the shell knows about
-  /// window focus and which panel is on screen. So the shell scales this rather
-  /// than replacing it, and a stack that is nowhere on screen is not polled.
-  ///
-  /// Only the studio polls. `fw` and the MCP server never do: they report the
-  /// reading the last probe left in the shared cache, from whichever process
-  /// ran it, and on a worktree nothing has probed yet that reading is
-  /// `unknown`. The `status` action is what goes and looks, and every surface
-  /// reads its answer afterwards.
-  final Duration poll;
-
-  /// How long to wait for `start`, `stop` or a [StackCommand] before giving up
-  /// on it. [StackCommand.timeout] overrides this per command.
-  ///
-  /// It bounds the wait, not the process. Nothing is killed when this expires:
-  /// a `docker compose up` interrupted half way through leaves the stack in an
-  /// indeterminate state, and flutterware does not own the command well enough
-  /// to make that call. What it does end is flutterware's *claim* on the stack
-  /// — without which one command that never returns takes every later one with
-  /// it, because a transition in flight is what refuses the next.
-  ///
-  /// So the default is generous rather than tight: ten minutes is longer than
-  /// any bring-up that is actually working and short enough that a session
-  /// recovers on its own. A command that is *meant* to run forever — `logs
-  /// --follow` — wants a [StackCommand.timeout] of a few seconds instead, and
-  /// really wants a streaming kind, which does not exist yet.
-  final Duration commandTimeout;
-
   /// [stop] destroys data — `down --volumes` drops the database. Renderers make
   /// the control distinct and ask first.
   final bool stopIsDestructive;
 
-  /// Everything else the stack's CLI can do: logs, restart, recreate, prune.
-  ///
-  /// Each spawns a **new process**. There is deliberately no way to write to a
-  /// running stack's stdin: a stack that outlives the GUI has no stdin to
-  /// write to, and every tool that offers real control offers it over a socket
-  /// or an HTTP port, which is another command.
-  final List<StackCommand> commands;
-
   @override
-  Map<String, Object?> get config => {
+  Map<String, Object?> toJson() => {
+    ...baseJson('delegated'),
     'probe': probe.toJson(),
     if (start != null) 'start': start!.toJson(),
     if (stop != null) 'stop': stop!.toJson(),
-    if (workingDirectory != null) 'workingDirectory': workingDirectory,
-    'poll': poll.inMilliseconds,
-    'commandTimeout': commandTimeout.inMilliseconds,
     if (stopIsDestructive) 'stopIsDestructive': true,
-    if (commands.isNotEmpty) 'commands': [for (var c in commands) c.toJson()],
+  };
+
+  /// Null when there is no probe to read, which is the one field without which
+  /// nothing here can say anything at all.
+  static DelegatedStackService? fromJson(Map<String, Object?> json) {
+    var id = json['id'];
+    if (id is! String || id.isEmpty) return null;
+    var probe = json['probe'];
+    if (probe is! Map) return null;
+    var read = Probe.fromJson(probe.cast<String, Object?>());
+    if (read == null) return null;
+    return DelegatedStackService(
+      id,
+      name: json['name'] as String?,
+      probe: read,
+      start: StackRun.fromJson(json['start']),
+      stop: StackRun.fromJson(json['stop']),
+      workingDirectory: json['workingDirectory'] as String?,
+      needs: _needs(json['needs']),
+      poll: _millis(json['poll']) ?? const Duration(seconds: 10),
+      commandTimeout:
+          _millis(json['commandTimeout']) ?? const Duration(minutes: 10),
+      stopIsDestructive: json['stopIsDestructive'] == true,
+      commands: [
+        for (var entry in (json['commands'] as List? ?? const []))
+          if (entry is Map)
+            ?StackCommand.fromJson(entry.cast<String, Object?>()),
+      ],
+    );
+  }
+}
+
+Duration? _millis(Object? raw) =>
+    raw is int && raw > 0 ? Duration(milliseconds: raw) : null;
+
+List<String> _needs(Object? raw) => [
+  for (var id in raw is List ? raw : const []) ?(id is String ? id : null),
+];
+
+/// See [StackService.owned].
+///
+/// flutterware spawns it, holds the pid, and owns the file its output goes to.
+/// That is the whole difference from [DelegatedStackService], and everything
+/// else follows from it: there is no `stop` to declare because stopping is a
+/// signal, no `logs` to declare because the log is ours, and no probe to
+/// declare because the pid answers whether it is running — [ready] answers the
+/// harder question of whether it is *usable*.
+///
+/// The kind exists for the process you would otherwise keep in a terminal tab
+/// and stop with Ctrl-C: `dart bin/server.dart`, a uvicorn, a queue worker,
+/// `firebase emulators:start`, `ngrok http`. None of those can be declared
+/// delegated — there is no command that returns leaving them running, and
+/// nothing to ask whether they are up.
+///
+/// ```dart
+/// StackService.owned('server',
+///   name: 'API server',
+///   workingDirectory: 'packages/server',
+///   start: StackRun.script('bin/server_local.dart'),
+///   ready: Ready.http(8100, path: '/health', timeout: Duration(seconds: 30))),
+/// ```
+///
+/// **Nothing here is Dart-specific.** A [StackRun.command] names its own
+/// interpreter, so a Python server is the same declaration with a different
+/// runner — which is the point, since the language a dependency is written in
+/// is not a fact about the app that depends on it.
+///
+/// ```dart
+/// StackService.owned('ml',
+///   workingDirectory: 'packages/ml_backend',
+///   start: StackRun.command(['uv', 'run', 'uvicorn', 'app:api', '--port', '8099']),
+///   ready: Ready.port(8099, timeout: Duration(seconds: 60))),
+/// ```
+///
+/// **It is spawned detached, on purpose.** The process is not a child of the
+/// GUI, so closing the window does not take the server with it and reopening
+/// it finds the same process again rather than starting a second one. The
+/// price is the orphan: a service left running by a session that crashed. That
+/// is what the handle file under `~/.flutterware/run/` is for — it is how the
+/// next session knows the pid, and it is checked before every start, so a
+/// second bring-up adopts what is running instead of colliding with it.
+final class OwnedStackService extends StackService {
+  const OwnedStackService(
+    super.id, {
+    super.name,
+    required this.start,
+    required this.ready,
+    super.workingDirectory,
+    super.needs,
+    this.env = const {},
+    this.envFrom = const {},
+    this.stopGrace = const Duration(seconds: 5),
+    super.poll = const Duration(seconds: 3),
+    super.commandTimeout,
+    super.commands,
+  });
+
+  /// What to spawn. It is expected **not** to return — that is what makes this
+  /// kind the right one.
+  final StackRun start;
+
+  /// When the spawned process counts as usable.
+  ///
+  /// Required, because the honest answers differ and none of them is a safe
+  /// default. A server has a port or a health URL; a worker that talks to
+  /// nothing but a queue has neither, and [Ready.processAlive] says so out
+  /// loud rather than pretending to a check it cannot make.
+  final Ready ready;
+
+  /// Environment the process is started with, on top of the one a new
+  /// terminal window has.
+  ///
+  /// For what a config file can state as a fact — the name of a binary the
+  /// service should call, a flag that only means anything in development.
+  /// Anything whose value is a property of *this machine* or *this worktree*
+  /// belongs in [envFrom]: a home directory written into a committed file is
+  /// wrong on the next machine, and quietly.
+  ///
+  /// ```dart
+  /// env: {'FFMPEG_BIN': 'ffmpeg', 'CONVERT_BIN': 'convert'},
+  /// ```
+  final Map<String, String> env;
+
+  /// Environment the project computes, resolved once per start.
+  ///
+  /// Two fields rather than one union, because the two are different kinds of
+  /// thing and reading them together should say so. A [ValueSource] is a
+  /// *question* — something flutterware goes and asks — and wrapping a literal
+  /// in one to fit a single map would make every ordinary value look like a
+  /// question that happens to have a constant answer.
+  ///
+  /// ```dart
+  /// envFrom: {'MODEL_TOOLS_DIR': ValueSource.script('tool/model_tools_dir.dart')},
+  /// ```
+  ///
+  /// Same contract as [Ready.portFrom]: asked before anything is spawned, and
+  /// a source that cannot answer **refuses the start** quoting what it said.
+  /// A service started with a variable silently missing is a service that
+  /// fails somewhere else, later, for a reason nothing on screen explains.
+  ///
+  /// It is also the answer to a start command that needs a per-worktree value
+  /// on its *argv*. There is no `args:` here and deliberately no template
+  /// syntax; where a tool takes its port as a flag, name a shell and read the
+  /// variable:
+  ///
+  /// ```dart
+  /// start: StackRun.command([
+  ///   'sh', '-c', r'exec uvicorn app:api --port "$SERVICE_PORT"',
+  /// ]),
+  /// envFrom: {'SERVICE_PORT': localEnvSource(['port', 'ml'])},
+  /// ```
+  final Map<String, ValueSource> envFrom;
+
+  /// How long each rung of the stop ladder gets before the next one.
+  ///
+  /// Stopping is `SIGINT`, then `SIGTERM`, then `SIGKILL`, each sent to the
+  /// process *group* so a tool's own children go with it — a `uv run` is a
+  /// launcher wrapping the interpreter that holds the port, and signalling only
+  /// the pid we spawned leaves the port held by a process nothing is tracking.
+  ///
+  /// The ladder is fixed and only the grace is declared, because the ladder is
+  /// not a preference: `SIGINT` is what Ctrl-C sends and is the signal every
+  /// one of these tools already handles, and the two below it are the answer
+  /// to a tool that ignores it. What varies per service is only how long a
+  /// clean shutdown legitimately takes.
+  final Duration stopGrace;
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...baseJson('owned'),
+    'start': start.toJson(),
+    'ready': ready.toJson(),
+    if (env.isNotEmpty) 'env': env,
+    if (envFrom.isNotEmpty)
+      'envFrom': {
+        for (var entry in envFrom.entries) entry.key: entry.value.toJson(),
+      },
+    'stopGrace': stopGrace.inMilliseconds,
+  };
+
+  /// Null when there is no start command or no readable readiness check —
+  /// the two fields without which nothing here can run or be believed.
+  static OwnedStackService? fromJson(Map<String, Object?> json) {
+    var id = json['id'];
+    if (id is! String || id.isEmpty) return null;
+    var start = StackRun.fromJson(json['start']);
+    if (start == null) return null;
+    var ready = Ready.fromJson(json['ready']);
+    if (ready == null) return null;
+    return OwnedStackService(
+      id,
+      name: json['name'] as String?,
+      start: start,
+      ready: ready,
+      workingDirectory: json['workingDirectory'] as String?,
+      needs: _needs(json['needs']),
+      env: {
+        for (var entry in (json['env'] as Map? ?? const {}).entries)
+          if (entry.value is String) '${entry.key}': entry.value! as String,
+      },
+      envFrom: {
+        for (var entry in (json['envFrom'] as Map? ?? const {}).entries)
+          '${entry.key}': ?ValueSource.fromJson(entry.value),
+      },
+      stopGrace: _millis(json['stopGrace']) ?? const Duration(seconds: 5),
+      poll: _millis(json['poll']) ?? const Duration(seconds: 3),
+      commandTimeout:
+          _millis(json['commandTimeout']) ?? const Duration(minutes: 10),
+      commands: [
+        for (var entry in (json['commands'] as List? ?? const []))
+          if (entry is Map)
+            ?StackCommand.fromJson(entry.cast<String, Object?>()),
+      ],
+    );
+  }
+}
+
+/// When an [StackService.owned] process counts as usable.
+///
+/// *Started* and *usable* are different moments, and the gap between them is
+/// where a dev loop actually loses its time: an app launched against a server
+/// that is three seconds from binding its port fails in a way that looks like
+/// a bug in the app. So this is required rather than defaulted — the
+/// declaration has to say which moment it means.
+///
+/// Three shapes, and the list is deliberately short. There is no
+/// `Ready.logLine(RegExp(…))`: matching a tool's startup banner is a check
+/// that breaks when the tool rewords a sentence, and the wording of a log line
+/// is the least stable thing a program has. It was left out because no service
+/// in evidence needs it — every one that has a readiness signal at all has a
+/// port or a URL, and the one that has neither is honestly served by
+/// [processAlive].
+sealed class Ready {
+  const Ready();
+
+  /// The pid is alive, and that is all anyone can say.
+  ///
+  /// The honest answer for a process that serves nothing — a queue worker, a
+  /// file watcher, a codegen loop. It is ready the moment it is running, and a
+  /// crash on startup still reports as down, because a process that exited is
+  /// not alive.
+  const factory Ready.processAlive() = ProcessAliveReady;
+
+  /// Something accepts a TCP connection on `localhost:`[port].
+  ///
+  /// The right check for a server whose protocol is not HTTP, and for one
+  /// whose HTTP surface has no endpoint that is cheap and safe to call in a
+  /// loop.
+  const factory Ready.port(int port, {required Duration timeout}) = PortReady;
+
+  /// The same check, on a port the *project* computes.
+  ///
+  /// **This is the one a monorepo needs**, and the reason a port is not simply
+  /// a number here. Where every worktree gets its own slot, a literal in a
+  /// committed file is right for exactly one checkout and silently wrong for
+  /// the rest — and "silently" is the operative word, because the number that
+  /// gets written down is usually the *main* checkout's, so the service that
+  /// answers is the one next door.
+  ///
+  /// ```dart
+  /// Ready.portFrom(
+  ///   ValueSource.script('tool/local_env.dart', args: ['port', 'server']),
+  ///   timeout: Duration(seconds: 30)),
+  /// ```
+  ///
+  /// Asked **once per start**, before anything is spawned, and remembered for
+  /// that run — the socket poll after it costs nothing. A source that cannot
+  /// answer **refuses the start** and quotes what it said, rather than falling
+  /// back to a number nobody chose.
+  ///
+  /// Which puts one requirement on the script, and it is worth stating
+  /// plainly: **it has to fail when it does not know.** A `port` command that
+  /// answers with a canonical default when this worktree has no allocation is
+  /// not answering — it is guessing, with an exit code that says otherwise,
+  /// and nothing downstream can tell the difference. That is the trap
+  /// [Probe.exitCode] documents for a lister, arrived at from the other side.
+  const factory Ready.portFrom(ValueSource port, {required Duration timeout}) =
+      PortReady.from;
+
+  /// `GET localhost:`[port][path] answers 2xx or 3xx.
+  ///
+  /// Stronger than [port] and worth it where the endpoint exists: a server
+  /// binds its socket before it has connected to its database, so a port that
+  /// accepts is a promise about the socket rather than about the service. Any
+  /// other status — a 503 from a health check that knows it is not ready yet —
+  /// counts as not ready, and the last one seen is what the timeout reports.
+  const factory Ready.http(int port, {String path, required Duration timeout}) =
+      HttpReady;
+
+  /// The same check, on a port the project computes. See [Ready.portFrom].
+  const factory Ready.httpFrom(
+    ValueSource port, {
+    String path,
+    required Duration timeout,
+  }) = HttpReady.from;
+
+  /// How long after the spawn to keep waiting before saying so.
+  ///
+  /// Required on the checks that wait, because there is no number that is
+  /// right for both a Dart server that binds in 200ms and a JVM that takes
+  /// forty seconds — and an unbounded wait is a spinner that never resolves,
+  /// which is the failure this is here to avoid. When it expires the process
+  /// is reported as running and not answering, with its log: that is a real
+  /// state, and it is one you want to be told about rather than left watching.
+  Duration? get timeout;
+
+  Map<String, Object?> toJson();
+
+  /// Reads back what [toJson] wrote, or null for a shape this build cannot
+  /// read — which makes the whole service unreadable rather than silently
+  /// ready, because "we could not read the check" must never render as "it is
+  /// up".
+  static Ready? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    var json = raw.cast<String, Object?>();
+    // Zero is a real declaration — *do not wait, tell me now* — so this reads
+    // its own number rather than borrowing [_millis], which treats zero as
+    // absent because a zero poll interval means nothing.
+    var declared = json['timeout'];
+    var timeout = declared is int && declared >= 0
+        ? Duration(milliseconds: declared)
+        : null;
+    switch (json['ready']) {
+      case 'processAlive':
+        return const ProcessAliveReady();
+      case 'port':
+        if (timeout == null) return null;
+        if (json['port'] case int port) {
+          return PortReady(port, timeout: timeout);
+        }
+        if (ValueSource.fromJson(json['from']) case var from?) {
+          return PortReady.from(from, timeout: timeout);
+        }
+        return null;
+      case 'http':
+        if (timeout == null) return null;
+        var path = json['path'] as String? ?? '/';
+        if (json['port'] case int port) {
+          return HttpReady(port, path: path, timeout: timeout);
+        }
+        if (ValueSource.fromJson(json['from']) case var from?) {
+          return HttpReady.from(from, path: path, timeout: timeout);
+        }
+        return null;
+    }
+    return null;
+  }
+}
+
+/// See [Ready.processAlive].
+final class ProcessAliveReady extends Ready {
+  const ProcessAliveReady();
+
+  @override
+  Duration? get timeout => null;
+
+  @override
+  Map<String, Object?> toJson() => {'ready': 'processAlive'};
+}
+
+/// See [Ready.port] and [Ready.portFrom].
+final class PortReady extends Ready {
+  const PortReady(int this.port, {required this.timeout}) : from = null;
+
+  const PortReady.from(ValueSource this.from, {required this.timeout})
+    : port = null;
+
+  /// The port as declared, or null when [from] computes it.
+  ///
+  /// Exactly one of the two is set, which is what the two constructors are
+  /// for: a port that is *both* written down and computed would have to say
+  /// which wins, and there is no answer to that a config author would enjoy
+  /// discovering.
+  final int? port;
+
+  /// Where the port comes from, or null when [port] is written down.
+  final ValueSource? from;
+
+  @override
+  final Duration timeout;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'ready': 'port',
+    if (port != null) 'port': port,
+    if (from != null) 'from': from!.toJson(),
+    'timeout': timeout.inMilliseconds,
+  };
+}
+
+/// See [Ready.http] and [Ready.httpFrom].
+final class HttpReady extends Ready {
+  const HttpReady(int this.port, {this.path = '/', required this.timeout})
+    : from = null;
+
+  const HttpReady.from(
+    ValueSource this.from, {
+    this.path = '/',
+    required this.timeout,
+  }) : port = null;
+
+  /// See [PortReady.port].
+  final int? port;
+
+  /// See [PortReady.from].
+  final ValueSource? from;
+
+  /// Absolute, starting with `/`.
+  final String path;
+
+  @override
+  final Duration timeout;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'ready': 'http',
+    if (port != null) 'port': port,
+    if (from != null) 'from': from!.toJson(),
+    'path': path,
+    'timeout': timeout.inMilliseconds,
   };
 }
 
@@ -1430,9 +2184,18 @@ class DevStack extends Plugin {
 /// repository open by computing `Platform.resolvedExecutable` into a `dart`
 /// variable and prepending it to six commands, under ten lines of comment
 /// explaining why. A consumer reached for `['fvm', 'dart', 'run', …]` instead —
-/// a committed file naming a version manager, which is worse in a way worth
-/// spelling out: `fvm` has to be *found*, and a GUI started from the Dock does
-/// not have the PATH your shell does.
+/// a committed file naming a version manager, which then only works on the
+/// machines that have it.
+///
+/// The third kind, [StackRun.tool], names an executable that is genuinely not
+/// ours to supply — `uv`, `node`, a vendor CLI — and checks it is there before
+/// anything runs, so a missing one is reported by name.
+///
+/// Every kind runs in the environment a new terminal window has, whether the
+/// studio was opened from the Dock, from a terminal or by an agent. A command
+/// that works when you type it works here, and a `dart run` finds its build
+/// hooks as your terminal left them instead of rebuilding them. On CI and on
+/// Windows it is the environment flutterware itself was started with.
 sealed class StackRun {
   const StackRun();
 
@@ -1453,13 +2216,32 @@ sealed class StackRun {
   /// [DefineSource.script], which is relative to the worktree root, and the
   /// difference is the `workingDirectory` this plugin has and that one does not.
   ///
-  /// Run as `dart <path>`, not `dart run <path>`. `run` re-resolves the package
-  /// graph and executes every build hook in it, every time — a cost a probe
-  /// would pay on every poll, and one that grows with the project. The tradeoff
-  /// is that build hooks do not run, so a script whose imports need native
-  /// assets built will not find them. Declare that one as a [StackRun.command]
-  /// naming its own interpreter.
+  /// Run with `dart run`, so build hooks run and a server that depends on a
+  /// package with native code finds its native assets. The first start after
+  /// a dependency changes builds them, which can take a minute for a large
+  /// native package: give [Ready] a timeout that allows for it.
+  ///
+  /// The one exception is a delegated service's status check, which runs on a
+  /// timer and so runs as `dart <path>`, skipping the hooks. A status script
+  /// that imports native code will not work there.
   const factory StackRun.script(String path, {List<String> args}) = ScriptRun;
+
+  /// An executable looked up on the PATH a new terminal window has.
+  ///
+  /// ```dart
+  /// StackRun.tool('uv', args: ['run', 'uvicorn', 'app:api'])
+  /// ```
+  ///
+  /// A [StackRun.command] naming `uv` runs with that PATH too. What this adds
+  /// is the check: the executable is looked up before anything is spawned, the
+  /// command shown is its full path, and when it is not there the service
+  /// **refuses to start and says which executable is missing**, instead of
+  /// spawning it and reporting whatever `ENOENT` looks like from inside a
+  /// health check.
+  ///
+  /// For a Dart script in this project, prefer [StackRun.script]: flutterware
+  /// supplies the SDK and there is nothing to find.
+  const factory StackRun.tool(String name, {List<String> args}) = ToolRun;
 
   Map<String, Object?> toJson();
 
@@ -1474,6 +2256,15 @@ sealed class StackRun {
       return command.isEmpty ? null : CommandRun(command);
     }
     if (raw is! Map) return null;
+    if (raw['tool'] case String name) {
+      return ToolRun(
+        name,
+        args: [
+          for (var arg in (raw['args'] as List? ?? const []))
+            if (arg is String) arg,
+        ],
+      );
+    }
     if (raw['script'] case String path) {
       return ScriptRun(
         path,
@@ -1499,6 +2290,23 @@ final class CommandRun extends StackRun {
 
   @override
   Map<String, Object?> toJson() => {'command': command};
+}
+
+/// See [StackRun.tool].
+final class ToolRun extends StackRun {
+  const ToolRun(this.name, {this.args = const []});
+
+  /// The executable's name, as you would type it — `uv`, `node`, `docker`.
+  /// Not a path: a path is a [StackRun.command] and needs no looking up.
+  final String name;
+
+  final List<String> args;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'tool': name,
+    if (args.isNotEmpty) 'args': args,
+  };
 }
 
 /// See [StackRun.script].

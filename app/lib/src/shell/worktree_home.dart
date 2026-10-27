@@ -209,14 +209,25 @@ class _WorktreeHomeState extends State<WorktreeHome> {
           if (!(run.probe?.isDead ?? false)) run,
       ],
       now: clock.now(),
-      stackStrip: stack == null
+      // One strip per declared service, because each has its own state and its
+      // own control. A worktree declaring one — every project that has ever
+      // used this plugin — gets the single strip it always had.
+      stackStrip: stack == null || stack.core.services.isEmpty
           ? null
-          : DevStackBlock(
-              stack,
-              form: DevStackForm.strip,
-              onOpenPanel: widget.onOpenPlugin == null
-                  ? null
-                  : () => widget.onOpenPlugin!(devStackPluginId),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var service in stack.core.services)
+                  DevStackBlock(
+                    stack,
+                    service,
+                    form: DevStackForm.strip,
+                    onOpenPanel: widget.onOpenPlugin == null
+                        ? null
+                        : () => widget.onOpenPlugin!(devStackPluginId),
+                  ),
+              ],
             ),
       onOpenChanges: widget.onOpenChanges,
       onOpenRun: widget.onOpenPlugin == null

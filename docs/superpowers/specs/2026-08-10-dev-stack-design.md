@@ -919,8 +919,8 @@ spawning the SDK binary the way `StackRun.script` now does:
 | `dart <path>` | 0.30s | 0.58s |
 | `fvm dart --version`, doing nothing | **4.3–7.7s** | |
 
-The 4.4s was a version manager on a loaded machine. `dart <path>` buys ~0.12s
-on a real probe, which is worth having and is not the headline. **The headline
+The 4.4s was the version manager. `dart <path>` buys ~0.12s on a real probe,
+which is worth having and is not the headline. **The headline
 is the other half of the same decision**: because a `StackRun.script` names a
 Dart file rather than an executable, flutterware resolves the SDK itself and
 spawns it directly, and never goes through `fvm` at all. That took their probe
@@ -931,6 +931,69 @@ The price is real and worth stating: build hooks do not run, so a script whose
 imports need native assets built will not find them, and a stale
 `package_config.json` is an error where `run` would have fixed it. Both are loud.
 A script that genuinely needs hooks is a `.command`.
+
+#### Where the four seconds went (diagnosed 2026-08-25)
+
+"A version manager on a loaded machine" was where this stopped for eight days,
+and it was not an explanation — it was the shape of an explanation, which is why
+the same number kept coming back under a new theory each time. Measured, layer by
+layer, on the reference monorepo:
+
+| | |
+|---|---|
+| `<sdk>/bin/cache/dart-sdk/bin/dart --version` | **0.008s** |
+| `<sdk>/bin/dart --version` (the wrapper flutterware spawns) | **0.09s** |
+| `fvm dart --version` **in a directory with no pin** | **0.52s** |
+| `fvm dart --version` **in a pinned project** | **4.4–5.7s** |
+| their real `local_env port server`, through the SDK's own `dart` | **0.4–0.7s** |
+
+The whole difference is the pin. `fvm --verbose dart --version`, timestamped per
+line, puts **3.43s** in a single gap between the last of nine `git` calls and
+`Running Flutter from version` — one step, no output. That step is
+`EnsureCacheWorkflow` → `GitService.ensureBareCacheIfPresent` →
+`_determineCacheState` → `_withConnectivityCheckedState` → `_validateGitCache`,
+which runs:
+
+```
+git fsck --connectivity-only        # in ~/fvm/cache.git
+```
+
+That mirror is a bare clone of Flutter: **1,147,974 objects, 440 MiB**. `git fsck
+--connectivity-only` over it measures **3.3s of CPU**, warm, every time — and the
+call is not gated on anything, so it happens on `fvm dart`, `fvm flutter`,
+`fvm install`, every invocation with a project pin. 3.3s + ~0.5s of fvm and pub
+startup + the script's own 0.4s is the 4.8s.
+
+And then confirmed by taking it away rather than by reasoning about it. fvm maps
+each config option to an environment variable, so the mirror can be removed from
+the equation for one command without touching it — a path that does not exist
+makes `ensureBareCacheIfPresent` return before it does anything:
+
+```sh
+fvm dart --version                                  # 4.27s
+FVM_GIT_CACHE_PATH=/tmp/nope fvm dart --version     # 0.58s
+```
+
+Same command, same repository, same pin, nothing created, the real mirror
+untouched. **7.4×**, and it lands where the trace said it would.
+
+Three things make it worth writing down rather than filing away:
+
+- **It is a regression, not a cost of using fvm.** fvm **4.0.5 contains no
+  `fsck` at all**; the git-cache maintenance path arrives in 4.1.x. That is
+  precisely why every earlier investigation "evaporated" — before 4.1 the
+  measurement was genuinely not reproducible.
+- **Upstream has already fixed it.** fvm **4.1.5**: *"perf: skip git-cache
+  maintenance when running Flutter or Dart through an already-installed SDK
+  (#1066)"*. The machine this was measured on is pinned at **4.1.2** — after the
+  path was introduced and before it was fixed. 4.1.2's own entry is a first,
+  narrower attempt at the same bug: *"stop rebuilding the git cache on every
+  command when macOS leaves `.DS_Store` files in it"*.
+- **flutterware never paid it, and that is not luck.** `runDefineScript` and
+  `StackRun.script` both spawn `<flutterSdk>/bin/dart` directly, because a config
+  file may not name an interpreter. The 4.8s that appeared in the first draft of
+  the Stage 3 notes was a measurement of *the shell command used to check the
+  script by hand*, not of anything flutterware runs. Corrected below.
 
 **Not adopted: `dart run --resident`.** It exists on the pinned SDK (undocumented
 in `--help`) and is a real win on compile — 0.59s to 0.25s on a script with
@@ -1006,3 +1069,570 @@ the panel, but the output still only arrives when the wait gives up; and options
 on `StackCommand.argument`, which `ActionParameter` already models. The variadic
 case the same report raises — `recreate <svc> [<svc>…]` — is a third shape again
 and not expressible at all.
+
+---
+
+## The plugin became plural (2026-08-24)
+
+`DevStack` now holds a **list** of `StackService`s. §3.3's premise — *"nothing
+here needs"* the second kind — has been overturned by looking at what the
+reference project actually declares, and the one-per-project shape turned out to
+be the binding constraint long before the second kind is built.
+
+### What the evidence said
+
+Reading the reference project's in-house dev app against its flutterware config:
+
+- It declares **seven** local services. `DevStack` covered exactly one of them,
+  the docker stack. The other six — a Dart server, a Dart worker, a Python
+  uvicorn backend and three `flutter run -d web-server` — keep a ~19,000-line
+  in-house dev app alive, six days after that project adopted flutterware v2 and
+  this plugin.
+- **Readiness has an answer after all.** §3.2 feared `Ready.logLine(RegExp(…))`
+  — brittle by construction — would be unavoidable. Every one of those six that
+  needs a readiness signal has a health URL or a port; the one that has neither
+  (the worker) is honestly served by "the pid is alive". The brittle mechanism is
+  needed by **zero** of them, which removes the one thing §3.3 said could not be
+  got right in the abstract.
+- **One is not enough.** The plugin id was hardcoded and `manifest.dart` refuses
+  duplicates, so a project could declare exactly one. The plural shape was
+  already being *simulated*: both configs in evidence hang extra verbs off
+  `commands:` with a free-text `argument: 'service'`.
+
+So the order changed. Pluralising is the prerequisite, it is a pure refactor,
+and it is worth landing on its own — `StackService.owned` is a second factory on
+a list that already exists rather than a second plugin.
+
+### Decided while building, not before
+
+- **The service is in the action id, not in an argument.** The obvious design —
+  one `start` taking an optional `service` — cannot be written: both configs in
+  evidence declare a `logs` whose own `argument:` is called `service`, and a
+  selector by that name could not coexist with it. So ids are prefixed `<id>.`
+  when there are several and bare when there is one. It is also the better
+  answer for an agent: `fw run dev_stack` lists `server.start` beside
+  `stack.start`, where one `start` with a free-text parameter lists values it
+  would have to guess. **A project declaring one service sees no change at all**
+  — same ids, same panel, same projection.
+- **The prefix is decided by everything declared, not everything readable.**
+  Otherwise fixing an unreadable service — which is what the panel tells you to
+  do — would silently rename every action its neighbour offers.
+- **A service this build cannot read is a row, not an absence.**
+  `UnreadableStackService` carries the reason onto the panel. This *replaces* the
+  `_probeDeclared` flag with something structural: a service with no probe never
+  becomes a lifecycle, so it has no reading, so it cannot poison the shared
+  cache — which is what that flag and its `cache: false` argument were for. The
+  two sentences the field report asked for are kept apart (nothing declared vs
+  declared-and-unreadable), and a *kind* from a newer flutterware now lands here
+  too rather than vanishing.
+- **One cache file, keyed by service id.** The explorer column reads one file
+  per worktree and must not come to read one per service; `StackCache` holds the
+  map and still reads the old flat shape, which is adopted under the id `stack`.
+- **`StackCache.aggregate` returns the single reading unchanged when there is
+  one.** Summarising it would replace its own detail and its probe-reported
+  parts — `localhost:8080`, four named containers — with one row saying its id
+  back, which is *less* than the file already holds. Several services are
+  counted the way a single stack's containers already are: `up 2/3`.
+- **Two panel forms.** One service keeps the page it had, console filling the
+  leftover height — the form only expressible when there is one console.
+  Several are stacked groups that scroll. A group gets a console only when
+  something could print in it: an observe-only service (a probe, no transitions,
+  no commands) would otherwise carry a heading and a sentence explaining a box
+  that stays empty forever, and a column of those is what several services would
+  mostly be made of.
+- **Each service is a `PluginChild`.** The sidebar breakdown is data, so `fw` and
+  an agent get it too. None at all for a single service — one child under a row
+  that already says the same thing is an expander that expands to itself.
+- **The capabilities generator needed a sample config.** It resolves every plugin
+  against a synthetic project, and this is now the one plugin whose actions are a
+  function of what the project declared — against a project declaring no services
+  it truthfully reported *nothing*, and the document lost the plugin. It is
+  declared one delegated service there, which incidentally gained the document
+  the `start` and `stop` it never listed.
+
+### Measured
+
+Workspace `analyze` clean; the app suite at **3269** and the root package at
+**1128**, both green. Driven on the real GUI with two services declared: the
+sidebar reads `Dev stack · up 1/2` over two children, the panel stacks both
+groups, and `fw run dev_stack` lists `sdk.status, stack.status, stack.start,
+stack.stop, stack.logs, stack.hit` — with `stack.hit [--path=…]` showing the
+command's own argument untouched by the prefixing.
+
+### Still not built
+
+`StackService.owned` — the kind that made this worth doing. What it needs is
+settled by the plan this pass came from: `Ready.port` / `.http` /
+`.processAlive` with a required `timeout:`; detached spawn reusing
+`launch.dart`'s idiom; group-signal stop; an `orphans` check before start; and a
+built-in `logs` for the file flutterware itself redirected. Then the values —
+`ValueSource` for a port and for `env:`, resolved at start and **refusing the
+start when the source cannot answer**, which is how a per-worktree port reaches
+a service at all and why no port belongs in `tool/flutterware.dart`.
+
+## flutterware holds the pid (2026-08-24)
+
+`StackService.owned` shipped — §3.3's `DevStack.foreground`, built. A process
+flutterware spawns detached, holds the pid of, owns the log of, and stops with a
+signal. The kind exists for what you would otherwise keep in a terminal tab and
+end with Ctrl-C: `dart bin/server.dart`, a uvicorn, a queue worker,
+`firebase emulators:start`. None of those can be delegated — there is no command
+that returns leaving them running, and nothing to ask whether they are up.
+
+Three concepts, and only three: **who owns the process** (`.delegated` /
+`.owned`), **when it counts as usable** (`Ready`), and **how long each rung of
+the stop ladder gets** (`stopGrace`).
+
+```dart
+StackService.owned('server',
+  name: 'API server',
+  workingDirectory: 'packages/server',
+  start: StackRun.script('bin/server_local.dart'),
+  ready: Ready.http(8100, path: '/health', timeout: Duration(seconds: 30))),
+```
+
+Nothing in that is Dart-specific: a `StackRun.command` names its own
+interpreter, so a Python server is the same declaration with a different runner.
+
+### `Ready` is required, and there are exactly three
+
+*Started* and *usable* are different moments, and the gap is where a dev loop
+actually loses its time — an app launched against a server three seconds from
+binding its port fails in a way that looks like a bug in the app. So the
+declaration has to say which moment it means.
+
+§3.2 feared `Ready.logLine(RegExp(…))` would be unavoidable. It is not built,
+and nothing in evidence wants it: every service that has a readiness signal has
+a port or a URL, and the one that has neither — a worker that talks only to a
+queue — is honestly served by `processAlive`. Matching a startup banner is a
+check that breaks when a tool rewords a sentence.
+
+`Ready.http` earns its place over `Ready.port`: **a bound socket is a promise
+about the socket, not about the service behind it.** A server binds before it
+has reached its database, and a health check answering 503 is the case that
+distinction is for. 2xx and 3xx are ready; anything else is listening and saying
+no, and the last status seen is what the timeout reports.
+
+The timeout is required on the two that wait, and absent from `processAlive`,
+which has nothing to poll. On expiry the process is **left running** and
+reported as running-and-not-answering — it may simply be slower than the
+declaration said, and killing it would take the log with it, which is the one
+artefact that says which.
+
+### What the field taught, in the order it hurt
+
+- **A pid that has existed for two milliseconds is not evidence.** With nothing
+  to poll, `processAlive` is true the instant the fork returns, so a command
+  with a typo in it reported `up` and was contradicted by the next poll. One
+  400ms settle is the difference between *it started* and *it did not
+  immediately fall over*, which is the whole of what this kind of readiness can
+  honestly claim.
+- **The stop ladder must wait on the group, not the pid.** Measured here:
+  `sh -c 'sleep 60 & wait'` spawned detached leaves **two** processes in the
+  group, and `SIGINT` reaps only the shell — POSIX has a non-interactive shell
+  set `SIGINT` to *ignored* in a background command, so the child of a start
+  script routinely survives the first rung. A ladder stopping when the recorded
+  pid was gone therefore stopped one rung early and left the port held by the
+  grandchild, which is the exact orphan group-signalling exists to prevent.
+  `SIGTERM` cleared it. Group membership is read from `ps -A -o pid=,pgid=` —
+  the whole table filtered, because `ps -g` means different things on different
+  platforms.
+- **The group is not the pid we recorded.** A detached spawn double-forks, so
+  the pgid is the intermediate fork's number and its leader has already exited.
+  Signalling `-pgid` still reaches every member. And the guard is not optional:
+  a pgid equal to *ours*, or unreadable, falls back to the bare pid — losing a
+  grandchild is recoverable, killing the tool that was asked to stop a server is
+  not.
+- **`down` is not the only thing "we hold no pid" can mean.** The port may be
+  held by this very service started by hand, or by another worktree's copy. The
+  panel said `down` over a server answering `curl`, which sends someone to press
+  Bring up and read a refusal. One connect to a local port — instant when
+  nothing is there — answers it up front: `port taken`, with `lsof -nP
+  -iTCP:<port> -sTCP:LISTEN` in the sentence.
+- **The console needed a resting state.** One console, two writers: the service's
+  log, which is continuous, and a declared command's output, which answers a
+  button somebody just pressed. Last writer wins with the log as the resting
+  state — otherwise the poll overwrote a command's output three seconds later,
+  under a header still naming the command. And it is **not cleared when the
+  service dies**: what a process said on its way down is the only account of why,
+  and blanking it the moment the pid disappears empties the panel at exactly the
+  moment someone is looking for the reason.
+- **`unavailable` needed two words, not one.** For a probe it means *the check
+  failed*. For an owned service it covers two things we know exactly and which
+  are opposite problems — our process alive and silent (`no answer`), or a port
+  held by something we never started (`port taken`). The block used to say
+  `can't tell` for both while the sidebar said the specific word, which reads as
+  two states.
+- **`DevStackRunResult.ok` could no longer be `exitCode == 0`.** An owned
+  `start` has no exit code — the process has deliberately not exited — and zero
+  would be a claim about a command that did not run. `ok:` is now passed
+  outright there, and it means *is the service up*, which is the only question
+  the caller asked.
+
+### What an agent sees, and four things that were wrong for it
+
+The surfaces an agent reads are `flutterware_status` (the projection) and
+`flutterware_actions` (the descriptions), and reading them back as an agent
+would found four defects that no human driving the panel would have hit —
+because a human has the screen and the agent has only the words.
+
+- **`start` reported success for a service that was not up.** Asked to start
+  something already running, it adopted the process and returned `ok`. If that
+  process was alive and *not answering*, the caller — who asked for the service
+  to be usable, not for a pid to exist — was sent off to use a socket nothing
+  was listening on. `ok` there is now whether the service is up.
+- **`stop` said "nothing is running" over a held port.** With no handle it
+  reported *no process is recorded, and none is running*, which is precisely
+  the wrong half of the sentence when something else has the port. It now looks
+  before it says, and hands back the `port taken` reason instead.
+- **The projection did not say what the service was.** A service that is down
+  answered `State: down`, a working directory and a readiness rule — nothing
+  about *what would be spawned*, in the one state where "what is this thing" is
+  the question. It carries `Starts: …` now, up or down.
+- **There was no `restart`.** It is the operation you actually want after
+  editing what a server runs, and the two-call version has a failure it cannot
+  see: if the stop leaves the process running, the start that follows *adopts*
+  it and reports success — so the caller believes it is running new code and it
+  is running the old. The built-in lets the stop's outcome decide whether the
+  start happens at all. A project that declares its own `restart` wins, as with
+  `logs`: a built-in is a convenience, a declaration is a decision.
+
+### The handle, and why the process is detached
+
+The process is not a child of the GUI, so closing the window does not take the
+server down and reopening it finds the same process rather than starting a
+second one. Everything awkward follows from that — a handle file under
+`~/.flutterware/run/`, pid-currency checks, group signals — and so does
+everything good, because the alternative is a dev server that dies whenever you
+restart the tool you are developing.
+
+`svc-<hash>-<pid>.json` is the same ledger `RunHandle` gives a `flutter run`,
+and it buys the same three things: a GUI restart re-adopts rather than
+duplicates, two GUIs on one worktree agree, and `fw` in another terminal sees
+what the window sees. The sweeper learned it, with one rule of its own: **a
+service's log is spared by its handle rather than by its own age.** A dev server
+up since Monday is normal, and its log is the only copy of its output anywhere.
+
+### Measured
+
+Workspace `analyze` clean; the app suite at **3291** and the root package at
+**1128**, both green, including 18 tests that spawn, signal and reap **real
+processes** — nothing about a detached spawn, a process group or a socket that
+either accepts or does not survives being faked.
+
+Driven end to end on the real GUI, with this repo's own config declaring the
+example server owned:
+
+- Bring up → `up · localhost:8080 · pid 70735 · up 1s`, and the console filled
+  with the server's own `listening on http://localhost:8080` without a `logs`
+  command being declared anywhere.
+- Hot-restarted the GUI three times: the panel re-adopted the same pid each
+  time, with the log still in the console.
+- A declared command (`hit`) ran against it — `200 http://localhost:8080/users`,
+  exit 0, 428ms — and its output held the console past several polls.
+- Tear down → `kill -INT -70734` … `pid 70735 is gone`, port free, handle
+  removed, log kept.
+- Started the *same server* by hand through the delegated `tool/stack.dart`, and
+  the owned panel read `port taken` with the reason and the `lsof` line rather
+  than `down`.
+
+And before any of that, unintentionally: the GUI running the *previous* build
+read the new config and rendered
+*"This build does not know the service kind `owned`"* — the `UnreadableStackService`
+path from the pluralising pass, doing its job against a real forward-dated
+config rather than a fixture.
+
+### Declared twice, one of each kind
+
+`examples/example/tool/flutterware.dart` keeps the delegated declaration
+pointing at `tool/stack.dart` — a 200-line script that spawns the server
+detached, writes its pid to a file, polls port 8080 and tails a log. The root
+config now declares the same server `owned`, and flutterware does all of that.
+Both are honest declarations of one process, and one of each in the repo is what
+keeps both paths exercised: delegated is what a project with an existing `make
+dev` uses, and it must not rot because we stopped needing it.
+
+### Still not built
+
+The values. `Ready.port(<ValueSource>)`, `env:` and `args:` resolved at start
+through `runDefineScript`, with a `ScriptOutcome.failed` **refusing the start and
+quoting the reason** — which is how a per-worktree port reaches a service at all,
+and why the literal `8080` in this repo's config is a fact about the toy server
+rather than a pattern to copy. `StackRun.tool(name, args:)` belongs with it: a
+GUI started from the Dock does not have your shell's PATH, and `uv` and
+`./gradlew` both need finding.
+
+## No port belongs in a committed file (2026-08-24)
+
+The last of the three stages: the values. A service's port, and the environment
+it starts with, can now come from the **project's own tool**, asked at the
+moment of the start and refused loudly when the tool cannot answer.
+
+```dart
+StackService.owned('server',
+  workingDirectory: 'packages/server',
+  start: StackRun.script('bin/server_local.dart'),
+  ready: Ready.httpFrom(
+    ValueSource.script('packages/server/tool/local_env.dart',
+        args: ['port', 'server']),
+    path: '/healthz',
+    timeout: Duration(seconds: 60))),
+```
+
+Why it is not a number: **in a monorepo every worktree gets its own slot**, so a
+literal is right for exactly one checkout and silently wrong for the rest — and
+the number that gets written down is usually the *main* checkout's, so the
+service that answers is the one next door. That is the same silent-and-confident
+failure the `docker compose ps` lister trap has, one level up.
+
+The same `ValueSource` that already fills a `Run` knob, so a project that
+computes a port for its app is not asked to compute it a second way for its
+server.
+
+### Measured, on a real monorepo
+
+- **A value costs ~0.7s to ask** — their `local_env port server`, warm, spawned
+  the way flutterware spawns it. Still the argument for the caching: at the
+  default three-second interval, asking per poll would spend a quarter of every
+  interval on a number that only changes when a stack comes up. Asked **once per
+  session** on the down path and **once per start**, never per poll.
+
+  This bullet first said **4.8s**, and attributed it to compiling their package
+  graph. Both halves were wrong, and the correction is worth more than the
+  number: 4.3s of that was `fvm dart` running `git fsck --connectivity-only`
+  over a 440MiB Flutter mirror on every invocation with a project pin — a
+  regression in fvm 4.1.x, fixed upstream in 4.1.5. flutterware spawns the SDK's
+  `dart` directly and never goes through fvm, so it never paid it. The full
+  diagnosis is under "Where the four seconds went".
+- **The port is recorded in the handle**, not re-asked. A session that reopens
+  onto a running service reads the number that process was *started against*
+  rather than the number the tool would give now — they differ exactly when it
+  matters, which is a stack torn down and brought back on a different slot.
+- **A login shell and an interactive shell disagree about where a tool is.**
+  Measured: `uv` is `/opt/homebrew/bin/uv` to `zsh -lc` and
+  `~/.local/bin/uv` to `zsh -ic`, and the second is the one that runs in a
+  terminal. So the lookup asks **this process's own PATH first** and no shell at
+  all when it answers: whatever launched the GUI is the better authority on
+  which was meant. The shells are the fallback, in that order.
+
+### A service gets the PATH you have, not the one the Dock has
+
+The bigger version of the same problem, and the one that needed no new API at
+all. **A GUI started from the Dock has launchd's PATH** — roughly
+`/usr/bin:/bin:/usr/sbin:/sbin` — so `uv`, `pyenv`, `nvm`'s node and everything
+Homebrew put in `/opt/homebrew/bin` are simply absent. A service declared as
+`['uv', 'run', …]` then works when the GUI was started from a terminal and fails
+when it was started from the Dock, which is the worst possible distribution of
+outcomes: the failure looks like the machine rather than like the launcher.
+
+An owned service is now started with this process's PATH **widened** by whatever
+a login shell has and it does not. Appended, never prepended, so nothing that
+resolves today changes and only names that resolved to nothing start resolving —
+a project venv or a wrapper deliberately put first by whoever launched the GUI
+keeps winning. The spawn goes through `sh -c 'exec "$@"'`, and a shell resolves
+against the environment it is handed, so this is also what makes a bare `uv` in
+a declaration work.
+
+It covers a case that would otherwise have wanted its own feature: an
+environment variable naming a binary — `FFMPEG_BIN: 'ffmpeg'` — is a literal
+again rather than a lookup, because the process it is handed to can find it.
+
+`StackRun.tool` stays, and earns its place on the other half: it **refuses the
+start naming the executable** when the shell cannot find it either, instead of
+spawning and letting an `ENOENT` surface from inside a health check three states
+later.
+
+### Two fields for the environment, and why not one
+
+`env:` is `Map<String, String>` and `envFrom:` is `Map<String, ValueSource>`.
+One union map would have needed a literal `ValueSource`, and a literal is a
+category error there: a `ValueSource` is a *question* — something flutterware
+goes and asks — and wrapping `'ffmpeg'` in one would make every ordinary value
+look like a question that happens to have a constant answer.
+
+`envFrom` is also the answer to a start command that needs a per-worktree value
+on its argv. There is deliberately no `args:` and no template syntax: where a
+tool takes its port as a flag, name a shell and read the variable.
+
+### What a source that will not answer buys
+
+A refusal, before anything is spawned, quoting what the tool said — and the same
+sentence on the panel *before* anyone presses anything, as its own state:
+`no port`, distinct from `down` and from `port taken`. In a monorepo that is the
+ordering problem stated up front — the stack that allocates the slot is not up,
+so there is nothing to start against — where `down` would have sent someone to
+press Bring up to find that out.
+
+**Which puts one requirement on the project's script, and it is not satisfied by
+default.** Measured live on the reference monorepo: with no `.env` present,
+`local_env port server` prints `8100` and exits **0** — a canonical fallback, in
+a checkout that has no allocation. A source that guesses cannot be refused,
+because it never fails; every worktree that has not run `up` would be pointed at
+the main checkout's server. flutterware degrades sensibly there — the orphan
+check refuses the start naming the port, because something is already listening
+on it — but the fix belongs on the script: **it has to fail when it does not
+know.** That is now said out loud on `Ready.portFrom`.
+
+### Measured
+
+Workspace `analyze` clean, both suites green. The value sources are exercised
+with **real scripts run by the real `dart`** — a temp project, a file that
+prints a number, an exit code — because a fake resolver would be a test of the
+fake, and the whole feature is whether a project's own tool can be asked a
+question and believed.
+
+A monorepo-shaped declaration — four services, two kinds, a computed port, an
+executable to look up, both kinds of environment — round-trips through the
+config JSON with nothing landing in the unreadable bucket
+(`test/plugins/dev_stack_config_test.dart`).
+
+## Every process gets a new terminal's environment (2026-10-27)
+
+Supersedes *A service gets the PATH you have, not the one the Dock has*. Widening
+our PATH fixed the missing `uv`, and left a PATH that still depended on how
+flutterware was started. A consumer building worlds measured what that costs a
+Dart service: Dart's build hooks hash the variables they read — `PATH`,
+`ANDROID_HOME`, `HOME`, `TMPDIR` and a few prefixes (`hooks_runner`'s
+`includeHookEnvironmentVariable`) — and rerun every hook when one differs from
+the run before. About **50s** for a server that depends on webcrypto, at every
+switch between a terminal and the studio.
+
+So `terminalEnvironment()` (`app/lib/src/utils/terminal_environment.dart`) reads
+the environment a new terminal window would have, once per process, and every
+spawn on the user's behalf gets exactly that with `includeParentEnvironment:
+false`: an owned service, a delegated service's probe and commands (through
+`defaultRunProcess`), `StackRun.tool`'s lookup, and `runDefineScript` — which
+also covers Run's knob scripts.
+
+**Read from the variables a terminal starts with, not from ours.** The first
+idea, a login shell started from this process, is not idempotent: macOS's
+`path_helper` reorders a PATH it is handed, and a profile that prepends does it
+again, so the answer still depended on the parent. The shell is instead started
+from launchd's PATH plus the variables that describe the user (HOME, USER,
+TMPDIR, locale, SSH agent), as `-l -i` because `~/.zprofile` and `~/.zshrc` both
+edit PATH. Measured on this machine: the variables the hooks hash come out
+identical from a launchd-like parent, from this session's environment, and from
+the MCP server's (which has fvm's SDK prepended). The read takes ~0.7s.
+
+Two exceptions keep our own environment: Windows, where a desktop app already
+has the user's, and CI (`CI` set), where the runner's environment — a setup
+step's PATH — is the right one and a profile is not. A shell that hangs or
+prints nothing parseable falls back to ours, with a log line. The output is
+bracketed by markers and read until the end marker rather than until EOF,
+because an interactive profile can leave a job holding stdout open.
+
+### Measured
+
+In `fixtures/probe_app`, `dart run tool/stack.dart port`, alternating a new
+terminal (`env -i` + `zsh -l -i`) with flutterware's `runDefineScript` started
+from an MCP-like environment:
+
+| | before | after |
+|---|---|---|
+| flutterware after a terminal run | 4.2s (hooks rerun) | 1.4–1.5s (cache hit) |
+| a terminal run after flutterware | 4.0s (hooks rerun) | 1.1–1.3s (cache hit) |
+
+One trap in measuring it: this workspace shares one hooks cache across its
+packages, so a harness started with `dart run` under another environment
+invalidates it by itself. Start the harness as `dart <file>`.
+
+### What it does not cover
+
+- `dart run flutterware` itself runs the workspace's hooks under whatever
+  started it, so the MCP server costs one rebuild per start when its client's
+  environment differs from a terminal's. Once per start, not per switch.
+- Run's `flutter run`, the world script, the config loader and the previews
+  daemon still inherit our environment. The helper is there for them.
+- A variable set only in the shell that launched flutterware (an activated
+  venv, direnv) no longer reaches a service. `env:` is the way to say it.
+
+### `StackRun.script` runs `dart run`, except where it is polled
+
+The direct form, `dart <path>`, skips build hooks, so a Dart server whose
+dependencies have native code could not be a `StackRun.script` start at all. The
+reason for the direct form was a probe paying for hook checks on every poll, and
+only one script is polled: a delegated service's status check. So that one stays
+`dart <path>`, and every other script — an owned start, a delegated start and
+stop, a command — is `dart run <path>`, which costs ~0.3s once and builds what a
+server needs. The panel shows them the same way, `dart run …` and `dart …`.
+
+`dart run` prints its progress on stderr with no newline (`Running build
+hooks...Running build hooks...`), in front of whatever the script said. The
+filter `runDefineScript` already had for that is shared now: a command's
+combined output and an owned service's log, as shown, leave it out.
+
+## `needs` and `ensure` (2026-10-27)
+
+What a caller that needs the stack — an agent before it launches the app, a
+world before it opens — wants is one call that leaves everything up, rather
+than knowing the order and polling. So a service declares `needs: [ids]`, and
+`DevStackCore.ensure(ids)` (action `ensure`, ids optional, all when absent)
+walks them depth-first: each service after what it needs, otherwise in
+declaration order.
+
+Per service: wait out a start or stop already in flight (someone pressed the
+button), look, and if it is not up, `start()` it. Both kinds' `start` already
+do the right thing for the rest — an owned one adopts a live process and waits
+for readiness, a delegated one runs its command and re-probes — so `ensure` adds
+only the waiting: an owned service still `starting` (alive, not answering yet)
+is polled until it answers or its state moves on. A start refused because
+someone else claimed the service in the gap is waited for, not reported.
+
+A failure holds back only what needs it, directly or not; an independent
+service still comes up. The result is per service, in the order taken:
+`alreadyUp`, `started`, `failed` (with why and what it printed) or `skipped`
+(with which need did not come up), plus `port` and `url` where flutterware knows
+them — an owned service with port or HTTP readiness. That is the address a world
+needs to hand its app; a delegated service's ports belong to its own commands.
+
+Sequential, not parallel by level. Two independent services start one after the
+other. Simpler to read in a log, and no stack in evidence has enough
+independent services for it to matter yet.
+
+`DevStack` refuses a need naming no service and needs in a circle when the config
+loads; `ensure` refuses the same shapes again, before starting anything, for a
+config written by a flutterware that did not check. `start` on its own still
+starts one service: the per-service button means that service.
+
+`dev_stack_results.dart` joined the generator's sources, so `ensure`, `status`
+and the run result now have published shapes in `docs/capabilities.md`.
+
+## History of starts and stops (2026-10-27)
+
+The reason given for the whole feature: services will be started and stopped by
+agents, and the studio is where the human is. The panel showed current state
+only, so an agent's start at 10:02 and stop at 10:05 left nothing behind.
+
+**A file, because the processes share nothing else.** An agent's starts happen
+in the MCP server (which opens its own session per call) or in `fw`; the studio
+learns of them only through the run directory. So `stack-<hash>.history.jsonl`
+sits beside the cache, one JSON line per event, appended by whichever process
+acted, and the studio follows it with the drive journal's watch-and-poll
+(`RunFiles.changes`) while the panel is watched. Trimmed to its last 500 lines
+past 512KB, via a temp file and a rename; a line appended during the rename can
+be lost, which is the price of not locking.
+
+**Who asked is the door, not a guess.** One process serves one door, so
+`currentCaller` is set once where each starts: `fw run` is `terminal`, `fw mcp`
+is `agent`, everything else the studio. `terminal` cannot tell a person from an
+agent with a shell, and says so rather than guessing.
+
+**Recorded once, at one place.** `start()` and `stop()` on the service base are
+now the recorded entry points and the kinds implement `performStart` /
+`performStop`, so the button, an action, `ensure` and a restart each write one
+event. A refusal is recorded with its words — except the one that means a
+second press while the first runs, which is nothing that happened to the
+service. A start that adopted a running process, or a stop that found nothing,
+is `alreadyUp` / `alreadyDown` (the run result's new `nothingToDo`).
+
+**An exit nobody asked for** is recorded by the process that deletes the dead
+handle — `ServiceHandle.delete()` now says whether it was this call — so two
+observers write it once. A stopper marks the handle `stopping` before its first
+signal, so an observer arriving between the pid going and the handle going does
+not take the stop for an exit. Dated when noticed; the sweeper deleting a dead
+handle first means an exit goes unrecorded, which is acceptable for a history
+that is about what someone did.
+
+The catalog and the site's demo get a `MemoryStackHistory`: a preview must not
+write the developer's run directory, and a browser has none.
+

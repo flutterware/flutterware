@@ -2647,11 +2647,48 @@ verdictGap: String?   # Why the verdict is incomplete, when it is — the senten
 
 ### `flutterware.dev_stack`
 
-The project's local dev stack — docker, the database, whatever the app talks to locally — read and driven by running the project's own commands.
+The services the app talks to locally — docker, the database, the API server — each one either run by the project's own commands or started and stopped by flutterware itself, read and driven from one list.
+
+#### `ensure` — Bring up everything
+
+Brings services up with the services they need, in order, and waits until each one is up. A service that is already up is left alone. If one does not come up, nothing that needs it is started, and the result says why with what it printed. Each service comes back with its port and URL when flutterware knows them. Without `services`, it brings up every service.
+
+```sh
+fw run dev_stack ensure [--services=…]
+```
+
+Returns `StackEnsureResult`:
+
+```
+ok: bool
+services: List<Map<String, Object?>>
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `services` | string | no | — | The services to bring up, by id: stack. |
+
+#### `history` — Show history
+
+The latest starts and stops of every service, newest first: who asked (the studio, fw in a terminal, or an agent), how it ended, and why when it failed. A process that exited with nobody stopping it is listed too.
+
+```sh
+fw run dev_stack history [--limit=…]
+```
+
+Returns `StackHistoryResult`:
+
+```
+events: List<Map<String, Object?>>
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `limit` | integer | no | 20 | How many events, newest first. |
 
 #### `status` — Check
 
-Runs the declared probe and reports what state the stack is in, with the time it was read. Every other surface shows a cached reading and how old it is; this is the one that goes and looks.
+Runs the probe now and reports the state, with when it was checked.
 
 ```sh
 fw run dev_stack status
@@ -2659,7 +2696,57 @@ fw run dev_stack status
 
 Returns `StackReading`:
 
-Shape not published: `StackReading` writes its own `toJson`, so its fields are not its keys.
+```
+state: String
+detail: String?   # One line beside the status — `slot 8200-8208 · 4 containers`.
+services: List<Map<String, Object?>>?
+failure: String?   # Why the probe could not be believed.
+checkedAt: String?   # When this was read.
+```
+
+Takes no parameters.
+
+#### `start` — Bring up
+
+Runs the start command, then checks the state. On a service that is already up, the command should do nothing.
+
+```sh
+fw run dev_stack start
+```
+
+Returns `DevStackRunResult`:
+
+```
+command: String   # What was actually run, joined — so a caller that wants to run it directly next time can.
+exitCode: int?   # Null when the command has not exited — see [timedOut].
+ok: bool   # Whether the action did what was asked.
+timedOut: bool?
+nothingToDo: bool?
+output: String?   # Combined stdout and stderr, trimmed to the tail.
+reading: Map<String, Object?>?   # The probe run immediately afterwards, when the command was one that changes the state.
+```
+
+Takes no parameters.
+
+#### `stop` — Tear down
+
+Runs the stop command, then checks the state.
+
+```sh
+fw run dev_stack stop
+```
+
+Returns `DevStackRunResult`:
+
+```
+command: String   # What was actually run, joined — so a caller that wants to run it directly next time can.
+exitCode: int?   # Null when the command has not exited — see [timedOut].
+ok: bool   # Whether the action did what was asked.
+timedOut: bool?
+nothingToDo: bool?
+output: String?   # Combined stdout and stderr, trimmed to the tail.
+reading: Map<String, Object?>?   # The probe run immediately afterwards, when the command was one that changes the state.
+```
 
 Takes no parameters.
 

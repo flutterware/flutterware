@@ -28,6 +28,7 @@ import '../worktrees/facts_probe.dart';
 import '../worktrees/facts_store.dart';
 import '../worktrees/facts_text.dart';
 import 'action_shapes.generated.dart';
+import 'caller.dart';
 import 'gui.dart';
 import 'init.dart';
 import 'job.dart';
@@ -880,6 +881,7 @@ class FwCli {
   /// request rather than to the process — which is also what makes a tool call
   /// describe the project as it is now rather than as it was at startup.
   Future<int> _mcp() async {
+    currentCaller = Caller.agent;
     // Checked once at startup, purely so a machine where no session can open
     // — an fw running under a bare Dart, the one seen in the field — says so
     // in the client's server log at connect time. It used to say nothing
@@ -1581,6 +1583,7 @@ class FwCli {
   /// Arguments are keyed by `ActionParameter.id`, which is the same map the GUI
   /// builds from a form and an agent passes directly.
   Future<int> _run(List<String> arguments, {required bool json}) async {
+    currentCaller = Caller.terminal;
     var wantsHelp = arguments.contains('--help') || arguments.contains('-h');
     var positional = arguments.where((a) => !a.startsWith('--')).toList();
     // Nothing named and nothing to describe: this is someone asking how.

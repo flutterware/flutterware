@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutterware/plugins.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/terminal_environment.dart';
+
 /// What a [ScriptSource] said when it was asked, or why it could not be.
 ///
 /// The two good answers are different in kind, and that difference is the
@@ -66,11 +68,17 @@ Future<ScriptOutcome> runDefineScript(
 
   ProcessResult result;
   try {
-    result = await Process.run(dartExecutable, [
-      'run',
-      source.path,
-      ...source.args,
-    ], workingDirectory: worktreePath).timeout(timeout);
+    // In a new terminal's environment, because `dart run` runs the package's
+    // build hooks, and they rerun from scratch whenever the PATH differs from
+    // the last run's. See [terminalEnvironment].
+    var environment = await terminalEnvironment();
+    result = await Process.run(
+      dartExecutable,
+      ['run', source.path, ...source.args],
+      workingDirectory: worktreePath,
+      environment: environment,
+      includeParentEnvironment: false,
+    ).timeout(timeout);
   } on TimeoutException {
     return ScriptOutcome.failed(
       '${source.path} did not answer within ${timeout.inSeconds}s',
@@ -129,8 +137,27 @@ Future<ScriptOutcome> runDefineScript(
   return ScriptOutcome.options([for (var value in decoded) '$value']);
 }
 
+/// The `dart` CLI's own progress chatter, which arrives on stderr in front of
+/// whatever the script had to say.
+///
+/// It is not newline-terminated, so a naive first-line read returns
+/// `Running build hooks...Running build hooks...no slot allocated for this
+/// worktree` — the tool's noise wrapped around the one sentence that
+/// mattered, in a message whose whole job is to quote the script.
+final _dartChatter = RegExp(
+  r'(Running build hooks\.{0,3}|Building package executable\.{0,3}|'
+  r'Built [^\s]+ [^\s]+\.)',
+);
+
+/// [output] without what `dart run` says about its own progress.
+String withoutDartChatter(String output) => output.replaceAll(_dartChatter, '');
+
+/// The first thing the script itself said on stderr, or null.
 String? _firstLine(Object? stderr) {
-  var text = (stderr as String? ?? '').trim();
-  if (text.isEmpty) return null;
-  return text.split('\n').first.trim();
+  var text = withoutDartChatter(stderr as String? ?? '');
+  for (var line in text.split(RegExp(r'[\r\n]'))) {
+    var trimmed = line.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+  }
+  return null;
 }
