@@ -31,24 +31,23 @@ void main() {
 
   DevStackCore coreWith(Map<String, Object?> config) =>
       DevStackCore(
-          PluginHost(
-            id: devStackPluginId,
-            label: 'Dev stack',
-            worktree: Worktree(path: project.path),
-            workspace: Workspace(
-              root: project.path,
-              declared: [],
-              discovered: [],
-              appContext: AppContext(logger: LogClient.print()),
-              flutterSdk: FlutterSdkPath('/tmp/flutter'),
-            ),
-            config: config,
+        PluginHost(
+          id: devStackPluginId,
+          label: 'Dev stack',
+          worktree: Worktree(path: project.path),
+          workspace: Workspace(
+            root: project.path,
+            declared: [],
+            discovered: [],
+            appContext: AppContext(logger: LogClient.print()),
+            flutterSdk: FlutterSdkPath('/tmp/flutter'),
           ),
-        )
-        ..runProcess = (command, {workingDirectory}) async {
-          ran.add(command);
-          return ProcessResult(0, 0, '{"state":"up"}', '');
-        };
+          config: config,
+        ),
+      )..scriptProcess((command, {workingDirectory}) async {
+        ran.add(command);
+        return ProcessResult(0, 0, '{"state":"up"}', '');
+      });
 
   Map<String, Object?> configWith(List<StackCommand> commands) =>
       DevStack.background(

@@ -51,6 +51,33 @@ void main() {
     return file;
   }
 
+  /// An owned dev-stack service's handle naming [servicePid], [age] old, with
+  /// its log beside it.
+  ///
+  /// A different pid field from a run's, deliberately: the two point at
+  /// different things — a launcher carrying an app, and the service itself —
+  /// and the sweeper has to read both.
+  (File, File) serviceHandle(String key, int servicePid, Duration age) {
+    var log = aged('$key-$servicePid-0.log', age);
+    var file = File(p.join(runDir.path, '$key-$servicePid.json'))
+      ..writeAsStringSync(
+        jsonEncode({
+          'worktree': '/tmp/wt',
+          'service': 'server',
+          'pid': servicePid,
+          'command': 'dart bin/server.dart',
+          'workingDirectory': '/tmp/wt',
+          'logPath': log.path,
+          // As the run handle's helper does: the mtime carries the age, and
+          // `startedAt` stays honest about when this process actually started
+          // — nothing here can make a real pid older than it is.
+          'startedAt': DateTime.now().toUtc().toIso8601String(),
+        }),
+      );
+    file.setLastModifiedSync(DateTime.now().subtract(age));
+    return (file, log);
+  }
+
   setUp(() => runDir = Directory.systemTemp.createTempSync('fw-run-'));
 
   tearDown(() {
@@ -160,6 +187,22 @@ void main() {
     });
   });
 
+  group('what it deletes, once nothing is running', () {
+    test("a dead owned service's handle and its log", () async {
+      // The log is spared *by the handle*, so its own age proves nothing —
+      // what has to be checked is that a handle nothing is running stops
+      // sparing it.
+      serviceHandle(
+        'svc-abcdef123456',
+        await _deadPid(),
+        const Duration(days: 3),
+      );
+
+      expect(await sweep(), 2);
+      expect(runDir.listSync(), isEmpty);
+    });
+  });
+
   group('what it spares', () {
     test("a living run's journal, however old", () async {
       // The handle is still in the ledger — its launcher is this very test's
@@ -167,6 +210,18 @@ void main() {
       // the handle's own death starts the journal's clock.
       handle('app-z-$pid.json', pid, const Duration(days: 3));
       aged('app-z-$pid.journal.jsonl', const Duration(days: 30));
+
+      expect(await sweep(), 0);
+      expect(runDir.listSync(), hasLength(2));
+    });
+
+    test("a live owned service's handle and log, however old", () async {
+      // A dev server up since Monday is the normal case, not the leak. Sweeping
+      // its handle would hand the next `start` a port it would then fail to
+      // bind, with nothing on disk to say what holds it — and sweeping the log
+      // would empty a panel that is looking at a running process, because
+      // flutterware's redirect is the only copy of that output anywhere.
+      serviceHandle('svc-abcdef123456', pid, const Duration(days: 30));
 
       expect(await sweep(), 0);
       expect(runDir.listSync(), hasLength(2));

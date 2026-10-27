@@ -136,4 +136,31 @@ void main() { Timer(const Duration(minutes: 5), () {}); }
 
     expect(outcome.problem, contains('did not answer'));
   });
+
+  test('the failure quotes the script, not the dart CLI', () async {
+    File(p.join(worktree.path, 'tool', 'env.dart'))
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync('''
+import 'dart:io';
+void main() {
+  // The shape `dart run` itself produces: progress on stderr with no newline
+  // after it, so the script's own sentence is glued to the end of it.
+  stderr.write('Running build hooks...Running build hooks...');
+  stderr.writeln('no slot allocated for this worktree');
+  exit(1);
+}
+''');
+
+    var outcome = await runDefineScript(
+      const ScriptSource('tool/env.dart'),
+      dartExecutable: dart,
+      worktreePath: worktree.path,
+    );
+
+    // The whole job of this message is to quote the script. Wrapping the one
+    // sentence that matters in the tool's own chatter is how a legible
+    // refusal becomes an illegible one.
+    expect(outcome.problem, contains('no slot allocated for this worktree'));
+    expect(outcome.problem, isNot(contains('build hooks')));
+  });
 }

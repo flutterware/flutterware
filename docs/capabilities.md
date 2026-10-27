@@ -2647,7 +2647,7 @@ verdictGap: String?   # Why the verdict is incomplete, when it is — the senten
 
 ### `flutterware.dev_stack`
 
-The project's local dev stack — docker, the database, whatever the app talks to locally — read and driven by running the project's own commands.
+The services the app talks to locally — docker, the database, the API server — each one either run by the project's own commands or started and stopped by flutterware itself, read and driven from one list.
 
 #### `status` — Check
 
@@ -2660,6 +2660,34 @@ fw run dev_stack status
 Returns `StackReading`:
 
 Shape not published: `StackReading` writes its own `toJson`, so its fields are not its keys.
+
+Takes no parameters.
+
+#### `start` — Bring up
+
+Runs the declared start command and re-probes when it returns. Idempotent by contract — a stack that is already up should come back up as a no-op, which is what makes this safe to call when you only want to be sure.
+
+```sh
+fw run dev_stack start
+```
+
+Returns `DevStackRunResult`:
+
+Shape not published: `DevStackRunResult` writes its own `toJson`, so its fields are not its keys.
+
+Takes no parameters.
+
+#### `stop` — Tear down
+
+Runs the declared stop command and re-probes when it returns.
+
+```sh
+fw run dev_stack stop
+```
+
+Returns `DevStackRunResult`:
+
+Shape not published: `DevStackRunResult` writes its own `toJson`, so its fields are not its keys.
 
 Takes no parameters.
 

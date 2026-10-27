@@ -56,7 +56,7 @@ void main() {
           at: DateTime.now(),
           detail: 'localhost:8080',
           services: const [
-            StackService(name: 'http', port: 8080, state: StackState.up),
+            ProbedService(name: 'http', port: 8080, state: StackState.up),
           ],
         ),
       );
@@ -151,7 +151,7 @@ void main() {
             state: StackState.up,
             at: null,
             services: [
-              StackService(name: 'http', port: 8080, state: StackState.up),
+              ProbedService(name: 'http', port: 8080, state: StackState.up),
             ],
           ),
         ),
@@ -199,8 +199,8 @@ void main() {
             state: StackState.up,
             at: null,
             services: [
-              StackService(name: 'db', port: 8200, state: StackState.up),
-              StackService(
+              ProbedService(name: 'db', port: 8200, state: StackState.up),
+              ProbedService(
                 name: 'sync',
                 port: 8202,
                 state: StackState.starting,
@@ -284,7 +284,7 @@ void main() {
                 state: StackState.up,
                 at: now,
                 services: const [
-                  StackService(name: 'http', port: 8080, state: StackState.up),
+                  ProbedService(name: 'http', port: 8080, state: StackState.up),
                 ],
               ),
             ),

@@ -265,7 +265,7 @@ PluginCoreFactory _recordedCore(
   ),
   devStackPluginId => (host) => DevStackCore(
     host,
-  )..runProcess = RecordedStack(recording).run,
+  )..scriptProcess(RecordedStack(recording).run),
   translationsPluginId => (host) => TranslationsCore(
     host,
     source: RecordedTranslationSource(recording),

@@ -87,10 +87,16 @@ Widget devStackCompact() => Builder(
             style: context.type.caption,
           ),
           const Gap(FwSpacing.xxxl),
-          DevStackBlock(
-            _plugin(state: _Scripted.up),
-            form: DevStackForm.strip,
-            onOpenPanel: () {},
+          Builder(
+            builder: (context) {
+              var plugin = _plugin(state: _Scripted.up);
+              return DevStackBlock(
+                plugin,
+                plugin.core.services.single,
+                form: DevStackForm.strip,
+                onOpenPanel: () {},
+              );
+            },
           ),
         ],
       ),
@@ -154,7 +160,7 @@ DevStackPlugin _plugin({required _Scripted state, bool controls = true}) {
     ),
   );
 
-  core.runProcess = (command, {workingDirectory}) async {
+  core.scriptProcess((command, {workingDirectory}) async {
     var verb = command.elementAtOrNull(1);
     // A beat for the things a person watches happen, and **none for the
     // probe**. A headless preview screenshot settles on frames rather than on
@@ -208,6 +214,6 @@ DevStackPlugin _plugin({required _Scripted state, bool controls = true}) {
       default:
         return ProcessResult(0, 0, '', '');
     }
-  };
+  });
   return DevStackPlugin(core);
 }

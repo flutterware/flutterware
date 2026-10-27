@@ -16,6 +16,102 @@ String stackCachePath(String runDir, String worktreePath) => p.join(
   'stack-${sha1.convert(utf8.encode(worktreePath)).toString().substring(0, 16)}.json',
 );
 
+/// What a worktree's cache file holds: the last reading of each declared
+/// service, keyed by [StackService.id].
+///
+/// **One file, not one per service**, which is the constraint the explorer
+/// imposes: a list of eight worktrees reads eight files, and it must not
+/// become eight times however many services each declares. The map is what
+/// lets the panel restore every row from that single read.
+class StackCache {
+  const StackCache(this.readings);
+
+  const StackCache.empty() : readings = const {};
+
+  final Map<String, StackReading> readings;
+
+  /// The whole worktree as one reading, for a surface with room for one line.
+  ///
+  /// Every declared service becomes a [ProbedService] row, so the fraction the
+  /// column already knows how to draw — `up 2/3` — counts *services* here
+  /// where it counts containers inside a single delegated one. Same shape,
+  /// one level up.
+  ///
+  /// The headline is the most urgent thing true of any of them, in the order
+  /// a reader cares: something is up (with the fraction saying how much),
+  /// something is moving, something cannot be read, otherwise down. A broken
+  /// probe outranks `down` because "can't tell" is the one state you cannot
+  /// infer and should not have to open a tab to discover.
+  StackReading get aggregate {
+    var known = {
+      for (var entry in readings.entries)
+        if (entry.value.isKnown) entry.key: entry.value,
+    };
+    if (known.isEmpty) return const StackReading.unknown();
+    // **One service answers for itself, whole.** Summarising it would replace
+    // its own detail and its own probe-reported parts — `localhost:8080`, four
+    // named containers — with a single row saying its id back, which is less
+    // than the file already holds. Every project that has ever used this
+    // plugin is this case.
+    if (known.length == 1) return known.values.single;
+    var states = known.values.map((r) => r.state).toList();
+    var state = switch (states) {
+      _ when states.any((s) => s == StackState.up) => StackState.up,
+      _ when states.any((s) => s.isMoving) => StackState.starting,
+      _ when states.any((s) => s == StackState.unavailable) =>
+        StackState.unavailable,
+      _ => StackState.down,
+    };
+    // The newest, because this answers "when did a session last look here",
+    // which is what the column dims on.
+    DateTime? at;
+    for (var reading in known.values) {
+      var seen = reading.at;
+      if (seen != null && (at == null || seen.isAfter(at))) at = seen;
+    }
+    return StackReading(
+      state: state,
+      at: at,
+      services: [
+        for (var entry in known.entries)
+          ProbedService(name: entry.key, state: entry.value.state),
+      ],
+      failure: known.values
+          .map((r) => r.failure)
+          .whereType<String>()
+          .firstOrNull,
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'services': {
+      for (var entry in readings.entries) entry.key: entry.value.toJson(),
+    },
+  };
+
+  /// Reads the keyed shape, and the single-reading shape that preceded it.
+  ///
+  /// A cache written by an older flutterware is one stack's reading at the top
+  /// level, which is exactly what the `stack` id means today — so it is
+  /// adopted under that key rather than discarded. Getting this wrong costs a
+  /// cold sidebar its only fact.
+  static StackCache fromJson(Map<String, Object?> json) {
+    if (json['services'] case Map raw) {
+      return StackCache({
+        for (var entry in raw.entries)
+          if (entry.value is Map)
+            '${entry.key}': StackReading.fromJson(
+              (entry.value as Map).cast<String, Object?>(),
+            ),
+      });
+    }
+    var reading = StackReading.fromJson(json);
+    return reading.isKnown
+        ? StackCache({'stack': reading})
+        : StackCache.empty();
+  }
+}
+
 /// What state a [DevStack] is in.
 ///
 /// Five, not four, and the fifth is the one a first draft leaves out.
@@ -48,12 +144,17 @@ enum StackState {
   bool get isMoving => this == starting || this == stopping;
 }
 
-/// One service inside a stack, when the probe says that much.
+/// One part a probe reported, when it said that much.
+///
+/// Not to be confused with [StackService], which is what a project *declares*
+/// — the two are a level apart. A declared service has a lifecycle, an id and
+/// actions; this is a row a delegated service's probe listed underneath
+/// itself, which is where `up 3/4` comes from.
 ///
 /// Only [Probe.json] produces these; an exit-code probe has nothing to build
-/// them from and reports the stack as a whole.
-class StackService {
-  const StackService({required this.name, this.port, this.state});
+/// them from and reports the service as a whole.
+class ProbedService {
+  const ProbedService({required this.name, this.port, this.state});
 
   final String name;
   final int? port;
@@ -68,10 +169,10 @@ class StackService {
     if (state != null) 'state': state!.name,
   };
 
-  static StackService? fromJson(Map<String, Object?> json) {
+  static ProbedService? fromJson(Map<String, Object?> json) {
     var name = json['name'];
     if (name is! String || name.isEmpty) return null;
-    return StackService(
+    return ProbedService(
       name: name,
       port: json['port'] is int ? json['port']! as int : null,
       state: json['state'] == null
@@ -105,7 +206,7 @@ class StackReading implements PluginResult {
   /// is where a health check usually puts its summary.
   final String? detail;
 
-  final List<StackService> services;
+  final List<ProbedService> services;
 
   /// Why the probe could not be believed. Only set with
   /// [StackState.unavailable].
@@ -158,7 +259,8 @@ class StackReading implements PluginResult {
     detail: json['detail'] as String?,
     services: [
       for (var entry in (json['services'] as List? ?? const []))
-        if (entry is Map) ?StackService.fromJson(entry.cast<String, Object?>()),
+        if (entry is Map)
+          ?ProbedService.fromJson(entry.cast<String, Object?>()),
     ],
     failure: json['failure'] as String?,
     at: DateTime.tryParse('${json['checkedAt']}'),
@@ -170,12 +272,13 @@ class DevStackRunResult implements PluginResult {
   const DevStackRunResult({
     required this.command,
     required this.exitCode,
+    bool? ok,
     this.stdout = '',
     this.stderr = '',
     this.output = '',
     this.timedOut = false,
     this.reading,
-  });
+  }) : ok = ok ?? exitCode == 0;
 
   /// What was actually run, joined — so a caller that wants to run it directly
   /// next time can.
@@ -185,7 +288,14 @@ class DevStackRunResult implements PluginResult {
   /// claim that it worked, and any other number a claim that it failed.
   final int? exitCode;
 
-  bool get ok => exitCode == 0;
+  /// Whether the action did what was asked.
+  ///
+  /// Normally that is the exit code, because normally the action *is* a
+  /// command that ran and finished. An owned service's `start` has no exit
+  /// code to read — the process has deliberately not exited, which is the
+  /// whole point of it — so that one passes `ok:` outright, meaning whether
+  /// the service came up, which is the only question the caller asked.
+  final bool ok;
 
   /// The wait ended before the command did, and the process was left running.
   /// [exitCode] is null and [stderr] says so.

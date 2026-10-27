@@ -185,44 +185,68 @@ void main() => Flutterware.configure((fw) {
   // analysis_options.yaml itself, because "this rule is evaluated nowhere" is
   // only a truthful sentence about all of them at once.
   fw.use(Lints());
-  // The same stack `fixtures/probe_app/tool/flutterware.dart` declares, from the
-  // root of the monorepo it lives in — which is the whole job of
-  // `workingDirectory:`. The commands are written as that package writes them
-  // and run where it runs them, so one script serves both configs and neither
-  // has to know where the other opened.
+  // The same server `fixtures/probe_app/tool/flutterware.dart` declares, from
+  // the root of the monorepo it lives in — which is the whole job of
+  // `workingDirectory:`. Everything is written as that package writes it and
+  // runs where it runs, so neither config has to know where the other opened.
+  //
+  // **Declared the other way round, deliberately.** Over there it is a
+  // `StackService.delegated` pointing at `tool/stack.dart`, a 200-line script
+  // that spawns the server detached, writes its pid to a file, polls port 8080
+  // and tails a log. Here it is a `StackService.owned` naming the server
+  // itself, and flutterware does all of that. Both are honest declarations of
+  // the same process, and having one of each in the repo is what keeps both
+  // kinds exercised — the delegated path is what a project with an existing
+  // `make dev` uses, and it must not rot because we stopped needing it.
   //
   // `StackRun.script` rather than a command naming an interpreter: flutterware
   // supplies the SDK it is running under, which is the one the project pinned.
   // The `dart` on PATH is a different question with a frequently different
-  // answer — in this repo, a two-versions-old one. This used to be
-  // `Platform.resolvedExecutable` prepended to all six commands.
+  // answer — in this repo, a two-versions-old one.
+  //
+  // **The port is asked for, not written down.** `bin/example_server.dart`
+  // binds a constant here, so `tool/stack.dart port` answers with a constant —
+  // but the shape is the one a monorepo needs, where every worktree gets its
+  // own slot and a literal in this file would be right for one checkout and
+  // silently wrong for the rest. Asked once per start, before anything is
+  // spawned, and refused with the script's own words when it cannot answer.
+  //
+  // Two worktrees still cannot both have this one up, because the number is
+  // the same for both — and the second is told exactly that, by port, rather
+  // than dying on `EADDRINUSE`.
   fw.use(
-    DevStack.background(
+    DevStack(
       label: 'Example server',
-      workingDirectory: 'fixtures/probe_app',
-      probe: Probe.json(
-        StackRun.script('tool/stack.dart', args: ['status', '--json']),
-      ),
-      start: StackRun.script('tool/stack.dart', args: ['up']),
-      stop: StackRun.script('tool/stack.dart', args: ['down']),
-      poll: const Duration(seconds: 15),
-      commands: [
-        StackCommand(
-          'logs',
-          'Logs',
-          StackRun.script('tool/stack.dart', args: ['logs']),
-          description:
-              'The last 40 lines the server logged. A background process has '
-              'no terminal, so it appends to a file instead.',
-        ),
-        StackCommand(
-          'hit',
-          'Send a request',
-          StackRun.script('tool/stack.dart', args: ['hit']),
-          argument: 'path',
-          description:
-              'Requests a path — /users, /slow, /error — so the Server panel '
-              'has traffic to show. Defaults to /users.',
+      services: [
+        StackService.owned(
+          'server',
+          name: 'Example server',
+          workingDirectory: 'fixtures/probe_app',
+          start: StackRun.script('bin/example_server.dart'),
+          // Not `Ready.port(8080)`: this server publishes a liveness endpoint,
+          // and a bound socket is a promise about the socket rather than about
+          // the server behind it.
+          ready: Ready.httpFrom(
+            ValueSource.script(
+              'fixtures/probe_app/tool/stack.dart',
+              args: ['port'],
+            ),
+            path: '/health',
+            timeout: const Duration(seconds: 20),
+          ),
+          commands: [
+            // No `logs` — flutterware owns the file this one's output went to,
+            // so the action is there without being declared.
+            StackCommand(
+              'hit',
+              'Send a request',
+              StackRun.script('tool/stack.dart', args: ['hit']),
+              argument: 'path',
+              description:
+                  'Requests a path — /users, /slow, /error — so the Server '
+                  'panel has traffic to show. Defaults to /users.',
+            ),
+          ],
         ),
       ],
     ),

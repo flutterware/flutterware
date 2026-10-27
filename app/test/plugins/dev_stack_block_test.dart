@@ -38,24 +38,23 @@ void main() {
   }) {
     var core =
         DevStackCore(
-            PluginHost(
-              id: devStackPluginId,
-              label: 'Example server',
-              worktree: Worktree(path: project.path),
-              workspace: Workspace(
-                root: project.path,
-                declared: [],
-                discovered: [],
-                appContext: AppContext(logger: LogClient.print()),
-                flutterSdk: FlutterSdkPath('/tmp/flutter'),
-              ),
-              config: config,
+          PluginHost(
+            id: devStackPluginId,
+            label: 'Example server',
+            worktree: Worktree(path: project.path),
+            workspace: Workspace(
+              root: project.path,
+              declared: [],
+              discovered: [],
+              appContext: AppContext(logger: LogClient.print()),
+              flutterSdk: FlutterSdkPath('/tmp/flutter'),
             ),
-          )
-          ..runProcess = (command, {workingDirectory}) async {
-            if (held case var completer?) return completer.future;
-            return ProcessResult(0, exitCode, probeOutput, '');
-          };
+            config: config,
+          ),
+        )..scriptProcess((command, {workingDirectory}) async {
+          if (held case var completer?) return completer.future;
+          return ProcessResult(0, exitCode, probeOutput, '');
+        });
     return DevStackPlugin(core);
   }
 
@@ -80,7 +79,12 @@ void main() {
         home: Scaffold(
           body: Padding(
             padding: const EdgeInsets.all(24),
-            child: DevStackBlock(plugin, form: form, onOpenPanel: onOpenPanel),
+            child: DevStackBlock(
+              plugin,
+              plugin.core.only!,
+              form: form,
+              onOpenPanel: onOpenPanel,
+            ),
           ),
         ),
       ),
@@ -248,7 +252,7 @@ void main() {
     var plugin = pluginWith(jsonConfig(), probeOutput: '{"state":"down"}');
     await pump(tester, plugin);
     held = Completer<ProcessResult>();
-    unawaited(plugin.core.start());
+    unawaited(plugin.core.only!.start());
     // Two frames, not : a core's change notification is
     // coalesced through a microtask and a stream before it reaches the widget,
     // and a transition never settles by design — the bar animates and the
@@ -281,14 +285,17 @@ void main() {
     // worktree with its probe held. What is on screen is then exactly the cold
     // open: a cache, and a first check still in flight.
     var first = pluginWith(jsonConfig(), probeOutput: '{"state":"up"}');
-    await first.core.refresh();
+    await first.core.only!.refresh();
     first.core.dispose();
 
     var cache = runDir.listSync().whereType<File>().firstWhere(
       (f) => f.path.contains('stack-'),
     );
     var json = jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
-    json['checkedAt'] = DateTime.now()
+    // One file per worktree, a reading per service — so the clock to wind back
+    // is the service's, not the file's.
+    var services = (json['services']! as Map).cast<String, Object?>();
+    (services['stack']! as Map)['checkedAt'] = DateTime.now()
         .subtract(const Duration(hours: 2))
         .toIso8601String();
     cache.writeAsStringSync(jsonEncode(json));

@@ -55,13 +55,22 @@ enum DevStackForm {
 ///   console they write to.
 class DevStackBlock extends StatefulWidget {
   const DevStackBlock(
-    this.plugin, {
+    this.plugin,
+    this.service, {
     super.key,
     this.form = DevStackForm.band,
     this.onOpenPanel,
   });
 
   final DevStackPlugin plugin;
+
+  /// Which of the plugin's services this block is about.
+  ///
+  /// One block is one service, in both forms. A worktree that declares
+  /// several gets several blocks rather than one summarising them: the whole
+  /// point of the strip is the control on the right, and there is no honest
+  /// single control for "the stack and the server and the worker".
+  final StackServiceCore service;
 
   final DevStackForm form;
 
@@ -109,7 +118,7 @@ class DevStackColumn extends StatelessWidget {
 }
 
 class _DevStackBlockState extends State<DevStackBlock> {
-  DevStackCore get _core => widget.plugin.core;
+  StackServiceCore get _core => widget.service;
 
   /// Redraws the elapsed seconds during a transition, and nothing else.
   ///
@@ -121,7 +130,12 @@ class _DevStackBlockState extends State<DevStackBlock> {
   @override
   void initState() {
     super.initState();
-    _core.watch();
+    // The **container**, not [_core]: the cache every service is restored from
+    // is one file for the worktree, so reading it is the plugin's job rather
+    // than any one service's. Mounting a block is still what starts the
+    // polling — the count is per service underneath, and every surface that
+    // shows one block shows them all.
+    widget.plugin.core.watch();
     widget.plugin.addListener(_syncTicker);
     _syncTicker();
   }
@@ -133,8 +147,13 @@ class _DevStackBlockState extends State<DevStackBlock> {
       oldWidget.plugin
         ..core.unwatch()
         ..removeListener(_syncTicker);
-      _core.watch();
+      widget.plugin.core.watch();
       widget.plugin.addListener(_syncTicker);
+      _syncTicker();
+    } else if (oldWidget.service != widget.service) {
+      // Same plugin, different service — a list that reordered or lost a row.
+      // Nothing to re-subscribe, since the watch is the container's, but the
+      // ticker is about *this* service's transition.
       _syncTicker();
     }
   }
@@ -143,7 +162,7 @@ class _DevStackBlockState extends State<DevStackBlock> {
   void dispose() {
     _tick?.cancel();
     widget.plugin.removeListener(_syncTicker);
-    _core.unwatch();
+    widget.plugin.core.unwatch();
     super.dispose();
   }
 
@@ -578,7 +597,12 @@ class _DevStackBlockState extends State<DevStackBlock> {
         'up, ${reading.serviceCount!.$1} of ${reading.serviceCount!.$2}',
       StackState.up => 'up',
       StackState.stopping => 'tearing down',
-      StackState.unavailable => "can't tell",
+      // The core's own word. What "cannot be believed" means differs by kind,
+      // and an owned service can say which of two opposite things it is — its
+      // own process alive and silent, or a port held by something it never
+      // started. The sidebar already shows that word; a vaguer one here for
+      // the same fact reads as two different states.
+      StackState.unavailable => _core.status.message,
     };
   }
 

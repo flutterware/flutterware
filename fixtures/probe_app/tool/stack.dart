@@ -11,6 +11,7 @@
 /// ```sh
 /// dart run tool/stack.dart up          # start the toy server in the background
 /// dart run tool/stack.dart status      # what state is it in
+/// dart run tool/stack.dart port        # which port it listens on
 /// dart run tool/stack.dart logs        # what has it been saying
 /// dart run tool/stack.dart hit /users  # send it a request
 /// dart run tool/stack.dart down        # stop it
@@ -53,6 +54,7 @@ Future<void> main(List<String> arguments) async {
     'down' => await _down(),
     'status' => await _status(json: rest.contains('--json')),
     'logs' => _logs(),
+    'port' => _port_(),
     'hit' => await _hit(rest.firstOrNull ?? '/users'),
     _ => _usage(verb),
   };
@@ -62,7 +64,7 @@ int _usage(String verb) {
   stderr.writeln('Unknown command `$verb`.');
   stderr.writeln(
     'Usage: dart run tool/stack.dart '
-    '[up|down|status [--json]|logs|hit <path>]',
+    '[up|down|status [--json]|port|logs|hit <path>]',
   );
   return 64;
 }
@@ -236,6 +238,18 @@ void _clearState() {
 }
 
 // ── logs, hit ──────────────────────────────────────────────────────────────
+
+/// The port this server listens on, as a bare number.
+///
+/// The shape a value another tool reads has to take, and the one flutterware's
+/// `ValueSource.script` asks for: one line, nothing else, and a non-zero exit
+/// when the answer is not known. Here it is a constant; in a monorepo that
+/// allocates a port per worktree it is a lookup, and that is the whole reason
+/// the port is asked for rather than written into `tool/flutterware.dart`.
+int _port_() {
+  stdout.writeln(_port);
+  return 0;
+}
 
 int _logs() {
   var tail = _tail(40);
