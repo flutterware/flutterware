@@ -34,11 +34,15 @@
 /// });
 /// ```
 ///
-/// Pure Dart: a server package can depend on it without Flutter in its
+/// A server the dev stack runs stays up between worlds instead. Name it in
+/// the `WorldScript`'s `needs:`: opening the world brings it up first, and the
+/// script reads where it is with [World.service].
+///
+/// Pure Dart:a server package can depend on it without Flutter in its
 /// build, the bargain `package:flutterware/server.dart` already makes.
 library;
 
 export 'src/devices.dart' show Device, DeviceKind, DevicePlatform, Devices;
 export 'src/world/mail_inbox.dart' show InboxMail, MailInbox;
 export 'src/world/world.dart'
-    show ActionRun, Launch, Person, Studio, World, WorldDevice;
+    show ActionRun, Launch, Person, Studio, World, WorldDevice, WorldService;

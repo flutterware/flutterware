@@ -2897,7 +2897,7 @@ Takes no parameters.
 
 #### `open` — Open
 
-Runs the world script in its package and starts every person it declares, each app in an embedded guest; answers once they are all up. Each is then a Run app on the device `studio-<name>`, so `flutterware_act` with that `device` drives it. When the studio has this worktree open, the world opens there, its people's apps live on screen, and the studio owns it. Otherwise, from `fw`, it lives as long as the command, or until Ctrl-C with `hold`; over MCP it is refused, because the MCP server keeps nothing between calls. Every other process reaches it: `status`, `invoke`, `restart` and `close` are answered by whichever process owns it.
+Brings up the dev stack services the world needs, runs the world script in its package once they answer, and starts every person it declares, each app in an embedded guest; answers once they are all up. Each is then a Run app on the device `studio-<name>`, so `flutterware_act` with that `device` drives it. When the studio has this worktree open, the world opens there, its people's apps live on screen, and the studio owns it. Otherwise, from `fw`, it lives as long as the command, or until Ctrl-C with `hold`; over MCP it is refused, because the MCP server keeps nothing between calls. Every other process reaches it: `status`, `invoke`, `restart` and `close` are answered by whichever process owns it.
 
 ```sh
 fw run worlds open --world=<choice> [--knobs=…] [--hold=…]
@@ -2914,6 +2914,7 @@ problem: String?   # Why it failed.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?
+services: List<Map<String, Object?>>?   # The dev stack services it runs on, and where each one answers.
 log: List<String>?   # The script's last lines: its progress, and what it printed.
 note: String?   # A word about what to do next.
 ```
@@ -2945,6 +2946,7 @@ problem: String?   # Why it failed.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?
+services: List<Map<String, Object?>>?   # The dev stack services it runs on, and where each one answers.
 log: List<String>?   # The script's last lines: its progress, and what it printed.
 note: String?   # A word about what to do next.
 ```
@@ -3121,6 +3123,7 @@ problem: String?   # Why it failed.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?
+services: List<Map<String, Object?>>?   # The dev stack services it runs on, and where each one answers.
 log: List<String>?   # The script's last lines: its progress, and what it printed.
 note: String?   # A word about what to do next.
 ```
@@ -3177,6 +3180,7 @@ problem: String?   # Why it failed.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?
+services: List<Map<String, Object?>>?   # The dev stack services it runs on, and where each one answers.
 log: List<String>?   # The script's last lines: its progress, and what it printed.
 note: String?   # A word about what to do next.
 ```

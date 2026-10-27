@@ -29,6 +29,7 @@ import 'guest_process.dart';
 import 'platform/studio_platform.dart';
 import 'world_files.dart';
 import 'world_script.dart';
+import 'world_stack.dart';
 import 'web_snapshot.dart';
 import 'world_trace.dart';
 
@@ -51,6 +52,7 @@ class OpenWorld {
     this.onChanged,
     this.buildRoot,
     this.runDir,
+    this.stack,
   });
 
   final WorldFile file;
@@ -81,6 +83,10 @@ class OpenWorld {
   /// every real server under the worktree.
   final String Function()? runDir;
 
+  /// What brings up the dev stack services [WorldFile.needs] names; null when
+  /// the project declares no dev stack.
+  final WorldStack? stack;
+
   WorldPhase phase = WorldPhase.opening;
 
   /// Why the world is [WorldPhase.failed].
@@ -91,6 +97,10 @@ class OpenWorld {
 
   /// What it was last opened with.
   Map<String, Object?> knobValues = const {};
+
+  /// The dev stack services this opening runs on, as the script was told
+  /// they were: [WorldFile.needs] and what they need.
+  List<WorldService> services = const [];
 
   final people = <String, WorldPerson>{};
   final actions = <String, String?>{};
@@ -542,10 +552,19 @@ class OpenWorld {
       }
     }
 
+    // The stack comes up while the script compiles. The script is told to
+    // open only once every service answers, so it never seeds a stack that is
+    // half up. Caught from the start: it can fail before anything awaits it.
+    var bringingUp = file.needs.isEmpty
+        ? null
+        : _bringUp().then<(List<WorldService>?, Object?)>(
+            (services) => (services, null),
+            onError: (Object error) => (null, error),
+          );
     _say('Starting ${file.path}');
     WorldScriptProcess script;
     try {
-      script = _script = await _startScript(knobs);
+      script = _script = await _startScript();
     } on Object catch (error) {
       _fail('$error');
       // The people of the last opening belong to a world that is gone: left
@@ -624,14 +643,42 @@ class OpenWorld {
       }
       _changed();
     });
+    services = const [];
+    if (bringingUp != null) {
+      var (up, error) = await bringingUp;
+      if (error != null) {
+        _fail('$error');
+        // Not yet opened, so it has seeded nothing; closed here, its exit is
+        // not the failure.
+        _script = null;
+        await script.close();
+        await Future.wait([for (var person in people.values) person._stop()]);
+        people.clear();
+        _changed();
+        return;
+      }
+      services = up!;
+    }
+    script.send(WorldMessage.open, {
+      'knobs': knobs,
+      if (services.isNotEmpty)
+        'services': [for (var service in services) service.toJson()],
+    });
     await settled.future;
+  }
+
+  Future<List<WorldService>> _bringUp() async {
+    var stack = this.stack;
+    if (stack == null) throw WorldRefusal(noDevStackFor(file));
+    _say('Bringing up ${file.needs.map(stack.nameOf).join(', ')}');
+    return stack.bringUp(file.needs, say: _say);
   }
 
   /// Starts the script, once more with a fresh compiler if it died on the
   /// compiler's socket before connecting: `dart run --resident` can find a
   /// compiler whose idle timer — fired late, after the Mac slept — is taking
   /// it down, and the script then dies with the connection reset.
-  Future<WorldScriptProcess> _startScript(Map<String, Object?> knobs) async {
+  Future<WorldScriptProcess> _startScript() async {
     for (var attempt = 1; ; attempt++) {
       var starting = true;
       var said = <String>[];
@@ -640,7 +687,6 @@ class OpenWorld {
           dart: _dart,
           packageRoot: p.join(worktree, file.package),
           file: file.path,
-          knobs: knobs,
           compiler: _compiler,
           onOutput: (line) {
             if (starting) said.add(line);

@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/src/server/attach_session.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/ui_catalog/knob.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/world/world.dart' show WorldService;
 import 'package:flutterware_app/src/plugins/native/worlds_results.dart';
 import 'package:flutterware_app/src/run/entrypoint_knobs.dart';
 import 'package:flutterware_app/src/utils/parameter_knobs.dart';
@@ -12,6 +14,7 @@ import 'package:flutterware_app/src/utils/run_dir.dart';
 import 'package:flutterware_app/src/world/open_world.dart';
 import 'package:flutterware_app/src/world/world_files.dart';
 import 'package:flutterware_app/src/world/world_script.dart';
+import 'package:flutterware_app/src/world/world_stack.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -266,6 +269,91 @@ void main() {
     );
   }, timeout: const Timeout(Duration(minutes: 2)));
 
+  group('on a dev stack', () {
+    OpenWorld worldOn(WorldStack? stack) => OpenWorld(
+      file: const WorldFile(
+        package: 'app',
+        path: 'test/world/fixtures/stack_world.dart',
+        name: 'On the stack',
+        needs: ['server'],
+      ),
+      worktree: p.dirname(Directory.current.path),
+      flutterSdkRoot: Platform.environment['FLUTTER_ROOT']!,
+      appRoot: Directory.current.path,
+      entrypoints: const [],
+      guests: (_) => throw StateError('nobody here has an app'),
+      runDir: () => emptyRunDir,
+      stack: stack,
+    );
+
+    test('opens the script once the services are up, and tells it where '
+        'they are', () async {
+      var stack = _FakeStack();
+      var world = worldOn(stack);
+      addTearDown(world.close);
+      await world.open();
+
+      expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+      expect(stack.asked, [
+        ['server'],
+      ]);
+      var log = [for (var line in world.logLines) line.text];
+      expect(log, contains('Bringing up API server'));
+      expect(
+        log.indexOf('Seeding http://localhost:8123'),
+        greaterThan(log.indexOf('API server is up at http://localhost:8123')),
+      );
+      expect(world.services.single.port, 8123);
+      expect(WorldStateResult.of(world).toJson()['services'], [
+        {
+          'id': 'server',
+          'name': 'API server',
+          'port': 8123,
+          'url': 'http://localhost:8123',
+        },
+      ]);
+
+      // A restart asks again: a service can have gone down since.
+      await world.restart();
+      expect(stack.asked, hasLength(2));
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('a service that does not come up fails the world before the '
+        'script seeds anything', () async {
+      var world = worldOn(
+        _FakeStack(
+          fails: 'API server did not come up, so the world did not start.',
+        ),
+      );
+      addTearDown(world.close);
+      await world.open();
+
+      expect(world.phase, WorldPhase.failed);
+      expect(
+        world.problem,
+        'API server did not come up, so the world did not start.',
+      );
+      expect(world.people, isEmpty);
+      expect(world.log, isNot(contains(contains('Seeding'))));
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test(
+      'needs with no dev stack fails, saying where to declare one',
+      () async {
+        var world = worldOn(null);
+        addTearDown(world.close);
+        await world.open();
+
+        expect(world.phase, WorldPhase.failed);
+        expect(
+          world.problem,
+          startsWith('On the stack needs server, but this '),
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+  });
+
   test('knows its people without an app by their user id, phone and address, '
       'and knows the new ones after a restart', () async {
     var world = OpenWorld(
@@ -492,4 +580,34 @@ void main() {
     expect(world.people.keys, ['Ana']);
     await world.close();
   }, timeout: const Timeout(Duration(minutes: 2)));
+}
+
+/// A dev stack whose one service is always up at port 8123, or never comes
+/// up.
+class _FakeStack implements WorldStack {
+  _FakeStack({this.fails});
+
+  final String? fails;
+  final asked = <List<String>>[];
+
+  @override
+  String nameOf(String id) => id == 'server' ? 'API server' : id;
+
+  @override
+  Future<List<WorldService>> bringUp(
+    List<String> ids, {
+    required void Function(String line) say,
+  }) async {
+    asked.add(ids);
+    if (fails case var why?) throw WorldRefusal(why);
+    say('API server is up at http://localhost:8123');
+    return [
+      WorldService(
+        'server',
+        name: 'API server',
+        port: 8123,
+        url: Uri.parse('http://localhost:8123'),
+      ),
+    ];
+  }
 }

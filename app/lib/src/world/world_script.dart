@@ -12,6 +12,7 @@ import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 import '../utils/run_dir.dart';
+import '../utils/terminal_environment.dart';
 
 /// A world script while it runs, from its owner's side: the process, and the
 /// socket it declares its world on (`package:flutterware/src/world/
@@ -58,13 +59,19 @@ class WorldScriptProcess {
 
   /// Runs [file] in the package at [packageRoot] with [dart] — `dart run`, so
   /// it resolves and runs its build hooks as any script of that package does,
-  /// through [compiler] — and opens the world with [knobs]. [onOutput] gets
-  /// what it prints: its server's log, usually.
+  /// through [compiler] — and answers once it has connected. The world opens
+  /// when it is sent [WorldMessage.open]. [onOutput] gets what it prints: its
+  /// server's log, usually.
+  ///
+  /// In a new terminal's environment, whoever owns the world: the build hooks
+  /// rerun from scratch whenever `PATH`, `HOME`, `TMPDIR` or `ANDROID_HOME`
+  /// differ from the last run's, and a world owned by an MCP server that a
+  /// desktop app had started spent 50 s rebuilding a native library on every
+  /// opening. See [terminalEnvironment].
   static Future<WorldScriptProcess> start({
     required String dart,
     required String packageRoot,
     required String file,
-    required Map<String, Object?> knobs,
     WorldCompiler? compiler,
     void Function(String line)? onOutput,
     Duration connectTimeout = const Duration(minutes: 2),
@@ -74,6 +81,7 @@ class WorldScriptProcess {
     var serviceInfo = p.join(flutterwareRunDir(), '$name.service.json');
     if (File(serviceInfo).existsSync()) File(serviceInfo).deleteSync();
     if (File(socketPath).existsSync()) File(socketPath).deleteSync();
+    var environment = await terminalEnvironment();
     var server = await ServerSocket.bind(
       InternetAddress(socketPath, type: InternetAddressType.unix),
       0,
@@ -92,7 +100,8 @@ class WorldScriptProcess {
           file,
         ],
         workingDirectory: packageRoot,
-        environment: {worldSocketVariable: socketPath},
+        environment: {...environment, worldSocketVariable: socketPath},
+        includeParentEnvironment: false,
       );
     } on Object {
       await server.close();
@@ -139,7 +148,6 @@ class WorldScriptProcess {
       compiler,
       said,
     );
-    script.send(WorldMessage.open, {'knobs': knobs});
     return script;
   }
 

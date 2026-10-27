@@ -20,7 +20,7 @@ import 'step_names.dart';
 /// phone numbers and names it makes are new each time and the server needs no
 /// wiping between runs.
 final class World {
-  World._(this.id, this._knobValues, this._send);
+  World._(this.id, this._knobValues, this._services, this._send);
 
   /// Runs a world script's [body] and serves whoever opened it, until they
   /// close the world.
@@ -93,7 +93,14 @@ final class World {
           case WorldMessage.open when world == null:
             var knobs = (message['knobs'] as Map? ?? const {})
                 .cast<String, Object?>();
-            var opened = world = World._(_newId(), knobs, send);
+            var services = {
+              for (var json in message['services'] as List? ?? const [])
+                if (json is Map)
+                  json['id'] as String: WorldService.fromJson(
+                    json.cast<String, Object?>(),
+                  ),
+            };
+            var opened = world = World._(_newId(), knobs, services, send);
             send(WorldMessage.hello, {
               'protocol': worldProtocolVersion,
               'id': opened.id,
@@ -160,6 +167,7 @@ final class World {
   final String id;
 
   final Map<String, Object?> _knobValues;
+  final Map<String, WorldService> _services;
   final void Function(String type, [Map<String, Object?> fields]) _send;
 
   final _people = <String>{};
@@ -261,6 +269,31 @@ final class World {
       'description': ?description,
     });
     return value;
+  }
+
+  /// Where the dev stack service [id] is: one the world's `WorldScript` names
+  /// in `needs`, or one of those needs. flutterware brought it up before the
+  /// script started, so it answers.
+  ///
+  /// ```dart
+  /// var api = w.service('server').url!;
+  /// w.person('Ana', app: Launch('Shop', knobs: {'server': '$api'}));
+  /// ```
+  ///
+  /// An owned service runs in each checkout on its own, so this is the
+  /// server running the code of the checkout the world was opened in.
+  WorldService service(String id) {
+    if (_services[id] case var service?) return service;
+    throw _NoSuchService(
+      _services.isEmpty
+          ? 'This world was opened with no dev stack services, so it cannot '
+                'reach "$id". Add it to `needs:` on the world\'s WorldScript in '
+                'tool/flutterware.dart. A world run on its own, with '
+                '`dart run`, gets no services: open it from flutterware.'
+          : 'This world does not need "$id". It needs '
+                '${_services.keys.join(', ')}. Add "$id" to `needs:` on the '
+                "world's WorldScript in tool/flutterware.dart.",
+    );
   }
 
   /// A line for whoever is watching the world open: *Starting the server*.
@@ -395,6 +428,53 @@ final class World {
       for (var i = 0; i < 6; i++) alphabet[_random.nextInt(alphabet.length)],
     ].join();
   }
+}
+
+/// A dev stack service a world needs, as it was when the world opened: what
+/// [World.service] answers.
+final class WorldService {
+  const WorldService(this.id, {required this.name, this.port, this.url});
+
+  WorldService.fromJson(Map<String, Object?> json)
+    : this(
+        json['id']! as String,
+        name: json['name'] as String? ?? json['id']! as String,
+        port: json['port'] as int?,
+        url: switch (json['url']) {
+          String url => Uri.parse(url),
+          _ => null,
+        },
+      );
+
+  /// Its id in `tool/flutterware.dart`.
+  final String id;
+
+  /// What the dev stack panel calls it.
+  final String name;
+
+  /// The port it answers on, when flutterware knows it: an owned service whose
+  /// `ready:` watches a port or an HTTP path.
+  final int? port;
+
+  /// `http://localhost:<port>`, for an owned service whose `ready:` is an HTTP
+  /// request.
+  final Uri? url;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'name': name,
+    'port': ?port,
+    if (url != null) 'url': '$url',
+  };
+}
+
+class _NoSuchService implements Exception {
+  _NoSuchService(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 /// Someone using the system, as [World.person] declared them.

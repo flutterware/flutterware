@@ -1,9 +1,15 @@
 # Worlds
 
-Several people on your real server at once, each with their own app, set up
-by a script: a barista and a customer, or an admin and the colleague they
-invite. When you open a world, the script creates the users and every
-person's app starts signed in as one of them, side by side in the studio.
+See your app the way several people use it at once: a barista and a
+customer, or an admin and the colleague they invite. Open a checkout in the
+studio, for example one a coding agent has been working in, and click **Open**
+on a world. flutterware brings up the services the world needs, a script
+creates fresh users, and every person's app starts signed in as one of them,
+side by side, on that checkout's code. What one person does reaches the
+others.
+
+A world is for showing and trying things out. It checks nothing: automated
+tests are [scenarios](scenarios.md).
 
 > **Experimental, and macOS only.** `package:flutterware/world.dart` can
 > change in any release, and a world opens only on a Mac for now.
@@ -39,6 +45,11 @@ fw.use(
 A world is opened by its file name, here `pickup_order`, so each world needs
 a file name of its own. The people's apps are [Run](run.md) entry points,
 named the way `Run` declares them.
+
+The script can start your server itself, which is what the example below
+does. When your server runs on its own and stays up between worlds, let the
+[dev stack](dev_stack.md) run it and the world use it: see
+[A world on your dev stack](#a-world-on-your-dev-stack).
 
 ## Write a world
 
@@ -107,12 +118,121 @@ declares, and `name=value` arguments set its knobs.
 cd server && dart run tool/worlds/pickup_order.dart 'Leo=signed in'
 ```
 
+The script runs with the environment a new terminal window has, whichever way
+the studio was started. So opening a world doesn't run your dependencies'
+build hooks again after you ran the script from a terminal.
+
+## A world on your dev stack
+
+A stack that is slow to start, or more than one server (a database, an auth
+server, a sync service, an API in another language), belongs in the
+[dev stack](dev_stack.md), where it stays up between worlds. Name the
+services a world needs in `needs:`:
+
+```dart
+// tool/flutterware.dart
+const server = Pkg('server');
+
+fw.use(
+  DevStack(
+    services: [
+      StackService.delegated(
+        'db',
+        name: 'Database',
+        probe: Probe.exitCode(
+          StackRun.command([
+            'sh',
+            '-c',
+            r'test -n "$(docker compose ps --quiet --status running)"',
+          ]),
+        ),
+        start: StackRun.command(['docker', 'compose', 'up', '--wait']),
+        stop: StackRun.command(['docker', 'compose', 'down']),
+      ),
+      StackService.owned(
+        'api',
+        name: 'API server',
+        workingDirectory: 'server',
+        needs: ['db'],
+        start: StackRun.script('bin/server.dart'),
+        ready: Ready.http(8080, path: '/health', timeout: Duration(seconds: 60)),
+      ),
+    ],
+  ),
+);
+
+fw.use(
+  Worlds(
+    packages: [
+      WorldsPackage(
+        server,
+        worlds: [
+          WorldScript(
+            'tool/worlds/team_invite.dart',
+            name: 'Team invite',
+            needs: ['api'],
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+```
+
+The script reads where each service is with `w.service`, and passes it on to
+the apps:
+
+```dart
+// server/tool/worlds/team_invite.dart
+void main(List<String> args) => World.run(args, (w) async {
+  var api = w.service('api').url!;
+  var ana = await createAdmin(api, email: 'ana.${w.id}@example.com');
+  w.person(
+    'Ana',
+    email: ana.email,
+    app: Launch('Shop', knobs: {'server': '$api', 'session': ana.token}),
+  );
+});
+```
+
+When you click **Open**:
+
+1. flutterware brings up the services the world needs, and what they need, in
+   order, the way **Bring up** does on the Dev stack panel. A service that is
+   already up is left alone. The world's log says what it starts and where
+   each service answers.
+2. The script starts once every service answers, so it never seeds a stack
+   that is half up. It compiles while the services come up.
+3. If a service doesn't come up, the world doesn't start, and says which
+   service and why. The service's log is on the Dev stack panel.
+
+**Restart** checks the services again. **Close** leaves them running for the
+next world. **Reload** reloads the script and the apps, but not a server the
+dev stack runs: restart that server from the Dev stack panel to run its new
+code. Its requests show in the timeline as they do for a server the script
+hosts, as long as it is a Dart server that uses the
+[server adapter](server_inspection.md).
+
+`w.service(id)` has the service's `name`, and its `port` and `url` when
+flutterware knows them: for an owned service whose `ready:` checks a port
+(`port`) or a URL (`port` and `url`). It refuses an id the world doesn't
+need, so name every service the script reads in `needs:`.
+
+An owned service runs in each checkout on its own, so a world opened in a
+worktree talks to that worktree's server, running that worktree's code. A
+service with a fixed port can run in one checkout at a time: in a second
+checkout, its start is refused, naming the checkout that has it. Give each
+checkout its own port with
+[`Ready.httpFrom`](dev_stack.md#a-port-from-your-own-tools).
+
 ## Open it
 
-In the studio, **Worlds** lists the worlds you declared.
+In the studio, **Worlds** lists the worlds you declared, with the services
+each one brings up first.
 
-- **Open** runs the script and starts every person's app side by side, with
-  the world's knobs as pickers and its actions as buttons.
+- **Open** brings up what the world needs, runs the script and starts every
+  person's app side by side, with the world's knobs as pickers and its
+  actions as buttons. You don't run anything first.
 - **Reload** updates the world to the code on disk and keeps the same people.
   The script's process is hot-reloaded, including the server it hosts and
   what its actions call, and every app is hot-reloaded the way Run reloads
@@ -183,20 +303,6 @@ a line where it happened,
 `+13148 ms  reload.2  the code reloaded`, and a job or request that ran across
 it says so: `done in 30.1 s, across reload.2`.
 
-From the command line, `open` opens the world in the studio when the studio
-has this checkout open. Otherwise the world lives as long as the command
-does, so pass `--hold=true` to keep it open in your terminal until Ctrl-C.
-The MCP server keeps nothing between calls, so with no studio on the
-checkout it refuses to open a world, and it refuses `hold`. Open the studio
-first, or run the `--hold=true` command in a background shell.
-
-```shell
-fw run worlds list
-fw run worlds open --world=pickup_order               # in the studio, when it is open
-fw run worlds open --world=pickup_order --hold=true   # here; Ctrl-C closes it
-fw run worlds reload
-```
-
 An open world shows its people's apps live and side by side, each in its
 device. A phone app is drawn in the phone's body. A desktop app is drawn in a
 browser whose address bar shows the route the app reports; type a route there
@@ -261,25 +367,38 @@ It draws again as soon as it is back in view. It is not sent to the
 background, so the app's own code for that runs only when you choose it from
 **⋯**.
 
-Each person's app is a Run app on the device `studio-<name>`. An agent opens
-a world with `flutterware_invoke` and drives Leo's app with `flutterware_act`
-and `device: "studio-leo"`, using the same verbs as for any other app.
+### From the command line or an agent
 
-A world belongs to the process that opened it (the studio, or `fw` with
-`--hold=true`), and a checkout has one world open at a time. Other processes
-can still reach it: the process that owns the world answers
-`fw run worlds status`, `trace`, `invoke`, `reload`, `restart` and `close`.
-So an agent can run an action on a world you opened in the studio, and you
-can close a world an agent left open in a terminal.
+A world opens in the studio, where its people's apps are drawn. While the
+studio has the checkout open, a `worlds open` from `fw` or from an agent is
+sent there, so you and the agent see the same world, and its log says who
+asked. The answer says where the world opened, and everything the agent does
+next reaches it as usual.
 
-While the studio has the checkout open, a `worlds open` from `fw` or the MCP
-server is sent to the studio, because neither of them can show a person's
-app. The world opens in the studio with its people's apps on screen, so you
-and the agent see the same world, and its log says who asked. The agent's
-answer says where the world opened, and everything the agent does next
-reaches it as usual. From `fw`, `--hold=true` keeps the world in the process
-that asked instead. A world opened before the studio stays where it is;
-close it and open it again to see it in the studio.
+```shell
+fw run worlds list
+fw run worlds open --world=pickup_order               # in the studio, when it is open
+fw run worlds open --world=pickup_order --hold=true   # here; Ctrl-C closes it
+fw run worlds reload
+```
+
+With no studio on the checkout, a world opened by `fw` lives as long as the
+command does, so pass `--hold=true` to keep it open in your terminal until
+Ctrl-C. The MCP server keeps nothing between calls, so with no studio it
+refuses to open a world, and it refuses `hold`. Open the studio first, or run
+the `--hold=true` command in a background shell. A world opened before the
+studio stays where it is; close it and open it again to see it in the
+studio.
+
+A world belongs to the process that opened it, and a checkout has one world
+open at a time. Other processes can still reach it: the process that owns
+the world answers `fw run worlds status`, `trace`, `invoke`, `reload`,
+`restart` and `close`. So an agent can run an action on a world you opened
+in the studio, and you can close a world an agent left open in a terminal.
+
+Each person's app is a Run app on the device `studio-<name>`. An agent drives
+Leo's app with `flutterware_act` and `device: "studio-leo"`, using the same
+verbs as for any other app.
 
 ## See what a tap caused
 

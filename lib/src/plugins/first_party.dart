@@ -615,7 +615,13 @@ class ScenePackage extends PluginPackage {
 /// ```
 ///
 /// Opening one runs it in its package; the people it declares get their
-/// apps, each launched from one of Run's entry points.
+/// apps, each launched from one of Run's entry points. A world on a stack that
+/// stays up between worlds names the [DevStack] services it needs, and
+/// opening it brings them up first:
+///
+/// ```dart
+/// WorldScript('tool/worlds/team_invite.dart', needs: ['server']),
+/// ```
 class Worlds extends Plugin {
   Worlds({this.packages = const [], String? label})
     : super('flutterware.worlds', label: label ?? 'Worlds');
@@ -658,9 +664,14 @@ class WorldsPackage extends PluginPackage {
   };
 }
 
-/// One world: its file, and what to call it.
+/// One world: its file, what to call it, and the services it needs.
 class WorldScript {
-  const WorldScript(this.path, {this.name, this.description});
+  const WorldScript(
+    this.path, {
+    this.name,
+    this.description,
+    this.needs = const [],
+  });
 
   /// Relative to the package, `/`-separated. `tool/worlds/` is the place to
   /// keep them: they are scripts the project runs, not code it ships.
@@ -674,6 +685,12 @@ class WorldScript {
   /// they start in.
   final String? description;
 
+  /// The ids of the [DevStack] services the world runs on. Opening the world
+  /// brings each one up, and what it needs, the way `dev_stack ensure` does,
+  /// and the script starts once they all answer. The script reads where each
+  /// one is with `w.service(id)`. Closing the world leaves them running.
+  final List<String> needs;
+
   /// What `worlds open` takes: the file's name without `.dart`.
   String get id {
     var file = path.split('/').last;
@@ -686,6 +703,7 @@ class WorldScript {
     'path': path,
     'name': ?name,
     'description': ?description,
+    if (needs.isNotEmpty) 'needs': needs,
   };
 }
 

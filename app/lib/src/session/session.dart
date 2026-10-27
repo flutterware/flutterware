@@ -37,6 +37,7 @@ import '../shell/workspace.dart';
 import '../shell/worktree.dart';
 import '../shell/worktree_discovery.dart';
 import '../utils/flutter_sdk.dart';
+import '../world/world_stack.dart';
 import 'job.dart';
 
 /// One open worktree, and the plugin cores for it — the thing `fw`, MCP and
@@ -82,6 +83,13 @@ class Session {
     if (previews is PreviewsCore) previews.branchDelta = branchDelta;
     if (coreById(scenariosPluginId) case ScenariosCore scenarios) {
       scenarios.branchDelta = branchDelta;
+    }
+    // A world brings up the dev stack services it needs before its script
+    // starts. Same hook: the worlds core cannot see the dev stack's.
+    if (coreById(worldsPluginId) case WorldsCore worlds) {
+      if (coreById(devStackPluginId) case DevStackCore stack) {
+        worlds.stack = DevStackForWorlds(stack);
+      }
     }
   }
 

@@ -226,6 +226,39 @@ class ServiceHandle {
     return found;
   }
 
+  /// The live owned service another checkout started on [port], or null.
+  ///
+  /// A fixed port lets one checkout run a service at a time, so the usual
+  /// holder of a port this checkout's copy wants is another checkout's copy of
+  /// the same service. Naming it turns "something is listening" into where to
+  /// go and stop it.
+  static ServiceHandle? holding(
+    String runDir,
+    int port, {
+    required String exceptWorktree,
+  }) {
+    List<FileSystemEntity> entries;
+    try {
+      entries = Directory(runDir).listSync();
+    } on FileSystemException {
+      return null;
+    }
+    for (var entity in entries) {
+      if (entity is! File) continue;
+      var name = p.basename(entity.path);
+      if (!name.startsWith('svc-') || !name.endsWith('.json')) continue;
+      var handle = ServiceHandle.tryRead(entity);
+      if (handle == null ||
+          handle.readyPort != port ||
+          handle.worktree == exceptWorktree ||
+          !handle.isAlive) {
+        continue;
+      }
+      return handle;
+    }
+    return null;
+  }
+
   @override
   String toString() => 'ServiceHandle($service, pid $pid)';
 }

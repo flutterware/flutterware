@@ -217,6 +217,10 @@ class _WorldList extends StatelessWidget {
                     for (var world in core.worlds)
                       _WorldRow(
                         world: world,
+                        needs: [
+                          for (var id in world.needs)
+                            core.stack?.nameOf(id) ?? id,
+                        ],
                         onOpen: elsewhere == null && world.problem == null
                             ? () => core.openWorld(world.id)
                             : null,
@@ -230,10 +234,17 @@ class _WorldList extends StatelessWidget {
 }
 
 class _WorldRow extends StatelessWidget {
-  const _WorldRow({required this.world, required this.onOpen});
+  const _WorldRow({
+    required this.world,
+    required this.onOpen,
+    this.needs = const [],
+  });
 
   final WorldFile world;
   final Future<void> Function()? onOpen;
+
+  /// What the dev stack calls each service the world needs.
+  final List<String> needs;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -248,6 +259,11 @@ class _WorldRow extends StatelessWidget {
               Text(world.name, style: context.type.bodyStrong),
               if (world.description case var description?)
                 Text(description, style: context.type.body),
+              if (needs.isNotEmpty)
+                Text(
+                  'Brings up ${_listed(needs)} first',
+                  style: context.type.bodyMuted,
+                ),
               Text(
                 '${world.package}/${world.path}',
                 style: context.type.bodyMuted,
@@ -428,3 +444,8 @@ class _PhaseBadge extends StatelessWidget {
     );
   }
 }
+
+/// `a`, `a and b`, `a, b and c`.
+String _listed(List<String> items) => items.length < 2
+    ? items.join()
+    : '${items.sublist(0, items.length - 1).join(', ')} and ${items.last}';

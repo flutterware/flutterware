@@ -354,6 +354,56 @@ void main() {
       expect(handleOnDisk(), isNull);
     });
 
+    test('a port held by another checkout names it', () async {
+      var port = await freePort();
+      var socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
+      addTearDown(socket.close);
+      // The other checkout's copy, as its own studio left it: this test's pid
+      // stands in for its process, which is alive and current.
+      var elsewhere = p.join(project.parent.path, 'shop-main');
+      ServiceHandle(
+        worktree: elsewhere,
+        service: 'server',
+        name: 'API server',
+        pid: pid,
+        command: 'dart run bin/server.dart',
+        workingDirectory: elsewhere,
+        readyPort: port,
+        startedAt: DateTime.now(),
+      ).publish(runDir.path);
+      var service = owned(
+        StackService.owned(
+          'server',
+          name: 'API server',
+          start: StackRun.command(['sh', '-c', 'sleep 60']),
+          ready: Ready.port(port, timeout: Duration.zero),
+        ),
+      );
+
+      expect((await service.refresh()).state, StackState.unavailable);
+      expect(
+        service.reading.failure,
+        allOf(
+          startsWith('The API server from $elsewhere is listening'),
+          contains('one checkout at a time'),
+          contains('Ready.httpFrom'),
+        ),
+      );
+      await expectLater(
+        service.start(),
+        throwsA(
+          isA<ActionRefusal>().having(
+            (e) => e.message,
+            'message',
+            startsWith(
+              'Cannot start API server: the API server from $elsewhere is '
+              'already listening on localhost:$port.',
+            ),
+          ),
+        ),
+      );
+    });
+
     test('http wants an answer, not just a socket', () async {
       var port = await freePort();
       var service = owned(

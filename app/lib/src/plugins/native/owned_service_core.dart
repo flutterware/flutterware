@@ -357,11 +357,15 @@ class OwnedServiceCore extends StackServiceCore {
             state: StackState.unavailable,
             at: at,
             detail: 'localhost:$port is taken',
-            failure:
+            failure: switch (_otherCheckoutOn(port)) {
+              var holder? =>
+                '${_heldBy(holder, start: true)} is listening on '
+                    'localhost:$port. ${_onePortTail(holder)}',
+              null =>
                 'Something flutterware did not start is listening on '
-                'localhost:$port. It may be this service started by hand, or '
-                "another worktree's copy. Run "
-                '`lsof -nP -iTCP:$port -sTCP:LISTEN` to find it.',
+                    'localhost:$port. It may be this service started by hand. '
+                    'Run `lsof -nP -iTCP:$port -sTCP:LISTEN` to find it.',
+            },
           ),
         );
       }
@@ -646,6 +650,12 @@ class OwnedServiceCore extends StackServiceCore {
     // holds it turns that into one sentence.
     if (_port case var port?) {
       if (await _accepts(port)) {
+        if (_otherCheckoutOn(port) case var holder?) {
+          throw ActionRefusal(
+            'Cannot start $label: ${_heldBy(holder)} is already listening on '
+            'localhost:$port. ${_onePortTail(holder)}',
+          );
+        }
         throw ActionRefusal(
           'Cannot start $label: something flutterware did not start is '
           'already listening on localhost:$port. Run '
@@ -943,6 +953,29 @@ class OwnedServiceCore extends StackServiceCore {
         return _Readiness.no('its port is not known');
     }
   }
+
+  /// The service another checkout started on [port], or null.
+  ServiceHandle? _otherCheckoutOn(int port) =>
+      ServiceHandle.holding(runDir(), port, exceptWorktree: host.worktree.path);
+
+  /// [holder] as the subject of a sentence: `the API server from
+  /// /src/shop-main`, or its own name when it is another service. Capitalised
+  /// when it [start]s one.
+  String _heldBy(ServiceHandle holder, {bool start = false}) {
+    var name = holder.service == id
+        ? '${start ? 'The' : 'the'} $label'
+        : (holder.name ?? holder.service);
+    return '$name from ${holder.worktree}';
+  }
+
+  /// What to do about [holder]: stop it in its checkout, or stop sharing one
+  /// port between checkouts.
+  String _onePortTail(ServiceHandle holder) => holder.service == id
+      ? 'With a fixed port, one checkout at a time can run it. Stop it with '
+            'Tear down in that checkout, or give each checkout its own port '
+            'with `Ready.httpFrom` in tool/flutterware.dart.'
+      : 'Stop it with Tear down in that checkout, or give $label another '
+            'port.';
 
   Future<bool> _accepts(int port) async {
     try {
