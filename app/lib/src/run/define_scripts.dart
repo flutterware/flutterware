@@ -149,9 +149,12 @@ final _dartChatter = RegExp(
   r'Built [^\s]+ [^\s]+\.)',
 );
 
+/// [output] without what `dart run` says about its own progress.
+String withoutDartChatter(String output) => output.replaceAll(_dartChatter, '');
+
 /// The first thing the script itself said on stderr, or null.
 String? _firstLine(Object? stderr) {
-  var text = (stderr as String? ?? '').replaceAll(_dartChatter, '');
+  var text = withoutDartChatter(stderr as String? ?? '');
   for (var line in text.split(RegExp(r'[\r\n]'))) {
     var trimmed = line.trim();
     if (trimmed.isNotEmpty) return trimmed;

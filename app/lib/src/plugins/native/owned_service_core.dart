@@ -973,12 +973,15 @@ class OwnedServiceCore extends StackServiceCore {
     try {
       var file = File(path);
       var length = file.lengthSync();
-      if (length <= maxStackOutput) return tailOf(file.readAsStringSync());
+      if (length <= maxStackOutput) {
+        return tailOf(withoutDartChatter(file.readAsStringSync()));
+      }
       var raf = file.openSync();
       try {
         raf.setPositionSync(length - maxStackOutput);
         var bytes = raf.readSync(maxStackOutput);
-        return '…\n${tailOf(utf8.decode(bytes, allowMalformed: true))}';
+        var text = utf8.decode(bytes, allowMalformed: true);
+        return '…\n${tailOf(withoutDartChatter(text))}';
       } finally {
         raf.closeSync();
       }

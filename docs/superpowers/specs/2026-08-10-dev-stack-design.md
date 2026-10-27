@@ -1543,7 +1543,21 @@ invalidates it by itself. Start the harness as `dart <file>`.
   environment differs from a terminal's. Once per start, not per switch.
 - Run's `flutter run`, the world script, the config loader and the previews
   daemon still inherit our environment. The helper is there for them.
-- `StackRun.script` still runs `dart <path>`, which skips build hooks, so a Dart
-  server that needs native assets cannot use it as its `start`.
 - A variable set only in the shell that launched flutterware (an activated
   venv, direnv) no longer reaches a service. `env:` is the way to say it.
+
+### `StackRun.script` runs `dart run`, except where it is polled
+
+The direct form, `dart <path>`, skips build hooks, so a Dart server whose
+dependencies have native code could not be a `StackRun.script` start at all. The
+reason for the direct form was a probe paying for hook checks on every poll, and
+only one script is polled: a delegated service's status check. So that one stays
+`dart <path>`, and every other script — an owned start, a delegated start and
+stop, a command — is `dart run <path>`, which costs ~0.3s once and builds what a
+server needs. The panel shows them the same way, `dart run …` and `dart …`.
+
+`dart run` prints its progress on stderr with no newline (`Running build
+hooks...Running build hooks...`), in front of whatever the script said. The
+filter `runDefineScript` already had for that is shared now: a command's
+combined output and an owned service's log, as shown, leave it out.
+

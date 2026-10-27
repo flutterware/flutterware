@@ -6,6 +6,7 @@ import 'package:flutterware/plugins.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
+import '../../run/define_scripts.dart';
 import '../../session/job.dart';
 import '../../ui/age.dart';
 import '../../utils/terminal_environment.dart';
@@ -229,39 +230,27 @@ abstract class StackServiceCore {
 
   /// What to actually spawn for [run].
   ///
-  /// A [CommandRun] is its own answer. A [ScriptRun] becomes `<dart> <path>`
+  /// A [CommandRun] is its own answer. A [ScriptRun] becomes `<dart> run <path>`
   /// with **the SDK flutterware is running under** — the one thing a config file
   /// cannot name, which is the whole reason the kind exists. Same resolution
   /// `RunCore` uses for a [ScriptSource], because two answers to "which dart"
   /// would be two behaviours for one word.
   ///
-  /// `dart <path>`, not `dart run <path>`, which is what a person would type.
-  /// `run` re-resolves the package graph and executes every build hook in it on
-  /// every invocation — measured here at 0.33s against 0.28s for the direct
-  /// form, and the gap is the hooks, so it grows with the project rather than
-  /// staying constant. A probe pays it on every poll.
-  ///
-  /// It is the smaller half of the win, though, and worth not overstating: a
-  /// consumer re-measured their own probe idle and got 0.70s for `dart run`
-  /// against 0.58s direct. The 4.4s this line used to quote was `fvm dart`, and
-  /// **that has since been diagnosed rather than blamed on a loaded machine**:
-  /// fvm 4.1.x runs
-  /// `git fsck --connectivity-only` over its bare Flutter mirror on *every*
-  /// invocation that has a project pin; measured on a 440MiB mirror, 3.3s of
-  /// CPU, every time. What took that consumer's probe from ~5s to 0.58s was
-  /// resolving the SDK here and spawning it directly instead of going through a
-  /// version manager, which is the same decision as [ScriptSource]'s and the
-  /// reason a config file cannot name an interpreter.
-  ///
-  /// The price is that build hooks do *not* run, so a script whose imports need
-  /// native assets built will not find them, and a stale `package_config.json`
-  /// is an error here where `run` would have fixed it. Both are loud, and
-  /// neither is a shape a stack-control script tends to have.
+  /// `run`, because it is what builds the package's native assets: a server
+  /// that depends on a package with native code does not start without it.
+  /// The price is that it resolves the package graph and checks every build
+  /// hook each time — measured at about 0.3s on a small project, and growing
+  /// with the project — which is nothing for a start or a button and too much
+  /// for something polled. So a delegated service's status check, the one
+  /// script that runs on a timer, is [polled] and runs as `dart <path>`:
+  /// no hooks, and a stale `package_config.json` is an error there where `run`
+  /// would have fixed it. Both are loud, and neither is a shape a status
+  /// script tends to have.
   ///
   /// The path is passed as declared, unresolved: it is relative to
   /// [workingDirectory], which is the directory the process is spawned in.
   @protected
-  List<String> argvFor(StackRun run) => switch (run) {
+  List<String> argvFor(StackRun run, {bool polled = false}) => switch (run) {
     CommandRun(:var command) => command,
     // Unreachable through [argvOf], which resolves a tool before it gets here.
     // Present so the switch is exhaustive and a caller reaching for the sync
@@ -271,6 +260,7 @@ abstract class StackServiceCore {
     ),
     ScriptRun(:var path, :var args) => [
       p.join(host.workspace.flutterSdk.root, 'bin', 'dart'),
+      if (!polled) 'run',
       path,
       ...args,
     ],
@@ -288,8 +278,8 @@ abstract class StackServiceCore {
   /// three states later; naming the executable here is the whole point of the
   /// kind.
   @protected
-  Future<List<String>> argvOf(StackRun run) async {
-    if (run is! ToolRun) return argvFor(run);
+  Future<List<String>> argvOf(StackRun run, {bool polled = false}) async {
+    if (run is! ToolRun) return argvFor(run, polled: polled);
     var found = await findTool(run.name);
     if (found == null) {
       throw ActionRefusal(
@@ -831,17 +821,23 @@ abstract class StackServiceCore {
 }
 
 /// [run] as a line to show a human — the panel's "where this came from", a
-/// command's fallback description, the console's header.
+/// command's fallback description, the console's header. [polled] as for
+/// [StackServiceCore.argvFor].
 ///
 /// A script is described as `dart …`, not with the absolute path to the SDK's
 /// binary. The interpreter is 80 characters of `~/fvm/versions/…` that answer a
 /// question nobody reading a panel is asking; what they want to know is which
 /// script ran with which arguments. The absolute path is what gets *spawned*, and
 /// that is a different question from what gets shown.
-String describeRun(StackRun run) => switch (run) {
+String describeRun(StackRun run, {bool polled = false}) => switch (run) {
   CommandRun(:var command) => command.join(' '),
   ToolRun(:var name, :var args) => [name, ...args].join(' '),
-  ScriptRun(:var path, :var args) => ['dart', path, ...args].join(' '),
+  ScriptRun(:var path, :var args) => [
+    'dart',
+    if (!polled) 'run',
+    path,
+    ...args,
+  ].join(' '),
 };
 
 /// Every tool this process has looked up, and what it found — null for one it
@@ -890,7 +886,7 @@ Future<ProcessResult> defaultRunProcess(
 
 String combinedOutput(ProcessResult result) {
   var out = '${result.stdout}'.trimRight();
-  var err = '${result.stderr}'.trimRight();
+  var err = withoutDartChatter('${result.stderr}').trimRight();
   if (out.isEmpty) return err;
   if (err.isEmpty) return out;
   return '$out\n$err';

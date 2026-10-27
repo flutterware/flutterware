@@ -45,7 +45,8 @@ class DelegatedServiceCore extends StackServiceCore {
   ///
   /// Never null now that a probe is required to declare a delegated service at
   /// all; a config whose probe could not be read never becomes one of these.
-  String get declaredProbeCommand => describeRun(declaration.probe.run);
+  String get declaredProbeCommand =>
+      describeRun(declaration.probe.run, polled: true);
 
   @override
   List<String> get provenance => ['probe · $declaredProbeCommand'];
@@ -107,7 +108,7 @@ class DelegatedServiceCore extends StackServiceCore {
     }
     List<String> argv;
     try {
-      argv = await argvOf(probe.run);
+      argv = await argvOf(probe.run, polled: true);
     } on Object catch (e) {
       // A tool the shell cannot find. That is the probe failing, not the stack
       // being down — and the sentence names the executable.
@@ -136,7 +137,7 @@ class DelegatedServiceCore extends StackServiceCore {
           at: DateTime.now(),
           failure:
               'The probe did not answer within ${_probeTimeout.inSeconds}s: '
-              '${describeRun(probe.run)}',
+              '${describeRun(probe.run, polled: true)}',
         ),
       );
     } on Object catch (e) {

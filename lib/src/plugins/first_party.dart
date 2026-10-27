@@ -2150,12 +2150,14 @@ sealed class StackRun {
   /// [DefineSource.script], which is relative to the worktree root, and the
   /// difference is the `workingDirectory` this plugin has and that one does not.
   ///
-  /// Run as `dart <path>`, not `dart run <path>`. `run` re-resolves the package
-  /// graph and executes every build hook in it, every time — a cost a probe
-  /// would pay on every poll, and one that grows with the project. The tradeoff
-  /// is that build hooks do not run, so a script whose imports need native
-  /// assets built will not find them. Declare that one as a [StackRun.command]
-  /// naming its own interpreter.
+  /// Run with `dart run`, so build hooks run and a server that depends on a
+  /// package with native code finds its native assets. The first start after
+  /// a dependency changes builds them, which can take a minute for a large
+  /// native package: give [Ready] a timeout that allows for it.
+  ///
+  /// The one exception is a delegated service's status check, which runs on a
+  /// timer and so runs as `dart <path>`, skipping the hooks. A status script
+  /// that imports native code will not work there.
   const factory StackRun.script(String path, {List<String> args}) = ScriptRun;
 
   /// An executable looked up on the PATH a new terminal window has.

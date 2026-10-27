@@ -52,8 +52,9 @@ Commands run from the root of the checkout unless you set `workingDirectory:`.
 pipes and `$(...)` need `sh -c`, as in the probe above.
 
 `StackRun.script('tool/stack.dart', args: ['up'])` runs a Dart script from your
-project with the same Dart SDK flutterware runs on. Use it when the logic is
-more than one line.
+project with `dart run`, using the same Dart SDK flutterware runs on. Use it when
+the logic is more than one line. A status check runs often, so it skips build
+hooks: a status script can't import packages with native code.
 
 Everything runs with the environment a new terminal window has, whether the
 studio was opened from the Dock, from a terminal or by an agent. A command that

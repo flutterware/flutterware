@@ -731,6 +731,28 @@ void main() {
       core.dispose();
     });
 
+    test('its start and its commands are run with `run`', () async {
+      // Run once, not on a timer, so the hooks cost nothing worth saving — and
+      // `run` is what builds the native assets a server may need.
+      writeScript();
+      var core = coreWith(scriptConfig());
+
+      await core.service.start();
+      await core.service.runCommand('logs');
+
+      var withRun = [
+        for (var command in ran)
+          if (command.contains('run')) command[3],
+      ];
+      expect(withRun, ['up', 'logs']);
+      expect(ran.first.take(3), [
+        '/tmp/flutter/bin/dart',
+        'run',
+        'tool/local_env.dart',
+      ]);
+      core.dispose();
+    });
+
     test('is described without the interpreter path', () {
       // 80 characters of `~/fvm/versions/…` answer a question nobody reading a
       // panel is asking.
@@ -963,8 +985,7 @@ void main() {
                 0,
                 0,
                 'started 4 containers',
-                'Running build '
-                    'hooks...',
+                'Pulling postgres:16...',
               ),
             ),
           );
@@ -974,15 +995,41 @@ void main() {
       expect(result.stdout, 'started 4 containers');
       expect(
         result.stderr,
-        'Running build hooks...',
+        'Pulling postgres:16...',
         reason: 'the half a renderer wants to put somewhere else',
       );
       expect(
         result.output,
-        'started 4 containers\nRunning build hooks...',
+        'started 4 containers\nPulling postgres:16...',
         reason: 'and the merged order is still what the panel draws',
       );
       expect(result.toJson()['stdout'], 'started 4 containers');
+      core.dispose();
+    });
+
+    test('what `dart run` says about itself stays out of the output', () async {
+      // A script's start is `dart run` now, and the CLI's progress arrives on
+      // stderr with no newline — in front of whatever the script said.
+      var core =
+          coreWith(
+            DevStack.background(
+              probe: Probe.exitCode(StackRun.command(['check'])),
+              start: StackRun.command(['up']),
+            ).config,
+          )..scriptProcess(
+            (command, {workingDirectory}) => Future.value(
+              ProcessResult(
+                0,
+                0,
+                'listening on 8080',
+                'Running build hooks...Running build hooks...slot 3 in use',
+              ),
+            ),
+          );
+
+      var result = await core.service.start();
+
+      expect(result.output, 'listening on 8080\nslot 3 in use');
       core.dispose();
     });
 
