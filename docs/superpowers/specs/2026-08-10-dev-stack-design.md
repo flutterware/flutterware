@@ -1597,3 +1597,42 @@ starts one service: the per-service button means that service.
 `dev_stack_results.dart` joined the generator's sources, so `ensure`, `status`
 and the run result now have published shapes in `docs/capabilities.md`.
 
+## History of starts and stops (2026-10-27)
+
+The reason given for the whole feature: services will be started and stopped by
+agents, and the studio is where the human is. The panel showed current state
+only, so an agent's start at 10:02 and stop at 10:05 left nothing behind.
+
+**A file, because the processes share nothing else.** An agent's starts happen
+in the MCP server (which opens its own session per call) or in `fw`; the studio
+learns of them only through the run directory. So `stack-<hash>.history.jsonl`
+sits beside the cache, one JSON line per event, appended by whichever process
+acted, and the studio follows it with the drive journal's watch-and-poll
+(`RunFiles.changes`) while the panel is watched. Trimmed to its last 500 lines
+past 512KB, via a temp file and a rename; a line appended during the rename can
+be lost, which is the price of not locking.
+
+**Who asked is the door, not a guess.** One process serves one door, so
+`currentCaller` is set once where each starts: `fw run` is `terminal`, `fw mcp`
+is `agent`, everything else the studio. `terminal` cannot tell a person from an
+agent with a shell, and says so rather than guessing.
+
+**Recorded once, at one place.** `start()` and `stop()` on the service base are
+now the recorded entry points and the kinds implement `performStart` /
+`performStop`, so the button, an action, `ensure` and a restart each write one
+event. A refusal is recorded with its words — except the one that means a
+second press while the first runs, which is nothing that happened to the
+service. A start that adopted a running process, or a stop that found nothing,
+is `alreadyUp` / `alreadyDown` (the run result's new `nothingToDo`).
+
+**An exit nobody asked for** is recorded by the process that deletes the dead
+handle — `ServiceHandle.delete()` now says whether it was this call — so two
+observers write it once. A stopper marks the handle `stopping` before its first
+signal, so an observer arriving between the pid going and the handle going does
+not take the stop for an exit. Dated when noticed; the sweeper deleting a dead
+handle first means an exit goes unrecorded, which is acceptable for a history
+that is about what someone did.
+
+The catalog and the site's demo get a `MemoryStackHistory`: a preview must not
+write the developer's run directory, and a browser has none.
+

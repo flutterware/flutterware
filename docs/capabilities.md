@@ -2668,6 +2668,24 @@ services: List<Map<String, Object?>>
 |---|---|---|---|---|
 | `services` | string | no | — | The services to bring up, by id: stack. |
 
+#### `history` — Show history
+
+The latest starts and stops of every service, newest first: who asked (the studio, fw in a terminal, or an agent), how it ended, and why when it failed. A process that exited with nobody stopping it is listed too.
+
+```sh
+fw run dev_stack history [--limit=…]
+```
+
+Returns `StackHistoryResult`:
+
+```
+events: List<Map<String, Object?>>
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `limit` | integer | no | 20 | How many events, newest first. |
+
 #### `status` — Check
 
 Runs the declared probe and reports what state the stack is in, with the time it was read. Every other surface shows a cached reading and how old it is; this is the one that goes and looks.
@@ -2703,6 +2721,7 @@ command: String   # What was actually run, joined — so a caller that wants to 
 exitCode: int?   # Null when the command has not exited — see [timedOut].
 ok: bool   # Whether the action did what was asked.
 timedOut: bool?
+nothingToDo: bool?
 output: String?   # Combined stdout and stderr, trimmed to the tail.
 reading: Map<String, Object?>?   # The probe run immediately afterwards, when the command was one that changes the state.
 ```
@@ -2724,6 +2743,7 @@ command: String   # What was actually run, joined — so a caller that wants to 
 exitCode: int?   # Null when the command has not exited — see [timedOut].
 ok: bool   # Whether the action did what was asked.
 timedOut: bool?
+nothingToDo: bool?
 output: String?   # Combined stdout and stderr, trimmed to the tail.
 reading: Map<String, Object?>?   # The probe run immediately afterwards, when the command was one that changes the state.
 ```

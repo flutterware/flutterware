@@ -264,7 +264,9 @@ class OwnedServiceCore extends StackServiceCore {
       id,
     )) {
       if (!handle.isAlive) {
-        handle.delete();
+        // Only the process that removes the handle writes the exit down, and
+        // not when someone was stopping it: the stopper records that.
+        if (handle.delete() && !handle.stopping) _recordExit(handle);
         continue;
       }
       // The newest wins, and a second live one keeps its file: it is holding
@@ -274,6 +276,22 @@ class OwnedServiceCore extends StackServiceCore {
     }
     return _handle = live;
   }
+
+  /// A process that went away with nobody stopping it: crashed, killed from a
+  /// terminal, or finished. Dated when it was noticed, which is as close as
+  /// anything here can say.
+  void _recordExit(ServiceHandle handle) => recordEvent(
+    StackEvent(
+      at: DateTime.now(),
+      service: id,
+      name: handle.name ?? label,
+      verb: 'exit',
+      outcome: StackEventOutcome.exited,
+      detail:
+          'pid ${handle.pid}, started ${stackAge(handle.startedAt) ?? 'just now'}',
+      command: handle.command,
+    ),
+  );
 
   @override
   Future<StackReading> refresh() {
@@ -544,7 +562,7 @@ class OwnedServiceCore extends StackServiceCore {
   // ── start ────────────────────────────────────────────────────────────────
 
   @override
-  Future<DevStackRunResult> start() async {
+  Future<DevStackRunResult> performStart() async {
     if (Platform.isWindows) {
       // The child has to outlive this process with its output going to a file,
       // and that is done here with a shell redirect this platform has no
@@ -589,6 +607,7 @@ class OwnedServiceCore extends StackServiceCore {
         // the service to be usable, not for a pid to exist — would go and use
         // it. What `ok` means for a start is whether the thing is up.
         ok: up,
+        nothingToDo: true,
         output:
             'Already running as pid ${live.pid}, started '
             '${stackAge(live.startedAt) ?? 'just now'}. Nothing was spawned.',
@@ -766,7 +785,7 @@ class OwnedServiceCore extends StackServiceCore {
   /// exactly the service and its children and nothing else. Where that cannot
   /// be confirmed, only the pid is signalled — see [_signalTarget].
   @override
-  Future<DevStackRunResult> stop() async {
+  Future<DevStackRunResult> performStop() async {
     var handle = _liveHandle();
     if (handle == null) {
       // The reading comes from a look rather than from an assumption: there
@@ -780,6 +799,7 @@ class OwnedServiceCore extends StackServiceCore {
         command: 'stop $label',
         exitCode: null,
         ok: !taken,
+        nothingToDo: true,
         output: taken
             ? 'Nothing here to stop: flutterware holds no process for $label. '
                   '${reading.failure ?? ''}'
@@ -789,6 +809,9 @@ class OwnedServiceCore extends StackServiceCore {
       );
     }
     beginBusy('stop');
+    // Before the first signal, so a process that looks between the pid going
+    // and the handle going does not take the stop for an exit.
+    handle = _handle = handle.markStopping();
     // What was pressed was `stop`, so what the console should answer with is
     // what stopping did.
     _showingLog = false;

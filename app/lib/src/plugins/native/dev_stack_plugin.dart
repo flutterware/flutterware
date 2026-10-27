@@ -62,6 +62,7 @@ class _DevStackPanel extends StatelessWidget {
           for (var service in core.services)
             _ServicePage(plugin, service, fillConsole: false),
           for (var service in core.unreadable) _UnreadableRow(service),
+          if (core.keepsHistory) _History(core),
         ],
       );
     },
@@ -85,6 +86,9 @@ class _ServicePage extends StatelessWidget {
     var body = <Widget>[
       if (services.isNotEmpty) _Services(core),
       if (core.commands.isNotEmpty) _Commands(core),
+      // On the one-service page only: with several, the history is the
+      // stack's and sits once under all of them.
+      if (fillConsole && plugin.core.keepsHistory) _History(plugin.core),
     ];
     if (!fillConsole) {
       return Column(
@@ -311,6 +315,142 @@ class _Services extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Who started and stopped what, newest first, across every service.
+///
+/// Mostly an agent's doing: it starts and stops services from its own
+/// process, and this is where the person in the studio sees it happened.
+///
+/// Three rows until asked for more, because on a one-service page everything
+/// above the console comes out of the console's height.
+class _History extends StatefulWidget {
+  const _History(this.core);
+
+  final DevStackCore core;
+
+  @override
+  State<_History> createState() => _HistoryState();
+}
+
+class _HistoryState extends State<_History> {
+  static const _folded = 3;
+  static const _unfolded = 10;
+
+  var _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    var type = context.type;
+    var all = widget.core.history.take(_unfolded).toList();
+    var events = _expanded ? all : all.take(_folded).toList();
+    var hidden = all.length - events.length;
+    return _Section(
+      title: 'History',
+      trailing: all.isEmpty ? null : 'latest ${all.length}',
+      child: all.isEmpty
+          ? Text(
+              'Starts and stops show here, with who asked: you in the studio, '
+              'fw in a terminal, or an agent.',
+              style: type.caption.copyWith(color: colors.mut2),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var (i, event) in events.indexed)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: FwSpacing.md),
+                    decoration: i == events.length - 1
+                        ? null
+                        : BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: colors.line2),
+                            ),
+                          ),
+                    child: _EventRow(event),
+                  ),
+                if (hidden > 0 || _expanded && all.length > _folded) ...[
+                  const Gap(FwSpacing.md),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Tappable(
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      child: Container(
+                        // The underline every link on this page wears.
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: colors.mut3),
+                          ),
+                        ),
+                        child: Text(
+                          _expanded ? 'Show fewer' : 'Show $hidden more',
+                          style: type.caption.copyWith(color: colors.mut),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _EventRow extends StatelessWidget {
+  const _EventRow(this.event);
+
+  final StackEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    var type = context.type;
+    var problem = event.outcome.isProblem;
+    var detail = eventDetail(event);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            _ServiceDot(switch (event.outcome) {
+              StackEventOutcome.up ||
+              StackEventOutcome.alreadyUp => StackState.up,
+              StackEventOutcome.down ||
+              StackEventOutcome.alreadyDown => StackState.down,
+              _ => StackState.unavailable,
+            }),
+            const Gap(FwSpacing.lg),
+            Expanded(
+              child: Text(
+                eventHeadline(event),
+                style: type.body,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Gap(FwSpacing.lg),
+            Text(
+              [eventCaller(event), ?stackAge(event.at)].join(' · '),
+              style: type.caption.copyWith(color: colors.mut),
+            ),
+          ],
+        ),
+        if (detail != null)
+          Padding(
+            // Under the headline, past the dot and its gap.
+            padding: const EdgeInsets.only(left: 6 + FwSpacing.lg, top: 2),
+            child: Text(
+              detail,
+              style: type.caption.copyWith(
+                color: problem ? colors.red : colors.mut2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
     );
   }
 }

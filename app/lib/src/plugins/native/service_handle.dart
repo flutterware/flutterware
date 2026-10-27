@@ -33,6 +33,7 @@ class ServiceHandle {
     this.logPath,
     this.ready,
     this.readyPort,
+    this.stopping = false,
     this.handlePath,
   });
 
@@ -78,6 +79,11 @@ class ServiceHandle {
   /// [isProcessCurrent].
   final DateTime startedAt;
 
+  /// Someone has begun stopping it. A process that finds the pid gone
+  /// afterwards knows it was stopped rather than that it exited on its own,
+  /// because the stopper records that itself.
+  final bool stopping;
+
   /// Where this was read from, or null before it is published.
   final String? handlePath;
 
@@ -102,6 +108,7 @@ class ServiceHandle {
     if (ready != null) 'ready': ready,
     if (readyPort != null) 'readyPort': readyPort,
     'startedAt': startedAt.toUtc().toIso8601String(),
+    if (stopping) 'stopping': true,
   };
 
   /// Writes this handle into [runDir] under its own name, and returns it
@@ -118,17 +125,35 @@ class ServiceHandle {
 
   /// Removes this handle from the ledger. Called when the process is gone, so
   /// nothing goes on claiming a port that is free.
-  void delete() {
+  ///
+  /// True when this call removed it, false when it was already gone — so of
+  /// two processes noticing one exit, exactly one writes it down.
+  bool delete() {
     var path = handlePath;
-    if (path == null) return;
+    if (path == null) return false;
     try {
       File(path).deleteSync();
+      return true;
     } on FileSystemException {
       // Another sweeper won the race. Not ours to report.
+      return false;
     }
   }
 
-  ServiceHandle _copy({String? handlePath}) => ServiceHandle(
+  /// Rewrites the handle with [stopping] set, before the first signal.
+  ServiceHandle markStopping() {
+    var marked = _copy(stopping: true);
+    if (handlePath case var path?) {
+      try {
+        File(path).writeAsStringSync(jsonEncode(marked.toJson()));
+      } on FileSystemException {
+        // Gone already: nothing will misread it.
+      }
+    }
+    return marked;
+  }
+
+  ServiceHandle _copy({String? handlePath, bool? stopping}) => ServiceHandle(
     worktree: worktree,
     service: service,
     name: name,
@@ -139,6 +164,7 @@ class ServiceHandle {
     ready: ready,
     readyPort: readyPort,
     startedAt: startedAt,
+    stopping: stopping ?? this.stopping,
     handlePath: handlePath ?? this.handlePath,
   );
 
@@ -160,6 +186,7 @@ class ServiceHandle {
         logPath: map['logPath'] as String?,
         ready: map['ready'] as String?,
         readyPort: map['readyPort'] as int?,
+        stopping: map['stopping'] == true,
         handlePath: file.path,
       );
     } on Object {

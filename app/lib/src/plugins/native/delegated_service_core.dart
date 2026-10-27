@@ -222,11 +222,13 @@ class DelegatedServiceCore extends StackServiceCore {
 
   /// Brings the stack up, then re-probes.
   @override
-  Future<DevStackRunResult> start() => _transition(declaration.start, 'start');
+  Future<DevStackRunResult> performStart() =>
+      _transition(declaration.start, 'start');
 
   /// Takes it down, then re-probes.
   @override
-  Future<DevStackRunResult> stop() => _transition(declaration.stop, 'stop');
+  Future<DevStackRunResult> performStop() =>
+      _transition(declaration.stop, 'stop');
 
   /// `async` so the refusal arrives through the future rather than out of the
   /// call. A method whose type says `Future` and which throws synchronously is

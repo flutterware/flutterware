@@ -2264,6 +2264,11 @@ final resultShapes = <String, ResultShape>{
       },
       <String, Object?>{'name': 'timedOut', 'type': 'bool', 'optional': true},
       <String, Object?>{
+        'name': 'nothingToDo',
+        'type': 'bool',
+        'optional': true,
+      },
+      <String, Object?>{
         'name': 'output',
         'type': 'String',
         'optional': true,
@@ -6883,6 +6888,12 @@ final resultShapes = <String, ResultShape>{
         'name': 'services',
         'type': 'List<Map<String, Object?>>',
       },
+    ],
+  }),
+  'StackHistoryResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'StackHistoryResult',
+    'fields': <Object?>[
+      <String, Object?>{'name': 'events', 'type': 'List<Map<String, Object?>>'},
     ],
   }),
   'StackReading': ResultShape.fromJson(<String, Object?>{

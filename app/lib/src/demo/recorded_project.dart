@@ -263,8 +263,11 @@ PluginCoreFactory _recordedCore(
     host,
     source: RecordedServerSource(recording),
   ),
+  // The history in memory: the demo writes no files, and its presses still
+  // show up as rows.
   devStackPluginId => (host) => DevStackCore(
     host,
+    history: MemoryStackHistory(),
   )..scriptProcess(RecordedStack(recording).run),
   translationsPluginId => (host) => TranslationsCore(
     host,

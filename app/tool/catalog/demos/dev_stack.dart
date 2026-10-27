@@ -1,11 +1,14 @@
 import 'dart:io';
 
+import 'package:clock/clock.dart';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware/plugins.dart';
 import 'package:flutterware_app/src/context.dart';
 import 'package:flutterware_app/src/dev_stack/stack_block.dart';
 import 'package:flutterware_app/src/plugins/native/dev_stack_core.dart';
+import 'package:flutterware_app/src/plugins/native/dev_stack_results.dart';
 import 'package:flutterware_app/src/plugins/native/dev_stack_plugin.dart';
 import 'package:flutterware_app/src/plugins/plugin_host.dart';
 import 'package:flutterware_app/src/shell/workspace.dart';
@@ -51,6 +54,69 @@ Widget devStackUnreachable() => _Panel(_plugin(state: _Scripted.unreachable));
 /// Up, and not all of it. The headline is **derived from the services** rather
 /// than written beside them, which is the only arrangement where a green
 /// summary cannot end up sitting above an amber row.
+/// What the person in the studio looks at to see what an agent did: the
+/// latest starts and stops, who asked, and the one that failed with why.
+@Preview(name: 'Dev stack · history', group: 'Dev stack', wrapper: wrapInApp)
+Widget devStackHistory() =>
+    _Panel(_plugin(state: _Scripted.up, history: _recentEvents()));
+
+List<StackEvent> _recentEvents() {
+  // The clock the ages are read against, which a preview fixes.
+  var now = clock.now();
+  StackEvent event(
+    Duration ago,
+    String verb,
+    StackEventOutcome outcome, {
+    String? by,
+    Duration? took,
+    String? detail,
+    String? failure,
+  }) => StackEvent(
+    at: now.subtract(ago),
+    service: 'stack',
+    name: 'Dev stack',
+    verb: verb,
+    outcome: outcome,
+    by: by,
+    took: took,
+    detail: detail,
+    failure: failure,
+  );
+  // Oldest first, as the file holds them.
+  return [
+    event(
+      const Duration(hours: 2),
+      'start',
+      StackEventOutcome.up,
+      by: 'studio',
+      took: const Duration(milliseconds: 6200),
+      detail: 'slot 8200-8208 · 4 containers',
+    ),
+    event(
+      const Duration(minutes: 41),
+      'stop',
+      StackEventOutcome.down,
+      by: 'agent',
+      took: const Duration(milliseconds: 2300),
+    ),
+    event(
+      const Duration(minutes: 40),
+      'start',
+      StackEventOutcome.failed,
+      by: 'terminal',
+      failure: 'Cannot connect to the Docker daemon.',
+    ),
+    event(
+      const Duration(minutes: 3),
+      'start',
+      StackEventOutcome.up,
+      by: 'agent',
+      took: const Duration(milliseconds: 4100),
+      detail: 'slot 8200-8208 · 4 containers',
+    ),
+  ];
+}
+
 @Preview(name: 'Dev stack · partly up', group: 'Dev stack', wrapper: wrapInApp)
 Widget devStackPartial() => _Panel(_plugin(state: _Scripted.partial));
 
@@ -122,7 +188,11 @@ enum _Scripted { up, down, unreachable, partial }
 /// A core over a scripted subprocess, holding real state: `up` writes it, `down`
 /// clears it, and the probe reports what it finds. Nothing here touches docker,
 /// and nothing outlives the preview.
-DevStackPlugin _plugin({required _Scripted state, bool controls = true}) {
+DevStackPlugin _plugin({
+  required _Scripted state,
+  bool controls = true,
+  List<StackEvent> history = const [],
+}) {
   var up = state == _Scripted.up || state == _Scripted.partial;
   var core = DevStackCore(
     PluginHost(
@@ -158,6 +228,9 @@ DevStackPlugin _plugin({required _Scripted state, bool controls = true}) {
         ],
       ).config,
     ),
+    // In memory, so a preview neither reads nor writes the developer's run
+    // directory — and pressing Bring up here still adds a row.
+    history: MemoryStackHistory(history),
   );
 
   core.scriptProcess((command, {workingDirectory}) async {

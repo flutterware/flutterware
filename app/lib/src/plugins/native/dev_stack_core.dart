@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,17 +6,20 @@ import 'package:flutterware/plugins.dart';
 import 'package:meta/meta.dart';
 
 import '../../session/job.dart';
+import '../../ui/age.dart';
 import '../../utils/run_dir.dart';
 import '../plugin_core.dart';
 import '../plugin_host.dart';
 import 'delegated_service_core.dart';
 import 'dev_stack_results.dart';
 import 'owned_service_core.dart';
+import 'stack_history.dart';
 import 'stack_service_core.dart';
 
 export 'delegated_service_core.dart';
 export 'owned_service_core.dart';
 export 'service_handle.dart';
+export 'stack_history.dart';
 export 'stack_service_core.dart';
 
 /// The registered id — also what `tool/flutterware.dart` declares.
@@ -39,7 +43,14 @@ const _pluginDescription =
 /// nothing else. Probing is a subprocess, so it happens only when something is
 /// watching ([watch]) or when a caller named the action.
 class DevStackCore extends PluginCore {
-  DevStackCore(super.host) {
+  /// [history] is where starts and stops are written down: the file beside
+  /// the cache unless a caller — the catalog — hands it another.
+  DevStackCore(super.host, {StackHistoryStore? history})
+    : _historyStore =
+          history ??
+          FileStackHistory(
+            () => stackHistoryPath(runDirProvider(), host.worktree.path),
+          ) {
     for (var declared in StackService.listFromConfig(host.config)) {
       switch (declared) {
         case DelegatedStackService():
@@ -63,6 +74,36 @@ class DevStackCore extends PluginCore {
           _unreadable.add(declared);
       }
     }
+    for (var service in _services) {
+      service.history = _historyStore;
+    }
+  }
+
+  final StackHistoryStore _historyStore;
+
+  /// The latest starts and stops of every service, newest first, as of the
+  /// last read.
+  List<StackEvent> get history => _events;
+  List<StackEvent> _events = const [];
+
+  /// What the store said its stamp was at the last read. Starts as something
+  /// no stamp equals, so the first read always happens.
+  Object? _eventsStamp = const Object();
+
+  /// Following the history while something watches, because an agent's
+  /// starts happen in another process and arrive only through the file.
+  StreamSubscription<void>? _historyChanges;
+
+  /// Whether there is a history to show: only a stack something here can
+  /// start or stop has one.
+  bool get keepsHistory => _services.any((service) => service.canControl);
+
+  void _readHistory() {
+    var stamp = _historyStore.stamp;
+    if (stamp == _eventsStamp) return;
+    _eventsStamp = stamp;
+    _events = _historyStore.read(limit: 50);
+    notifyChanged();
   }
 
   /// Where the cache lives. A seam for tests, which point it at a temp dir
@@ -124,7 +165,10 @@ class DevStackCore extends PluginCore {
   var _loadedCache = false;
 
   @override
-  Future<void> computeAll() async => _loadCache();
+  Future<void> computeAll() async {
+    _loadCache();
+    _readHistory();
+  }
 
   /// Starts polling every service, and stops when the last watcher leaves.
   ///
@@ -136,11 +180,17 @@ class DevStackCore extends PluginCore {
     for (var service in _services) {
       service.watch();
     }
+    _historyChanges ??= _historyStore.changes().listen((_) => _readHistory());
+    _readHistory();
   }
 
   void unwatch() {
     for (var service in _services) {
       service.unwatch();
+    }
+    if (!isWatching) {
+      unawaited(_historyChanges?.cancel());
+      _historyChanges = null;
     }
   }
 
@@ -336,7 +386,7 @@ class DevStackCore extends PluginCore {
       return ended(
         EnsureOutcome.failed,
         reading,
-        failure: _whyNotUp(result, reading),
+        failure: failureOf(result, 'start'),
         output: result.output,
       );
     }
@@ -361,19 +411,6 @@ class DevStackCore extends PluginCore {
       reading = await service.refresh();
     }
     return reading;
-  }
-
-  static String _whyNotUp(DevStackRunResult result, StackReading reading) {
-    if (reading.failure case var failure?) return failure;
-    if (result.timedOut) return result.stderr;
-    if (result.exitCode case var code? when code != 0) {
-      return 'Its start command exited with code $code.';
-    }
-    // An owned start has no exit code, and says what went wrong here.
-    if (result.exitCode == null && result.stderr.trim().isNotEmpty) {
-      return result.stderr.trim();
-    }
-    return 'It is ${reading.state.name} after its start command ran.';
   }
 
   /// What any service is still working on, or null. Read by the capture
@@ -448,6 +485,7 @@ class DevStackCore extends PluginCore {
   void _onServiceChanged() {
     if (isDisposed) return;
     _writeCache();
+    _readHistory();
     notifyChanged();
   }
 
@@ -556,13 +594,36 @@ class DevStackCore extends PluginCore {
           ),
         ],
       ),
+    if (keepsHistory)
+      PluginAction(
+        'history',
+        'Show history',
+        returns: StackHistoryResult,
+        description:
+            'The latest starts and stops of every service, newest first: who '
+            'asked (the studio, fw in a terminal, or an agent), how it ended, '
+            'and why when it failed. A process that exited with nobody '
+            'stopping it is listed too.',
+        parameters: [
+          ActionParameter(
+            'limit',
+            'Limit',
+            kind: ActionParameterKind.integer,
+            required: false,
+            defaultValue: '20',
+            description: 'How many events, newest first.',
+          ),
+        ],
+      ),
     for (var service in _services)
       ...service.actions(prefix: _prefixFor(service.id)),
   ];
 
   /// The projection: flat for one service, a section each for several.
   PluginView get _view {
-    if (only case var service?) return PluginView(service.viewRows());
+    if (only case var service?) {
+      return PluginView([...service.viewRows(), ?_historySection]);
+    }
     return PluginView([
       for (var service in _services)
         ViewSection(
@@ -573,6 +634,27 @@ class DevStackCore extends PluginCore {
         ViewSection(service.name ?? service.id, [
           ViewText(service.reason, tone: Tone.error),
         ]),
+      ?_historySection,
+    ]);
+  }
+
+  /// The last few starts and stops, for `fw status` and an agent's status
+  /// call. The rest is the `history` action.
+  ViewNode? get _historySection {
+    if (_events.isEmpty) return null;
+    return ViewSection('History', [
+      ViewItems([
+        for (var event in _events.take(5))
+          ViewItem(
+            eventHeadline(event),
+            detail: [
+              eventCaller(event),
+              ?ageOf(event.at),
+              ?eventDetail(event),
+            ].join(' · '),
+            tone: event.outcome.isProblem ? Tone.error : Tone.neutral,
+          ),
+      ]),
     ]);
   }
 
@@ -582,6 +664,10 @@ class DevStackCore extends PluginCore {
     Map<String, Object?> arguments = const {},
   }) async {
     if (actionId == 'ensure') return ensure(_ids(arguments['services']));
+    if (actionId == 'history') {
+      var limit = arguments['limit'] as int? ?? 20;
+      return StackHistoryResult(_historyStore.read(limit: limit));
+    }
     for (var service in _services) {
       var prefix = _prefixFor(service.id);
       if (!actionId.startsWith(prefix)) continue;
@@ -595,6 +681,7 @@ class DevStackCore extends PluginCore {
 
   @override
   void dispose() {
+    unawaited(_historyChanges?.cancel());
     for (var service in _services) {
       service.dispose();
     }

@@ -102,11 +102,22 @@ the result has its port and URL when flutterware knows them.
 
 **Bring up** on one service starts only that service.
 
+### History
+
+The panel's **History** lists the latest starts and stops, newest first, with
+who asked: you in the studio, `fw` in a terminal, or an agent. A start or stop
+that failed shows why. A service flutterware started that stopped with nobody
+stopping it shows as **exited**.
+
+The history is shared: a start an agent makes from its own session shows in
+the studio a moment later.
+
 ## From the command line or an agent
 
 ```shell
 fw run dev_stack ensure     # brings every service up, in order
 fw run dev_stack status     # runs the probe now
+fw run dev_stack history    # the latest starts and stops, and who asked
 fw run dev_stack logs       # a declared command, by its id
 ```
 

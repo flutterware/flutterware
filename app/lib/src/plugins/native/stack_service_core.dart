@@ -7,11 +7,13 @@ import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import '../../run/define_scripts.dart';
+import '../../session/caller.dart';
 import '../../session/job.dart';
 import '../../ui/age.dart';
 import '../../utils/terminal_environment.dart';
 import '../plugin_host.dart';
 import 'dev_stack_results.dart';
+import 'stack_history.dart';
 
 /// How much of a command's output to keep. Enough to see why something failed,
 /// far short of a log viewer — the command's own terminal has the rest.
@@ -390,11 +392,95 @@ abstract class StackServiceCore {
   /// Goes and reads what state this service is in, and adopts the answer.
   Future<StackReading> refresh();
 
-  /// Brings it up.
-  Future<DevStackRunResult> start();
+  /// Brings it up, and writes down who asked and how it went.
+  ///
+  /// Every way of starting a service comes through here — the studio's
+  /// button, an action from `fw` or an agent, `ensure`, a restart — so the
+  /// history has each start exactly once.
+  Future<DevStackRunResult> start() => _recorded('start', performStart);
 
-  /// Takes it down.
-  Future<DevStackRunResult> stop();
+  /// Takes it down, and writes down who asked and how it went.
+  Future<DevStackRunResult> stop() => _recorded('stop', performStop);
+
+  /// What [start] does for this kind.
+  @protected
+  Future<DevStackRunResult> performStart();
+
+  /// What [stop] does for this kind.
+  @protected
+  Future<DevStackRunResult> performStop();
+
+  /// Where starts and stops are written down. Set by the container; null
+  /// writes nothing.
+  StackHistoryStore? history;
+
+  /// Writes [event] down, if anything is listening.
+  @protected
+  void recordEvent(StackEvent event) {
+    history?.record(event);
+    notifyChanged();
+  }
+
+  /// Runs [perform] — which claims the service before its first await, so the
+  /// claim still lands in the caller's turn — and records the outcome.
+  Future<DevStackRunResult> _recorded(
+    String verb,
+    Future<DevStackRunResult> Function() perform,
+  ) async {
+    var at = DateTime.now();
+    StackEvent event({
+      required StackEventOutcome outcome,
+      String? detail,
+      String? failure,
+      String? command,
+    }) => StackEvent(
+      at: at,
+      service: id,
+      name: label,
+      verb: verb,
+      outcome: outcome,
+      by: currentCaller.name,
+      took: DateTime.now().difference(at),
+      detail: detail,
+      failure: failure,
+      command: command,
+    );
+    DevStackRunResult result;
+    try {
+      result = await perform();
+    } on Object catch (e) {
+      // Refused because another start or stop holds the service: a second
+      // press, not something that happened to it. Its own refusals release
+      // the claim before they get here.
+      if (busy == null) {
+        recordEvent(
+          event(
+            outcome: StackEventOutcome.refused,
+            failure: e is ActionRefusal ? e.message : '$e',
+          ),
+        );
+      }
+      rethrow;
+    }
+    var starting = verb == 'start';
+    recordEvent(
+      event(
+        outcome: switch ((result.ok, result.nothingToDo)) {
+          (true, true) =>
+            starting
+                ? StackEventOutcome.alreadyUp
+                : StackEventOutcome.alreadyDown,
+          (true, false) =>
+            starting ? StackEventOutcome.up : StackEventOutcome.down,
+          (false, _) => StackEventOutcome.failed,
+        },
+        detail: result.reading?.detail,
+        failure: result.ok ? null : failureOf(result, verb),
+        command: result.command,
+      ),
+    );
+    return result;
+  }
 
   /// The port it answers on, when flutterware knows it. Only an owned service
   /// with a port or HTTP readiness check does: a delegated one's ports belong
@@ -891,6 +977,24 @@ Future<ProcessResult> defaultRunProcess(
   environment: await terminalEnvironment(),
   includeParentEnvironment: false,
 );
+
+/// Why [result] — of a `start` or a `stop` — did not do what was asked, in one
+/// sentence.
+String failureOf(DevStackRunResult result, String verb) {
+  if (result.reading?.failure case var failure?) return failure;
+  if (result.timedOut) return result.stderr;
+  if (result.exitCode case var code? when code != 0) {
+    return 'Its $verb command exited with code $code.';
+  }
+  // An owned start or stop has no exit code, and says what went wrong here.
+  if (result.exitCode == null && result.stderr.trim().isNotEmpty) {
+    return result.stderr.trim();
+  }
+  var state = result.reading?.state.name;
+  return state == null
+      ? 'Its $verb did not finish.'
+      : 'It is $state after its $verb.';
+}
 
 String combinedOutput(ProcessResult result) {
   var out = '${result.stdout}'.trimRight();

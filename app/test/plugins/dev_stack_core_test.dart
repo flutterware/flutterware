@@ -549,6 +549,7 @@ void main() {
       var actions = {for (var a in core.report.actions) a.id: a};
       expect(actions.keys, [
         'ensure',
+        'history',
         'status',
         'start',
         'stop',
@@ -1103,8 +1104,9 @@ void main() {
       expect(
         [for (var a in core.report.actions) a.id],
         [
-          // The stack's own, so not prefixed: it spans the services.
+          // The stack's own, so not prefixed: they span the services.
           'ensure',
+          'history',
           'stack.status',
           'stack.start',
           'stack.stop',
@@ -1128,7 +1130,7 @@ void main() {
       var core = coreWith(localEnvConfig());
       expect(
         [for (var a in core.report.actions) a.id],
-        ['ensure', 'status', 'start', 'stop', 'logs', 'restart'],
+        ['ensure', 'history', 'status', 'start', 'stop', 'logs', 'restart'],
       );
       core.dispose();
     });

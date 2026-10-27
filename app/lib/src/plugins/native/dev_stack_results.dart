@@ -16,6 +16,15 @@ String stackCachePath(String runDir, String worktreePath) => p.join(
   'stack-${sha1.convert(utf8.encode(worktreePath)).toString().substring(0, 16)}.json',
 );
 
+/// Where a worktree's history of starts and stops is kept, beside its cache.
+///
+/// One line per event, appended by whichever process did it — the studio, `fw`
+/// or the MCP server — so each of them reads the same story.
+String stackHistoryPath(String runDir, String worktreePath) => p.join(
+  runDir,
+  'stack-${sha1.convert(utf8.encode(worktreePath)).toString().substring(0, 16)}.history.jsonl',
+);
+
 /// What a worktree's cache file holds: the last reading of each declared
 /// service, keyed by [StackService.id].
 ///
@@ -277,6 +286,7 @@ class DevStackRunResult implements PluginResult {
     this.stderr = '',
     this.output = '',
     this.timedOut = false,
+    this.nothingToDo = false,
     this.reading,
   }) : ok = ok ?? exitCode == 0;
 
@@ -318,6 +328,10 @@ class DevStackRunResult implements PluginResult {
   final String stdout;
   final String stderr;
 
+  /// A start that found the process already running, or a stop that found
+  /// nothing to stop. Nothing was spawned or signalled.
+  final bool nothingToDo;
+
   /// The probe run immediately afterwards, when the command was one that
   /// changes the state. A caller asking to bring the stack up wants to be told
   /// whether it came up, not merely that the command exited.
@@ -329,6 +343,7 @@ class DevStackRunResult implements PluginResult {
     if (exitCode != null) 'exitCode': exitCode,
     'ok': ok,
     if (timedOut) 'timedOut': true,
+    if (nothingToDo) 'nothingToDo': true,
     if (output.isNotEmpty) 'output': output,
     // Only when they add something. A command that said everything on one
     // stream would otherwise carry its whole output twice.
@@ -431,5 +446,122 @@ class StackEnsureResult implements PluginResult {
   Map<String, Object?> toJson() => {
     'ok': ok,
     'services': [for (var service in services) service.toJson()],
+  };
+}
+
+/// How a start or a stop ended, as the history writes it down.
+enum StackEventOutcome {
+  /// A start, and the service is up.
+  up,
+
+  /// A stop, and the service is down.
+  down,
+
+  /// A start that found it running already, so nothing was spawned.
+  alreadyUp,
+
+  /// A stop that found nothing running.
+  alreadyDown,
+
+  /// It ran, and did not do what was asked. [StackEvent.failure] says why.
+  failed,
+
+  /// Refused before anything ran: no port, a port someone else holds, a tool
+  /// that is not installed. [StackEvent.failure] is the refusal.
+  refused,
+
+  /// The process went away without anyone stopping it.
+  exited;
+
+  static StackEventOutcome byName(String? name) =>
+      values.firstWhere((v) => v.name == name, orElse: () => failed);
+
+  bool get isProblem => this == failed || this == refused || this == exited;
+}
+
+/// One start or stop of one service, or one process that exited on its own.
+class StackEvent {
+  const StackEvent({
+    required this.at,
+    required this.service,
+    required this.name,
+    required this.verb,
+    required this.outcome,
+    this.by,
+    this.took,
+    this.detail,
+    this.failure,
+    this.command,
+  });
+
+  factory StackEvent.fromJson(Map<String, Object?> json) => StackEvent(
+    at: DateTime.tryParse('${json['at']}') ?? DateTime(0),
+    service: '${json['service'] ?? ''}',
+    name: '${json['name'] ?? json['service'] ?? ''}',
+    verb: '${json['verb'] ?? ''}',
+    outcome: StackEventOutcome.byName(json['outcome'] as String?),
+    by: json['by'] as String?,
+    took: switch (json['tookMs']) {
+      int ms => Duration(milliseconds: ms),
+      _ => null,
+    },
+    detail: json['detail'] as String?,
+    failure: json['failure'] as String?,
+    command: json['command'] as String?,
+  );
+
+  /// When it was asked for.
+  final DateTime at;
+
+  /// The service's id.
+  final String service;
+
+  /// What the service was called when this happened.
+  final String name;
+
+  /// `start`, `stop` or `exit`.
+  final String verb;
+
+  final StackEventOutcome outcome;
+
+  /// Who asked: `studio`, `terminal` or `agent`. Null for a process that
+  /// exited on its own.
+  final String? by;
+
+  /// How long the start or stop took.
+  final Duration? took;
+
+  /// What the service looked like afterwards: `localhost:8080 · pid 123`.
+  final String? detail;
+
+  /// Why it did not do what was asked.
+  final String? failure;
+
+  /// What was run.
+  final String? command;
+
+  Map<String, Object?> toJson() => {
+    'at': at.toIso8601String(),
+    'service': service,
+    'name': name,
+    'verb': verb,
+    'outcome': outcome.name,
+    if (by != null) 'by': by,
+    if (took != null) 'tookMs': took!.inMilliseconds,
+    if (detail != null) 'detail': detail,
+    if (failure != null) 'failure': failure,
+    if (command != null) 'command': command,
+  };
+}
+
+/// What the `history` action hands back: the latest events, newest first.
+class StackHistoryResult implements PluginResult {
+  const StackHistoryResult(this.events);
+
+  final List<StackEvent> events;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'events': [for (var event in events) event.toJson()],
   };
 }
