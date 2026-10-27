@@ -36,13 +36,119 @@ not from running it. Then six invented worlds written on paper against this
 design (`2026-09-25-worlds-paper-cases.md`); their findings are folded in
 below — two words, eight places the API grew, and a section on the device.
 
+## What a world is for
+
+*Decided with the owner on 2026-10-27, after a second consumer's first round.
+Where anything below disagrees with this section, this section wins.*
+
+**For the human.** A world lets you see and try the product the way several
+people use it, on the code of the worktree you are in. You jump into a
+worktree, often one an agent has been working in, open a world, and see what
+the app has become: each person's screen side by side, already signed in,
+and what one of them does reaching the others. An agent gets little from a
+world that it could not get by starting things one by one and reading their
+logs. It can reach a world, but it is not who the world is for.
+
+**The promise.** Opening a world:
+
+- is one click in the studio, in any worktree, with no command for the human
+  to run first;
+- brings up what the world needs (the stack's services, or the server the
+  script hosts), creates fresh users, and starts every person's app signed
+  in as one of them;
+- is fast: seconds when warm, and nothing rebuilt that did not change;
+- runs this worktree's code, in the apps and in the server.
+
+Anything that makes opening slower, needs a command, or shows the human less
+breaks the promise. A consumer's ask is weighed the same way: does it make
+opening faster, need fewer commands, or show the human more? If not, it
+waits. The consumers so far have driven worlds through an agent and read
+traces, so their asks lean towards trace precision; that is worth having,
+after the promise.
+
+**What a world borrows, hosts and owns.**
+
+- It borrows the stack. A complex stack (a database, an auth server, a sync
+  service, a server that is slow to start) stays up between worlds and
+  belongs to the dev stack plugin. Opening a world starts whatever of it is
+  down, waits until it answers, and never stops it on close.
+- It may host the server itself. A Dart server the script starts in its own
+  process stays a first-class path: it suits showing a server configuration,
+  and it is the only server the world's reload reaches. It is not always
+  possible, which is why borrowing exists.
+- It owns the people, their apps (each a Run entry point, started the way Run
+  starts it), its actions, and what the human sees of the system.
+
+**The studio owns it.** A world opens in the studio, where its screens are
+drawn. When an agent asks for one and the studio has the checkout open, the
+world opens there and both see the same one. With no studio, the MCP server
+refuses, because it keeps nothing between calls. `fw` with `--hold=true`
+stays for a terminal.
+
+**Dart servers first.** The world sees a Dart server through its inspection
+adapter. A service written in another language is second-class for now: what
+it does reaches the world only through what a Dart process catches for it
+(the world's SMTP inbox, a script that reports for it), and flutterware is
+never a client for another tool's API.
+
+**It never asserts.** Scenarios are for automated testing. A world is for
+showing and trying things out. A world with checks would be a test, and
+tests stay the scenarios' job.
+
+**Every platform, eventually.** macOS today. Linux renders guests but has
+run no world (question 14), and Windows is in progress.
+
+### What this asks for next
+
+The dev stack's several-services change (`2026-08-10-dev-stack-design.md`)
+built the half of this that is the stack's: services flutterware owns, each
+started per checkout and waited on through its port or a health URL;
+`needs` between them; `ensure`, which brings a list of them up in order and
+says how each ended; and the terminal's environment for everything the stack
+starts. The world's half, decided 2026-10-27 and built as one change:
+
+1. **A world names what it needs.** `WorldScript('tool/worlds/team_invite.dart',
+   needs: ['server'])`, beside the `DevStack` that declares `server`.
+   Opening runs `ensure` on those services while the script compiles, and
+   sends the script `open` only once each is up. One that does not come up
+   fails the world with its reason and the last of what it printed, before
+   anything is seeded. A second consumer's stack command returned success at
+   160 s while its Dart server was still compiling, and their world went on
+   seeding a half-started stack: the wait has to be flutterware's own.
+   Closing a world stops none of them. Declared rather than written in the
+   script, so the studio knows what a world needs before it starts anything,
+   and shows it.
+2. **The script learns where they are.** `w.service('server')` is the port
+   and URL `ensure` reported. The script seeds through it and passes it to
+   each person's app as a knob. An owned service runs per checkout, so this
+   is the worktree's own server by construction, which answers most of
+   *say which checkout the server runs from*: asked in a worktree, a
+   consumer's port tool had answered the main checkout's port, and a world
+   opened there would have shown the new app against the old server.
+3. **The script gets the terminal's environment.** The same world opened in
+   2.1 s held from a terminal and in 50–53 s from the MCP server: the hooks
+   runner keys its cache on `PATH`, `HOME`, `TMPDIR` and `ANDROID_HOME`, and
+   a process started by the desktop app had neither the terminal's `PATH`
+   nor `ANDROID_HOME`, so every opening rebuilt a native library. The stack
+   change gave everything it starts the terminal's environment exactly; the
+   world script was the one process left. Run's launches still inherit
+   their owner's, and are their own change.
+4. **A port held by another checkout is named.** A service with a fixed port
+   cannot run in two checkouts at once. When the holder is the same service
+   started from another checkout, the refusal says which one and points to
+   a port per checkout (`Ready.httpFrom`), instead of "another process".
+
+Still open: warning when a person's app talks to a server from another
+checkout. Nothing knows an app's address unless the script passed it from
+`w.service`, and then it is already the right one.
+
 ## Where it sits
 
 | | used freely | driven by a script |
 |---|---|---|
 | **the outside services faked** | — | Scenarios (fake time) |
 | **the real system** | Run — *one* app | Scenarios (live lane) |
-| **the real system, several people, its edges in view** | **Worlds** | a world as a live scenario's setup (later) |
+| **the real system, several people, its edges in view** | **Worlds** | — (a world never checks) |
 
 Previews stays beside the grid: it shows a piece of an app, not an app.
 
@@ -185,9 +291,9 @@ studio to send it to closed with the `open` call: a second consumer's
 `status` right after found nothing open. And `hold` over MCP would have
 printed the world's log onto the protocol and kept the call waiting until
 close. Both are refused now, before anything starts, naming the studio and
-a background `--hold=true` as the two ways to keep a world. Which process
-should own an agent's world when there is no studio (the MCP process for
-its lifetime, or the studio opened for it) is still open.
+a background `--hold=true` as the two ways to keep a world. That is the
+answer, not a stopgap: the studio owns worlds, and an agent joins the one
+open there (*What a world is for*).
 
 ### A sketch
 
@@ -356,15 +462,17 @@ person in a browser, a headless person, a shared account. That holds for the
 agent too: where `flutterware_act` cannot go, `worlds invoke` can.
 
 **A world acts; it never asserts.** It may play the first moves and hand
-over. *Mia mentions Noah; Noah is notified; Zoe is not* is a check, and a
-world with checks is a scenario that starts from a world — the live lane's
-job, later.
+over. *Mia mentions Noah; Noah is notified; Zoe is not* is a check, and
+checks are the scenarios' job: a world is for showing and trying
+(*What a world is for*).
 
 **In-process or attached.** Hosting a Dart server in the world's process gives
 full control: edges are arguments, the clock is `w.clock`, the world can stand
 in for a background worker. Any other server is attached —
 `w.attach(Server.running('orders'))` — and then edges arrive as
-`FlutterwareServer.event`s and email over SMTP, with no clock.
+`FlutterwareServer.event`s and email over SMTP, with no clock. An attached
+server the world needs is started for it when it is down: the human opening
+a world runs no command (*What a world is for*).
 
 **The world clock reaches Dart code only.** The database's `now()`, the auth
 server and the sync service keep their own. A seed that writes
@@ -1117,8 +1225,8 @@ not changed for that long and no job in it is still running (a job reports
 its start and its end), bounded by a timeout, and says whether it settled.
 Settling on the answer rather than on the world keeps a server's own polling
 from holding it open, and lets a step heard during the wait be waited for. It
-claims nothing about what comes after the quiet. Checks on top of it — a
-world as a live scenario's setup — stay the later step they were.
+claims nothing about what comes after the quiet. Nothing checks on top of
+it: a world never asserts.
 
 ### The outbox, begun
 
@@ -1194,8 +1302,10 @@ built: the page opens from a world action meanwhile.
 - `worlds device {person, location | network | background}`, refusing — with
   the reason — what that kind of device cannot do.
 
-One call hands an agent a setup with several people in it. Flows that cross
-from one user to another are the ones no tool lets an agent exercise today.
+This surface lets an agent open, drive and read the world the human is
+looking at, so the two work on the same one. It is not why worlds exist: an
+agent could start each app and read each log on its own, and a world is for
+the human (*What a world is for*).
 
 ## Peripherals — the door, not the room
 
@@ -1426,7 +1536,7 @@ the project's after all (*Plugins are the project's*).
    project's to fake, and the world names each one nothing answers
    (*Plugins are the project's*).
 6. **Later:** peripherals, people in a browser, live mirrors of external
-   devices, a world as a live scenario's setup.
+   devices.
 
 The guest experiment ran beside these and is done; its fixture is the first
 piece of the lab, `fixtures/world_lab/`, which now hosts the paper cases in
