@@ -416,6 +416,7 @@ class OpenWorld {
     };
     String what;
     String? step;
+    String? via;
     switch (how) {
       case 'type':
         var code = message.code;
@@ -445,28 +446,11 @@ class OpenWorld {
         if (link == null) {
           throw WorldRefusal('It carries no link: "${message.text}".');
         }
-        var links = person.platform?.links;
-        if (links == null || !links.listening) {
-          throw WorldRefusal(
-            "$name's app is not listening for links: it registers no "
-            'handler with app_links, or has not started it yet.',
-          );
-        }
-        // The step first, so what the link starts has one to join.
-        try {
-          var answer = await tracer.ask(name, worldInputChannel, 'open', {
-            'target': 'the link from $from',
-          });
-          step = answer['step'] as String?;
-        } on Object {
-          // A guest built before deliveries were steps: the link still goes.
-        }
-        if (!links.open(link)) {
-          throw WorldRefusal(
-            "$name's app is not listening for links: it registers no "
-            'handler with app_links, or has not started it yet.',
-          );
-        }
+        (step, via) = await _openLink(
+          person,
+          link,
+          target: 'the link from $from',
+        );
         what = link;
         _journal(person, 'openLink', actor, link);
       default:
@@ -477,12 +461,81 @@ class OpenWorld {
       person: name,
       how: how,
       what: what,
+      via: via,
       step: step,
       at: DateTime.now(),
     );
     (deliveries[message.id] ??= []).add(delivery);
     _changed();
     return delivery;
+  }
+
+  /// Opens [link] in [person]'s app, the way the phone would when someone
+  /// taps it outside the app, and says so in their Run journal as [actor]'s
+  /// step. Answers how it went: through `app_links` when the app listens
+  /// there, and otherwise through `flutter/navigation`, where Flutter's own
+  /// deep linking delivers a link.
+  Future<String> openLink(
+    String person,
+    String link, {
+    String actor = 'agent',
+  }) async {
+    var who = people[person];
+    if (who == null || !who.running) {
+      throw WorldRefusal("$person's app is not running.");
+    }
+    var (_, via) = await _openLink(who, link, target: 'a link');
+    _journal(who, 'openLink', actor, link);
+    return via;
+  }
+
+  /// The step [link] arrived on, if the app reports one, and the way it
+  /// went.
+  Future<(String?, String)> _openLink(
+    WorldPerson person,
+    String link, {
+    required String target,
+  }) async {
+    var name = person.name;
+    var tracer = this.tracer;
+    var links = person.platform?.links;
+    if (links != null && links.listening) {
+      String? step;
+      // The step first, so what the link starts has one to join.
+      try {
+        var answer = await tracer?.ask(name, worldInputChannel, 'open', {
+          'target': target,
+        });
+        step = answer?['step'] as String?;
+      } on Object {
+        // A guest built before deliveries were steps: the link still goes.
+      }
+      links.open(link);
+      return (step, 'app_links');
+    }
+    // The app pushes it itself, so it can say whether anything took it.
+    Map<String, Object?> answer;
+    try {
+      if (tracer == null) throw StateError('the world is not open');
+      answer = await tracer.ask(name, worldInputChannel, 'open', {
+        'target': target,
+        'link': link,
+      });
+    } on Object catch (error) {
+      throw WorldRefusal("$name's app did not take the link: $error");
+    }
+    if (answer['routed'] != true) {
+      throw WorldRefusal(
+        answer.containsKey('routed')
+            ? "Nothing in $name's app took the link. It registers no handler "
+                  'with app_links, and no Router or Navigator in it handled '
+                  "the link as Flutter's deep linking delivers one."
+            : "$name's app registers no handler with app_links, and its "
+                  'flutterware is too old to deliver the link through '
+                  "Flutter's deep linking. Upgrade flutterware in the app.",
+      );
+    }
+    return (answer['step'] as String?, 'flutter/navigation');
   }
 
   /// What each message was delivered as, by its id, oldest first: the codes
@@ -1300,6 +1353,7 @@ class WorldDelivery {
     required this.person,
     required this.how,
     required this.what,
+    this.via,
     this.step,
     this.at,
   });
@@ -1313,6 +1367,10 @@ class WorldDelivery {
   /// `type` or `open`.
   final String how;
   final String what;
+
+  /// How a link reached the app: `app_links`, or `flutter/navigation` for
+  /// an app that takes links through Flutter's own deep linking.
+  final String? via;
 
   /// The step it was, on the person's app — `leo.13` — whose trace is what
   /// it caused; null from a guest built before deliveries were steps.

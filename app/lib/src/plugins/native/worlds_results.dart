@@ -773,6 +773,7 @@ class WorldDeliveryResult implements PluginResult {
     required this.person,
     required this.how,
     required this.what,
+    this.via,
     this.step,
     this.caused,
   });
@@ -787,6 +788,7 @@ class WorldDeliveryResult implements PluginResult {
     person: delivery.person,
     how: delivery.how,
     what: delivery.what,
+    via: delivery.via,
     step: delivery.step,
     caused: switch (caused) {
       (:var step, :var beats) => traceLines(beats, step.at!),
@@ -800,6 +802,7 @@ class WorldDeliveryResult implements PluginResult {
         person: json['person']! as String,
         how: json['how']! as String,
         what: json['what']! as String,
+        via: json['via'] as String?,
         step: json['step'] as String?,
         caused: (json['caused'] as List?)?.cast<String>(),
       );
@@ -812,6 +815,10 @@ class WorldDeliveryResult implements PluginResult {
 
   /// The code typed, or the link opened.
   final String what;
+
+  /// How a link reached the app: `app_links`, or `flutter/navigation`, the
+  /// way Flutter's own deep linking delivers one.
+  final String? via;
 
   /// The step it was on the person's app: `leo.13`.
   final String? step;
@@ -826,6 +833,7 @@ class WorldDeliveryResult implements PluginResult {
     'person': person,
     'how': how,
     'what': what,
+    'via': ?via,
     'step': ?step,
     'caused': ?caused,
   };

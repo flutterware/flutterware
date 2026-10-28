@@ -580,6 +580,12 @@ fw run worlds deliver --message=lab/10
 `deliver` types the code when the message carries one and otherwise opens its
 link; `--how=open` opens the link instead.
 
+An app that listens with `app_links` gets the link there. Any other app gets
+it the way Flutter's own deep linking delivers a link, as a new route, so an
+app with a `Router` (`go_router`, for one) or named routes goes to it. The
+answer's `via` says which way the link went. If nothing in the app takes the
+link, `deliver` says so.
+
 A server takes part by reporting each message with its recipient, in its
 adapter for that channel:
 
