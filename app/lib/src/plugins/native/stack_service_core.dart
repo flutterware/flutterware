@@ -482,12 +482,14 @@ abstract class StackServiceCore {
     return result;
   }
 
-  /// The port it answers on, when flutterware knows it. Only an owned service
-  /// with a port or HTTP readiness check does: a delegated one's ports belong
-  /// to the project's own commands.
+  /// The port it answers on, when flutterware knows it: an owned service
+  /// with a port or HTTP readiness check, or a delegated one whose
+  /// [Probe.json] reports it.
   int? get port => null;
 
-  /// `http://localhost:<port>`, when the readiness check is an HTTP request.
+  /// Where it answers: `http://localhost:<port>` for an owned service whose
+  /// readiness check is an HTTP request, or what a delegated one's probe
+  /// reports.
   String? get url => null;
 
   /// Claims the service for a transition, so the next one refuses rather than

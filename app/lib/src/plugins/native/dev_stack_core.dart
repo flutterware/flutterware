@@ -607,6 +607,17 @@ class DevStackCore extends PluginCore {
           ),
         ],
       ),
+    // With one service, that service's own `status` is the stack's.
+    if (only == null)
+      PluginAction(
+        'status',
+        'Check all',
+        returns: StackStatusResult,
+        description:
+            'Checks every service now, all at once, and answers what each '
+            'one reads: its state and detail, and its port and URL when '
+            'flutterware knows them.',
+      ),
     if (keepsHistory)
       PluginAction(
         'history',
@@ -671,12 +682,30 @@ class DevStackCore extends PluginCore {
     ]);
   }
 
+  /// A new reading of every service, taken side by side.
+  Future<StackStatusResult> checkAll() async {
+    var readings = await Future.wait([
+      for (var service in _services) service.refresh(),
+    ]);
+    return StackStatusResult([
+      for (var (i, service) in _services.indexed)
+        CheckedService(
+          id: service.id,
+          name: service.label,
+          reading: readings[i],
+          port: service.port,
+          url: service.url,
+        ),
+    ]);
+  }
+
   @override
   Future<Object?> invoke(
     String actionId, {
     Map<String, Object?> arguments = const {},
   }) async {
     if (actionId == 'ensure') return ensure(ids: _ids(arguments['services']));
+    if (actionId == 'status' && only == null) return checkAll();
     if (actionId == 'history') {
       var limit = arguments['limit'] as int? ?? 20;
       return StackHistoryResult(_historyStore.read(limit: limit));

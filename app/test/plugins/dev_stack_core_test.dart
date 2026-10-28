@@ -1109,6 +1109,7 @@ void main() {
         [
           // The stack's own, so not prefixed: they span the services.
           'ensure',
+          'status',
           'history',
           'stack.status',
           'stack.start',
@@ -1128,6 +1129,62 @@ void main() {
       ], isNot(contains('server.stop')));
       core.dispose();
     });
+
+    test(
+      'status checks every service, with the port a probe reports',
+      () async {
+        var core = coreWith(
+          DevStack(
+            services: [
+              StackService.delegated(
+                'stack',
+                name: 'Local stack',
+                probe: Probe.exitCode(StackRun.command(['stack', 'doctor'])),
+                start: StackRun.command(['stack', 'up']),
+              ),
+              StackService.delegated(
+                'server',
+                name: 'API server',
+                probe: Probe.json(StackRun.command(['server', 'health'])),
+                start: StackRun.command(['server', 'up']),
+              ),
+            ],
+          ).config,
+        );
+        responses['stack doctor'] = ProcessResult(0, 1, '', 'not running');
+        responses['server health'] = ProcessResult(
+          0,
+          0,
+          '{"state": "up", "detail": "listening on :8123", "port": 8123, '
+              '"url": "http://localhost:8123"}',
+          '',
+        );
+
+        var result = (await core.invoke('status'))! as StackStatusResult;
+        expect([
+          for (var command in ran) command.take(2).join(' '),
+        ], unorderedEquals(['stack doctor', 'server health']));
+        expect(result.toJson()['services'], [
+          {
+            'id': 'stack',
+            'name': 'Local stack',
+            'state': 'down',
+            'detail': 'not running',
+            'checkedAt': isA<String>(),
+          },
+          {
+            'id': 'server',
+            'name': 'API server',
+            'state': 'up',
+            'detail': 'listening on :8123',
+            'port': 8123,
+            'url': 'http://localhost:8123',
+            'checkedAt': isA<String>(),
+          },
+        ]);
+        core.dispose();
+      },
+    );
 
     test('one service keeps the bare ids it always had', () {
       var core = coreWith(localEnvConfig());

@@ -215,8 +215,10 @@ hosts, as long as it is a Dart server that uses the
 
 `w.service(id)` has the service's `name`, and its `port` and `url` when
 flutterware knows them: for an owned service whose `ready:` checks a port
-(`port`) or a URL (`port` and `url`). It refuses an id the world doesn't
-need, so name every service the script reads in `needs:`.
+(`port`) or a URL (`port` and `url`), and for a delegated service whose
+`Probe.json` prints them (see [the probe](dev_stack.md#two-kinds-of-probe)).
+It refuses an id the world doesn't need, so name every service the script
+reads in `needs:`.
 
 An owned service runs in each checkout on its own, so a world opened in a
 worktree talks to that worktree's server, running that worktree's code. A
