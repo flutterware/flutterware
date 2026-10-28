@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:meta/meta.dart';
 
 import '../devices.dart';
-import '../server/inspector.dart' show FlutterwareServer;
+import '../server/inspector.dart' show FlutterwareServer, serverPublished;
 import 'mail_inbox.dart';
 import 'protocol.dart';
 import 'step_http.dart';
@@ -396,6 +396,9 @@ final class World {
       (step == null
               ? start()
               : runZoned(start, zoneValues: {worldStepKey: step}))
+          // A server the action started, by reporting from this process,
+          // is found when the owner hears the action ended.
+          .whenComplete(serverPublished)
           .then(
             (_) => _send(WorldMessage.actionEnded, {'run': run}),
             onError: (Object error) => _send(WorldMessage.actionEnded, {

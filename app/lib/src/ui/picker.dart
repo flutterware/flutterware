@@ -51,16 +51,24 @@ class FwPicker<T> extends StatelessWidget {
     required this.selected,
     required this.onChanged,
     this.empty = 'Nothing to choose from.',
+    this.note,
   });
 
   final List<FwChoice<T>> choices;
   final T? selected;
   final ValueChanged<T> onChanged;
 
+  /// Said above the choices while the list is open: what the choice is
+  /// about, and what choosing does. For a picker whose label beside it is
+  /// all a person sees of it otherwise.
+  final String? note;
+
   /// Said instead of an empty box. Write a real one whenever the list can
   /// actually be empty — a device list still being read is a different thing
   /// from a project with no entry points.
   final String empty;
+
+  static const _noteWidth = 280.0;
 
   @override
   Widget build(BuildContext context) {
@@ -134,14 +142,31 @@ class FwPicker<T> extends StatelessWidget {
       ),
       content: (context, controller) => PopoverMenuSurface(
         // The trigger's width, so the open list lines up under the field
-        // rather than floating at whatever its longest row wants.
-        width: controller.anchorWidth,
+        // rather than floating at whatever its longest row wants. A note
+        // gets room for a sentence beside a trigger sized for one word.
+        width: switch ((controller.anchorWidth, note)) {
+          (var width?, _?) when width < _noteWidth => _noteWidth,
+          (var width, _) => width,
+        },
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(FwSpacing.xs),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (note case var note?)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    FwSpacing.sm,
+                    FwSpacing.xs,
+                    FwSpacing.sm,
+                    FwSpacing.sm,
+                  ),
+                  child: Text(
+                    note,
+                    style: context.type.caption.copyWith(color: colors.mut),
+                  ),
+                ),
               for (var choice in choices)
                 _PickerRow<T>(
                   choice: choice,

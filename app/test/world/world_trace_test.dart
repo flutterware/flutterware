@@ -491,6 +491,29 @@ void main() {
       ]);
     });
 
+    test('a part keeps the name it had once a second server reports, while '
+        'only one server has it', () {
+      lab(10, 'http', {'method': 'GET', 'path': '/health', 'status': 200});
+      expect(trace.nodeNames.keys, ['GET /health']);
+      expect(trace.nodeOf('GET /health'), 'lab/part/GET /health');
+
+      trace.addServerEvent(
+        'script',
+        at(20, 'http', {'method': 'GET', 'path': '/me', 'status': 200}),
+      );
+      expect(trace.nodeNames.keys, ['lab/GET /health', 'script/GET /me']);
+      expect(trace.nodeOf('GET /health'), 'lab/part/GET /health');
+      expect(trace.nodeOf('lab/GET /health'), 'lab/part/GET /health');
+
+      // Two servers with the part: only the full name says which.
+      trace.addServerEvent(
+        'script',
+        at(30, 'http', {'method': 'GET', 'path': '/health', 'status': 200}),
+      );
+      expect(trace.nodeOf('GET /health'), isNull);
+      expect(trace.nodeOf('script/GET /health'), 'script/part/GET /health');
+    });
+
     test('a record is its table and its key: a side table sharing its '
         "parent's id stays apart, a table only the phone has joins by key", () {
       lab(10, 'write', {'table': 'cases', 'key': 'c1', 'op': 'insert'});
@@ -702,13 +725,15 @@ void main() {
       expect(trace.messageById(messages.last.id)?.code, '955046');
       expect(trace.messageById('lab/999'), isNull);
       // A mail's HTML: its links read from the page, its styles not read as
-      // words, and the code it speaks of found in what it shows.
+      // words or as links, and the code it speaks of found in what it shows.
       lab(1030, 'mail', {
         'to': 'leo@example.com',
         'subject': 'Sign in to Pickup',
         'text': 'Use the button in this mail.',
         'html':
-            '<html><head><style>.b{background:url(https://cdn.test/b.png)}'
+            '<html><head><link rel="stylesheet" '
+            'href="https://fonts.test/css2?family=Inter">'
+            '<style>.b{background:url(https://cdn.test/b.png)}'
             '</style></head><body><p>Your code is <b>731902</b></p>'
             '<a class="b" href="worldlab://auth?t=1&amp;u=leo">Sign in</a> '
             "<a href='https://shop.test/help'>Help</a></body></html>",

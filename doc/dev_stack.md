@@ -141,13 +141,17 @@ would read as "up" forever.
 {
   "state": "up",
   "detail": "4 containers",
-  "services": [{"name": "postgres", "port": 5432, "state": "up"}]
+  "services": [{"name": "postgres", "port": 5432, "state": "up"}],
+  "port": 8080,
+  "url": "http://localhost:8080"
 }
 ```
 
 `state` is `down`, `starting`, `up`, `stopping` or `unavailable` (the probe
 couldn't tell). With `services`, a stack that's partly up shows as `up 3/4`
-instead of a single colour.
+instead of a single colour. `port` and `url` say where the service answers.
+`ensure` and `status` report them, and a world that needs the service reads
+them with `w.service`.
 
 The probe runs every few seconds while the panel is on screen (`poll:` sets the
 pace). `fw` and agents don't poll: they show the last reading, from whichever
@@ -202,6 +206,7 @@ the studio a moment later.
 ```shell
 fw run dev_stack ensure            # brings every service up, in order
 fw run dev_stack history           # the latest starts and stops, and who asked
+fw run dev_stack status            # checks every service now
 fw run dev_stack server.status     # checks one service now
 fw run dev_stack server.start
 fw run dev_stack server.logs

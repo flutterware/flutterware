@@ -215,8 +215,10 @@ hosts, as long as it is a Dart server that uses the
 
 `w.service(id)` has the service's `name`, and its `port` and `url` when
 flutterware knows them: for an owned service whose `ready:` checks a port
-(`port`) or a URL (`port` and `url`). It refuses an id the world doesn't
-need, so name every service the script reads in `needs:`.
+(`port`) or a URL (`port` and `url`), and for a delegated service whose
+`Probe.json` prints them (see [the probe](dev_stack.md#two-kinds-of-probe)).
+It refuses an id the world doesn't need, so name every service the script
+reads in `needs:`.
 
 An owned service runs in each checkout on its own, so a world opened in a
 worktree talks to that worktree's server, running that worktree's code. A
@@ -577,6 +579,12 @@ fw run worlds deliver --message=lab/10
 
 `deliver` types the code when the message carries one and otherwise opens its
 link; `--how=open` opens the link instead.
+
+An app that listens with `app_links` gets the link there. Any other app gets
+it the way Flutter's own deep linking delivers a link, as a new route, so an
+app with a `Router` (`go_router`, for one) or named routes goes to it. The
+answer's `via` says which way the link went. If nothing in the app takes the
+link, `deliver` says so.
 
 A server takes part by reporting each message with its recipient, in its
 adapter for that channel:

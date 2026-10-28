@@ -141,6 +141,7 @@ class _PersonFocusState extends State<PersonFocus> {
           person: person,
           color: widget.color,
           sync: world.tracer?.syncOf(person.name),
+          openLink: (link) => world.openLink(person.name, link, actor: 'human'),
         ),
         if (person.platform?.platform.unanswered case var unanswered?
             when person.running && unanswered.isNotEmpty)
@@ -267,10 +268,14 @@ class _PersonHeader extends StatefulWidget {
     required this.person,
     required this.color,
     required this.sync,
+    required this.openLink,
   });
 
   final WorldPerson person;
   final Color color;
+
+  /// Opens a link in the person's app; see [OpenWorld.openLink].
+  final Future<String> Function(String link) openLink;
 
   /// The app's database panel's `sync` state, as the world last read it.
   final Map<String, Object?>? sync;
@@ -327,7 +332,11 @@ class _PersonHeaderState extends State<_PersonHeader> {
             ),
           ),
           if (person.platform case var platform? when person.running)
-            _PlatformMenu(person: person.name, platform: platform),
+            _PlatformMenu(
+              person: person.name,
+              platform: platform,
+              openLink: widget.openLink,
+            ),
         ],
       ),
     );
@@ -411,10 +420,15 @@ class _Unanswered extends StatelessWidget {
 /// app — open a link in it, where the OS would deliver one; show what it
 /// posted and opened; send it to the background — behind a `⋯`.
 class _PlatformMenu extends StatefulWidget {
-  const _PlatformMenu({required this.person, required this.platform});
+  const _PlatformMenu({
+    required this.person,
+    required this.platform,
+    required this.openLink,
+  });
 
   final String person;
   final StudioPlatform platform;
+  final Future<String> Function(String link) openLink;
 
   @override
   State<_PlatformMenu> createState() => _PlatformMenuState();
@@ -482,7 +496,7 @@ class _PlatformMenuState extends State<_PlatformMenu> {
   Future<void> _openLink() => showDialog<void>(
     context: context,
     builder: (context) =>
-        _OpenLink(person: widget.person, platform: widget.platform),
+        _OpenLink(person: widget.person, open: widget.openLink),
   );
 
   Future<void> _notifications() => showDialog<void>(
@@ -599,10 +613,10 @@ class ColumnBack extends StatelessWidget {
 /// disposed on return was read after its disposal, and took the studio's
 /// whole overlay down with it.
 class _OpenLink extends StatefulWidget {
-  const _OpenLink({required this.person, required this.platform});
+  const _OpenLink({required this.person, required this.open});
 
   final String person;
-  final StudioPlatform platform;
+  final Future<String> Function(String link) open;
 
   @override
   State<_OpenLink> createState() => _OpenLinkState();
@@ -618,16 +632,14 @@ class _OpenLinkState extends State<_OpenLink> {
     super.dispose();
   }
 
-  void _open() {
-    if (widget.platform.links.open(_link.text.trim())) {
-      Navigator.of(context).pop();
-    } else {
-      setState(
-        () => _said =
-            "${widget.person}'s app doesn't handle links yet (it registers "
-            'no app_links handler, or has not started it).',
-      );
+  Future<void> _open() async {
+    try {
+      await widget.open(_link.text.trim());
+    } on WorldRefusal catch (refusal) {
+      if (mounted) setState(() => _said = refusal.message);
+      return;
     }
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override

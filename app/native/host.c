@@ -374,12 +374,37 @@ static void SendSurfacesAllocated(void) {
   ipc_send(g_socket, kMsgSurfacesAllocated, payload, at);
 }
 
+// The one display the guest's view is on: the device's screen, which is all
+// the guest draws. Without it `FlutterView.display` fails an assertion in a
+// debug build, because the view names a display the engine was never told
+// about — and Lottie, among others, reads the refresh rate from there.
+static const FlutterEngineDisplayId kDisplayId = 0;
+
+// What `OnVsyncRequest` paces to, and what most phones run at.
+static const double kRefreshRate = 60.0;
+
+// Called again on every resize, because the device, and with it the size and
+// pixel ratio of the screen, can change under a running guest.
+static void SendDisplay(int width, int height, double pixel_ratio) {
+  FlutterEngineDisplay display = {0};
+  display.struct_size = sizeof(FlutterEngineDisplay);
+  display.display_id = kDisplayId;
+  display.single_display = true;
+  display.refresh_rate = kRefreshRate;
+  display.width = (size_t)width;
+  display.height = (size_t)height;
+  display.device_pixel_ratio = pixel_ratio;
+  FlutterEngineNotifyDisplayUpdate(
+      g_engine, kFlutterEngineDisplaysUpdateTypeStartup, &display, 1);
+}
+
 // `insets` is top, right, bottom, left in physical pixels — a device's safe
 // areas, which only the GUI knows because it is the one that picked the
 // device. The frame around the screen is drawn in that other process, so
 // without this the guest has no way to learn that it is behind a notch.
 static void SendWindowMetrics(int width, int height, double pixel_ratio,
                               const double insets[4]) {
+  SendDisplay(width, height, pixel_ratio);
   FlutterWindowMetricsEvent metrics = {0};
   metrics.struct_size = sizeof(FlutterWindowMetricsEvent);
   metrics.width = (size_t)width;
@@ -389,6 +414,7 @@ static void SendWindowMetrics(int width, int height, double pixel_ratio,
   metrics.physical_view_inset_right = insets[1];
   metrics.physical_view_inset_bottom = insets[2];
   metrics.physical_view_inset_left = insets[3];
+  metrics.display_id = kDisplayId;
   FlutterEngineSendWindowMetricsEvent(g_engine, &metrics);
 }
 

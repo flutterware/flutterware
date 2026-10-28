@@ -201,6 +201,8 @@ class DelegatedServiceCore extends StackServiceCore {
         at: at,
         detail: read.detail,
         services: read.services,
+        port: read.port,
+        url: read.url,
         // **`detail` is the reason when a probe reports `unavailable` without
         // a `failure`.** Two fields for one sentence is a distinction a script
         // author has no reason to make: they write one line explaining what is
@@ -221,6 +223,14 @@ class DelegatedServiceCore extends StackServiceCore {
       detail: lastLineOf(out),
     );
   }
+
+  /// The port and URL its [Probe.json] last reported, if it reports them:
+  /// the project's commands start it, so only they know where it listens.
+  @override
+  int? get port => reading.port;
+
+  @override
+  String? get url => reading.url;
 
   /// Brings the stack up, then re-probes.
   @override

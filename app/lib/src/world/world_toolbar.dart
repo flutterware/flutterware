@@ -206,22 +206,22 @@ class WorldToolbar extends StatelessWidget {
       const SizedBox(width: FwSpacing.sm),
       SizedBox(
         width: _knobWidth(context, knob),
-        child: Tooltip(
-          message: [
+        child: FwPicker<String>(
+          choices: [
+            for (var option in knob.options)
+              FwChoice(value: option, label: option),
+          ],
+          selected: knob.value,
+          // In the open list, where the choice is made: a tooltip is only
+          // found by someone who already hovers to ask.
+          note: [
             ?knob.description,
             'Changing this restarts the world.',
-          ].join('\n'),
-          child: FwPicker<String>(
-            choices: [
-              for (var option in knob.options)
-                FwChoice(value: option, label: option),
-            ],
-            selected: knob.value,
-            onChanged: (value) {
-              if (!enabled || value == knob.value) return;
-              unawaited(world.restart({...world.knobValues, knob.name: value}));
-            },
-          ),
+          ].join(' '),
+          onChanged: (value) {
+            if (!enabled || value == knob.value) return;
+            unawaited(world.restart({...world.knobValues, knob.name: value}));
+          },
         ),
       ),
     ],

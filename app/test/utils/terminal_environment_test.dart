@@ -154,6 +154,58 @@ export PATH="/profile/bin:$PATH"
       expect(executableOnPath('missing', path), isNull);
     });
   });
+
+  group("an fvm SDK's dart", () {
+    const sdk = '/Users/me/fvm/versions/3.50.0';
+
+    test('runs with its bin first, as `fvm dart` runs it', () {
+      for (var dart in [
+        '$sdk/bin/dart',
+        '$sdk/bin/flutter',
+        '$sdk/bin/cache/dart-sdk/bin/dart',
+      ]) {
+        expect(
+          environmentToRun(dart, {'PATH': '/usr/bin:/bin', 'HOME': '/h'}),
+          {'PATH': '$sdk/bin:/usr/bin:/bin', 'HOME': '/h'},
+          reason: dart,
+        );
+      }
+    });
+
+    test('keeps a PATH that already starts with it', () {
+      var environment = {'PATH': '$sdk/bin:/usr/bin'};
+      expect(environmentToRun('$sdk/bin/dart', environment), environment);
+    });
+
+    test('anything else runs with the PATH it is given', () {
+      var environment = {'PATH': '/usr/bin'};
+      for (var executable in [
+        '/opt/flutter/bin/dart',
+        '$sdk/bin/cache/artifacts/engine/darwin-x64/flutter_tester',
+        '/usr/local/bin/uv',
+        'docker',
+      ]) {
+        expect(
+          environmentToRun(executable, environment),
+          environment,
+          reason: executable,
+        );
+      }
+    });
+
+    test("on Windows with Windows' separator", () {
+      expect(
+        environmentToRun(r'C:\Users\me\fvm\versions\3.50.0\bin\dart.bat', {
+          'PATH': r'C:\Windows',
+        }, separator: ';'),
+        {
+          'PATH':
+              p.join(r'C:\Users\me\fvm\versions\3.50.0', 'bin') +
+              r';C:\Windows',
+        },
+      );
+    }, testOn: 'windows');
+  });
 }
 
 /// What a shell does with `-l -i -c <command>`, minus the profile: skip the

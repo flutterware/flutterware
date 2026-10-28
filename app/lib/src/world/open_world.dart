@@ -92,6 +92,22 @@ class OpenWorld {
   /// Why the world is [WorldPhase.failed].
   String? problem;
 
+  /// Whose app failed, in a world that opened anyway; null when nobody's
+  /// did. Each person's own problem says why.
+  String? get peopleProblem {
+    var failed = [
+      for (var person in people.values)
+        if (person.phase == PersonPhase.failed) person.name,
+    ];
+    if (failed.isEmpty) return null;
+    var whose = failed.length == 1
+        ? "${failed.single}'s app"
+        : "${failed.sublist(0, failed.length - 1).join(', ')} and "
+              "${failed.last}'s apps";
+    return '$whose failed. Restart the world to start '
+        '${failed.length == 1 ? 'it' : 'them'} again.';
+  }
+
   /// This opening's id, from the script.
   String? id;
 
@@ -157,6 +173,13 @@ class OpenWorld {
   Future<void> restart([Map<String, Object?>? knobs]) async {
     phase = WorldPhase.restarting;
     _restarts++;
+    // Every app of the last opening is about to be replaced or stopped, so
+    // none of them takes a reload from here on. Reloaded, the one replaced
+    // a moment later dies in the middle of it, and the failure lands on the
+    // person whose start asked for the reload.
+    for (var person in people.values) {
+      person._build?.people.remove(person);
+    }
     _changed();
     await _script?.close();
     await _run(knobs ?? knobValues);
@@ -326,6 +349,8 @@ class OpenWorld {
     });
     _changed();
     await run._ended.future.timeout(wait, onTimeout: () {});
+    // Ended, it answers with what it sent already found.
+    await run._found;
     return run;
   }
 
@@ -391,6 +416,7 @@ class OpenWorld {
     };
     String what;
     String? step;
+    String? via;
     switch (how) {
       case 'type':
         var code = message.code;
@@ -420,28 +446,11 @@ class OpenWorld {
         if (link == null) {
           throw WorldRefusal('It carries no link: "${message.text}".');
         }
-        var links = person.platform?.links;
-        if (links == null || !links.listening) {
-          throw WorldRefusal(
-            "$name's app is not listening for links: it registers no "
-            'handler with app_links, or has not started it yet.',
-          );
-        }
-        // The step first, so what the link starts has one to join.
-        try {
-          var answer = await tracer.ask(name, worldInputChannel, 'open', {
-            'target': 'the link from $from',
-          });
-          step = answer['step'] as String?;
-        } on Object {
-          // A guest built before deliveries were steps: the link still goes.
-        }
-        if (!links.open(link)) {
-          throw WorldRefusal(
-            "$name's app is not listening for links: it registers no "
-            'handler with app_links, or has not started it yet.',
-          );
-        }
+        (step, via) = await _openLink(
+          person,
+          link,
+          target: 'the link from $from',
+        );
         what = link;
         _journal(person, 'openLink', actor, link);
       default:
@@ -452,12 +461,81 @@ class OpenWorld {
       person: name,
       how: how,
       what: what,
+      via: via,
       step: step,
       at: DateTime.now(),
     );
     (deliveries[message.id] ??= []).add(delivery);
     _changed();
     return delivery;
+  }
+
+  /// Opens [link] in [person]'s app, the way the phone would when someone
+  /// taps it outside the app, and says so in their Run journal as [actor]'s
+  /// step. Answers how it went: through `app_links` when the app listens
+  /// there, and otherwise through `flutter/navigation`, where Flutter's own
+  /// deep linking delivers a link.
+  Future<String> openLink(
+    String person,
+    String link, {
+    String actor = 'agent',
+  }) async {
+    var who = people[person];
+    if (who == null || !who.running) {
+      throw WorldRefusal("$person's app is not running.");
+    }
+    var (_, via) = await _openLink(who, link, target: 'a link');
+    _journal(who, 'openLink', actor, link);
+    return via;
+  }
+
+  /// The step [link] arrived on, if the app reports one, and the way it
+  /// went.
+  Future<(String?, String)> _openLink(
+    WorldPerson person,
+    String link, {
+    required String target,
+  }) async {
+    var name = person.name;
+    var tracer = this.tracer;
+    var links = person.platform?.links;
+    if (links != null && links.listening) {
+      String? step;
+      // The step first, so what the link starts has one to join.
+      try {
+        var answer = await tracer?.ask(name, worldInputChannel, 'open', {
+          'target': target,
+        });
+        step = answer?['step'] as String?;
+      } on Object {
+        // A guest built before deliveries were steps: the link still goes.
+      }
+      links.open(link);
+      return (step, 'app_links');
+    }
+    // The app pushes it itself, so it can say whether anything took it.
+    Map<String, Object?> answer;
+    try {
+      if (tracer == null) throw StateError('the world is not open');
+      answer = await tracer.ask(name, worldInputChannel, 'open', {
+        'target': target,
+        'link': link,
+      });
+    } on Object catch (error) {
+      throw WorldRefusal("$name's app did not take the link: $error");
+    }
+    if (answer['routed'] != true) {
+      throw WorldRefusal(
+        answer.containsKey('routed')
+            ? "Nothing in $name's app took the link. It registers no handler "
+                  'with app_links, and no Router or Navigator in it handled '
+                  "the link as Flutter's deep linking delivers one."
+            : "$name's app registers no handler with app_links, and its "
+                  'flutterware is too old to deliver the link through '
+                  "Flutter's deep linking. Upgrade flutterware in the app.",
+      );
+    }
+    return (answer['step'] as String?, 'flutter/navigation');
   }
 
   /// What each message was delivered as, by its id, oldest first: the codes
@@ -535,7 +613,8 @@ class OpenWorld {
       if (phase != WorldPhase.failed) phase = WorldPhase.open;
       _say(
         '${phase == WorldPhase.open ? 'Open' : 'Settled'} in '
-        '${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(1)} s',
+        '${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(1)} s'
+        '${peopleProblem == null ? '' : '. $peopleProblem'}',
       );
       settled.complete();
       _changed();
@@ -634,10 +713,15 @@ class OpenWorld {
             ?..progress = message['message'] as String?
             ..fraction = (message['fraction'] as num?)?.toDouble();
         case WorldMessage.actionEnded:
+          // What the action did can be the first thing the script's own
+          // process reported, a mail with `FlutterwareServer.event`, and
+          // that is the moment its server appeared.
+          var found = tracer?.scanServers(now: true);
           var run = runs[message['run']];
           if (run != null) {
             run.error = message['error'] as String?;
             run.running = false;
+            run._found = found;
             run._ended.complete();
           }
       }
@@ -1081,7 +1165,16 @@ class _Build {
     await Future.wait([
       for (var person in people)
         if (person.launcher case var launcher? when person.running)
-          launcher.reloadFrom(delta.dillOutput!),
+          launcher.reloadFrom(delta.dillOutput!).catchError((
+            Object error,
+            StackTrace stack,
+          ) {
+            // Stopped while it reloaded: nothing is left to bring to the
+            // new code, and the reload did not fail anyone still here.
+            if (people.contains(person)) {
+              Error.throwWithStackTrace(error, stack);
+            }
+          }),
     ]);
     return changed;
   }
@@ -1260,6 +1353,7 @@ class WorldDelivery {
     required this.person,
     required this.how,
     required this.what,
+    this.via,
     this.step,
     this.at,
   });
@@ -1273,6 +1367,10 @@ class WorldDelivery {
   /// `type` or `open`.
   final String how;
   final String what;
+
+  /// How a link reached the app: `app_links`, or `flutter/navigation` for
+  /// an app that takes links through Flutter's own deep linking.
+  final String? via;
 
   /// The step it was, on the person's app — `leo.13` — whose trace is what
   /// it caused; null from a guest built before deliveries were steps.
@@ -1292,6 +1390,9 @@ class WorldActionRun {
   double? fraction;
   String? error;
   final _ended = Completer<void>();
+
+  /// The look for servers its end set off.
+  Future<void>? _found;
 }
 
 /// A world that cannot do what it was asked, in a sentence for whoever asked

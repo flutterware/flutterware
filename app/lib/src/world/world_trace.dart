@@ -919,6 +919,18 @@ class WorldTrace {
     return names;
   }
 
+  /// The node [name] stands for: one of [nodeNames], or — with several
+  /// servers — a part named without its server, as it was while one server
+  /// reported, when only one server has it. Null for anything else.
+  String? nodeOf(String name) {
+    var names = nodeNames;
+    if (names[name] case var node?) return node;
+    var servers = {
+      for (var server in _servers.values) ?names['${server.name}/$name'],
+    };
+    return servers.length == 1 ? servers.single : null;
+  }
+
   /// What [node] — a [SystemServer] node or [syncNode] — holds, newest
   /// first, at most [limit] of it; null for a node nothing reported.
   NodeContents? contentsOf(String node, {int limit = 200}) {
@@ -1193,7 +1205,8 @@ class WorldTrace {
     var found = {
       for (var match in _link.allMatches(words)) match[0]!,
       if (html != null)
-        for (var match in _href.allMatches(html)) _unescape(match[1]!),
+        for (var match in _href.allMatches(html.replaceAll(_hidden, ' ')))
+          _unescape(match[1]!),
     };
     // The one to hand over is the one the app takes: the adapter's, or one
     // the app declares — a mail can list two store badges before it — or,
@@ -1245,8 +1258,10 @@ class WorldTrace {
     caseSensitive: false,
     dotAll: true,
   );
+
+  /// Where a link a person can tap goes: an anchor's, never a stylesheet's.
   static final _href = RegExp(
-    r"""href\s*=\s*["']([^"']+)["']""",
+    r"""<a\b[^>]*?\shref\s*=\s*["']([^"']+)["']""",
     caseSensitive: false,
   );
 
@@ -2416,6 +2431,8 @@ class WorldTracer {
   final _servers = <String, ServerAttachClient>{};
   var _closed = false;
   DateTime? _lastScan;
+  Future<void>? _nextScan;
+  Future<void> _scanning = Future.value();
 
   /// Each person's sync state, as their app's database panel last read it —
   /// `{engine, clientId, pendingUploads, lastSyncedAt, buckets}` — for those
@@ -2477,13 +2494,40 @@ class WorldTracer {
     return app.client.request(channel, method, params);
   }
 
-  /// Looks for servers not attached yet — at most once a second.
-  Future<void> scanServers() async {
-    var now = DateTime.now();
-    if (_lastScan case var last? when now.difference(last).inSeconds < 1) {
-      return;
+  /// Looks for servers not attached yet, at most once a second unless
+  /// [now]. Asked sooner, it looks a second after the last time rather than
+  /// not at all: a server that appeared just after a look is found all the
+  /// same.
+  Future<void> scanServers({bool now = false}) {
+    if (_closed) return Future.value();
+    var since = switch (_lastScan) {
+      var last? => DateTime.now().difference(last),
+      null => null,
+    };
+    if (!now && since != null && since < const Duration(seconds: 1)) {
+      return _nextScan ??= Future<void>.delayed(
+        const Duration(seconds: 1) - since,
+        () {
+          _nextScan = null;
+          return _scan();
+        },
+      );
     }
-    _lastScan = now;
+    return _scan();
+  }
+
+  /// One look at a time: two at once would both attach a server that is
+  /// new to each, and hear its events twice. A look that failed leaves the
+  /// next one to try again.
+  Future<void> _scan() {
+    _lastScan = DateTime.now();
+    return _scanning = _scanning
+        .then((_) => _scanOnce())
+        .catchError((Object _) {});
+  }
+
+  Future<void> _scanOnce() async {
+    if (_closed) return;
     List<ServerHandle> handles;
     try {
       handles = scanServerHandles(_runDir(), underRoot: worktree);

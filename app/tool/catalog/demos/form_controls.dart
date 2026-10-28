@@ -35,6 +35,7 @@ class _FormControls extends StatefulWidget {
 class _FormControlsState extends State<_FormControls> {
   String? _device = 'iphone';
   String? _policy = 'embedFont';
+  String? _leo = 'signed out';
   var _checked = true;
 
   @override
@@ -86,6 +87,26 @@ class _FormControlsState extends State<_FormControls> {
             ],
             selected: _policy,
             onChanged: (value) => setState(() => _policy = value),
+          ),
+        ),
+      ),
+      (
+        'Picker with a note',
+        'Open it: the note sits above the choices, saying what the choice is '
+            'about and what choosing does. The list widens for it when the '
+            'trigger is only one word wide.',
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 160),
+          child: FwPicker<String>(
+            choices: const [
+              FwChoice(value: 'signed out', label: 'signed out'),
+              FwChoice(value: 'signed in', label: 'signed in'),
+            ],
+            selected: _leo,
+            note:
+                'Whether Leo starts signed in, or signs up himself. Changing '
+                'this restarts the world.',
+            onChanged: (value) => setState(() => _leo = value),
           ),
         ),
       ),

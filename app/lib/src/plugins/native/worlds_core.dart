@@ -1049,7 +1049,7 @@ class WorldsCore extends PluginCore {
             : 'Name one as `part` for what it holds.',
       );
     }
-    var node = names[part];
+    var node = open.tracer?.trace.nodeOf(part);
     if (node == null) {
       throw WorldRefusal(
         names.isEmpty

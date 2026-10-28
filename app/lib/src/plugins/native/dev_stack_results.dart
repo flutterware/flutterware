@@ -204,6 +204,8 @@ class StackReading implements PluginResult {
     this.detail,
     this.services = const [],
     this.failure,
+    this.port,
+    this.url,
   });
 
   const StackReading.unknown() : this(state: StackState.unknown, at: null);
@@ -220,6 +222,14 @@ class StackReading implements PluginResult {
   /// Why the probe could not be believed. Only set with
   /// [StackState.unavailable].
   final String? failure;
+
+  /// The port the service answers on, when its probe reports it. A world
+  /// that needs a delegated service learns its port from here, because the
+  /// project's commands start it and only they know.
+  final int? port;
+
+  /// Where it answers, when the probe says: `http://localhost:8080`.
+  final String? url;
 
   /// When this was read. Null only for [StackState.unknown].
   final DateTime? at;
@@ -260,6 +270,8 @@ class StackReading implements PluginResult {
     if (detail != null) 'detail': detail,
     if (services.isNotEmpty) 'services': [for (var s in services) s.toJson()],
     if (failure != null) 'failure': failure,
+    if (port != null) 'port': port,
+    if (url != null) 'url': url,
     if (at != null) 'checkedAt': at!.toIso8601String(),
   };
 
@@ -272,6 +284,8 @@ class StackReading implements PluginResult {
           ?ProbedService.fromJson(entry.cast<String, Object?>()),
     ],
     failure: json['failure'] as String?,
+    port: json['port'] is int ? json['port']! as int : null,
+    url: json['url'] is String ? json['url']! as String : null,
     at: DateTime.tryParse('${json['checkedAt']}'),
   );
 }
@@ -445,6 +459,50 @@ class StackEnsureResult implements PluginResult {
   @override
   Map<String, Object?> toJson() => {
     'ok': ok,
+    'services': [for (var service in services) service.toJson()],
+  };
+}
+
+/// One service, as `status` read it.
+class CheckedService {
+  const CheckedService({
+    required this.id,
+    required this.name,
+    required this.reading,
+    this.port,
+    this.url,
+  });
+
+  final String id;
+
+  /// What the panel calls it.
+  final String name;
+  final StackReading reading;
+
+  /// The port it answers on, when flutterware knows it.
+  final int? port;
+
+  /// Where it answers, when flutterware knows it.
+  final String? url;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'name': name,
+    ...reading.toJson(),
+    if (port != null) 'port': port,
+    if (url != null) 'url': url,
+  };
+}
+
+/// What `status` hands back on a stack of several services: every service,
+/// read anew, in the order they are declared.
+class StackStatusResult implements PluginResult {
+  const StackStatusResult(this.services);
+
+  final List<CheckedService> services;
+
+  @override
+  Map<String, Object?> toJson() => {
     'services': [for (var service in services) service.toJson()],
   };
 }
