@@ -5,8 +5,83 @@ import 'package:package_config/package_config.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
-/// One plugin's Dart half, as `flutter run` registers it.
-typedef PluginRegistration = ({String package, String file, String type});
+/// One plugin's Dart half, as `flutter run` registers it — or, when
+/// [overChannels], as a guest has to (see [registrationSource]).
+typedef PluginRegistration = ({
+  String package,
+  String file,
+  String type,
+  bool overChannels,
+});
+
+/// What registers [plugin], imported as [alias]: the imports, and the
+/// statements the guest's `main` runs before the app's own.
+({List<String> imports, List<String> statements}) registrationSource(
+  PluginRegistration plugin,
+  String alias,
+) {
+  var own = "import 'package:${plugin.package}/${plugin.file}' as $alias;";
+  if (!plugin.overChannels) {
+    return (
+      imports: [own],
+      statements: ['$alias.${plugin.type}.registerWith();'],
+    );
+  }
+  var channels = _overChannels[plugin.package]!;
+  return (
+    imports: [
+      own,
+      for (var (i, library) in channels.imports.indexed)
+        "import 'package:$library' as ${alias}_$i;",
+    ],
+    statements: channels.statements(alias),
+  );
+}
+
+/// Plugins whose Dart half calls its Swift half through FFI, from a version
+/// on. A guest builds nothing native, so that version fails as it starts, with
+/// `FailedToLoadClassException`. Each still carries the Pigeon channels its
+/// earlier versions used, which the studio answers, so a guest registers it
+/// over them.
+///
+/// The FFI versions are told apart by the factory they added to the generated
+/// API, in [_OverChannels.generated].
+final _overChannels = {
+  // `alias_0` is the generated API, `alias_1` and `alias_2` the platform
+  // interfaces it registers with.
+  'shared_preferences_foundation': _OverChannels(
+    generated: 'lib/src/messages.g.dart',
+    imports: [
+      'shared_preferences_foundation/src/messages.g.dart',
+      'shared_preferences_platform_interface/shared_preferences_platform_interface.dart',
+      'shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart',
+    ],
+    statements: (alias) => [
+      '${alias}_1.SharedPreferencesStorePlatform.instance = $alias.SharedPreferencesFoundation(api: ${alias}_0.LegacyUserDefaultsApi());',
+      '${alias}_2.SharedPreferencesAsyncPlatform.instance = $alias.SharedPreferencesAsyncFoundation(api: ${alias}_0.UserDefaultsApi());',
+    ],
+  ),
+};
+
+class _OverChannels {
+  const _OverChannels({
+    required this.generated,
+    required this.imports,
+    required this.statements,
+  });
+
+  /// The package's generated Pigeon API, relative to its root.
+  final String generated;
+  final List<String> imports;
+  final List<String> Function(String alias) statements;
+
+  /// Whether the version at [root] reaches its native half through FFI.
+  bool callsNativeCode(Uri root) {
+    var file = File.fromUri(root.resolve(generated));
+    return file.existsSync() &&
+        file.readAsStringSync().contains('createWithNativeInteropApi');
+  }
+}
 
 /// The Dart halves of [package]'s plugins on [platform]: every package it
 /// depends on — transitively, dev dependencies aside — whose pubspec names a
@@ -69,6 +144,7 @@ Future<List<PluginRegistration>> dartPluginRegistrations({
           declared['fileName'] as String? ??
           '$name.dart',
       type: type,
+      overChannels: _overChannels[name]?.callsNativeCode(dir) ?? false,
     ));
   }
   registrations.sort((a, b) => a.package.compareTo(b.package));

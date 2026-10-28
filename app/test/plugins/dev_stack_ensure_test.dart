@@ -399,7 +399,7 @@ void main() {
       var said = <String>[];
 
       var services = await DevStackForWorlds(core)
-          .bringUp(['server'], say: said.add);
+          .bringUp(['server'], say: said.add, world: 'Pickup order');
 
       expect([for (var s in services) s.id], ['db', 'server']);
       expect([for (var s in services) s.name], ['The db', 'The server']);
@@ -411,7 +411,8 @@ void main() {
       ]);
 
       said.clear();
-      await DevStackForWorlds(core).bringUp(['server'], say: said.add);
+      await DevStackForWorlds(core)
+          .bringUp(['server'], say: said.add, world: 'Pickup order');
       expect(said, ['The db is up', 'The server is up']);
     });
 
@@ -428,7 +429,8 @@ void main() {
       var said = <String>[];
 
       await expectLater(
-        DevStackForWorlds(core).bringUp(['server'], say: said.add),
+        DevStackForWorlds(core)
+            .bringUp(['server'], say: said.add, world: 'Pickup order'),
         throwsA(
           isA<WorldRefusal>().having(
             (e) => e.message,
@@ -454,7 +456,8 @@ void main() {
       var core = coreWith(DevStack(services: [scripted('db')]).config);
 
       await expectLater(
-        DevStackForWorlds(core).bringUp(['api'], say: (_) {}),
+        DevStackForWorlds(core)
+            .bringUp(['api'], say: (_) {}, world: 'Pickup order'),
         throwsA(
           isA<WorldRefusal>().having(
             (e) => e.message,

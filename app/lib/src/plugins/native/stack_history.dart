@@ -165,14 +165,17 @@ String eventHeadline(StackEvent event) {
   return '${event.name} $what';
 }
 
-/// Who asked, in words.
-String eventCaller(StackEvent event) => switch (event.by) {
-  'studio' => 'You, in the studio',
-  'terminal' => 'fw, in a terminal',
-  'agent' => 'An agent',
-  null => 'On its own',
-  var other => other,
-};
+/// Who asked, in words, and what for when it was a step of something else.
+String eventCaller(StackEvent event) {
+  var who = switch (event.by) {
+    'studio' => 'You, in the studio',
+    'terminal' => 'fw, in a terminal',
+    'agent' => 'An agent',
+    null => 'On its own',
+    var other => other,
+  };
+  return event.purpose == null ? who : '$who, ${event.purpose}';
+}
 
 /// Why it failed, or how long it took and what it left: `took 3.2s ·
 /// localhost:8080 · pid 4120`.

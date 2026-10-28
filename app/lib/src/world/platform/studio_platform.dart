@@ -35,10 +35,11 @@ class StudioPlatform {
     required Directory home,
     required String package,
     Device device = Devices.defaultPhone,
+    String? bundleId,
   }) : platform = GuestPlatform(person: person, home: home) {
     answerPreferences(platform);
     answerSecureStorage(platform);
-    answerPackageInfo(platform, package: package);
+    answerPackageInfo(platform, package: package, bundleId: bundleId);
     answerFirebaseCore(platform);
     answerDeviceInfo(platform, device: device, person: person);
     answerTimezone(platform);

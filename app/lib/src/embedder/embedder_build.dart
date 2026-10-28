@@ -99,7 +99,7 @@ Future<String> ensureEmbedderEngine(FlutterCache cache) async {
         'https://storage.googleapis.com/flutter_infra_release/flutter/'
         '$revision/$host/$archive';
     var zip = p.join(staging.path, archive);
-    await _run('curl', ['-fSL', url, '-o', zip]);
+    await _run('curl', ['-fsSL', url, '-o', zip]);
     await _run('unzip', [
       '-q',
       '-o',

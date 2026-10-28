@@ -233,6 +233,7 @@ class DevStackCore extends PluginCore {
     Iterable<String> ids = const [],
     void Function(String name)? onStarting,
     void Function(EnsuredService service)? onEnsured,
+    String? purpose,
   }) async {
     var order = _ensureOrder(ids);
     var notUp = <String>{};
@@ -256,7 +257,11 @@ class DevStackCore extends PluginCore {
         onEnsured?.call(skipped);
         continue;
       }
-      var ensured = await _ensureOne(service, onStarting: onStarting);
+      var ensured = await _ensureOne(
+        service,
+        onStarting: onStarting,
+        purpose: purpose,
+      );
       if (!ensured.outcome.isUp) notUp.add(service.id);
       results.add(ensured);
       onEnsured?.call(ensured);
@@ -323,6 +328,7 @@ class DevStackCore extends PluginCore {
   Future<EnsuredService> _ensureOne(
     StackServiceCore service, {
     void Function(String name)? onStarting,
+    String? purpose,
   }) async {
     EnsuredService ended(
       EnsureOutcome outcome,
@@ -377,7 +383,7 @@ class DevStackCore extends PluginCore {
       DevStackRunResult result;
       try {
         onStarting?.call(service.label);
-        result = await service.start();
+        result = await service.start(purpose: purpose);
       } on Object catch (e) {
         // Someone else claimed it between the look and the start. Wait for
         // theirs.
@@ -550,6 +556,7 @@ class DevStackCore extends PluginCore {
   /// One service answers for itself, unchanged. Several are counted the way a
   /// single stack's containers are counted — `up 2/3` — because that is the
   /// same question one level up, and the surface already knows how to read it.
+  /// A service nobody has checked yet is not counted as up.
   Status get _status {
     if (_unreadable.isNotEmpty && _services.isEmpty) {
       return const Status.error("can't read");
@@ -563,8 +570,8 @@ class DevStackCore extends PluginCore {
     if (known.isEmpty) return Status.none;
     var up = known.where((s) => s == StackState.up).length;
     if (known.any((s) => s.isMoving)) return const Status.info('moving');
-    if (up == known.length) return const Status.good('up');
-    if (up > 0) return Status.warn('up $up/${known.length}');
+    if (up == _services.length) return const Status.good('up');
+    if (up > 0) return Status.warn('up $up/${_services.length}');
     if (known.any((s) => s == StackState.unavailable)) {
       return const Status.error("can't tell");
     }

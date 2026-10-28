@@ -397,7 +397,11 @@ abstract class StackServiceCore {
   /// Every way of starting a service comes through here — the studio's
   /// button, an action from `fw` or an agent, `ensure`, a restart — so the
   /// history has each start exactly once.
-  Future<DevStackRunResult> start() => _recorded('start', performStart);
+  ///
+  /// [purpose] says what the start was for, when it was a step of something
+  /// else: `to open Pickup order`.
+  Future<DevStackRunResult> start({String? purpose}) =>
+      _recorded('start', performStart, purpose: purpose);
 
   /// Takes it down, and writes down who asked and how it went.
   Future<DevStackRunResult> stop() => _recorded('stop', performStop);
@@ -425,8 +429,9 @@ abstract class StackServiceCore {
   /// claim still lands in the caller's turn — and records the outcome.
   Future<DevStackRunResult> _recorded(
     String verb,
-    Future<DevStackRunResult> Function() perform,
-  ) async {
+    Future<DevStackRunResult> Function() perform, {
+    String? purpose,
+  }) async {
     var at = DateTime.now();
     StackEvent event({
       required StackEventOutcome outcome,
@@ -440,6 +445,7 @@ abstract class StackServiceCore {
       verb: verb,
       outcome: outcome,
       by: currentCaller.name,
+      purpose: purpose,
       took: DateTime.now().difference(at),
       detail: detail,
       failure: failure,
