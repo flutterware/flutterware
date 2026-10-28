@@ -65,7 +65,7 @@ exec sleep 600
     // Left running, it would keep whoever opened the world alive after the
     // world had closed.
     expect(isProcessAlive(hostPid()), isFalse);
-  });
+  }, skip: _shellOnly);
 
   test('an app that exits before it draws says so', () async {
     await expectLater(
@@ -78,7 +78,11 @@ exec sleep 600
         ),
       ),
     );
-  });
+  }, skip: _shellOnly);
 }
 
 const _minute = Duration(minutes: 1);
+
+final _shellOnly = Platform.isWindows
+    ? 'the fake host is a shell script'
+    : false;

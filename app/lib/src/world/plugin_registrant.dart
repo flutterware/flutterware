@@ -45,12 +45,29 @@ typedef PluginRegistration = ({
 /// over them.
 ///
 /// The FFI versions are told apart by the factory they added to the generated
-/// API, in [_OverChannels.generated].
+/// API, in [_OverChannels.generated]. A version that no longer has what the
+/// registration uses, in [_OverChannels.uses], is registered as `flutter run`
+/// registers it, and fails as any plugin that calls its native code does.
 final _overChannels = {
   // `alias_0` is the generated API, `alias_1` and `alias_2` the platform
   // interfaces it registers with.
   'shared_preferences_foundation': _OverChannels(
     generated: 'lib/src/messages.g.dart',
+    uses: {
+      // The channels the studio answers, and the constructors that reach them.
+      'lib/src/messages.g.dart': [
+        'pigeon.shared_preferences_foundation.LegacyUserDefaultsApi.',
+        'pigeon.shared_preferences_foundation.UserDefaultsApi.',
+        RegExp(r'\bLegacyUserDefaultsApi\(\{'),
+        RegExp(r'\bUserDefaultsApi\(\{'),
+      ],
+      'lib/src/shared_preferences_foundation.dart': [
+        RegExp(r'\bLegacyUserDefaultsApi\? api\b'),
+      ],
+      'lib/src/shared_preferences_async_foundation.dart': [
+        RegExp(r'\bUserDefaultsApi\? api\b'),
+      ],
+    },
     imports: [
       'shared_preferences_foundation/src/messages.g.dart',
       'shared_preferences_platform_interface/shared_preferences_platform_interface.dart',
@@ -66,20 +83,32 @@ final _overChannels = {
 class _OverChannels {
   const _OverChannels({
     required this.generated,
+    required this.uses,
     required this.imports,
     required this.statements,
   });
 
   /// The package's generated Pigeon API, relative to its root.
   final String generated;
+
+  /// What each of the package's files, relative to its root, has to contain
+  /// for [statements] to compile and reach the studio.
+  final Map<String, List<Pattern>> uses;
   final List<String> imports;
   final List<String> Function(String alias) statements;
 
-  /// Whether the version at [root] reaches its native half through FFI.
-  bool callsNativeCode(Uri root) {
-    var file = File.fromUri(root.resolve(generated));
-    return file.existsSync() &&
-        file.readAsStringSync().contains('createWithNativeInteropApi');
+  /// Whether the version at [root] reaches its native half through FFI and
+  /// can still be registered over its channels.
+  bool fits(Uri root) {
+    String read(String file) {
+      var source = File.fromUri(root.resolve(file));
+      return source.existsSync() ? source.readAsStringSync() : '';
+    }
+
+    if (!read(generated).contains('createWithNativeInteropApi')) return false;
+    return uses.entries.every(
+      (entry) => entry.value.every(read(entry.key).contains),
+    );
   }
 }
 
@@ -144,7 +173,7 @@ Future<List<PluginRegistration>> dartPluginRegistrations({
           declared['fileName'] as String? ??
           '$name.dart',
       type: type,
-      overChannels: _overChannels[name]?.callsNativeCode(dir) ?? false,
+      overChannels: _overChannels[name]?.fits(dir) ?? false,
     ));
   }
   registrations.sort((a, b) => a.package.compareTo(b.package));
