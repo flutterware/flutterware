@@ -3,7 +3,8 @@ import 'dart:io';
 /// One writer at a time in a build tree that several processes share.
 ///
 /// The tree under `~/.flutterware/<hash>` is one copy per flutterware version
-/// **per machine**, reached by every project that depends on that version. That
+/// and SDK **per machine**, reached by every project that depends on that
+/// version under that SDK. That
 /// is deliberate — it is what makes the second project's first run free — but it
 /// means two cold invocations on one machine unpack into the same directory and
 /// then run `dart build cli -o` against the same output path.

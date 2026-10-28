@@ -717,8 +717,10 @@ reports the first one: a line in the world log, a warning on the person, and
 `unanswered` in `worlds status`. A plugin that calls its native code directly,
 through FFI, fails as soon as the app uses it, because a world builds no
 native code. When that happens in `main`, before `runApp`, the person's app
-fails at once and the world says why. Fake the plugin in the entry point the world
-starts, behind a knob, as you would in a scenario. The studio registers each
+fails at once and the world says why. When it happens in a future that `main`
+starts but does not return, the app fails 5 seconds later, unless it has
+called `runApp` by then. Fake the plugin in the entry point the world starts,
+behind a knob, as you would in a scenario. The studio registers each
 plugin's Dart half before it calls `main`, so whatever `main` sets wins: a
 plugin's platform interface, or a class of your own that wraps the plugin.
 
