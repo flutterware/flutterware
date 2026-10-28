@@ -71,7 +71,7 @@ Future<ScriptOutcome> runDefineScript(
     // In a new terminal's environment, because `dart run` runs the package's
     // build hooks, and they rerun from scratch whenever the PATH differs from
     // the last run's. See [terminalEnvironment].
-    var environment = await terminalEnvironment();
+    var environment = await terminalEnvironmentToRun(dartExecutable);
     result = await Process.run(
       dartExecutable,
       ['run', source.path, ...source.args],

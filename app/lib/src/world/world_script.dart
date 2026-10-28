@@ -81,7 +81,7 @@ class WorldScriptProcess {
     var serviceInfo = p.join(flutterwareRunDir(), '$name.service.json');
     if (File(serviceInfo).existsSync()) File(serviceInfo).deleteSync();
     if (File(socketPath).existsSync()) File(socketPath).deleteSync();
-    var environment = await terminalEnvironment();
+    var environment = await terminalEnvironmentToRun(dart);
     var server = await ServerSocket.bind(
       InternetAddress(socketPath, type: InternetAddressType.unix),
       0,

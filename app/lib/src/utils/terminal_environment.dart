@@ -57,6 +57,60 @@ Future<Map<String, String>> terminalEnvironment() {
   );
 }
 
+/// [terminalEnvironment], for running [executable] — see [environmentToRun].
+Future<Map<String, String>> terminalEnvironmentToRun(String executable) async =>
+    environmentToRun(
+      executable,
+      await terminalEnvironment(),
+      separator: Platform.isWindows ? ';' : ':',
+    );
+
+/// [environment] for running [executable]: as it is, unless [executable] is
+/// the `dart` or `flutter` of an SDK that fvm installed. That one runs with
+/// its SDK's `bin` first on the PATH, as `fvm dart` runs it.
+///
+/// Dart's build hooks rerun whenever the PATH differs from the last run's
+/// (see [terminalEnvironment]), and `fvm` puts the SDK's `bin` in front of
+/// the PATH it is given. Without the same here, a terminal's `fvm dart run`
+/// and flutterware's own `dart run` of the same SDK rebuild each other's
+/// hooks, about 50s each time on a server that depends on webcrypto.
+///
+/// Nothing is added when the SDK's `bin` already comes first, which is the
+/// case when [environment] is this process's own and fvm started it.
+Map<String, String> environmentToRun(
+  String executable,
+  Map<String, String> environment, {
+  String separator = ':',
+}) {
+  var bin = fvmSdkBin(executable);
+  var path = environment['PATH'] ?? '';
+  if (bin == null || path.split(separator).first == bin) return environment;
+  return {...environment, 'PATH': path.isEmpty ? bin : '$bin$separator$path'};
+}
+
+/// The `bin` directory of the Flutter SDK [executable] belongs to, when fvm
+/// installed that SDK; otherwise null.
+///
+/// fvm keeps every SDK it installs in a `versions` directory, by version:
+/// `~/fvm/versions/3.38.0`, or under the cache path its config names. Both
+/// the `dart` in the SDK's `bin` and the one under `bin/cache/dart-sdk` count.
+@visibleForTesting
+String? fvmSdkBin(String executable) {
+  var name = p.basenameWithoutExtension(executable);
+  if (name != 'dart' && name != 'flutter') return null;
+  var bin = p.dirname(executable);
+  if (p.basename(bin) != 'bin') return null;
+  var sdk = p.dirname(bin);
+  if (p.basename(sdk) == 'dart-sdk' &&
+      p.basename(p.dirname(sdk)) == 'cache' &&
+      p.basename(p.dirname(p.dirname(sdk))) == 'bin') {
+    bin = p.dirname(p.dirname(sdk));
+    sdk = p.dirname(bin);
+  }
+  if (p.basename(p.dirname(sdk)) != 'versions') return null;
+  return bin;
+}
+
 /// Makes [terminalEnvironment] answer [environment] without asking a shell,
 /// or ask again when null.
 @visibleForTesting

@@ -641,7 +641,7 @@ class OwnedServiceCore extends StackServiceCore {
     // `argvOf` is where a StackRun.tool is looked up, and a tool that cannot
     // be found is a refusal rather than a failed transition.
     var argv = await argvOf(declaration.start);
-    var environment = await terminalEnvironment();
+    var environment = await terminalEnvironmentToRun(argv.first);
 
     // **The orphan check.** A port held by something we did not start is the
     // one failure that reads as nonsense otherwise: the spawn succeeds, the

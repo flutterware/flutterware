@@ -974,7 +974,7 @@ Future<ProcessResult> defaultRunProcess(
   command.first,
   command.skip(1).toList(),
   workingDirectory: workingDirectory,
-  environment: await terminalEnvironment(),
+  environment: await terminalEnvironmentToRun(command.first),
   includeParentEnvironment: false,
 );
 
