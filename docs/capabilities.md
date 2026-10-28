@@ -2701,6 +2701,8 @@ state: String
 detail: String?   # One line beside the status — `slot 8200-8208 · 4 containers`.
 services: List<Map<String, Object?>>?
 failure: String?   # Why the probe could not be believed.
+port: int?   # The port the service answers on, when its probe reports it.
+url: String?   # Where it answers, when the probe says: `http://localhost:8080`.
 checkedAt: String?   # When this was read.
 ```
 
@@ -2910,7 +2912,7 @@ world: String   # The world's id, what `worlds open` took.
 name: String
 phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
 id: String?   # This opening's id — what the script's emails and names carry.
-problem: String?   # Why it failed.
+problem: String?   # Why it failed, or whose app failed in a world that opened anyway.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?
@@ -2942,7 +2944,7 @@ world: String   # The world's id, what `worlds open` took.
 name: String
 phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
 id: String?   # This opening's id — what the script's emails and names carry.
-problem: String?   # Why it failed.
+problem: String?   # Why it failed, or whose app failed in a world that opened anyway.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?
@@ -3022,6 +3024,7 @@ message: String
 person: String
 how: String   # `type` — the code went into the field that had focus — or `open`.
 what: String   # The code typed, or the link opened.
+via: String?   # How a link reached the app: `app_links`, or `flutter/navigation`, the way Flutter's own deep linking delivers one.
 step: String?   # The step it was on the person's app: `leo.13`.
 caused: List<String>?   # What that step caused in the moments after, as `worlds trace` says it; empty when the app did nothing with it — a link it ignored.
 ```
@@ -3119,7 +3122,7 @@ world: String   # The world's id, what `worlds open` took.
 name: String
 phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
 id: String?   # This opening's id — what the script's emails and names carry.
-problem: String?   # Why it failed.
+problem: String?   # Why it failed, or whose app failed in a world that opened anyway.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?
@@ -3176,7 +3179,7 @@ world: String   # The world's id, what `worlds open` took.
 name: String
 phase: String   # `opening`, `open`, `restarting`, `failed`, `closing` or `closed`.
 id: String?   # This opening's id — what the script's emails and names carry.
-problem: String?   # Why it failed.
+problem: String?   # Why it failed, or whose app failed in a world that opened anyway.
 people: List<Map<String, Object?>>
 actions: List<Map<String, Object?>>?
 knobs: List<Map<String, Object?>>?

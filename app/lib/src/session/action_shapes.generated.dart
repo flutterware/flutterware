@@ -6918,10 +6918,32 @@ final resultShapes = <String, ResultShape>{
         'doc': 'Why the probe could not be believed.',
       },
       <String, Object?>{
+        'name': 'port',
+        'type': 'int',
+        'optional': true,
+        'doc': 'The port the service answers on, when its probe reports it.',
+      },
+      <String, Object?>{
+        'name': 'url',
+        'type': 'String',
+        'optional': true,
+        'doc':
+            'Where it answers, when the probe says: `http://localhost:8080`.',
+      },
+      <String, Object?>{
         'name': 'checkedAt',
         'type': 'String',
         'optional': true,
         'doc': 'When this was read.',
+      },
+    ],
+  }),
+  'StackStatusResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'StackStatusResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'services',
+        'type': 'List<Map<String, Object?>>',
       },
     ],
   }),
@@ -7330,6 +7352,12 @@ final resultShapes = <String, ResultShape>{
         'doc': 'The code typed, or the link opened.',
       },
       <String, Object?>{
+        'name': 'via',
+        'type': 'String',
+        'optional': true,
+        'doc': 'How a link reached the app: `app_links`, or `flutter/navigation`, the way Flutter\'s own deep linking delivers one.',
+      },
+      <String, Object?>{
         'name': 'step',
         'type': 'String',
         'optional': true,
@@ -7456,7 +7484,8 @@ final resultShapes = <String, ResultShape>{
         'name': 'problem',
         'type': 'String',
         'optional': true,
-        'doc': 'Why it failed.',
+        'doc':
+            'Why it failed, or whose app failed in a world that opened anyway.',
       },
       <String, Object?>{'name': 'people', 'type': 'List<Map<String, Object?>>'},
       <String, Object?>{
