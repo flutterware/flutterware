@@ -92,6 +92,22 @@ class OpenWorld {
   /// Why the world is [WorldPhase.failed].
   String? problem;
 
+  /// Whose app failed, in a world that opened anyway; null when nobody's
+  /// did. Each person's own problem says why.
+  String? get peopleProblem {
+    var failed = [
+      for (var person in people.values)
+        if (person.phase == PersonPhase.failed) person.name,
+    ];
+    if (failed.isEmpty) return null;
+    var whose = failed.length == 1
+        ? "${failed.single}'s app"
+        : "${failed.sublist(0, failed.length - 1).join(', ')} and "
+              "${failed.last}'s apps";
+    return '$whose failed. Restart the world to start '
+        '${failed.length == 1 ? 'it' : 'them'} again.';
+  }
+
   /// This opening's id, from the script.
   String? id;
 
@@ -157,6 +173,13 @@ class OpenWorld {
   Future<void> restart([Map<String, Object?>? knobs]) async {
     phase = WorldPhase.restarting;
     _restarts++;
+    // Every app of the last opening is about to be replaced or stopped, so
+    // none of them takes a reload from here on. Reloaded, the one replaced
+    // a moment later dies in the middle of it, and the failure lands on the
+    // person whose start asked for the reload.
+    for (var person in people.values) {
+      person._build?.people.remove(person);
+    }
     _changed();
     await _script?.close();
     await _run(knobs ?? knobValues);
@@ -535,7 +558,8 @@ class OpenWorld {
       if (phase != WorldPhase.failed) phase = WorldPhase.open;
       _say(
         '${phase == WorldPhase.open ? 'Open' : 'Settled'} in '
-        '${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(1)} s',
+        '${(_clock.elapsedMilliseconds / 1000).toStringAsFixed(1)} s'
+        '${peopleProblem == null ? '' : '. $peopleProblem'}',
       );
       settled.complete();
       _changed();
@@ -1081,7 +1105,16 @@ class _Build {
     await Future.wait([
       for (var person in people)
         if (person.launcher case var launcher? when person.running)
-          launcher.reloadFrom(delta.dillOutput!),
+          launcher.reloadFrom(delta.dillOutput!).catchError((
+            Object error,
+            StackTrace stack,
+          ) {
+            // Stopped while it reloaded: nothing is left to bring to the
+            // new code, and the reload did not fail anyone still here.
+            if (people.contains(person)) {
+              Error.throwWithStackTrace(error, stack);
+            }
+          }),
     ]);
     return changed;
   }

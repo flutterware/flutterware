@@ -269,6 +269,35 @@ void main() {
     );
   }, timeout: const Timeout(Duration(minutes: 2)));
 
+  test(
+    'a world opens with a person whose app failed, and says whose',
+    () async {
+      var world = OpenWorld(
+        file: const WorldFile(
+          package: 'app',
+          path: 'test/world/fixtures/failing_person_world.dart',
+          name: 'Half up',
+        ),
+        worktree: p.dirname(Directory.current.path),
+        flutterSdkRoot: Platform.environment['FLUTTER_ROOT']!,
+        appRoot: Directory.current.path,
+        entrypoints: const [],
+        guests: (_) => throw StateError('nobody here starts an app'),
+        runDir: () => emptyRunDir,
+      );
+      addTearDown(world.close);
+      await world.open();
+
+      expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+      expect(world.people['Leo']!.phase, PersonPhase.failed);
+      const said = "Leo's app failed. Restart the world to start it again.";
+      expect(world.peopleProblem, said);
+      expect(world.log, contains(endsWith(said)));
+      expect(WorldStateResult.of(world).toJson()['problem'], said);
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+
   group('on a dev stack', () {
     OpenWorld worldOn(WorldStack? stack) => OpenWorld(
       file: const WorldFile(

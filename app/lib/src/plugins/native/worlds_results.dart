@@ -89,7 +89,7 @@ class WorldStateResult implements PluginResult, ReportsFailure {
         name: world.file.name,
         phase: world.phase.name,
         id: world.id,
-        problem: world.problem,
+        problem: world.problem ?? world.peopleProblem,
         people: [
           for (var person in world.people.values)
             WorldPersonEntry.of(
@@ -158,7 +158,7 @@ class WorldStateResult implements PluginResult, ReportsFailure {
   /// This opening's id — what the script's emails and names carry.
   final String? id;
 
-  /// Why it failed.
+  /// Why it failed, or whose app failed in a world that opened anyway.
   final String? problem;
   final List<WorldPersonEntry> people;
   final List<WorldActionEntry> actions;
