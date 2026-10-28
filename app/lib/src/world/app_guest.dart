@@ -205,7 +205,11 @@ class AppGuestBuild {
       ..writeAsStringSync(source);
   }
 
-  String _writeEntry(List<PluginRegistration> plugins) {
+  String _writeEntry(List<PluginRegistration> registrations) {
+    var plugins = [
+      for (var (i, plugin) in registrations.indexed)
+        registrationSource(plugin, 'plugin$i'),
+    ];
     // A `lib/` entry point by its package URI; anything else — a `demo/` or
     // `tool/` entry point, which no package URI reaches — by its file.
     var main = entrypoint.startsWith('lib/')
@@ -227,7 +231,7 @@ import 'package:flutterware/previews_guest.dart'
 import 'package:flutterware/run_guest.dart';
 import '$main' as app;
 import '${Uri.file(_enumKnobsFile)}' as enums;
-${[for (var (i, plugin) in plugins.indexed) "import 'package:${plugin.package}/${plugin.file}' as plugin$i;"].join('\n')}
+${[for (var plugin in plugins) ...plugin.imports].join('\n')}
 
 /// The guest's binding, for what only a binding can do for an app whose
 /// `runApp` is its own: give it a device's safe areas. They reach a guest as
@@ -239,6 +243,16 @@ class _GuestBinding extends RunGuestBinding {
   @override
   void handlePointerEvent(PointerEvent event) =>
       _steps.dispatch(event, super.handlePointerEvent);
+
+  /// Whether the app has called `runApp`. Until it has, a `main` that fails
+  /// leaves nothing that will ever draw.
+  bool ranApp = false;
+
+  @override
+  void scheduleAttachRootWidget(Widget rootWidget) {
+    ranApp = true;
+    super.scheduleAttachRootWidget(rootWidget);
+  }
 
   @override
   Widget wrapWithDefaultView(Widget rootWidget) =>
@@ -268,7 +282,7 @@ final _steps = WorldSteps(
 // guest plumbing has this.
 void main() => GuestLogs.instance.install<Object?>(() {
   _steps.install();
-  _GuestBinding();
+  var binding = _GuestBinding();
   return runGuest(() {
     ${platform == null ? '' : 'debugDefaultTargetPlatformOverride = TargetPlatform.$platform;'}
     GuestKeyboard.instance.install();
@@ -276,21 +290,48 @@ void main() => GuestLogs.instance.install<Object?>(() {
     // A code the world delivers is typed into the focused field, and each
     // delivery is a step.
     installWorldInput(_steps);
-    ${[for (var (i, plugin) in plugins.indexed) 'plugin$i.${plugin.type}.registerWith();'].join('\n    ')}
+    ${[for (var plugin in plugins) ...plugin.statements].join('\n    ')}
     // Read on every start, so a restart takes the knobs written since.
     var knobs = (jsonDecode(
       File(Platform.environment['FW_KNOBS_FILE']!).readAsStringSync(),
     ) as Map).cast<String, Object?>();
     // An enum arrives as the name of one of its constants.
-    return Function.apply(app.main, const [], {
+    return _start(binding, () => Function.apply(app.main, const [], {
       for (var MapEntry(:key, :value) in knobs.entries)
         Symbol(key): switch ((enums.enumKnobs[key], value)) {
           (var constant?, String name) => constant(name),
           _ => value,
         },
-    });
+    }));
   });
 });
+
+/// Runs the app's `main`, and says so when it fails before `runApp`: that app
+/// will never draw, and whoever waits for its first frame need not wait out
+/// the minute to learn it. The error is still reported as it would have been.
+Object? _start(_GuestBinding binding, Object? Function() main) {
+  void stopped(Object error) {
+    if (!binding.ranApp) {
+      print('$guestStoppedMarker\${'\$error'.split('\\n').first}');
+    }
+  }
+
+  Object? started;
+  try {
+    started = main();
+  } catch (error) {
+    stopped(error);
+    rethrow;
+  }
+  if (started is! Future) return started;
+  return started.then<Object?>(
+    (value) => value,
+    onError: (Object error, StackTrace stack) {
+      stopped(error);
+      Error.throwWithStackTrace(error, stack);
+    },
+  );
+}
 ''');
     return entry.path;
   }
@@ -319,6 +360,23 @@ final enumKnobs = <String, Object Function(String name)>{
 ${[for (var knob in enums) "  r'${knob.name}': (name) => ${knob.enumType}.values.byName(name),"].join('\n')}
 };
 ''';
+}
+
+/// What a guest prints, before the error's first line, when the app's `main`
+/// failed before calling `runApp`.
+const guestStoppedMarker = '[world] main failed before runApp: ';
+
+/// Why the app stopped before it drew, when [line] is the guest saying so;
+/// otherwise null. In words for the person's panel, with what to do when the
+/// cause is a plugin a world cannot run.
+String? stoppedBeforeDrawing(String line) {
+  var at = line.indexOf(guestStoppedMarker);
+  if (at < 0) return null;
+  var error = line.substring(at + guestStoppedMarker.length).trim();
+  return 'The app stopped before it drew anything: $error'
+      '${error.contains('FailedToLoadClassException') ? ' A plugin calls its '
+                'native code directly, and a world builds none. Fake the '
+                'plugin in the entry point, behind a knob.' : ''}';
 }
 
 /// [path], emptied and made: a person's home as their guest starts. A world

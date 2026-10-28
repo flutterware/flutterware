@@ -1095,7 +1095,13 @@ class WorldsCore extends PluginCore {
             in declaredEntrypoints(config).isNotEmpty
                 ? declaredEntrypoints(config)
                 : scanEntrypoints(host.workspace.absolutePathOf(path)))
-          WorldEntrypoint(package: path, path: entry.path, name: entry.name),
+          WorldEntrypoint(
+            package: path,
+            path: entry.path,
+            name: entry.name,
+            flavor: entry.flavor,
+            flavorByPlatform: entry.flavorByPlatform,
+          ),
   ];
 
   @override

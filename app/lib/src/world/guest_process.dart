@@ -12,6 +12,7 @@ import '../run/handle.dart';
 import '../run/launch.dart';
 import '../utils/run_dir.dart';
 import '../utils/run_git.dart';
+import 'app_guest.dart' show stoppedBeforeDrawing;
 import 'guest_log.dart';
 
 /// One person's app in an embedded guest with nobody looking at it: the
@@ -49,6 +50,9 @@ class GuestProcess {
   /// Starts [person]'s guest over the kernel in [assetsDir] and answers once
   /// it has drawn. [environment] is the world's — `guestEnvironment` — since
   /// the world keeps each person's home and knobs.
+  ///
+  /// Throws a [GuestStartFailure], with the guest stopped, when the app
+  /// failed in `main` before `runApp`, exited, or drew nothing for a minute.
   static Future<GuestProcess> start({
     required String person,
     required String hostPath,
@@ -132,6 +136,7 @@ class GuestProcess {
       }
     });
     String? lastError;
+    var stopped = Completer<String>();
     for (var stream in [process.stdout, process.stderr]) {
       stream.transform(utf8.decoder).transform(const LineSplitter()).listen((
         line,
@@ -141,20 +146,52 @@ class GuestProcess {
             line.contains('MissingPluginException')) {
           lastError = line.substring(line.indexOf(RegExp('Unhandled|Missing')));
         }
+        if (stoppedBeforeDrawing(line) case var why? when !drew.isCompleted) {
+          if (!stopped.isCompleted) stopped.complete(why);
+        }
         var uri = RegExp(r'(http://127\.0\.0\.1:\S+/)').firstMatch(line);
         if (uri != null && !guest.vmService.isCompleted) {
           guest.vmService.complete(uri.group(1));
         }
       });
     }
-    await drew.future.timeout(
-      const Duration(minutes: 1),
-      onTimeout: () => throw StateError(
-        'The app drew nothing within a minute'
-        '${lastError == null ? '.' : '. It last said: $lastError'}',
-      ),
-    );
+    try {
+      var why =
+          await Future.any([
+            drew.future.then((_) => null),
+            stopped.future,
+            process.exitCode.then(
+              (code) =>
+                  'The app exited with code $code before it drew anything'
+                  '${lastError == null ? '.' : '. It last said: $lastError'}',
+            ),
+          ]).timeout(
+            const Duration(minutes: 1),
+            onTimeout: () =>
+                'The app drew nothing within a minute'
+                '${lastError == null ? '.' : '. It last said: $lastError'}',
+          );
+      if (why != null) throw GuestStartFailure(why);
+    } on Object {
+      // Nobody else holds the process: left running, it would keep whoever
+      // started it alive after its world had closed.
+      await guest._abandon();
+      rethrow;
+    }
     return guest;
+  }
+
+  Future<void> _abandon() async {
+    process.kill();
+    _socket.destroy();
+    await process.exitCode.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        process.kill(ProcessSignal.sigkill);
+        return -1;
+      },
+    );
+    await _output.close();
   }
 
   /// Sends one message down the control socket, as the studio would.
@@ -215,6 +252,16 @@ class GuestProcess {
     );
     await _output.close();
   }
+}
+
+/// Why a guest did not start, in a sentence for the person's panel.
+class GuestStartFailure implements Exception {
+  GuestStartFailure(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 /// Announces a guest to Run as an app on the device `studio-<person>`, so

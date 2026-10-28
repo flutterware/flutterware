@@ -626,6 +626,7 @@ class _FakeStack implements WorldStack {
   Future<List<WorldService>> bringUp(
     List<String> ids, {
     required void Function(String line) say,
+    required String world,
   }) async {
     asked.add(ids);
     if (fails case var why?) throw WorldRefusal(why);

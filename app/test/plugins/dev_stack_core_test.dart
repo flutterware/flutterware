@@ -1250,6 +1250,14 @@ void main() {
       core.dispose();
     });
 
+    test('a service nobody has checked is not counted as up', () async {
+      var core = coreWith(twoServices());
+      responses['stack doctor'] = ProcessResult(0, 0, '', '');
+      await core.invoke('stack.status');
+      expect(core.report.status.message, 'up 1/2');
+      core.dispose();
+    });
+
     test('each service is a sidebar child, and one service is none', () async {
       var core = coreWith(twoServices());
       responses['stack doctor'] = ProcessResult(0, 0, '', '');

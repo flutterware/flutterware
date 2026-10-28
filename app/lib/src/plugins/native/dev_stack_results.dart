@@ -546,6 +546,7 @@ class StackEvent {
     required this.verb,
     required this.outcome,
     this.by,
+    this.purpose,
     this.took,
     this.detail,
     this.failure,
@@ -559,6 +560,7 @@ class StackEvent {
     verb: '${json['verb'] ?? ''}',
     outcome: StackEventOutcome.byName(json['outcome'] as String?),
     by: json['by'] as String?,
+    purpose: json['for'] as String?,
     took: switch (json['tookMs']) {
       int ms => Duration(milliseconds: ms),
       _ => null,
@@ -586,6 +588,10 @@ class StackEvent {
   /// exited on its own.
   final String? by;
 
+  /// What it was done for, when it was a step of something else: `to open
+  /// Pickup order`.
+  final String? purpose;
+
   /// How long the start or stop took.
   final Duration? took;
 
@@ -605,6 +611,7 @@ class StackEvent {
     'verb': verb,
     'outcome': outcome.name,
     if (by != null) 'by': by,
+    if (purpose != null) 'for': purpose,
     if (took != null) 'tookMs': took!.inMilliseconds,
     if (detail != null) 'detail': detail,
     if (failure != null) 'failure': failure,

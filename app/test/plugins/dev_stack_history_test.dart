@@ -148,6 +148,21 @@ void main() {
       expect(eventCaller(events.last), 'An agent');
     });
 
+    test('what a start brought up by ensure was for', () async {
+      currentCaller = Caller.terminal;
+      var core = coreWith(scripted('db'));
+
+      await core.ensure(purpose: 'to open Pickup order');
+
+      var start = written().single;
+      expect(start.purpose, 'to open Pickup order');
+      expect(eventCaller(start), 'fw, in a terminal, to open Pickup order');
+      expect(
+        StackEvent.fromJson(start.toJson()).purpose,
+        'to open Pickup order',
+      );
+    });
+
     test('a start that failed, with why', () async {
       failingUp['db'] = 'port 5432 is already in use';
       var db = coreWith(scripted('db')).services.single;

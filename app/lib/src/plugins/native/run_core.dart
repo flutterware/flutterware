@@ -434,6 +434,7 @@ class RunCore extends PluginCore {
     _entrypointKnobs.clear();
     // This machine's addresses, which a recording's machine is not.
     if (readOnly == null) _hostAddresses = await _readHostAddresses();
+    if (readOnly == null) _knownRepoWorktrees = await _repoWorktrees;
     _scanned = true;
   }
 
@@ -1750,12 +1751,21 @@ class RunCore extends PluginCore {
   /// does not already know every checkout on the machine reads an unrelated
   /// repository's app as one of this project's, under a heading that says
   /// Running.
+  ///
+  /// A run of another repository is said to be another project's, under its
+  /// folder's name: its worktree name is its own repository's, and every main
+  /// checkout is `~`.
   String _handleDetail(RunHandle handle) {
     var probe = probeOf(handle);
+    var ofThisRepository =
+        _knownRepoWorktrees?.contains(p.canonicalize(handle.worktree)) ?? true;
     return [
-      isMine(handle)
-          ? handle.worktreeName
-          : '${handle.worktreeName} · another checkout',
+      if (isMine(handle))
+        handle.worktreeName
+      else if (ofThisRepository)
+        '${handle.worktreeName} · another checkout'
+      else
+        '${p.basename(handle.worktree)} · another project',
       if (probe == null)
         'not probed'
       else if (probe.canReload)
@@ -5226,6 +5236,9 @@ class RunCore extends PluginCore {
   /// unrelated project's run. Cached for the core's lifetime; a worktree
   /// added since shows up on the next session, and selection itself goes by
   /// the paths the handles carry.
+  /// [_repoWorktrees] once read, for what is drawn without waiting.
+  Set<String>? _knownRepoWorktrees;
+
   late final Future<Set<String>> _repoWorktreePaths = () async {
     var own = p.canonicalize(host.worktree.path);
     try {

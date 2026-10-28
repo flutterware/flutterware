@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutterware/devices.dart';
+import 'package:flutterware/plugins.dart' show RunPlatform;
 // ignore: implementation_imports
 import 'package:flutterware/src/ui_catalog/knob.dart';
 // ignore: implementation_imports
@@ -16,11 +17,13 @@ import 'package:path/path.dart' as p;
 
 import '../embedder/flutter_cache.dart';
 import '../run/entrypoint_knobs.dart';
+import '../run/flavors.dart';
 import '../run/handle.dart';
 import '../run/journal.dart';
 import '../session/job.dart';
 import '../utils/parameter_knobs.dart';
 import 'app_guest.dart';
+import 'bundle_id.dart';
 import 'declared_links.dart';
 import 'guest_launcher.dart';
 import 'guest_log.dart';
@@ -755,7 +758,7 @@ class OpenWorld {
     var stack = this.stack;
     if (stack == null) throw WorldRefusal(noDevStackFor(file));
     _say('Bringing up ${file.needs.map(stack.nameOf).join(', ')}');
-    return stack.bringUp(file.needs, say: _say);
+    return stack.bringUp(file.needs, say: _say, world: file.name);
   }
 
   /// Starts the script, once more with a fresh compiler if it died on the
@@ -900,6 +903,17 @@ class OpenWorld {
       home: home,
       package: build.app.package,
       device: device,
+      bundleId: device.platform == DevicePlatform.ios
+          ? iosBundleId(
+              build.app.package,
+              flavor: resolveFlavor(
+                entrypointFlavor: person.entry!.flavor,
+                packageDefault: defaultFlavorOf(build.app.package),
+                byPlatform: person.entry!.flavorByPlatform,
+                platformType: 'ios',
+              ).flavor,
+            )
+          : null,
     );
     var log = person.log = GuestLog(
       p.join(build.app.buildDir, 'logs', '$name.log'),
@@ -930,7 +944,12 @@ class OpenWorld {
         ),
         device: device,
         platform: platform.platform.answer,
-        onOutput: log.line,
+        onOutput: (line) {
+          log.line(line);
+          if (stoppedBeforeDrawing(line) case var why?) {
+            _stoppedEarly(person, why);
+          }
+        },
       ),
     );
     var vmService = await guest.vmService;
@@ -948,11 +967,35 @@ class OpenWorld {
     var launcher = person.launcher = await GuestLauncher.connect(vmService);
     await launcher.serve(
       reload: build.reload,
-      restart: () => build.restart(person),
+      restart: () {
+        // The restarted `main` says again if it fails again.
+        if (person._stopped != null && people[name] == person) {
+          person
+            .._stopped = null
+            ..phase = PersonPhase.running
+            ..problem = null;
+          _changed();
+        }
+        return build.restart(person);
+      },
     );
     build.people.add(person);
     person.phase = PersonPhase.running;
+    if (person._stopped case var why?) _stoppedEarly(person, why);
     unawaited(tracer?.follow(name, person.handle!, links: build.links));
+  }
+
+  /// [person]'s app failed in `main` before it called `runApp`, so it will
+  /// never draw. Said once their start is over: before then, the start fails
+  /// with the same words or reports them when it ends.
+  void _stoppedEarly(WorldPerson person, String why) {
+    person._stopped = why;
+    if (people[person.name] != person || !person.running) return;
+    person
+      ..phase = PersonPhase.failed
+      ..problem = why;
+    _say('${person.name}: $why');
+    _changed();
   }
 
   /// The entry point [app] names, and its knobs as its `main` takes them.
@@ -1222,6 +1265,8 @@ class WorldEntrypoint {
     required this.package,
     required this.path,
     required this.name,
+    this.flavor,
+    this.flavorByPlatform = const {},
   });
 
   /// Relative to the worktree.
@@ -1231,6 +1276,11 @@ class WorldEntrypoint {
   final String path;
 
   final String name;
+
+  /// The flavor Run builds it with, and where that depends on the platform:
+  /// a guest builds no flavor, but what it reports about the app follows it.
+  final String? flavor;
+  final Map<RunPlatform, String> flavorByPlatform;
 }
 
 enum WorldPhase {
@@ -1263,6 +1313,10 @@ class WorldPerson {
 
   /// Why they are [PersonPhase.failed].
   String? problem;
+
+  /// Why their app stopped before it drew, when its `main` failed before
+  /// `runApp`. Cleared when the app restarts.
+  String? _stopped;
 
   /// What their app was last started with, as `main` takes it.
   Map<String, Object?> knobs = const {};

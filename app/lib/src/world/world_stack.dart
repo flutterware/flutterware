@@ -22,7 +22,8 @@ abstract interface class WorldStack {
   String nameOf(String id);
 
   /// Brings up [ids] and what they need, in order, saying in [say] what it
-  /// starts and how each one ended. Answers every service it went through,
+  /// starts and how each one ended, and in the dev stack's history that it
+  /// was [world] that needed them. Answers every service it went through,
   /// all of them up.
   ///
   /// Throws a [WorldRefusal] when one did not come up, saying which and why,
@@ -30,6 +31,7 @@ abstract interface class WorldStack {
   Future<List<WorldService>> bringUp(
     List<String> ids, {
     required void Function(String line) say,
+    required String world,
   });
 }
 
@@ -51,6 +53,7 @@ class DevStackForWorlds implements WorldStack {
   Future<List<WorldService>> bringUp(
     List<String> ids, {
     required void Function(String line) say,
+    required String world,
   }) async {
     StackEnsureResult result;
     try {
@@ -58,6 +61,7 @@ class DevStackForWorlds implements WorldStack {
         ids: ids,
         onStarting: (name) => say('Starting $name'),
         onEnsured: (service) => _sayEnded(service, say),
+        purpose: 'to open $world',
       );
     } on ActionRefusal catch (refusal) {
       throw WorldRefusal(

@@ -3005,7 +3005,12 @@ void main({int serverPort = 1, Backend backend = Backend.dev}) {}
       // launched. The worktree name was already on the row and said nothing on
       // its own: a reader who does not know every checkout on the machine reads
       // an unrelated repository's app as one of this project's.
-      core.debugRepoWorktrees = Future.value({p.canonicalize(worktree.path)});
+      var elsewhere = Directory.systemTemp.createTempSync('fw-run-project-');
+      addTearDown(() => elsewhere.deleteSync(recursive: true));
+      core.debugRepoWorktrees = Future.value({
+        p.canonicalize(worktree.path),
+        p.canonicalize(otherWorktree.path),
+      });
       _writeHandle(
         runDir,
         worktree,
@@ -3022,6 +3027,15 @@ void main({int serverPort = 1, Backend backend = Backend.dev}) {}
         worktreeName: 'theirs',
         launcherPid: pid,
       );
+      // Another repository's main checkout: `~` there names nothing here.
+      _writeHandle(
+        runDir,
+        elsewhere,
+        device: 'tablet',
+        entrypoint: 'lib/main.dart',
+        worktreeName: '~',
+        launcherPid: pid,
+      );
       await core.computeAll();
 
       var text = core.report.toText();
@@ -3031,6 +3045,8 @@ void main({int serverPort = 1, Backend backend = Backend.dev}) {}
         isNot(contains('ours · another checkout')),
         reason: 'our own run carries no marker — it is the unremarkable case',
       );
+      expect(text, contains('${p.basename(elsewhere.path)} · another project'));
+      expect(text, isNot(contains('~ · another checkout')));
     });
 
     test('reports a reload it could not do rather than throwing', () async {

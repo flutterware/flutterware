@@ -697,7 +697,8 @@ world acts through or keeps separate per person:
 - `shared_preferences`, `flutter_secure_storage` and `path_provider`, kept
   separate per person, so two people never share a session;
 - `package_info_plus`, `device_info_plus` (reporting the person's device) and
-  `flutter_timezone`;
+  `flutter_timezone`. On a phone, the package name is the bundle identifier
+  of the entry point's flavor, read from the iOS project;
 - `permission_handler`: nothing is granted until the app asks, and then every
   request is granted;
 - `firebase_core`;
@@ -713,7 +714,10 @@ Cameras, maps and web views aren't available.
 Any other plugin needs a fake. A call that the studio does not answer fails
 in the app, as it would on a platform the plugin doesn't support. The world
 reports the first one: a line in the world log, a warning on the person, and
-`unanswered` in `worlds status`. Fake the plugin in the entry point the world
+`unanswered` in `worlds status`. A plugin that calls its native code directly,
+through FFI, fails as soon as the app uses it, because a world builds no
+native code. When that happens in `main`, before `runApp`, the person's app
+fails at once and the world says why. Fake the plugin in the entry point the world
 starts, behind a knob, as you would in a scenario. The studio registers each
 plugin's Dart half before it calls `main`, so whatever `main` sets wins: a
 plugin's platform interface, or a class of your own that wraps the plugin.
