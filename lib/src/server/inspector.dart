@@ -403,6 +403,17 @@ abstract final class _Reassembly {
   }
 }
 
+/// Completes once the server this process reports as, if it has started
+/// reporting, has its handle on disk; at once when it has not. The handle is
+/// written a moment after the first event, and a world's owner looks for
+/// servers when an action ends: a world script waits on this before saying
+/// an action ended, so a server the action started is found.
+Future<void> serverPublished() =>
+    (FlutterwareServer._inspector?.published ?? Future<void>.value()).timeout(
+      const Duration(seconds: 2),
+      onTimeout: () {},
+    );
+
 /// One attached unix-socket connection.
 class _SocketPeer implements InspectorPeer {
   _SocketPeer(this.socket) {

@@ -349,6 +349,8 @@ class OpenWorld {
     });
     _changed();
     await run._ended.future.timeout(wait, onTimeout: () {});
+    // Ended, it answers with what it sent already found.
+    await run._found;
     return run;
   }
 
@@ -658,10 +660,15 @@ class OpenWorld {
             ?..progress = message['message'] as String?
             ..fraction = (message['fraction'] as num?)?.toDouble();
         case WorldMessage.actionEnded:
+          // What the action did can be the first thing the script's own
+          // process reported, a mail with `FlutterwareServer.event`, and
+          // that is the moment its server appeared.
+          var found = tracer?.scanServers(now: true);
           var run = runs[message['run']];
           if (run != null) {
             run.error = message['error'] as String?;
             run.running = false;
+            run._found = found;
             run._ended.complete();
           }
       }
@@ -1325,6 +1332,9 @@ class WorldActionRun {
   double? fraction;
   String? error;
   final _ended = Completer<void>();
+
+  /// The look for servers its end set off.
+  Future<void>? _found;
 }
 
 /// A world that cannot do what it was asked, in a sentence for whoever asked
