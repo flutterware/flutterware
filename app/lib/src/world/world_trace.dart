@@ -919,6 +919,18 @@ class WorldTrace {
     return names;
   }
 
+  /// The node [name] stands for: one of [nodeNames], or — with several
+  /// servers — a part named without its server, as it was while one server
+  /// reported, when only one server has it. Null for anything else.
+  String? nodeOf(String name) {
+    var names = nodeNames;
+    if (names[name] case var node?) return node;
+    var servers = {
+      for (var server in _servers.values) ?names['${server.name}/$name'],
+    };
+    return servers.length == 1 ? servers.single : null;
+  }
+
   /// What [node] — a [SystemServer] node or [syncNode] — holds, newest
   /// first, at most [limit] of it; null for a node nothing reported.
   NodeContents? contentsOf(String node, {int limit = 200}) {
@@ -1193,7 +1205,8 @@ class WorldTrace {
     var found = {
       for (var match in _link.allMatches(words)) match[0]!,
       if (html != null)
-        for (var match in _href.allMatches(html)) _unescape(match[1]!),
+        for (var match in _href.allMatches(html.replaceAll(_hidden, ' ')))
+          _unescape(match[1]!),
     };
     // The one to hand over is the one the app takes: the adapter's, or one
     // the app declares — a mail can list two store badges before it — or,
@@ -1245,8 +1258,10 @@ class WorldTrace {
     caseSensitive: false,
     dotAll: true,
   );
+
+  /// Where a link a person can tap goes: an anchor's, never a stylesheet's.
   static final _href = RegExp(
-    r"""href\s*=\s*["']([^"']+)["']""",
+    r"""<a\b[^>]*?\shref\s*=\s*["']([^"']+)["']""",
     caseSensitive: false,
   );
 
