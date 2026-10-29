@@ -141,7 +141,8 @@
         "--no-optional-locks",
         "for-each-ref",
         "--format=%(refname:short)%09%(committerdate:unix)%09%(objectname)",
-        "refs/heads/"
+        "refs/heads/",
+        "refs/remotes/origin/"
       ],
       "exit": 0,
       "out": "changes/git/11-for-each-ref.txt"

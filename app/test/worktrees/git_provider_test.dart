@@ -232,12 +232,14 @@ void main() {
       expect(asked.last, contains('master'));
     });
 
-    test('strips the remote from what origin/HEAD reports', () async {
+    test('keeps the remote in what origin/HEAD reports', () async {
+      // The local branch goes stale in a worktree, which fetches origin's
+      // and never fast-forwards its own.
       var probe = GitProbe(
         runProcess: (executable, arguments, {workingDirectory}) async =>
             ProcessResult(0, 0, 'origin/develop\n', ''),
       );
-      expect(await probe.defaultBranch('/tmp/repo'), 'develop');
+      expect(await probe.defaultBranch('/tmp/repo'), 'origin/develop');
     });
   });
 }
