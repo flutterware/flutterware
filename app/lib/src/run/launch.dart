@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import '../utils/daemon/events.dart';
@@ -70,6 +71,23 @@ List<String> runCommand({
     '${define.key}=${define.value}',
   ],
 ];
+
+/// The shell [launchApp] turns into the launcher: everything it prints goes to
+/// `$FW_RUN_LOG`, and its stdin is a FIFO it holds open for writing itself, so
+/// a read from it waits for ever instead of ending.
+///
+/// `flutter run --machine` reads its daemon protocol from stdin, and on
+/// Flutter 3.50 a stdin that ends at once — the `< /dev/null` this used to be
+/// — crashed the tool at its first compile, with `Broken pipe` writing to the
+/// compiler it had just started. Every launch, and the compiler left running.
+/// The FIFO is unlinked as soon as it is open, so nothing else can reach it and
+/// nothing is left in the run dir. Output is redirected first, so a FIFO that
+/// cannot be made says why in the log.
+@visibleForTesting
+const launcherScript =
+    r'exec > "$FW_RUN_LOG" 2>&1; '
+    r'mkfifo "$FW_RUN_STDIN" && exec 0<> "$FW_RUN_STDIN" && '
+    r'rm -f "$FW_RUN_STDIN" && exec "$@"';
 
 /// Starts `flutter run --machine` as a detached process, and announces it in
 /// the run dir.
@@ -158,13 +176,13 @@ Future<RunHandle> launchApp({
   // `exec "$@"` replaces the shell with flutter, so the pid this returns *is*
   // the launcher's — which matters, because the handle's `launcherPid` is what
   // every other process checks to decide whether reload is still on offer.
-  // The log path travels in the environment rather than in the script, so no
+  // The paths travel in the environment rather than in the script, so no
   // amount of punctuation in a path can turn into shell syntax.
   var process = await Process.start(
     '/bin/sh',
-    ['-c', r'exec "$@" > "$FW_RUN_LOG" 2>&1 < /dev/null', 'sh', ...command],
+    ['-c', launcherScript, 'sh', ...command],
     workingDirectory: packageRoot,
-    environment: {'FW_RUN_LOG': logPath},
+    environment: {'FW_RUN_LOG': logPath, 'FW_RUN_STDIN': '$logPath.stdin'},
     mode: ProcessStartMode.detached,
   );
 

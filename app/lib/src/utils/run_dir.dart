@@ -353,11 +353,19 @@ bool _handleProcessIsAlive(Map<String, Object?> json) {
       : isProcessCurrent(pid, startedAt);
 }
 
-/// Whether [pid] is a process this user could signal.
+/// Whether [pid] is a process this user could signal, and has not exited.
 ///
 /// `SIGCONT` is the probe because it is the signal a running process ignores —
 /// `kill` fails with `ESRCH` when the pid is gone, which is the answer we are
 /// after, and does nothing when it is not.
+///
+/// `kill` also succeeds on a zombie, which has exited and is waiting for its
+/// parent to collect it, so a pid it reaches is asked about once more. On Dart
+/// 3.14 a `ProcessStartMode.detached` child stays the child of the process
+/// that started it, which has no way to wait for it, so every detached
+/// launcher, service and compiler daemon that exits stays a zombie until that
+/// process does. Taken for alive, a launcher that crashed read as building for
+/// ever.
 ///
 /// Two ways this can be wrong, both narrow and both worth naming: a pid
 /// recycled onto an unrelated process reads as alive, and a process owned by
@@ -367,7 +375,21 @@ bool _handleProcessIsAlive(Map<String, Object?> json) {
 bool isProcessAlive(int pid) {
   if (pid <= 0) return false;
   try {
-    return Process.killPid(pid, ProcessSignal.sigcont);
+    if (!Process.killPid(pid, ProcessSignal.sigcont)) return false;
+  } on Object {
+    return false;
+  }
+  return !_isZombie(pid);
+}
+
+/// Whether [pid] has exited and is only waiting to be collected. False where
+/// the platform cannot say, which is what [isProcessAlive] answered before it
+/// asked.
+bool _isZombie(int pid) {
+  if (Platform.isWindows) return false;
+  try {
+    var result = Process.runSync('ps', ['-p', '$pid', '-o', 'stat=']);
+    return '${result.stdout}'.trim().startsWith('Z');
   } on Object {
     return false;
   }

@@ -470,6 +470,45 @@ void main() {
     });
   });
 
+  group('liveness', () {
+    test('this process is alive', () {
+      expect(isProcessAlive(pid), isTrue);
+    });
+
+    /// A zombie answers `kill` as a running process does. On Dart 3.14 every
+    /// detached launcher that exits becomes one, and a crashed `flutter run`
+    /// read as building for ever. `sleep` never collects the child the shell
+    /// started before turning into it, which makes a zombie on any SDK.
+    test('a process that exited and was never collected is dead', () async {
+      var parent = await Process.start('/bin/sh', [
+        '-c',
+        r'true & echo $!; exec sleep 30',
+      ]);
+      addTearDown(() async {
+        parent.kill();
+        await parent.exitCode;
+      });
+      var zombie = int.parse(
+        await parent.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .first,
+      );
+
+      var deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (isProcessAlive(zombie) && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+
+      expect(isProcessAlive(zombie), isFalse);
+      expect(
+        Process.killPid(zombie, ProcessSignal.sigcont),
+        isTrue,
+        reason: 'it has to still be there, uncollected, to be a zombie',
+      );
+    }, skip: Platform.isWindows ? 'no zombies on Windows' : null);
+  });
+
   /// The launcher calls this on every launch — see `run/launch.dart` — so the
   /// guard is what keeps a long-lived GUI from re-walking the directory to find
   /// nothing, over and over, for the life of the session.

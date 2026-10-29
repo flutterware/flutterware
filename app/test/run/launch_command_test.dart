@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutterware_app/src/run/launch.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 List<String> _command({String? flavor, bool targetsWeb = false}) => runCommand(
@@ -60,4 +63,34 @@ void main() {
       containsAllInOrder(['--dart-define', 'API=https://example.test']),
     );
   });
+
+  /// `flutter run --machine` on Flutter 3.50 crashed at its first compile
+  /// whenever its stdin had already ended. `cat` stands in for it: it exits
+  /// the moment its stdin ends, which under `< /dev/null` was at once.
+  test(
+    'the launcher gets a stdin that never ends, and leaves no FIFO behind',
+    () async {
+      var dir = Directory.systemTemp.createTempSync('fw_launcher_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      var log = p.join(dir.path, 'run.log');
+      var launcher = await Process.start(
+        '/bin/sh',
+        ['-c', launcherScript, 'sh', 'sh', '-c', 'echo started; exec cat'],
+        environment: {'FW_RUN_LOG': log, 'FW_RUN_STDIN': '$log.stdin'},
+      );
+      addTearDown(() async {
+        launcher.kill();
+        await launcher.exitCode;
+      });
+
+      var ended = await launcher.exitCode
+          .then((_) => true)
+          .timeout(const Duration(seconds: 1), onTimeout: () => false);
+
+      expect(ended, isFalse, reason: 'cat read the end of its stdin');
+      expect(File(log).readAsStringSync(), 'started\n');
+      expect(File('$log.stdin').existsSync(), isFalse);
+    },
+    skip: Platform.isWindows ? 'the launcher is a POSIX shell' : null,
+  );
 }
