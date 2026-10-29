@@ -209,7 +209,8 @@ void main() {
           responses: {
             'for-each-ref':
                 'main\t1786000000\tbasesha\n'
-                'feature\t1786000100\theadsha\n',
+                'feature\t1786000100\theadsha\n'
+                'origin/main\t1786000000\tbasesha\n',
             'symbolic-ref': 'origin/main\n',
             'status': '# branch.oid headsha\n# branch.head feature\n',
             'rev-list': '0\t3\n',
@@ -245,7 +246,8 @@ void main() {
         responses: {
           'for-each-ref':
               'main\t1786000000\tbasesha\n'
-              'feature\t1786000100\theadsha\n',
+              'feature\t1786000100\theadsha\n'
+              'origin/main\t1786000000\tbasesha\n',
           'symbolic-ref': 'origin/main\n',
           'status': '# branch.oid headsha\n# branch.head feature\n',
         },
@@ -265,7 +267,9 @@ void main() {
     test('the base branch is not diffed against itself', () async {
       var git = _git(
         responses: {
-          'for-each-ref': 'main\t1786000000\tbasesha\n',
+          'for-each-ref':
+              'main\t1786000000\tbasesha\n'
+              'origin/main\t1786000000\tbasesha\n',
           'symbolic-ref': 'origin/main\n',
           'status': '# branch.oid basesha\n# branch.head main\n',
         },
@@ -279,6 +283,32 @@ void main() {
       ).probe([_wt('main', branch: 'main', isMain: true)]);
 
       expect(git.calls.any((c) => c.contains('rev-list')), isFalse);
+    });
+
+    test('a branch is measured from origin, not a stale local main', () async {
+      var git = _git(
+        responses: {
+          'for-each-ref':
+              'main\t1786000000\tstalesha\n'
+              'feature\t1786000100\theadsha\n'
+              'origin/main\t1786000050\tbasesha\n',
+          'symbolic-ref': 'origin/main\n',
+          'status': '# branch.oid headsha\n# branch.head feature\n',
+          'rev-list': '0\t3\n',
+          'numstat': '10\t4\tapp/a.dart\n',
+        },
+      );
+
+      var facts = await WorktreeFactsProbe(
+        repoRoot: '/repo',
+        store: store(),
+        git: git.probe,
+        forge: _Forge(),
+      ).probe([_wt('one', branch: 'feature')]);
+
+      var revList = git.calls.singleWhere((c) => c.contains('rev-list'));
+      expect(revList.last, 'basesha...headsha');
+      expect(facts['/repo/one']!.git.value!.base, 'origin/main');
     });
 
     test(

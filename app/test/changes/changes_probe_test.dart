@@ -135,9 +135,14 @@ void main() {
 
       var set = await probe.probe('/w');
 
-      expect(set.base, 'main');
+      expect(set.base, 'origin/main');
       expect(set.baseSource, BaseSource.inferred);
       expect(set.mergeBase, 'basesha');
+      expect(
+        asked,
+        contains(endsWith('merge-base origin/main HEAD')),
+        reason: 'the local main is stale in a worktree that only fetches',
+      );
       expect(set.changed.single.path, 'lib/a.dart');
       expect(set.uncommitted, {'lib/a.dart'});
       expect(

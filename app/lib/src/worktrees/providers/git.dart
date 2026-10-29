@@ -51,7 +51,7 @@ class StatusFacts {
   final int? behind;
 }
 
-/// Parses `git for-each-ref --format='%(refname:short)\t%(committerdate:unix)\t%(objectname)' refs/heads/`.
+/// Parses `git for-each-ref --format='%(refname:short)\t%(committerdate:unix)\t%(objectname)' refs/heads/ refs/remotes/origin/`.
 ///
 /// Unknown or malformed lines are skipped rather than thrown on: this runs
 /// against whatever git the user has, and one odd ref must not cost the whole
@@ -239,11 +239,15 @@ class GitProbe {
   }
 
   /// Every branch's tip, in one process.
+  ///
+  /// origin's branches too, keyed `origin/<name>`, because [defaultBranch] is
+  /// one of them.
   Future<Map<String, BranchTip>> branchTips(String repoDirectory) async {
     var output = await _git(repoDirectory, [
       'for-each-ref',
       '--format=%(refname:short)%09%(committerdate:unix)%09%(objectname)',
       'refs/heads/',
+      'refs/remotes/origin/',
     ]);
     return output == null ? {} : parseForEachRef(output);
   }
@@ -254,18 +258,19 @@ class GitProbe {
   /// this machine happens to have checked out; then the conventional names.
   /// Null when none of them exist, which leaves branch size unanswerable and is
   /// reported as such rather than guessed at.
+  ///
+  /// The remote-tracking ref as git reports it, `origin/main` and not `main`.
+  /// A worktree fetches `origin/main` and nothing fast-forwards the local
+  /// `main`, so measured from the local one, everything merged since it was
+  /// last pulled reads as this branch's work. It is also what `BaseRef` and a
+  /// pull request measure from.
   Future<String?> defaultBranch(String repoDirectory) async {
     var symbolic = await _git(repoDirectory, [
       'symbolic-ref',
       '--short',
       'refs/remotes/origin/HEAD',
     ]);
-    if (symbolic != null && symbolic.trim().isNotEmpty) {
-      var name = symbolic.trim();
-      return name.startsWith('origin/')
-          ? name.substring('origin/'.length)
-          : name;
-    }
+    if (symbolic != null && symbolic.trim().isNotEmpty) return symbolic.trim();
     for (var candidate in const ['main', 'master']) {
       var exists = await _git(repoDirectory, [
         'rev-parse',
