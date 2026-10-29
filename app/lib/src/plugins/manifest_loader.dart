@@ -55,10 +55,11 @@ class ManifestLoader {
   ///
   /// `dart run` resolves an unresolved workspace before running — which is
   /// every fresh worktree's first load — and satisfying a `flutter from sdk`
-  /// dependency during that resolve needs the root spelled out: the SDK's own
-  /// `bin/dart` does not export it, and without it the load dies with "the
-  /// Flutter SDK is not available" about a project whose SDK discovery just
-  /// succeeded. On a resolved worktree it changes nothing.
+  /// dependency during that resolve, or during [_refreshResolution]'s, needs
+  /// the root spelled out: the SDK's own `bin/dart` does not export it, and
+  /// without it the load dies with "the Flutter SDK is not available" about a
+  /// project whose SDK discovery just succeeded. On a resolved worktree it
+  /// changes nothing.
   final String? flutterRoot;
 
   /// How long the config gets before it is killed and reported.
@@ -172,11 +173,15 @@ class ManifestLoader {
     var configFile = File(p.join(worktreePath, configFilePath));
     if (!configFile.existsSync()) return null;
 
+    var unrefreshed = await _refreshResolution(worktreePath);
     var result = await _runConfig(worktreePath, configFile);
 
     if (result.exitCode != 0) {
       throw ManifestLoadException(
-        '$configFilePath exited with ${result.exitCode}.',
+        [
+          '$configFilePath exited with ${result.exitCode}.',
+          ?unrefreshed,
+        ].join(' '),
         details: '${result.stderr}',
       );
     }
@@ -197,6 +202,92 @@ class ManifestLoader {
         details: '$e',
       );
     }
+  }
+
+  /// Brings the worktree's package config up to date with its lock when the
+  /// lock or a pubspec is newer than it. Returns why it could not, for the
+  /// error to lead with, or null.
+  ///
+  /// Nothing else on this path would. `dart compile kernel` and `dart run` on
+  /// a file resolve only when there is no package config at all, and use a
+  /// stale one as it stands. Only a package executable gets pub's freshness
+  /// check, so `dart run flutterware` checks the checkout it was started in
+  /// and nothing else. Every other checkout a process opens went unchecked:
+  /// the GUI's other worktrees, the one an MCP client's roots name, and any
+  /// worktree whose branch moved after the process started. Their config
+  /// compiled against whatever the last `pub get` there had resolved, and
+  /// failed with errors naming another version's sources, which reads as a
+  /// broken config or a server out of step rather than as a checkout that
+  /// needs resolving.
+  ///
+  /// Offline, because this runs unasked on every surface, and with
+  /// `--enforce-lockfile`, so it writes only `.dart_tool/` and never a tracked
+  /// `pubspec.lock`. When the lock no longer satisfies the pubspec, or a
+  /// package is not in the cache, it fails and the config runs against what
+  /// is there, exactly as before: often that still works.
+  ///
+  /// The config is touched afterwards because a `pub get` with nothing to
+  /// change writes nothing, and the mtimes would then ask for the same
+  /// refresh on every load. Measured on a small project, the refresh is
+  /// ~150ms.
+  Future<String?> _refreshResolution(String worktreePath) async {
+    var packageConfig = File(
+      p.join(worktreePath, '.dart_tool', 'package_config.json'),
+    );
+    var newer = _newerThan(packageConfig, worktreePath);
+    if (newer.isEmpty) return null;
+
+    String? failure;
+    try {
+      var result = await _run(dartExecutable, const [
+        'pub',
+        'get',
+        '--offline',
+        '--enforce-lockfile',
+      ], workingDirectory: worktreePath);
+      if (result.exitCode != 0) {
+        failure = '${result.stderr}'.trim().isNotEmpty
+            ? '${result.stderr}'.trim()
+            : '${result.stdout}'.trim();
+      }
+    } on ManifestLoadException {
+      failure = 'It did not finish within ${timeout.inSeconds}s.';
+    }
+
+    if (failure == null) {
+      try {
+        packageConfig.setLastModifiedSync(DateTime.now());
+      } on FileSystemException {
+        // The next load refreshes again, which is slower but still right.
+      }
+      return null;
+    }
+    var names = newer.length == 1
+        ? newer.single
+        : '${newer.sublist(0, newer.length - 1).join(', ')} and ${newer.last}';
+    return "This checkout's package config is older than $names, and "
+        '`dart pub get --offline` could not update it:\n$failure\n'
+        'Run `dart pub get` in $worktreePath and try again. Until then, the '
+        'errors below may name package versions this checkout no longer uses.';
+  }
+
+  /// The resolution inputs in [worktreePath] modified after [packageConfig],
+  /// by file name. Empty when there is no package config: `dart run` resolves
+  /// that case itself.
+  static List<String> _newerThan(File packageConfig, String worktreePath) {
+    var resolved = FileStat.statSync(packageConfig.path);
+    if (resolved.type == FileSystemEntityType.notFound) return const [];
+    return [
+      for (var name in const [
+        'pubspec.yaml',
+        'pubspec_overrides.yaml',
+        'pubspec.lock',
+      ])
+        if (FileStat.statSync(p.join(worktreePath, name)) case var input
+            when input.type != FileSystemEntityType.notFound &&
+                input.modified.isAfter(resolved.modified))
+          name,
+    ];
   }
 
   /// Runs the config, through its cached kernel when there is a good one.
@@ -239,12 +330,13 @@ class ManifestLoader {
   /// `package_config.json` names a `flutterRoot`, but only as of whenever pub
   /// last ran, so switching without resolving would otherwise go unnoticed.
   ///
-  /// Keyed on content, not mtime. `pub get` rewrites
-  /// `package_config.json` whether or not resolution moved, and the
-  /// Dependencies plugin runs `pub get` itself — so a stat-based key made
-  /// *using* flutterware invalidate flutterware's own cache, and every
-  /// following command paid the ~450ms compile again. Content survives that,
-  /// and survives a checkout or a stash that restores a file byte for byte.
+  /// Keyed on content, not mtime. `package_config.json` gets a new mtime with
+  /// the same bytes more often than it changes: [_refreshResolution] touches
+  /// it after a `pub get` that changed nothing, and the Dependencies plugin
+  /// runs `pub get` itself — so a stat-based key made *using* flutterware
+  /// invalidate flutterware's own cache, and every following command paid the
+  /// ~450ms compile again. Content survives that, and survives a checkout or a
+  /// stash that restores a file byte for byte.
   ///
   /// Keyed on the whole compiled closure, not just the config file.
   /// `dart compile kernel` bundles every library the config reaches, so a key
