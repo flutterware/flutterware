@@ -10,8 +10,8 @@ import 'flutter_cache.dart';
 /// `~/.flutterware/engine/<revision>/`.
 ///
 /// Not under the package. It used to be `<appPackageRoot>/.engine`, and a
-/// hosted install unpacks `app/` per project — under
-/// `~/.flutterware/<sha1(packageRoot)>/` — so every project downloaded and kept
+/// hosted install unpacks `app/` per flutterware version and SDK — under
+/// `~/.flutterware/<hash>/` — so every project downloaded and kept
 /// its own copy of a 93MB artifact that depends on nothing but the engine
 /// revision. Keyed by revision here, so switching Flutter versions back and
 /// forth reuses what is already on disk instead of re-downloading each way.

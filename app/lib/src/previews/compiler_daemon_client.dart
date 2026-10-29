@@ -905,11 +905,12 @@ class _RejectedKernel implements Exception {
 ///
 /// A kernel is loadable only by the SDK that produced it. For a path
 /// dependency that is invisible, because `appPackageRoot` is one checkout used
-/// by one project. For a hosted or git-pinned install it is not: the copy lives
-/// at `~/.flutterware/<sha1(packageRoot)>/app/`, which is keyed on the
-/// *flutterware* revision and is therefore the same directory for every project
-/// on the machine pinning that revision — while each of those projects brings
-/// its own Flutter, and so its own Dart.
+/// by one project. For a hosted or git-pinned install it was not: the copy
+/// lived at `~/.flutterware/<sha1(packageRoot)>/app/`, keyed on the
+/// *flutterware* revision alone and therefore the same directory for every
+/// project on the machine pinning that revision — while each of those projects
+/// brings its own Flutter, and so its own Dart. The copy is one per SDK now as
+/// well; a checkout run by two SDKs still has one `app/`.
 ///
 /// Keyed only by mtime, one snapshot then had to serve all of them, and two
 /// projects on two Flutter betas took turns bricking each other: whichever

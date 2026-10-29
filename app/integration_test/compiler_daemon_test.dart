@@ -894,10 +894,10 @@ Widget fixtureBroken() => const Placeholder();
   test('a snapshot this Dart cannot load is rebuilt, not waited out', () async {
     // The snapshot is a cache, and this is the case where it holds bytes the
     // VM will not accept. It happens because the file outlives the project
-    // that compiled it: a hosted install lives at
-    // `~/.flutterware/<sha1(packageRoot)>/app/`, which is keyed on the
-    // flutterware revision, so every project on the machine pinning that
-    // revision shares it while each brings its own Flutter. Two of them on
+    // that compiled it: a hosted install lived at
+    // `~/.flutterware/<sha1(packageRoot)>/app/`, keyed on the flutterware
+    // revision alone, so every project on the machine pinning that revision
+    // shared it while each brought its own Flutter. Two of them on
     // two betas took turns — whichever compiled last owned the file, and the
     // other one got 30 seconds of polling a socket that would never appear
     // and a message blaming the socket. Permanently, because a snapshot the

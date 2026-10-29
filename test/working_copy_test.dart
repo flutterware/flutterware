@@ -89,6 +89,20 @@ void main() {
 
       expect(workingCopyStamp(source, sdk: 'dart 3.13'), isNot(before));
     });
+
+    test('one flutterware under two SDKs lives in two places', () {
+      // In one place, each SDK found the other's stamp there and rebuilt the
+      // copy over it.
+      expect(
+        workingCopyPath(source, sdk: 'dart 3.14'),
+        isNot(workingCopyPath(source, sdk: 'dart 3.13')),
+      );
+      expect(
+        workingCopyPath(source, sdk: 'dart 3.13'),
+        workingCopyPath(source, sdk: 'dart 3.13'),
+      );
+      expect(p.basename(workingCopyPath(source)), matches(r'^[0-9a-f]{40}$'));
+    });
   });
 
   group('the workspace is the one the copy carries', () {

@@ -17,14 +17,23 @@ import 'utils/list_files.dart';
 /// and build in.
 ///
 /// The hash is of the *flutterware package root*, which for a hosted dependency
-/// already contains the version — so this is one copy per flutterware version
-/// per machine, shared across every project that uses it, not one per project.
+/// already contains the version, and of the SDK — so this is one copy per
+/// flutterware version and SDK per machine, shared across every project that
+/// uses both, not one per project.
+///
+/// The SDK is in the name because it is in [workingCopyStamp]. Two projects on
+/// one flutterware and two SDKs, sharing one copy, each found the other's
+/// stamp and rebuilt the copy over it, on every launch.
 ///
 /// Split from the copy itself because the plan has to be decided before
 /// anything runs, and deciding it means knowing this path first: whether the
 /// CLI and the GUI need building are questions about files inside it.
-String workingCopyPath(String packageRoot) =>
-    p.join(flutterwareHomePath(), hashOf(packageRoot));
+///
+/// [sdk] defaults to the running one, as in [workingCopyStamp].
+String workingCopyPath(String packageRoot, {String? sdk}) => p.join(
+  flutterwareHomePath(),
+  hashOf('$packageRoot\n${sdk ?? Platform.version}'),
+);
 
 /// `~/.flutterware`: where the copies live, with their locks and every other
 /// store flutterware keeps per user.

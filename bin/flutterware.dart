@@ -278,7 +278,8 @@ Future<ProcessLog?> _prepare(
     title: 'flutterware · ${p.basename(Directory.current.path)}',
     subtitle: buildGui == null
         ? null
-        : 'Building the tools. This happens once per flutterware version.',
+        : 'Building the tools. This happens once per flutterware and Flutter '
+              'version.',
   )..start();
 
   if (unpack != null) {

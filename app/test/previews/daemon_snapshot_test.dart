@@ -10,10 +10,10 @@ import 'package:test/test.dart';
 /// The snapshot used to live at one constant path per install —
 /// `<appPackageRoot>/build/catalog/daemon.dill` — invalidated by source mtime
 /// alone. For a path dependency that is one checkout serving one project and
-/// nothing can go wrong. For a hosted or git-pinned install it is
-/// `~/.flutterware/<sha1(packageRoot)>/app/`, which is keyed on the
-/// *flutterware* revision: every project on the machine pinning that revision
-/// shares the directory, and each brings its own Flutter.
+/// nothing can go wrong. For a hosted or git-pinned install it was
+/// `~/.flutterware/<sha1(packageRoot)>/app/`, keyed on the *flutterware*
+/// revision alone: every project on the machine pinning that revision shared
+/// the directory, and each brought its own Flutter.
 ///
 /// So two projects on two Flutter betas took turns bricking each other.
 /// Whichever compiled the snapshot last owned it; the other one handed its own
