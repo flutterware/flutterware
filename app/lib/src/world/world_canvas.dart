@@ -339,6 +339,10 @@ class _WorldCanvasState extends State<WorldCanvas> {
                         person: person,
                         scale: scale,
                         ignores: ignores,
+                        onRead: (id) {
+                          _focusOn(name);
+                          setState(() => _reading = id);
+                        },
                       ),
                     )
                   else

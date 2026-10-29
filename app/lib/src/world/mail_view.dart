@@ -5,7 +5,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../session/job.dart' show ActionRefusal;
-import '../ui/chip.dart';
 import '../ui/loading_state.dart';
 import '../ui/segmented.dart';
 import '../ui/tappable.dart';
@@ -29,7 +28,6 @@ class MailView extends StatefulWidget {
     super.key,
     required this.message,
     required this.snapshots,
-    required this.cause,
     required this.deliveries,
     required this.claims,
     required this.onBack,
@@ -38,9 +36,6 @@ class MailView extends StatefulWidget {
 
   final OutboxMessage message;
   final WebSnapshots snapshots;
-
-  /// What caused it, in the trace's words.
-  final String? cause;
 
   /// What was delivered from it so far, oldest first.
   final List<WorldDelivery> deliveries;
@@ -152,7 +147,7 @@ class _MailViewState extends State<MailView> {
                     child: Text(
                       [
                         'From $sender to ${message.to}',
-                        clockOf(message.at),
+                        timeOf(message.at),
                       ].join(' · '),
                       style: context.type.bodyMuted,
                       overflow: TextOverflow.ellipsis,
@@ -171,14 +166,6 @@ class _MailViewState extends State<MailView> {
                     ),
                 ],
               ),
-              if (widget.cause case var cause?) ...[
-                const SizedBox(height: FwSpacing.sm),
-                FwChip(
-                  cause,
-                  icon: Icons.subdirectory_arrow_right,
-                  tooltip: 'What caused it',
-                ),
-              ],
             ],
           ),
         ),

@@ -326,10 +326,10 @@ panel. The panel says who they are and what their app runs on, and has these
 tabs:
 
 - **Messages**: the texts, pushes and emails the servers sent that person,
-  each with what caused it (`Rush hour`, `Leo tapped "Order a flat white"`).
-  Buttons hand a message to their app: **Enter code**, **Open link**, **Open
-  notification**, and **View email** for an email. A push the app showed a
-  notification for is marked *shown by the app*.
+  and the notifications their app posted, newest first. A dot marks one
+  nobody has opened yet. Click an email to read it. **Enter code** types a
+  message's code into their app, and **Open** opens a notification. What
+  caused each message is on the timeline.
 - **Network**, **App** and **Logs**: Run's own views of that app, with every
   request it made, its devbar panels (including its database, when it exposes
   one; see [Database watch](database_watch.md)) and its log.
@@ -565,12 +565,16 @@ once it holds something.
 
 ## Hand a message to a person
 
-What a server sends outside the app (an SMS, a push, a mail) reaches its
-person through the world. Each message is listed on the person's
-**Messages** tab when they are in focus. **Enter code** types a message's
-code into the field that has focus in their app, as autofill would, so tap
-that field first. **Open link** or **Open notification** opens a message's
-link in their app.
+When a server sends someone an SMS, a push or an email, it shows on their
+screen for a few seconds, the way a phone shows one. So does a notification
+their app posts. On a phone it comes down from the top; in a browser it sits
+in the top-right corner. Click it to do what tapping it would: a
+notification opens in the app, and an email opens in the person's panel. A
+message with a code has an **Enter code** button, which types the code into
+the selected field in their app, as autofill would. Tap that field first.
+
+Everything they received is also listed on their **Messages** tab, with the
+same buttons.
 
 ```shell
 fw run worlds outbox --person=Leo
@@ -641,9 +645,9 @@ reporting it, add `'from': 'identity'` to its event. A service that is not
 Dart carries no step, so what it sent joins the newest step heard in the
 three seconds before it, and says it was joined by time.
 
-A mail with `html` is shown as its recipient would see it. **View email**
-opens it in the person's panel, next to their app, as a picture drawn by
-WebKit, with each link clickable where it sits. A link goes where a phone
+A mail with `html` is shown as its recipient would see it. Clicking it opens
+it in the person's panel, next to their app, as a picture drawn by WebKit,
+with each link clickable where it sits. A link goes where a phone
 would send it: into the app if the app opens it (a scheme of its own, or a
 web host it claims), and otherwise to the live web page, with **Email** and
 **Page** to switch between the two. Under the mail are the links opened from
@@ -745,7 +749,7 @@ In a world, give the app a stand-in behind a knob that asks for permission
 through `permission_handler` and registers a token it makes up. Have your
 push adapter report a push to such a token, with the link that tapping it
 opens, instead of sending it. The push then reaches its person through your
-server's real push path, and **Open notification** opens it in their app.
+server's real push path, and clicking it opens it in their app.
 
 ## Reference
 

@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/server/attach_session.dart';
-// ignore: implementation_imports
-import 'package:flutterware/src/world/step_names.dart';
 import 'package:flutterware_app/src/world/open_world.dart';
 import 'package:flutterware_app/src/world/platform/studio_platform.dart';
 import 'package:flutterware_app/src/world/world_messages.dart';
@@ -23,43 +21,84 @@ void main() {
         isReplay: false,
       );
 
-  void push(int ms, {String? step}) => trace.addServerEvent(
-    'lab',
-    at(ms, 'push', {
-      'to': 'u1',
-      'title': 'Your flat white is ready',
-      'body': 'Collect it at the counter.',
-      'step': ?step,
-    }),
-  );
-
   setUp(() => trace = WorldTrace(since: since)..addPerson('Leo', userId: 'u1'));
 
-  test('a message says what caused it in the words of its step', () {
-    trace
-      ..addActionStep('world.1', 'The regulars order', since)
-      ..addGuestEvent(
-        'Leo',
-        at(500, worldStepsChannel, {
-          'step': 'leo.2',
-          'verb': 'tap',
-          'target': '"Order a flat white"',
-        }),
-      );
-    push(1000, step: 'world.1');
-    push(2000, step: 'leo.2');
-    push(3000, step: 'leo.9');
-    push(4000);
+  test('what a person received is listed newest first, a push the app '
+      'showed a notification for once, as the notification', () {
+    trace.addServerEvent(
+      'lab',
+      at(0, 'sms', {'to': '+447700900000', 'body': 'Your code is 428500'}),
+    );
+    // Sent now, so the notification the app posts for it now is its own.
+    trace.addServerEvent(
+      'lab',
+      InspectorEvent(
+        channel: 'push',
+        id: nextId++,
+        time: DateTime.now(),
+        payload: {'to': 'u1', 'title': 'Your flat white is ready'},
+        isReplay: false,
+      ),
+    );
+    trace.addServerEvent(
+      'lab',
+      InspectorEvent(
+        channel: 'push',
+        id: nextId++,
+        time: DateTime.now(),
+        payload: {'to': 'u1', 'title': 'Your table is ready'},
+        isReplay: false,
+      ),
+    );
+    var posted = [
+      GuestNotification(7, 'Your flat white is ready', 'At the counter', null),
+    ];
 
+    var received = receivedBy(trace.outbox(), posted);
     expect(
-      [for (var message in trace.outbox()) causeOf(message, trace)],
+      [for (var each in received) (each.kind, linesOf(each, app: 'Lab').text)],
       [
-        null,
-        // A step the trace no longer holds is still named, by its id.
-        'leo.9',
-        'Leo tapped "Order a flat white"',
-        'The regulars order',
+        ('notification', 'Your flat white is ready'),
+        ('push', 'Your table is ready'),
+        ('sms', 'Your code is 428500'),
       ],
+    );
+  });
+
+  test('a phone shows who a message is from, what it says and a line more', () {
+    OutboxMessage sent(String kind, {String? body, String? sender}) =>
+        OutboxMessage(
+          id: 'lab/1',
+          at: since,
+          kind: kind,
+          to: 'ana@example.com',
+          text: 'New order',
+          body: body,
+          sender: sender,
+        );
+    ({String from, String text, String? more}) lines(OutboxMessage message) =>
+        linesOf(Received.message(message), app: 'Lab');
+
+    expect(lines(sent('sms')), (from: 'lab', text: 'New order', more: null));
+    // A push is the app's, as a phone shows it.
+    expect(lines(sent('push', body: 'Collect it at the counter.')), (
+      from: 'Lab',
+      text: 'New order',
+      more: 'Collect it at the counter.',
+    ));
+    // A mail's preview is its first line with words on it.
+    expect(
+      lines(
+        sent('mail', body: '\n  Flat white for Mia\nOrder o1', sender: 'shop'),
+      ),
+      (from: 'shop', text: 'New order', more: 'Flat white for Mia'),
+    );
+    expect(
+      linesOf(
+        Received.notification(GuestNotification(1, 'Ready', 'Come by', null)),
+        app: 'Lab',
+      ),
+      (from: 'Lab', text: 'Ready', more: 'Come by'),
     );
   });
 

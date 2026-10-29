@@ -437,8 +437,7 @@ class OpenWorld {
         }
         if (answer['typed'] != true) {
           throw WorldRefusal(
-            "Nothing in $name's app has focus: tap the field the code goes "
-            'in, then deliver it again.',
+            "Tap the code field in $name's app first, then try again.",
           );
         }
         what = code;
@@ -469,6 +468,7 @@ class OpenWorld {
       at: DateTime.now(),
     );
     (deliveries[message.id] ??= []).add(delivery);
+    opened.add(message.id);
     _changed();
     return delivery;
   }
@@ -530,12 +530,11 @@ class OpenWorld {
     if (answer['routed'] != true) {
       throw WorldRefusal(
         answer.containsKey('routed')
-            ? "Nothing in $name's app took the link. It registers no handler "
-                  'with app_links, and no Router or Navigator in it handled '
-                  "the link as Flutter's deep linking delivers one."
-            : "$name's app registers no handler with app_links, and its "
-                  'flutterware is too old to deliver the link through '
-                  "Flutter's deep linking. Upgrade flutterware in the app.",
+            ? "$name's app didn't open $link. It has no app_links handler, "
+                  "and its router didn't take the link."
+            : "$name's app didn't open $link. It has no app_links handler, "
+                  'and its flutterware is too old to route links. Upgrade '
+                  'flutterware in the app.',
       );
     }
     return (answer['step'] as String?, 'flutter/navigation');
@@ -544,6 +543,15 @@ class OpenWorld {
   /// What each message was delivered as, by its id, oldest first: the codes
   /// typed and the links opened from it, for as long as this opening lasts.
   final deliveries = <String, List<WorldDelivery>>{};
+
+  /// The messages and notifications someone opened, read or handed to their
+  /// app, by id, for as long as this opening lasts: the rest are new.
+  final opened = <String>{};
+
+  /// Marks [id] — a message, or a notification its app posted — as opened.
+  void markOpened(String id) {
+    if (opened.add(id)) _changed();
+  }
 
   void _journal(WorldPerson person, String verb, String actor, String target) {
     var handle = person.handle;
@@ -597,6 +605,7 @@ class OpenWorld {
     // so do the world's own.
     runs.clear();
     deliveries.clear();
+    opened.clear();
     _nextRun = 1;
     var declared = <String>{};
     var settled = _settled = Completer<void>();

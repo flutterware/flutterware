@@ -180,7 +180,12 @@ class Timeline {
           from = server != null && !serving.contains(server)
               ? serverColumn(server)
               : column('system/sent/$channel', _channelNames[channel]!);
-          label = '${_channelNames[channel]}: ${beat.said}';
+          // How it was joined is the detail's to say; the arrow says what
+          // was sent.
+          var said = beat.said.endsWith(joinedByTime)
+              ? beat.said.substring(0, beat.said.length - joinedByTime.length)
+              : beat.said;
+          label = '${_channelNames[channel]}: $said';
           if (person != null) to = [person];
         case BeatKind.reach:
           from = server == null ? null : serverColumn(server);
