@@ -627,9 +627,8 @@ class _TimelineDetailState extends State<TimelineDetail> {
     var said = message?.text ?? beat.said;
     var lines = [
       if (message?.byTime ?? false)
-        "Its sender doesn't say what caused it, so it is matched to "
-            '${causeOf(widget.row.step)} (${widget.row.step.id}), just before '
-            'it.'
+        'Sent just after ${causeOf(widget.row.step)} '
+            "(${widget.row.step.id}). Its sender doesn't say what caused it."
       else
         cause,
     ];
@@ -661,13 +660,7 @@ class _TimelineDetailState extends State<TimelineDetail> {
           ),
           if (message.body case var body? when body != message.text)
             (word == 'Email' ? 'text' : 'body', body),
-          if (message.code case var code?)
-            (
-              'code',
-              person == null
-                  ? code
-                  : "$code (Enter code types it into $person's app)",
-            ),
+          if (message.code case var code?) ('code', code),
           for (var link in message.links) ('link', link),
         ]),
         if (_picture case var picture?)

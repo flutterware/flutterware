@@ -41,12 +41,13 @@ In *Pickup order* Ana runs the counter at a desktop: her app is the same
 one, in a browser the studio draws, whose address bar shows the route the app
 reports. Mia has no app; *Mia orders a flat white* orders for her.
 
-Leo's sign-up code is in Leo's messages: pick Leo, tap the code field on the
-phone, then *Type it* — or `fw run worlds deliver` with the message's id from
-`fw run worlds outbox`. Each new order mails the staff: in Ana's messages,
-*Read it* shows the mail, and its *Open the order* button opens the order in
-Ana's app — the address bar moves to it and the board picks it out. Each
-delivery is a step of its own, `leo.3 type the code from the SMS`.
+Leo's sign-up code comes down on his phone as a text: tap the code field on
+the phone, then *Enter code* on the banner — or `fw run worlds deliver` with
+the message's id from `fw run worlds outbox`. Each new order mails the staff:
+click the mail on Ana's screen, or in her messages, to read it, and its *Open
+the order* button opens the order in Ana's app — the address bar moves to it
+and the board picks it out. Each delivery is a step of its own,
+`leo.3 typed the code from the SMS`.
 
 Every app has a database to look at in its person's panel, under *App*: the synced
 worlds' PowerSync copy, and otherwise the orders the app has seen, which the

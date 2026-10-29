@@ -211,7 +211,7 @@ void main() {
         'subject': 'This week',
       }),
     );
-    var mail = 'Mail: someone@example.com: This week, joined by time';
+    var mail = 'Mail: someone@example.com: This week';
     expect(rows(timeline(TraceLevel.system)), [
       'world  runs "Mia orders"',
       'world → system/server/lab  POST /orders  201',

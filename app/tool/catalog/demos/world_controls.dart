@@ -1,27 +1,20 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:flutterware_app/src/ui/browser_frame.dart';
-import 'package:flutterware_app/src/ui/chip.dart';
 import 'package:flutterware_app/src/ui/segmented.dart';
 import 'package:flutterware_app/src/ui/theme.dart';
 
 import 'app_theme.dart';
 
 /// The controls the open world is drawn with that the studio had no copy
-/// of: the switch between everyone and one person, the chip that says what
-/// caused a message, and the browser a desktop person's app stands in.
+/// of: the switch between everyone and one person, and the browser a
+/// desktop person's app stands in.
 
 @Preview(name: 'Segmented', group: 'Worlds', wrapper: wrapInAppTheme)
 Widget segmented() => const _Segmented();
 
 @Preview(name: 'Segmented · dark', group: 'Worlds', wrapper: wrapInDarkTheme)
 Widget segmentedDark() => const _Segmented();
-
-@Preview(name: 'Chip', group: 'Worlds', wrapper: wrapInAppTheme)
-Widget chip() => const _Chips();
-
-@Preview(name: 'Chip · dark', group: 'Worlds', wrapper: wrapInDarkTheme)
-Widget chipDark() => const _Chips();
 
 @Preview(name: 'Browser frame', group: 'Worlds', wrapper: wrapInAppTheme)
 Widget browserFrame() => const _Browser();
@@ -93,35 +86,6 @@ class _SegmentedState extends State<_Segmented> {
       ),
     );
   }
-}
-
-class _Chips extends StatelessWidget {
-  const _Chips();
-
-  @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.colors.bg,
-    child: const Padding(
-      padding: EdgeInsets.all(FwSpacing.xxl),
-      child: Wrap(
-        spacing: FwSpacing.md,
-        runSpacing: FwSpacing.md,
-        children: [
-          FwChip(
-            'action "The regulars order"',
-            icon: Icons.subdirectory_arrow_right,
-            mono: true,
-          ),
-          FwChip(
-            'Leo: tap "Order a flat white"',
-            icon: Icons.subdirectory_arrow_right,
-            mono: true,
-          ),
-          FwChip('In words', icon: Icons.label_outline),
-        ],
-      ),
-    ),
-  );
 }
 
 class _Browser extends StatelessWidget {

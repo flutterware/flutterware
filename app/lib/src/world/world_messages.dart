@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../session/job.dart' show ActionRefusal;
 import '../ui/action_button.dart';
-import '../ui/chip.dart';
+import '../ui/tappable.dart';
 import '../ui/theme.dart';
 import 'open_world.dart';
 import 'platform/studio_platform.dart';
@@ -13,11 +13,12 @@ String messageKind(String kind) => switch (kind) {
   'sms' => 'SMS',
   'push' => 'Push',
   'mail' => 'Email',
+  'notification' => 'Notification',
   var other => other,
 };
 
 IconData messageIcon(String kind) => switch (kind) {
-  'push' => Icons.notifications_none,
+  'push' || 'notification' => Icons.notifications_none,
   'mail' => Icons.mail_outline,
   _ => Icons.sms_outlined,
 };
@@ -35,40 +36,19 @@ String clockOf(DateTime at) {
   ].map((part) => '$part'.padLeft(2, '0')).join(':');
 }
 
+/// `22:46`, local: the time a phone puts on a message.
+String timeOf(DateTime at) {
+  var local = at.toLocal();
+  return [
+    local.hour,
+    local.minute,
+  ].map((part) => '$part'.padLeft(2, '0')).join(':');
+}
+
 /// Who sent [message]: the service it says it came from, else the server
 /// that reported it — `lab/42` is lab's.
 String senderOf(OutboxMessage message) =>
     message.sender ?? message.id.split('/').first;
-
-/// What caused [message], in the words the trace has for its step:
-/// `action "Rush hour"` for one of the world's own actions, `Leo: tap
-/// "Order"` for a gesture on someone's app. The step's id when the trace
-/// knows no words for it — it no longer holds it, or heard of it only from
-/// a server; null for a message sent under no step.
-String? causeOf(OutboxMessage message, WorldTrace? trace) {
-  var id = message.step;
-  if (id == null) return null;
-  var step = trace?.step(id);
-  if (step == null || step.verb == null) return id;
-  var person = step.person;
-  var target = step.target ?? '';
-  return switch (step.verb) {
-    'action' => _unquoted(target),
-    'tap' => '$person tapped $target',
-    'longPress' => '$person long-pressed $target',
-    'drag' => '$person dragged $target',
-    'type' => "$target typed into $person's app",
-    'open' => "$target opened in $person's app",
-    'start' => "$person's app started",
-    'reload' => 'Code reload',
-    _ => '$person: ${step.did}',
-  };
-}
-
-String _unquoted(String target) =>
-    target.length > 1 && target.startsWith('"') && target.endsWith('"')
-    ? target.substring(1, target.length - 1)
-    : target;
 
 /// Whether the app showed [push] itself: a notification it posted with the
 /// push's title, around when the push was sent.
@@ -80,61 +60,123 @@ bool wasShown(OutboxMessage push, List<GuestNotification> posted) =>
           n.at.difference(push.at).abs() < const Duration(seconds: 10),
     );
 
-/// One message a person was sent: what it says, who sent it and what
-/// caused it, and how to hand it to their app.
-class MessageRow extends StatelessWidget {
-  const MessageRow({
-    super.key,
-    required this.message,
-    required this.cause,
-    required this.shown,
-    required this.onDeliver,
-    required this.onRead,
-  });
+/// Something that reached a person: a message a server sent them, or a
+/// notification their app posted.
+class Received {
+  const Received.message(OutboxMessage this.message) : notification = null;
 
-  final OutboxMessage message;
+  const Received.notification(GuestNotification this.notification)
+    : message = null;
 
-  /// See [causeOf].
-  final String? cause;
+  final OutboxMessage? message;
+  final GuestNotification? notification;
 
-  /// Whether the app showed it — a push it posted a notification for.
-  final bool shown;
+  /// The message's id; a notification's, made unique by when it was posted,
+  /// since an app reuses its ids.
+  String get id => switch ((message, notification)) {
+    (var message?, _) => message.id,
+    (_, var n?) => 'notification/${n.id}/${n.at.microsecondsSinceEpoch}',
+    _ => '',
+  };
 
-  /// With `type` or `open`; null while the recipient's app is not running.
-  final Future<void> Function(String how)? onDeliver;
-  final VoidCallback onRead;
+  DateTime get at => message?.at ?? notification!.at;
 
-  /// What a row says under its title: a push's body, a mail's first line.
-  String? get _body => switch (message.kind) {
-    'push' => message.subtitle,
-    'mail' =>
-      message.body
+  /// `sms`, `push`, `mail` or `notification`.
+  String get kind => message?.kind ?? 'notification';
+
+  /// The one-time code in it.
+  String? get code => message?.code;
+}
+
+/// What a person received, newest first: [messages] servers sent them and
+/// the notifications their app [posted]. A push the app showed a
+/// notification for is listed once, as the notification.
+List<Received> receivedBy(
+  Iterable<OutboxMessage> messages,
+  List<GuestNotification> posted,
+) => [
+  for (var message in messages)
+    if (!wasShown(message, posted)) Received.message(message),
+  for (var notification in posted) Received.notification(notification),
+]..sort((a, b) => b.at.compareTo(a.at));
+
+/// What a phone shows of [received]: who it is from, what it says and a
+/// line more. A push and a notification come from [app], the recipient's
+/// app.
+({String from, String text, String? more}) linesOf(
+  Received received, {
+  required String app,
+}) {
+  if (received.notification case var n?) {
+    return (from: app, text: n.title ?? '', more: n.body);
+  }
+  var message = received.message!;
+  return switch (message.kind) {
+    'push' => (from: app, text: message.text, more: message.subtitle),
+    'mail' => (
+      from: senderOf(message),
+      text: message.text,
+      more: message.body
           ?.split('\n')
           .map((line) => line.trim())
           .firstWhere((line) => line.isNotEmpty, orElse: () => ''),
-    _ => null,
+    ),
+    _ => (from: senderOf(message), text: message.text, more: null),
   };
+}
+
+/// One row of a person's messages, as their phone would list it: who it is
+/// from, what it says and when. An email opens to be read; a code or a
+/// notification has a button that hands it to their app.
+class MessageRow extends StatelessWidget {
+  const MessageRow({
+    super.key,
+    required this.received,
+    required this.app,
+    required this.unread,
+    this.onDeliver,
+    this.onOpenNotification,
+    this.onRead,
+  });
+
+  final Received received;
+
+  /// The recipient's app: who a push or a notification is from.
+  final String app;
+
+  /// Not yet opened or handed to the app.
+  final bool unread;
+
+  /// With `type` or `open`; null while the recipient's app is not running.
+  final Future<void> Function(String how)? onDeliver;
+
+  /// Taps the notification the app posted; null while the app is not
+  /// running.
+  final VoidCallback? onOpenNotification;
+
+  /// Opens an email to read.
+  final VoidCallback? onRead;
 
   @override
   Widget build(BuildContext context) {
     var colors = context.colors;
-    var body = _body;
-    var marks = [
-      if (shown) _Mark(Icons.check, 'shown by the app', color: colors.grn),
-      if (message.byTime)
-        _Mark(
-          Icons.schedule,
-          'matched by time',
-          color: colors.mut,
-          tooltip:
-              "Its sender doesn't say what caused it, so it is matched to "
-              'what happened just before',
-        ),
-    ];
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: FwSpacing.xl,
-        vertical: FwSpacing.lg,
+    var lines = linesOf(received, app: app);
+    var mail = received.kind == 'mail';
+    Widget words(String text, TextStyle style, {int? maxLines}) => mail
+        ? Text(
+            text,
+            style: style,
+            maxLines: maxLines,
+            overflow: maxLines == null ? null : TextOverflow.ellipsis,
+          )
+        : SelectableText(text, style: style);
+    var more = lines.more;
+    var row = Container(
+      padding: const EdgeInsets.fromLTRB(
+        FwSpacing.md,
+        FwSpacing.lg,
+        FwSpacing.xl,
+        FwSpacing.lg,
       ),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: colors.line2)),
@@ -142,219 +184,105 @@ class MessageRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _KindIcon(message.kind),
-          const SizedBox(width: FwSpacing.lg),
+          SizedBox(
+            width: FwSpacing.lg,
+            height: FwIconSize.md,
+            child: unread
+                ? Center(
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: FwSpacing.xs),
+          Tooltip(
+            message: messageKind(received.kind),
+            child: Icon(
+              messageIcon(received.kind),
+              size: FwIconSize.md,
+              color: colors.mut,
+            ),
+          ),
+          const SizedBox(width: FwSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: SelectableText(
-                        message.text,
+                      child: Text(
+                        lines.from,
                         style: context.type.bodyStrong,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: FwSpacing.md),
                     Text(
-                      clockOf(message.at),
+                      timeOf(received.at),
                       style: context.type.caption.copyWith(color: colors.mut2),
                     ),
                   ],
                 ),
-                if (body != null && body.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: FwSpacing.xxs),
-                    child: SelectableText(
-                      body,
-                      style: context.type.body.copyWith(color: colors.ink2),
-                    ),
+                words(lines.text, context.type.body),
+                if (more != null && more.isNotEmpty)
+                  words(
+                    more,
+                    context.type.bodyMuted,
+                    maxLines: mail ? 1 : null,
                   ),
-                const SizedBox(height: FwSpacing.md),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    var from =
-                        '${messageKind(message.kind)} from ${senderOf(message)}';
-                    var footer = Wrap(
-                      spacing: FwSpacing.md,
-                      runSpacing: FwSpacing.xs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(from, style: context.type.caption),
-                        if (cause case var cause?)
-                          FwChip(
-                            cause,
-                            icon: Icons.subdirectory_arrow_right,
-                            tooltip: 'What caused it',
-                          ),
-                        ...marks,
-                      ],
-                    );
-                    var buttons = DeliveryButtons(
-                      message: message,
-                      deliver: onDeliver,
-                      onRead: message.kind == 'mail' ? onRead : null,
-                    );
-                    // Beside the footer while both fit; under it, at the
-                    // right, once they would squeeze the cause.
-                    if (_footerWidth(context, from) +
-                            _buttonsWidth(context) +
-                            FwSpacing.lg <=
-                        constraints.maxWidth) {
-                      return Row(
-                        children: [
-                          Expanded(child: footer),
-                          buttons,
-                        ],
-                      );
-                    }
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        footer,
-                        const SizedBox(height: FwSpacing.sm),
-                        Align(alignment: Alignment.centerRight, child: buttons),
-                      ],
-                    );
-                  },
-                ),
               ],
             ),
           ),
+          const SizedBox(width: FwSpacing.md),
+          DeliveryButtons(
+            received: received,
+            deliver: onDeliver,
+            openNotification: onOpenNotification,
+          ),
+          if (mail)
+            Padding(
+              padding: const EdgeInsets.only(left: FwSpacing.sm, top: 2),
+              child: Icon(
+                Icons.chevron_right,
+                size: FwIconSize.md,
+                color: colors.mut2,
+              ),
+            ),
         ],
       ),
     );
+    return mail ? Tappable(onTap: onRead, child: row) : row;
   }
 }
 
-double _textWidth(String words, TextStyle style) {
-  var painter = TextPainter(
-    text: TextSpan(text: words, style: style),
-    textDirection: TextDirection.ltr,
-    maxLines: 1,
-  )..layout();
-  var width = painter.width;
-  painter.dispose();
-  return width;
-}
-
-extension on MessageRow {
-  /// How wide the footer is drawn on one line: where it came from, the
-  /// cause's chip and the marks.
-  double _footerWidth(BuildContext context, String from) {
-    var type = context.type;
-    var caption = type.caption;
-    var chip = switch (cause) {
-      var cause? =>
-        _textWidth(cause, caption) +
-            FwIconSize.xs +
-            FwSpacing.xs +
-            2 * FwSpacing.sm +
-            2,
-      null => 0.0,
-    };
-    var marks = [
-      if (shown) 'shown by the app',
-      if (message.byTime) 'matched by time',
-    ].map((mark) => _textWidth(mark, caption) + FwIconSize.xs + FwSpacing.xxs);
-    var parts = [_textWidth(from, caption), chip, ...marks];
-    return parts.fold(0.0, (a, b) => a + b) + parts.length * FwSpacing.md;
-  }
-
-  /// How wide its buttons are drawn: what [DeliveryButtons] will show.
-  double _buttonsWidth(BuildContext context) {
-    var running = onDeliver != null;
-    var labels = [
-      if (message.kind == 'mail') 'View email',
-      if (message.code != null && running) 'Enter code',
-      if (message.link != null && running)
-        message.kind == 'push' ? 'Open notification' : 'Open link',
-    ];
-    return labels
-            .map(
-              (label) =>
-                  _textWidth(label, context.type.caption) +
-                  2 * FwSpacing.lg +
-                  2,
-            )
-            .fold(0.0, (a, b) => a + b) +
-        (labels.length - 1).clamp(0, 9) * FwSpacing.sm;
-  }
-}
-
-/// A message's kind, as a round icon at the head of its row.
-class _KindIcon extends StatelessWidget {
-  const _KindIcon(this.kind);
-
-  final String kind;
-
-  @override
-  Widget build(BuildContext context) {
-    var colors = context.colors;
-    return Tooltip(
-      message: messageKind(kind),
-      child: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: colors.panel,
-          shape: BoxShape.circle,
-          border: Border.all(color: colors.line),
-        ),
-        child: Icon(messageIcon(kind), size: FwIconSize.md, color: colors.ink2),
-      ),
-    );
-  }
-}
-
-/// What became of a message, beside where it came from: `✓ shown`.
-class _Mark extends StatelessWidget {
-  const _Mark(this.icon, this.label, {required this.color, this.tooltip});
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget mark = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: FwIconSize.xs, color: color),
-        const SizedBox(width: FwSpacing.xxs),
-        Text(label, style: context.type.caption.copyWith(color: color)),
-      ],
-    );
-    return switch (tooltip) {
-      var tooltip? => Tooltip(message: tooltip, child: mark),
-      null => mark,
-    };
-  }
-}
-
-/// How a message is handed to its recipient's app — the three deliveries a
-/// person makes of one: a code *typed*, a push *tapped*, a link *opened* —
-/// and, for a mail, *Read it*. A refusal is said beneath, in the world's own
-/// words: it says what to do.
+/// How a message is handed to its recipient's app: a code typed, the way
+/// autofill offers one, or a notification opened, as tapping it would. A
+/// refusal is said beneath, in the world's own words: it says what to do.
 class DeliveryButtons extends StatefulWidget {
   const DeliveryButtons({
     super.key,
-    required this.message,
+    required this.received,
     this.deliver,
-    this.onRead,
+    this.openNotification,
   });
 
-  final OutboxMessage message;
+  final Received received;
 
   /// With `type` or `open`; throws the world's refusal. Null while the
   /// recipient's app is not running.
   final Future<void> Function(String how)? deliver;
 
-  /// Opens a mail to read, as its recipient would see it.
-  final VoidCallback? onRead;
+  /// Taps the notification the app posted; null while the app is not
+  /// running.
+  final VoidCallback? openNotification;
 
   @override
   State<DeliveryButtons> createState() => _DeliveryButtonsState();
@@ -375,29 +303,33 @@ class _DeliveryButtonsState extends State<DeliveryButtons> {
 
   @override
   Widget build(BuildContext context) {
-    var message = widget.message;
-    var whose = message.person == null ? 'their' : "${message.person}'s";
+    var received = widget.received;
+    var message = received.message;
+    var person = message?.person;
+    var whose = person == null ? 'their' : "$person's";
     var deliver = widget.deliver;
     var buttons = [
-      if (widget.onRead case var read?)
-        FwActionButton(
-          label: 'View email',
-          acknowledges: false,
-          onPressed: () async => read(),
-        ),
-      if (message.code case var code? when deliver != null)
+      if (received.code case var code? when deliver != null)
         FwActionButton(
           label: 'Enter code',
-          tooltip: 'Types $code into the field that has focus in $whose app',
+          tooltip: 'Types $code into the selected field in $whose app',
           onPressed: () => _deliver('type'),
         ),
-      if (message.link case var link? when deliver != null)
+      if (message != null &&
+          message.kind == 'push' &&
+          message.link != null &&
+          deliver != null)
         FwActionButton(
-          label: message.kind == 'push' ? 'Open notification' : 'Open link',
-          tooltip: message.kind == 'push'
-              ? 'Opens it in $whose app, as tapping the notification would'
-              : 'Opens $link in $whose app',
+          label: 'Open',
+          tooltip: 'Opens it in $whose app, as tapping it would',
           onPressed: () => _deliver('open'),
+        ),
+      if (widget.openNotification case var open?)
+        FwActionButton(
+          label: 'Open',
+          acknowledges: false,
+          tooltip: 'Opens it in the app, as tapping it would',
+          onPressed: () async => open(),
         ),
     ];
     if (buttons.isEmpty) return const SizedBox.shrink();
@@ -415,7 +347,7 @@ class _DeliveryButtonsState extends State<DeliveryButtons> {
         ),
         if (_refused case var refused?)
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 280),
+            constraints: const BoxConstraints(maxWidth: 240),
             child: Padding(
               padding: const EdgeInsets.only(top: FwSpacing.xs),
               child: Text(

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show ImageFilter;
 
 // ignore: implementation_imports
 import 'package:flutterware/src/device_frames.dart';
@@ -11,6 +12,7 @@ import '../ui/browser_frame.dart';
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
 import 'live_guest.dart';
+import 'message_banner.dart';
 import 'open_world.dart';
 import 'world_messages.dart';
 import 'world_views.dart';
@@ -251,11 +253,16 @@ class PersonDevice extends StatelessWidget {
     required this.person,
     required this.scale,
     required this.ignores,
+    this.onRead,
   });
 
-  /// What a browser's reload starts their app again through.
+  /// What a browser's reload starts their app again through, and what a
+  /// banner on the screen hands a message to the app through.
   final OpenWorld world;
   final WorldPerson person;
+
+  /// Opens an email to read, by its message id: a click on its banner.
+  final ValueChanged<String>? onRead;
 
   /// How much smaller than its size it is drawn: what a note on its screen
   /// grows by, to stay readable.
@@ -267,22 +274,23 @@ class PersonDevice extends StatelessWidget {
   Widget build(BuildContext context) {
     var device = deviceOf(person);
     var screen = Size(device.width, device.height);
-    var content = _screen(context, screen);
+    var content = MessageBanners(
+      world: world,
+      person: person,
+      device: device,
+      onRead: onRead,
+      child: _screen(context, screen),
+    );
     var focus = switch (person.guest) {
       LiveWorldGuest live => live.focus,
       _ => null,
     };
     var frame = deviceFrameFor(device);
     Widget framed;
-    RRect outline;
+    CustomPainter body;
     if (frame != null) {
       framed = DeviceFrame(device: frame, screen: content);
-      outline = frame.framePainter is IslandPhoneFramePainter
-          ? islandBodyOutline(device)
-          : RRect.fromRectAndRadius(
-              Offset.zero & frame.frameSize,
-              const Radius.circular(48),
-            );
+      body = frame.framePainter;
     } else {
       framed = _Browser(
         world: world,
@@ -290,16 +298,13 @@ class PersonDevice extends StatelessWidget {
         screen: screen,
         child: content,
       );
-      outline = RRect.fromRectAndRadius(
-        Offset.zero & BrowserFrame.frameSize(screen),
-        Radius.circular(context.radii.radiusLarge),
-      );
+      body = _RoundedBox(Radius.circular(context.radii.radiusLarge));
     }
     // Standing on the stage, the way the phone stands on a table: the shadow
-    // follows the body, not the frame's box.
+    // is the body's own shape, its corners and buttons, not the frame's box.
     var ink = context.colors.ink;
     framed = CustomPaint(
-      painter: _Shadow(outline, [
+      painter: _Shadow(body, [
         BoxShadow(
           color: ink.withValues(alpha: 0.22),
           blurRadius: 40,
@@ -318,7 +323,7 @@ class PersonDevice extends StatelessWidget {
       listenable: focus,
       builder: (context, child) => CustomPaint(
         foregroundPainter: focus.hasFocus
-            ? _Ring(outline, context.colors.accent, width: 2 / scale)
+            ? _Ring(body, context.colors.accent, width: 2 / scale)
             : null,
         child: child,
       ),
@@ -353,45 +358,121 @@ class PersonDevice extends StatelessWidget {
   }
 }
 
-/// A device's shadow, cast by its outline.
-class _Shadow extends CustomPainter {
-  const _Shadow(this.outline, this.shadows);
+/// Whether [body] paints differently from [old]: painters of two kinds
+/// always do, and one kind is asked the way a [CustomPaint] would ask it.
+bool _bodyChanged(CustomPainter body, CustomPainter old) =>
+    body.runtimeType != old.runtimeType || body.shouldRepaint(old);
 
-  final RRect outline;
+/// [body] painted as one solid colour, through [filter]: its silhouette.
+void _silhouette(
+  Canvas canvas,
+  Size size,
+  CustomPainter body,
+  Color color, {
+  ImageFilter? filter,
+  double reach = 0,
+}) {
+  canvas.saveLayer(
+    (Offset.zero & size).inflate(reach),
+    Paint()
+      ..colorFilter = ColorFilter.mode(color, BlendMode.srcIn)
+      ..imageFilter = filter,
+  );
+  body.paint(canvas, size);
+  canvas.restore();
+}
+
+/// A device's shadow, cast by its [body]: whatever the frame paints, so the
+/// shadow has the phone's corners and buttons.
+class _Shadow extends CustomPainter {
+  const _Shadow(this.body, this.shadows);
+
+  final CustomPainter body;
   final List<BoxShadow> shadows;
 
   @override
   void paint(Canvas canvas, Size size) {
     for (var shadow in shadows) {
-      canvas.drawRRect(outline.shift(shadow.offset), shadow.toPaint());
+      var sigma = shadow.blurSigma;
+      canvas
+        ..save()
+        ..translate(shadow.offset.dx, shadow.offset.dy);
+      _silhouette(
+        canvas,
+        size,
+        body,
+        shadow.color,
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        reach: 3 * sigma,
+      );
+      canvas.restore();
     }
   }
 
   @override
   bool shouldRepaint(_Shadow old) =>
-      old.outline != outline || !listEquals(old.shadows, shadows);
+      _bodyChanged(body, old.body) || !listEquals(old.shadows, shadows);
 }
 
-/// The accent around a device that has the keyboard, following its outline.
+/// The accent around a device that has the keyboard: its [body] grown by
+/// [width] on each side of a gap of half that, so it follows the phone's
+/// corners and buttons.
 class _Ring extends CustomPainter {
-  const _Ring(this.outline, this.color, {required this.width});
+  const _Ring(this.body, this.color, {required this.width});
 
-  final RRect outline;
+  final CustomPainter body;
   final Color color;
   final double width;
 
   @override
-  void paint(Canvas canvas, Size size) => canvas.drawRRect(
-    outline.inflate(width),
-    Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..color = color,
-  );
+  void paint(Canvas canvas, Size size) {
+    var outer = width * 1.5;
+    var inner = width / 2;
+    canvas.saveLayer((Offset.zero & size).inflate(outer), Paint());
+    _silhouette(
+      canvas,
+      size,
+      body,
+      color,
+      filter: ImageFilter.dilate(radiusX: outer, radiusY: outer),
+      reach: outer,
+    );
+    canvas.saveLayer(
+      (Offset.zero & size).inflate(inner),
+      Paint()..blendMode = BlendMode.dstOut,
+    );
+    _silhouette(
+      canvas,
+      size,
+      body,
+      color,
+      filter: ImageFilter.dilate(radiusX: inner, radiusY: inner),
+      reach: inner,
+    );
+    canvas
+      ..restore()
+      ..restore();
+  }
 
   @override
   bool shouldRepaint(_Ring old) =>
-      old.outline != outline || old.color != color || old.width != width;
+      _bodyChanged(body, old.body) || old.color != color || old.width != width;
+}
+
+/// A browser window's body: its box, with [radius] corners.
+class _RoundedBox extends CustomPainter {
+  const _RoundedBox(this.radius);
+
+  final Radius radius;
+
+  @override
+  void paint(Canvas canvas, Size size) => canvas.drawRRect(
+    RRect.fromRectAndRadius(Offset.zero & size, radius),
+    Paint(),
+  );
+
+  @override
+  bool shouldRepaint(_RoundedBox old) => old.radius != radius;
 }
 
 /// The browser around a desktop person's app, showing the title the app

@@ -280,15 +280,7 @@ class _WorldTimelineViewState extends State<WorldTimelineView> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              'Newest at the bottom. A pill is something someone did; an '
-              'arrow is something that reached someone.',
-              style: context.type.bodySmall.copyWith(color: colors.mut),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          const Spacer(),
           if (focused != null) ...[
             const SizedBox(width: FwSpacing.lg),
             Tappable(

@@ -475,6 +475,10 @@ class TraceItem {
 /// A message a server sent outside — an SMS, a push, a mail — as its adapter
 /// reported it, with what a delivery hands its recipient's app: the code it
 /// carries to type, the link to open.
+/// What a line of the trace ends with when its step was joined by time
+/// rather than carried: `lab  mail to Ana: This week, joined by time`.
+const joinedByTime = ', joined by time';
+
 class OutboxMessage {
   const OutboxMessage({
     required this.id,
@@ -1360,7 +1364,7 @@ class WorldTrace {
     for (var request in _requests) {
       if (request.step != step.id) continue;
       var served = _served(request, answered);
-      var how = request.window ? ', joined by time' : '';
+      var how = request.window ? joinedByTime : '';
       if (served == null) {
         // Unreported — a WebSocket upgrade, which shelf hands over by
         // throwing, or a server with no adapter — but named, when another
@@ -1478,7 +1482,7 @@ class WorldTrace {
       }
       var said =
           '${subscription.subscribed ? 'subscribed to' : 'let go of'} '
-          '${subscription.bucket}${byTime ? ', joined by time' : ''}';
+          '${subscription.bucket}${byTime ? joinedByTime : ''}';
       var beat = TraceBeat(
         subscription.at,
         '${subscription.person}  $said',
@@ -2055,7 +2059,7 @@ class WorldTrace {
     var node = _partNode(event);
     var system = _servers[server];
     String? personOf(Object? user) => user is String ? _users[user] : null;
-    var how = event.byTime ? ', joined by time' : '';
+    var how = event.byTime ? joinedByTime : '';
     // What the server did: `lab  wrote orders/o1 (insert)`.
     TraceBeat by(
       String said, {

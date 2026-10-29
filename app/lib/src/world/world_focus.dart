@@ -9,7 +9,6 @@ import '../run/logs_tab.dart';
 import '../run/network_tab.dart';
 import '../run/panels_tab.dart';
 import '../run/run_sources.dart' show LiveRunChannels;
-import '../ui/action_button.dart';
 import '../ui/menu.dart';
 import '../ui/popover.dart' show PopoverAlign;
 import '../ui/stage.dart' show stageGroundColor;
@@ -24,9 +23,9 @@ import 'world_person.dart';
 import 'world_trace.dart';
 
 /// One person in focus: their device as large as the room allows, on the
-/// stage's ground, and beside it their panel — who they are, what the
-/// servers sent them, and Run's own Network, App and Logs views of their
-/// app, the same panes Run shows for any app.
+/// stage's ground, and beside it their panel — who they are, what reached
+/// them, and Run's own Network, App and Logs views of their app, the same
+/// panes Run shows for any app.
 class PersonFocus extends StatefulWidget {
   const PersonFocus({
     super.key,
@@ -101,6 +100,10 @@ class _PersonFocusState extends State<PersonFocus> {
                             person: person,
                             scale: scale,
                             ignores: (_) => false,
+                            onRead: (id) {
+                              setState(() => _tab = 'messages');
+                              widget.onRead(id);
+                            },
                           ),
                         )
                       : HeadlessCard(
@@ -131,9 +134,11 @@ class _PersonFocusState extends State<PersonFocus> {
   Widget _panel(BuildContext context) {
     var world = widget.world;
     var person = widget.person;
-    var messages =
-        world.tracer?.trace.outbox(person: person.name, limit: 60) ??
-        const <OutboxMessage>[];
+    var received = receivedBy(
+      world.tracer?.trace.outbox(person: person.name, limit: 60) ??
+          const <OutboxMessage>[],
+      person.platform?.notifications.shown ?? const <GuestNotification>[],
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -151,7 +156,7 @@ class _PersonFocusState extends State<PersonFocus> {
             InspectDockTab(
               id: 'messages',
               label: 'Messages',
-              badge: messages.length,
+              badge: received.length,
               body: _noBody,
             ),
             const InspectDockTab(
@@ -169,12 +174,12 @@ class _PersonFocusState extends State<PersonFocus> {
             if (tab != 'messages') widget.onRead(null);
           },
         ),
-        Expanded(child: _pane(context, messages)),
+        Expanded(child: _pane(context, received)),
       ],
     );
   }
 
-  Widget _pane(BuildContext context, List<OutboxMessage> messages) {
+  Widget _pane(BuildContext context, List<Received> received) {
     var world = widget.world;
     var person = widget.person;
     var trace = world.tracer?.trace;
@@ -182,17 +187,12 @@ class _PersonFocusState extends State<PersonFocus> {
       padding: const EdgeInsets.all(FwSpacing.xl),
       child: Text(text, style: context.type.bodyMuted),
     );
-    Future<void> Function(String how)? deliverTo(OutboxMessage message) =>
-        person.running
-        ? (how) => world.deliver(message.id, how: how, actor: 'human')
-        : null;
     if (_tab == 'messages') {
       if (widget.reading case var id?) {
         if (trace?.messageById(id) case var mail?) {
           return MailView(
             message: mail,
             snapshots: world.snapshots,
-            cause: causeOf(mail, trace),
             deliveries: [
               for (var delivery
                   in world.deliveries[mail.id] ?? const <WorldDelivery>[])
@@ -206,32 +206,33 @@ class _PersonFocusState extends State<PersonFocus> {
           );
         }
       }
-      if (messages.isEmpty) {
+      if (received.isEmpty) {
         return note('No messages for ${person.name} yet.');
       }
-      var posted =
-          person.platform?.notifications.shown ?? const <GuestNotification>[];
+      var app = person.spec.app?.entrypoint ?? person.name;
+      var platform = person.running ? person.platform : null;
       return ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              FwSpacing.xl,
-              FwSpacing.md,
-              FwSpacing.xl,
-              FwSpacing.xs,
-            ),
-            child: Text(
-              'Sent to ${person.name}',
-              style: context.type.caption.copyWith(color: context.colors.mut),
-            ),
-          ),
-          for (var message in messages)
+          for (var each in received)
             MessageRow(
-              message: message,
-              cause: causeOf(message, trace),
-              shown: wasShown(message, posted),
-              onDeliver: deliverTo(message),
-              onRead: () => widget.onRead(message.id),
+              key: ValueKey(each.id),
+              received: each,
+              app: app,
+              unread: !world.opened.contains(each.id),
+              onDeliver: person.running && each.message != null
+                  ? (how) => world.deliver(each.id, how: how, actor: 'human')
+                  : null,
+              onOpenNotification: switch ((platform, each.notification)) {
+                (var platform?, var notification?) => () {
+                  platform.notifications.tap(notification);
+                  world.markOpened(each.id);
+                },
+                _ => null,
+              },
+              onRead: () {
+                world.markOpened(each.id);
+                widget.onRead(each.id);
+              },
             ),
         ],
       );
@@ -417,8 +418,8 @@ class _Unanswered extends StatelessWidget {
 }
 
 /// What the studio, standing in for the platform, can do to one person's
-/// app — open a link in it, where the OS would deliver one; show what it
-/// posted and opened; send it to the background — behind a `⋯`.
+/// app — open a link in it, where the OS would deliver one; show the pages
+/// it opened; send it to the background — behind a `⋯`.
 class _PlatformMenu extends StatefulWidget {
   const _PlatformMenu({
     required this.person,
@@ -439,7 +440,6 @@ class _PlatformMenuState extends State<_PlatformMenu> {
   Widget build(BuildContext context) {
     var platform = widget.platform;
     var person = widget.person;
-    var posted = platform.notifications.shown;
     var opened = platform.urls.opened;
     var background = platform.system.inBackground;
     return Menu(
@@ -447,12 +447,6 @@ class _PlatformMenuState extends State<_PlatformMenu> {
       minWidth: 240,
       entries: [
         MenuItem('Open a link…', icon: Icons.link, onSelected: _openLink),
-        MenuItem(
-          'Notifications',
-          icon: Icons.notifications_none,
-          shortcut: '${posted.length}',
-          onSelected: posted.isEmpty ? null : _notifications,
-        ),
         if (opened.isNotEmpty)
           MenuItem(
             'Opened pages',
@@ -497,53 +491,6 @@ class _PlatformMenuState extends State<_PlatformMenu> {
     context: context,
     builder: (context) =>
         _OpenLink(person: widget.person, open: widget.openLink),
-  );
-
-  Future<void> _notifications() => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text("${widget.person}'s notifications"),
-      content: SizedBox(
-        width: 460,
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (var notification in widget.platform.notifications.shown)
-              Padding(
-                padding: const EdgeInsets.only(bottom: FwSpacing.md),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            notification.title ?? '',
-                            style: context.type.bodyStrong,
-                          ),
-                          if (notification.body case var body?)
-                            Text(body, style: context.type.body),
-                          Text(
-                            clockOf(notification.at),
-                            style: context.type.caption,
-                          ),
-                        ],
-                      ),
-                    ),
-                    FwActionButton(
-                      label: 'Open',
-                      onPressed: () async {
-                        widget.platform.notifications.tap(notification);
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    ),
   );
 
   Future<void> _pages() => showDialog<void>(
