@@ -22,7 +22,18 @@ import 'package:path/path.dart' as p;
 /// exactly these reasons (`packages/flutter_tools/lib/src/compile.dart`), and
 /// so do we. [executable] is required and never inferred.
 class FrontendServer {
-  FrontendServer._(this._process, this._stdout, this._entrypoint);
+  FrontendServer._(this._process, this._stdout, this._entrypoint) {
+    // A compiler crash can fail stdin asynchronously, after writeln returned.
+    // Keep that error for the next operation instead of leaking it to the
+    // zone while the protocol reader is already reporting the failed compile.
+    unawaited(
+      _process.stdin.done.catchError((Object error, StackTrace stack) {
+        _inputFailure = (error, stack);
+      }),
+    );
+  }
+
+  (Object, StackTrace)? _inputFailure;
 
   final Process _process;
   final StreamQueue<String> _stdout;
@@ -267,15 +278,28 @@ class FrontendServer {
   }
 
   Future<int> shutdown() async {
-    _send('quit');
     var kill = Timer(const Duration(seconds: 1), _process.kill);
-    var code = await _process.exitCode;
-    kill.cancel();
-    unawaited(_stdout.cancel());
-    return code;
+    try {
+      try {
+        _send('quit');
+      } catch (_) {
+        // The protocol operation already reported a broken pipe. Cleanup
+        // still has to reap the process and cancel its stdout subscription.
+        _process.kill();
+      }
+      return await _process.exitCode;
+    } finally {
+      kill.cancel();
+      await _stdout.cancel();
+    }
   }
 
-  void _send(String command) => _process.stdin.writeln(command);
+  void _send(String command) {
+    if (_inputFailure case (var error, var stack)) {
+      Error.throwWithStackTrace(error, stack);
+    }
+    _process.stdin.writeln(command);
+  }
 
   Future<String> _expectResultLine() async {
     var line = await _stdout.next;
