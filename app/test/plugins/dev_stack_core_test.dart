@@ -688,8 +688,15 @@ void main() {
 
       core.unwatch();
       expect(core.isWatching, isFalse);
+      // unwatch cancels the next poll; a poll the timer started a moment ago
+      // is still on its way to the spawn, where the fake counts it. Let that
+      // one land, then make sure no new one starts.
+      while (core.service.isProbing) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      var afterUnwatch = ran.length;
       await Future<void>.delayed(const Duration(milliseconds: 110));
-      expect(ran.length, whileWatching);
+      expect(ran.length, afterUnwatch);
       core.dispose();
     });
 
