@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:flutterware/plugins.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
@@ -11,6 +12,7 @@ import '../../session/caller.dart';
 import '../../session/job.dart';
 import '../../ui/age.dart';
 import '../../utils/terminal_environment.dart';
+import '../../worktrees/providers/stack.dart' show stackFreshFor;
 import '../plugin_host.dart';
 import 'dev_stack_results.dart';
 import 'stack_history.dart';
@@ -169,6 +171,19 @@ abstract class StackServiceCore {
     if (at == null || !_reading.isKnown) return false;
     return DateTime.now().difference(at) > effectivePoll * 2;
   }
+
+  /// How long ago [reading] was taken, when that is old enough to say.
+  ///
+  /// Null while something watches: a mounted surface re-reads every
+  /// [effectivePoll], so what it holds is the state. Nothing watches for `fw`
+  /// or the MCP server, so what they read off the cache is whatever process
+  /// last looked, however long ago. A consumer stopped their stack one
+  /// evening and the status tool still answered `up`, in a good tone, the
+  /// next afternoon — the only thing saying otherwise was the `Checked` row,
+  /// which a brief reply drops. Past [stackFreshFor] the reading is history,
+  /// and the status line says so itself: `up · 16h ago`, in a neutral tone.
+  String? ageIfOld(StackReading reading) =>
+      stackAgeIfOld(reading.at, watching: isWatching);
 
   /// What this is still working on, or null. Read by the capture settler.
   String? get busyWith => switch ((_busy, probing)) {
@@ -695,21 +710,31 @@ abstract class StackServiceCore {
   /// plus a space and by saying the thing you would otherwise have to open the
   /// panel to learn.
   @protected
-  Status statusFor(StackReading reading) => switch (reading.state) {
-    // Silent, not `not checked`: nothing has looked yet, and a row narrating
-    // its own ignorance on every cold sidebar is noise. The block says
-    // `checking` because the block is the surface that actually goes and
-    // looks.
-    StackState.unknown => Status.none,
-    StackState.down => const Status.neutral('down'),
-    StackState.starting => const Status.info('bringing up'),
-    StackState.up when reading.isPartial => Status.warn(
-      'up ${reading.serviceCount!.$1}/${reading.serviceCount!.$2}',
-    ),
-    StackState.up => const Status.good('up'),
-    StackState.stopping => const Status.info('tearing down'),
-    StackState.unavailable => const Status.error("can't tell"),
-  };
+  Status statusFor(StackReading reading) {
+    // A transition in flight is happening now, whatever the reading under it
+    // is dated.
+    if (ageIfOld(reading) case var age? when !reading.state.isMoving) {
+      // What was last seen, not what is — see [ageIfOld]. The bare word: a
+      // fraction would push the age off the end of the sidebar, and the age
+      // is the point. The panel still lists the services.
+      return Status.neutral('${reading.state.name} · $age');
+    }
+    return switch (reading.state) {
+      // Silent, not `not checked`: nothing has looked yet, and a row narrating
+      // its own ignorance on every cold sidebar is noise. The block says
+      // `checking` because the block is the surface that actually goes and
+      // looks.
+      StackState.unknown => Status.none,
+      StackState.down => const Status.neutral('down'),
+      StackState.starting => const Status.info('bringing up'),
+      StackState.up when reading.isPartial => Status.warn(
+        'up ${reading.serviceCount!.$1}/${reading.serviceCount!.$2}',
+      ),
+      StackState.up => const Status.good('up'),
+      StackState.stopping => const Status.info('tearing down'),
+      StackState.unavailable => const Status.error("can't tell"),
+    };
+  }
 
   /// A badge only when something needs you.
   ///
@@ -833,6 +858,7 @@ abstract class StackServiceCore {
   /// the one that exists — `server.status` where there are several services.
   List<ViewNode> viewRows({String prefix = ''}) {
     var reading = effectiveReading;
+    var age = ageIfOld(reading);
     return [
       ViewField('State', reading.state.name),
       if (reading.detail case var detail?)
@@ -850,6 +876,11 @@ abstract class StackServiceCore {
           'Not checked yet. Run `fw run dev_stack ${prefix}status` to check '
           'it.',
         ),
+      // And the same way forward for a reading old enough to be history.
+      if (age != null)
+        ViewText(
+          'Last checked $age. `fw run dev_stack ${prefix}status` checks again.',
+        ),
       ViewField('Working directory', workingDirectory),
       ...extraViewRows(),
       if (reading.services.isNotEmpty)
@@ -862,7 +893,10 @@ abstract class StackServiceCore {
                   if (service.port != null) ':${service.port}',
                   if (service.state != null) service.state!.name,
                 ].join(' · '),
-                tone: service.state == StackState.up ? Tone.good : Tone.neutral,
+                // No green for a row as old as the headline above it.
+                tone: service.state == StackState.up && age == null
+                    ? Tone.good
+                    : Tone.neutral,
               ),
           ]),
         ]),
@@ -969,6 +1003,18 @@ void debugResetToolLookups() => _tools.clear();
 /// Shared with the panel: a reading's age is part of what the reading *means*,
 /// so the two surfaces must not word it differently.
 String? stackAge(DateTime? at) => ageOf(at);
+
+/// [stackAge] for a reading too old to pass for the state: taken more than
+/// [stackFreshFor] ago, with nothing [watching] to replace it. Null otherwise,
+/// and for a reading nobody has taken.
+///
+/// One rule, so a service and the stack it belongs to age together — see
+/// [StackServiceCore.ageIfOld].
+String? stackAgeIfOld(DateTime? at, {required bool watching}) {
+  if (watching || at == null) return null;
+  if (clock.now().difference(at) <= stackFreshFor) return null;
+  return stackAge(at);
+}
 
 /// The real thing, and the value [StackServiceCore.runProcess] is restored to.
 ///

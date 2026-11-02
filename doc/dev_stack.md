@@ -159,7 +159,9 @@ them with `w.service`.
 
 The probe runs every few seconds while the panel is on screen (`poll:` sets the
 pace). `fw` and agents don't poll: they show the last reading, from whichever
-process took it, and `fw run dev_stack status` takes a new one.
+process took it, and `fw run dev_stack status` takes a new one. A reading older
+than a minute shows its age instead of a colour, as `up · 16h ago`, and the
+report says to run `fw run dev_stack status` to check again.
 
 ## Commands
 

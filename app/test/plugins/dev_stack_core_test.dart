@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/log_client.dart';
@@ -172,6 +173,54 @@ void main() {
       // The point of the cache: a cold read says something true and spawns
       // nothing to do it.
       expect(ran.length, 1);
+      second.dispose();
+    });
+
+    /// A consumer stopped their stack one evening; sixteen hours later the
+    /// status tool still answered `up` in a good tone for every service. The
+    /// only thing saying otherwise was the panel's `Checked: 16h ago`, which a
+    /// brief reply drops.
+    test('an old cached reading is history: neutral, with its age', () async {
+      var first = coreWith(localEnvConfig());
+      responses['stack doctor'] = ProcessResult(0, 0, 'All checks passed.', '');
+      await first.service.refresh();
+      first.dispose();
+
+      var later = clock.now().add(const Duration(hours: 16));
+      await withClock(Clock.fixed(later), () async {
+        var second = coreWith(localEnvConfig());
+        await second.computeAll();
+        // Still within the budget: the age is read off the cache, and nothing
+        // goes to look.
+        expect(ran.length, 1);
+        expect(second.report.status, const Status.neutral('up · 16h ago'));
+        var text = second.report.view.toText();
+        expect(text, contains('Checked: 16h ago'));
+        expect(
+          text,
+          contains(
+            'Last checked 16h ago. `fw run dev_stack status` checks again.',
+          ),
+        );
+
+        // A surface that watches re-reads every interval, so what it holds is
+        // the state, from the moment it mounts.
+        second.watch();
+        expect(second.report.status, const Status.good('up'));
+        second.dispose();
+      });
+    });
+
+    test('a reading taken a moment ago is the state, not history', () async {
+      var first = coreWith(localEnvConfig());
+      responses['stack doctor'] = ProcessResult(0, 0, 'ok', '');
+      await first.service.refresh();
+      first.dispose();
+
+      var second = coreWith(localEnvConfig());
+      await second.computeAll();
+      expect(second.report.status, const Status.good('up'));
+      expect(second.report.view.toText(), isNot(contains('Last checked')));
       second.dispose();
     });
   });

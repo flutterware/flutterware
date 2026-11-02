@@ -570,12 +570,36 @@ class DevStackCore extends PluginCore {
     if (known.isEmpty) return Status.none;
     var up = known.where((s) => s == StackState.up).length;
     if (known.any((s) => s.isMoving)) return const Status.info('moving');
+    var unavailable = known.any((s) => s == StackState.unavailable);
+    if (_ageIfOld case var age?) {
+      // What was last seen, not what is, the way one service says it: the
+      // bare word and its age. See [StackServiceCore.ageIfOld].
+      var word = up > 0
+          ? 'up'
+          : unavailable
+          ? 'unavailable'
+          : 'down';
+      return Status.neutral('$word · $age');
+    }
     if (up == _services.length) return const Status.good('up');
     if (up > 0) return Status.warn('up $up/${_services.length}');
-    if (known.any((s) => s == StackState.unavailable)) {
-      return const Status.error("can't tell");
-    }
+    if (unavailable) return const Status.error("can't tell");
     return const Status.neutral('down');
+  }
+
+  /// The age of the oldest reading the headline rests on, when that is old
+  /// enough to say — [StackServiceCore.ageIfOld], one level up. The oldest,
+  /// because the headline is only as current as the fact it leans on least.
+  String? get _ageIfOld {
+    DateTime? oldest;
+    for (var service in _services) {
+      var at = service.effectiveReading.at;
+      if (at != null && (oldest == null || at.isBefore(oldest))) oldest = at;
+    }
+    return stackAgeIfOld(
+      oldest,
+      watching: _services.any((service) => service.isWatching),
+    );
   }
 
   /// A badge only when something needs you — a probe that failed, or a service
