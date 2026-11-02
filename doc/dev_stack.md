@@ -120,7 +120,11 @@ pipes and `$(...)` need `sh -c`, as in the probe above.
 project with `dart run`, using the same Dart SDK flutterware runs on. The path
 is relative to the service's `workingDirectory`. A delegated service's probe
 runs often, so it skips build hooks: a probe script can't import packages with
-native code.
+native code. When the script starts another Dart program, run it with
+`Platform.resolvedExecutable`, the `dart` the script itself runs on. Started
+with `fvm dart`, the program gets a different PATH, because fvm puts the SDK's
+`bin` at the front again, and the package's build hooks run again on every
+start. A consumer measured about 50 seconds per start.
 
 `StackRun.tool('uv', args: ['run', 'app.py'])` runs an executable from the PATH
 a new terminal window has, and refuses to start, naming it, when it isn't

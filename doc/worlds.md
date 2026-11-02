@@ -122,6 +122,19 @@ The script runs with the environment a new terminal window has, whichever way
 the studio was started. So opening a world doesn't run your dependencies'
 build hooks again after you ran the script from a terminal.
 
+A script that starts another Dart program runs it with its own `dart`, which
+is `Platform.resolvedExecutable`:
+
+```dart
+await Process.start(Platform.resolvedExecutable, ['run', 'bin/server.dart']);
+```
+
+Started with `fvm dart` instead, the program gets a different PATH: fvm puts
+the SDK's `bin` at the front again, even when it is already first. Build hooks
+rerun whenever the PATH changes, so the package's build hooks run again on
+every start. A consumer measured about 50 seconds per start. The same goes for
+a [dev stack](dev_stack.md) script that starts a Dart program.
+
 ## A world on your dev stack
 
 A stack that is slow to start, or more than one server (a database, an auth
