@@ -620,8 +620,9 @@ Each delivery is a step on the person's app, named like a tap:
 A typed code runs the field's own callbacks, so what they send belongs to the
 step directly. A link reaches the app through its link listener, so what it
 starts is joined to the step by time, within a second and a half. `deliver`
-waits that long and answers with what the step caused, which is nothing for a
-link the app ignored.
+waits that long. Its answer says in `via` which way the link went, and lists
+in `caused` the requests the step started. `caused` is empty when the link
+only moved the app to a screen. A link nothing in the app took is refused.
 
 When a message has several links, the one handed to the app is:
 
