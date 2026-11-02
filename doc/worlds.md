@@ -653,6 +653,11 @@ your stack's own mail catcher. A service on this machine sends to
 address, and the inbox must listen beyond loopback:
 `w.smtp('identity', address: InternetAddress.anyIPv4)`.
 
+The inbox takes a free port on each opening. A service in the stack that
+reads its SMTP settings once at startup and stays up between worlds needs the
+same port each time: `w.smtp('identity', port: 2525)` listens on that port on
+every opening.
+
 To show a message as sent by another service rather than the server
 reporting it, add `'from': 'identity'` to its event. A service that is not
 Dart carries no step, so what it sent joins the newest step heard in the
