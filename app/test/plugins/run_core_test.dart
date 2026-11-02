@@ -2633,6 +2633,73 @@ void main({int serverPort = 1, Backend backend = Backend.dev}) {}
       expect(log.failureHeadline, 'Failed to build iOS app');
     });
 
+    test('a phone with Developer Mode off is told so, not warned at', () {
+      // Trimmed from a consumer's log: `run launch` on a cabled iPhone whose
+      // Developer Mode is off. The tool prints the sentence that says what to
+      // do as plain status, under a warning about an architecture it could not
+      // read. Neither starts with a word that names an error, so the headline
+      // used to fall through to the block's first line, which was the warning.
+      var path = p.join(runDir.path, 'app-devmode.log');
+      var devMode =
+          "To use 'Ada's iPhone' for development, enable Developer Mode in "
+          'Settings → Privacy & Security on the device. If this does not '
+          'work, open Xcode, reconnect the device, and look for a popup on '
+          'the device asking you to trust this computer.';
+      File(path).writeAsStringSync(
+        [
+          _event('daemon.connected', {'version': '0.6.1', 'pid': 4242}),
+          'Unknown architecture undefined_arch, defaulting to arm64',
+          devMode,
+        ].join('\n'),
+      );
+
+      var log = LaunchLog.read(path);
+
+      expect(log.error, isNull);
+      expect(
+        log.failureHeadline,
+        startsWith(
+          "To use 'Ada's iPhone' for development, enable Developer Mode",
+        ),
+      );
+      // The warning is still in the block; it is just not the headline.
+      expect(log.failure(launcherAlive: false), contains('undefined_arch'));
+    });
+
+    test('a known message beats a line that merely starts with error', () {
+      var path = p.join(runDir.path, 'app-known.log');
+      var unpaired =
+          "'An iPhone' is not paired. Open Xcode and trust this computer when "
+          'prompted.';
+      File(path).writeAsStringSync(
+        ['Error launching application on an iPhone.', unpaired].join('\n'),
+      );
+
+      expect(
+        LaunchLog.read(path).failureHeadline,
+        startsWith("'An iPhone' is not paired."),
+      );
+    });
+
+    test('the last-resort headline skips what the tool calls a warning', () {
+      var path = p.join(runDir.path, 'app-warned.log');
+      File(path).writeAsStringSync(
+        [
+          'Warning: CocoaPods is out of date.',
+          'Unknown architecture undefined_arch, defaulting to arm64',
+          'Something the tool had to say about the device.',
+        ].join('\n'),
+      );
+      expect(
+        LaunchLog.read(path).failureHeadline,
+        'Something the tool had to say about the device.',
+      );
+
+      // A block that is nothing but warnings still gets its first line.
+      File(path).writeAsStringSync('Warning: only this\n');
+      expect(LaunchLog.read(path).failureHeadline, 'Warning: only this');
+    });
+
     test('app.stop does not clear the words printed after it', () {
       // The ordering that made this subtle: `app.stop` arrives *before* the
       // tool explains itself, so a rule of "a structured event ends the block"

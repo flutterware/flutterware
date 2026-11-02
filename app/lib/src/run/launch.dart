@@ -32,6 +32,32 @@ final _saysError = RegExp(
   caseSensitive: false,
 );
 
+/// Messages the tool prints as a plain sentence, with no word [_saysError]
+/// knows, that are the whole reason a launch failed. Checked before the
+/// pattern, in this order, so the sentence that says what to do beats a line
+/// that merely starts with "Error".
+///
+/// The first is a cabled iPhone with Developer Mode off. The tool prints it
+/// as status, after a warning about an architecture it could not read — a
+/// warning that is a consequence of the same setting and used to be the
+/// headline, with the sentence telling the user where to go in Settings on
+/// the line below it.
+final _knownFaults = [
+  RegExp(r'enable Developer Mode', caseSensitive: false),
+  RegExp(r'is not paired\b', caseSensitive: false),
+  RegExp(r'No supported devices found', caseSensitive: false),
+  RegExp(r'Target file .* not found', caseSensitive: false),
+];
+
+/// Lines the tool itself marks as not the problem: a warning, or a default it
+/// fell back to. The last-resort headline skips them, because a block whose
+/// first line is `Unknown architecture undefined_arch, defaulting to arm64`
+/// has its reason further down.
+final _saysWarning = RegExp(
+  r'^\W*warning:|\bdefaulting to\b',
+  caseSensitive: false,
+);
+
 /// The `flutter run --machine` argv a launch runs.
 ///
 /// Split out of [launchApp] because it is the one part of a launch that is a
@@ -482,14 +508,24 @@ class LaunchLog {
 
   /// The one line a row has room for.
   ///
-  /// The first line of the block that names something gone wrong, because the
-  /// summary line the tool ends on — `App failed to start` — is true of every
-  /// failure and tells you which one you have in no case at all.
+  /// A message the table knows first, then the first line of the block that
+  /// names something gone wrong, because the summary line the tool ends on —
+  /// `App failed to start` — is true of every failure and tells you which one
+  /// you have in no case at all. Failing both, the first line the tool does
+  /// not itself call a warning.
   String? get failureHeadline {
     if (error != null) return error!.split('\n').first;
     var block = _failureBlock();
+    for (var known in _knownFaults) {
+      for (var line in block) {
+        if (known.hasMatch(line)) return line.trim();
+      }
+    }
     for (var line in block) {
       if (_saysError.hasMatch(line)) return line.trim();
+    }
+    for (var line in block) {
+      if (!_saysWarning.hasMatch(line)) return line.trim();
     }
     return block.isNotEmpty ? block.first.trim() : output;
   }
