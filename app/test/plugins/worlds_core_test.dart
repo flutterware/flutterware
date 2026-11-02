@@ -11,6 +11,7 @@ import 'package:flutterware_app/src/plugins/plugin_host.dart';
 import 'package:flutterware_app/src/shell/workspace.dart';
 import 'package:flutterware_app/src/shell/worktree.dart';
 import 'package:flutterware_app/src/utils/flutter_sdk.dart';
+import 'package:flutterware_app/src/utils/terminal_environment.dart';
 import 'package:flutterware_app/src/world/open_world.dart' show WorldRefusal;
 import 'package:flutterware_app/src/world/world_owner.dart';
 import 'package:path/path.dart' as p;
@@ -24,7 +25,11 @@ void main() {
 
   /// The core as a surface has it: [mcp] for the MCP server's, whose session
   /// lasts one call.
-  WorldsCore coreFor({bool mcp = false, List<String> needs = const []}) {
+  WorldsCore coreFor({
+    bool mcp = false,
+    List<String> needs = const [],
+    String flutterSdk = '/tmp/flutter',
+  }) {
     var worktree = Worktree(path: root.path);
     return WorldsCore(
       PluginHost(
@@ -36,7 +41,7 @@ void main() {
           declared: [Pkg('.')],
           discovered: const ['.'],
           appContext: AppContext(logger: LogClient.print(), mcp: mcp),
-          flutterSdk: FlutterSdkPath('/tmp/flutter'),
+          flutterSdk: FlutterSdkPath(flutterSdk),
         ),
         config: {
           'packages': [
@@ -201,6 +206,32 @@ void main() {
       expect(opened.note, startsWith('Opened in the studio'));
     });
   });
+
+  test('held, a world that failed to open says so and is closed, rather than '
+      'said to be open and held', () async {
+    core.dispose();
+    // The real SDK: the script is run, and `void main() {}` exits before it
+    // connects, which fails the opening.
+    core = coreFor(flutterSdk: Platform.environment['FLUTTER_ROOT']!);
+    debugTerminalEnvironment = Map.of(Platform.environment);
+    addTearDown(() => debugTerminalEnvironment = null);
+    var terminal = StringBuffer();
+    core.terminal = terminal;
+
+    var opened =
+        (await core.invoke('open', arguments: {'world': 'lab', 'hold': true}))!
+            as WorldStateResult;
+    expect(opened.phase, 'failed');
+    expect(opened.problem, 'The world script exited (0) before it started.');
+    // What a shell sees: `fw` exits non-zero.
+    expect(opened.ok, isFalse);
+    var printed = terminal.toString();
+    expect(printed, isNot(contains('is open')));
+    expect(printed, contains('Lab failed to open: ${opened.problem}'));
+    // Nothing is held: the world was closed and its handle taken down.
+    expect(core.open, isNull);
+    expect(WorldHandle.read(root.path), isNull);
+  }, timeout: const Timeout(Duration(minutes: 2)));
 
   test("the studio's refusal is said in its words", () async {
     var door = await WorldOwnerServer.start(

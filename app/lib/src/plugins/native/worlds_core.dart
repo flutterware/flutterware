@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutterware/plugins.dart';
 // ignore: implementation_imports
 import 'package:flutterware/src/world/step_names.dart' show worldActionsOwner;
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../run/entrypoints.dart';
 import '../../world/open_world.dart';
@@ -57,6 +58,10 @@ class WorldsCore extends PluginCore {
 
   /// Why no world opens here — [worldsUnsupported] — shown on every world.
   String? unsupported = worldsUnsupported();
+
+  /// Where a held opening prints: the terminal `fw` runs in.
+  @visibleForTesting
+  StringSink terminal = stdout;
 
   /// What brings up the services a world needs: the session's dev stack, set
   /// by the session when the project declares one.
@@ -858,7 +863,7 @@ class WorldsCore extends PluginCore {
       world,
       knobs: knobs,
       onCreated: hold
-          ? (open) => printing = open.lines.listen(stdout.writeln)
+          ? (open) => printing = open.lines.listen(terminal.writeln)
           : null,
     );
     var result = WorldStateResult.of(
@@ -869,10 +874,21 @@ class WorldsCore extends PluginCore {
           : null,
     );
     if (hold) {
-      stdout.writeln('${opened.file.name} is open. Ctrl-C closes it.');
+      if (opened.phase != WorldPhase.open) {
+        // Nothing to hold: the world is closed, and `fw` exits non-zero on
+        // the failed result.
+        terminal.writeln(
+          '${opened.file.name} failed to open'
+          '${opened.problem == null ? '.' : ': ${opened.problem}'}',
+        );
+        await closeWorld();
+        await printing?.cancel();
+        return result;
+      }
+      terminal.writeln('${opened.file.name} is open. Ctrl-C closes it.');
       for (var person in result.people) {
         var identity = [?person.email, ?person.phone].join(', ');
-        stdout.writeln(
+        terminal.writeln(
           '  ${person.name}${identity.isEmpty ? '' : ' ($identity)'}: '
           '${person.phase}${person.device == null ? '' : ' on ${person.device}'}'
           '${person.problem == null ? '' : ' (${person.problem})'}',
