@@ -111,6 +111,49 @@ void main() {
     expect(deviceIds, isNot(contains('android-medium')));
   });
 
+  test('a dropped id says which id replaced it', () {
+    expect(renamedDeviceId('iphone-13-mini'), 'iphone-13');
+    expect(renamedDeviceId('android-medium'), 'android-tall');
+    expect(renamedDeviceId('macbook-pro'), 'window-wide');
+    // Only the dropped ones: a current id and an unknown one both answer
+    // nothing, and the caller tells those apart with deviceById.
+    expect(renamedDeviceId('iphone-13'), isNull);
+    expect(renamedDeviceId('iphone-99'), isNull);
+  });
+
+  test('a typed id that was dropped is refused with the id to write', () {
+    // The alias above is for ids flutterware wrote down itself. One a person
+    // typed — `FW_DEVICES=iphone-13-mini` in a consumer's CI — ran a whole
+    // suite at the replacement's screen with nothing saying so.
+    expect(
+      () => checkDeviceId('iphone-13-mini', 'device'),
+      throwsA(
+        isA<ArgumentError>().having(
+          (e) => '$e',
+          'message',
+          allOf(
+            contains('device'),
+            contains("'iphone-13-mini' is 'iphone-13' now. Write iphone-13."),
+          ),
+        ),
+      ),
+    );
+    expect(
+      () => checkDeviceId('iphone-99', 'device'),
+      throwsA(
+        isA<ArgumentError>().having(
+          (e) => '$e',
+          'message',
+          allOf(contains('no such device'), contains('iphone-13')),
+        ),
+      ),
+    );
+    expect(() => checkDeviceId(13, 'device'), throwsArgumentError);
+    // A current id and the bare surface pass.
+    checkDeviceId('iphone-13', 'device');
+    checkDeviceId(fitDeviceId, 'device');
+  });
+
   test('the vocabulary is one list, portrait first', () {
     expect(orientationIds, ['portrait', 'landscape']);
     expect(orientationById('landscape'), ScreenOrientation.landscape);

@@ -79,6 +79,26 @@ void main() {
     );
   });
 
+  test('a device this build dropped is refused with the id to write', () {
+    // A consumer's CI kept `FW_DEVICES=iphone-13-mini` after the mini was
+    // dropped, and the whole suite ran at the replacement's 390×844 with
+    // nothing in the output saying so. A stored address may resolve the old
+    // id quietly; a list somebody typed may not.
+    expect(
+      () => scenarioAssignments(phones, devicesOverride: 'iphone-13-mini'),
+      throwsA(
+        isA<ArgumentError>().having(
+          (e) => '$e',
+          'message',
+          allOf(
+            contains('fw.devices'),
+            contains("'iphone-13-mini' is 'iphone-13' now. Write iphone-13."),
+          ),
+        ),
+      ),
+    );
+  });
+
   test('an assignment names itself for a path and for a test name', () {
     var assignment = ScenarioAssignment(
       device: Devices.iphone16,

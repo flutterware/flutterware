@@ -492,7 +492,8 @@ flutter test test/scenarios/mobile \
 
 That declares one test per combination (`Counter [iPhone SE · en]`, and so on)
 from a single invocation and a single compile. The environment variables
-`FW_DEVICES` and `FW_LANGUAGES` do the same.
+`FW_DEVICES` and `FW_LANGUAGES` do the same. A device id that flutterware has
+dropped is refused, and the message names the id to write instead.
 
 To run what the folders declare instead of repeating it, pass
 `fw.matrix=declared` (or set `FW_MATRIX=declared`):

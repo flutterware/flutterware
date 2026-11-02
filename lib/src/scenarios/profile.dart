@@ -510,11 +510,13 @@ Shots? scenarioProbedShots;
 ///
 /// A device a run names but the table does not know is refused rather than
 /// approximated — running at the wrong screen produces a picture that is wrong
-/// without looking wrong. An app axis value the profile does not declare is
-/// refused for the same reason, and with less excuse: the declaration *is* the
-/// table. An axis the profile does not declare at all is left alone, because
-/// `FW_AXES` is one setting for every folder a `flutter test` walks, and the
-/// folder next door may be the one it was for.
+/// without looking wrong. So is one the table has dropped, with the id to
+/// write: resolving it quietly, as a stored address is, would run the whole
+/// suite at the replacement's screen. An app axis value the profile does not
+/// declare is refused for the same reason, and with less excuse: the
+/// declaration *is* the table. An axis the profile does not declare at all is
+/// left alone, because `FW_AXES` is one setting for every folder a
+/// `flutter test` walks, and the folder next door may be the one it was for.
 @visibleForTesting
 List<ScenarioAssignment> scenarioAssignments(
   ScenarioProfile? profile, {
@@ -558,19 +560,9 @@ List<ScenarioAssignment> scenarioAssignments(
   var devices = <Device?>[];
   if (deviceIdList.isNotEmpty) {
     for (var id in deviceIdList) {
-      if (id == fitDeviceId) {
-        devices.add(null);
-        continue;
-      }
-      var device = deviceById(id);
-      if (device == null) {
-        throw ArgumentError.value(
-          id,
-          'fw.devices',
-          'no such device. Accepted: ${deviceIds.join(', ')}',
-        );
-      }
-      devices.add(device);
+      checkDeviceId(id, 'fw.devices');
+      // `fit` is the bare surface, named: no device.
+      devices.add(id == fitDeviceId ? null : deviceById(id));
     }
   } else {
     devices.addAll(_unnamed(profile?.devices, all: all));
