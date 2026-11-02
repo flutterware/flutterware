@@ -349,10 +349,19 @@ String guestStartSource({Duration grace = const Duration(seconds: 5)}) =>
 /// the minute to learn it. The error is still reported as it would have been.
 ///
 /// An error nothing catches counts too, since a `main` that starts the app
-/// without returning that future leaves its failure to the zone. It counts
-/// once `main` has returned, and only when `runApp` has not followed
-/// ${grace.inMilliseconds}ms later: a call the app fired and forgot can fail
-/// on the way to a `runApp` that still comes.
+/// without returning that future leaves its failure to
+/// `PlatformDispatcher.onError`. It counts once `main` has returned, and only
+/// when `runApp` has not followed ${grace.inMilliseconds}ms later: a call the
+/// app fired and forgot can fail on the way to a `runApp` that still comes.
+/// An app that sets `onError` itself takes such errors from here, and its
+/// startup failures wait out the minute.
+///
+/// Heard through `onError` rather than a zone of its own: a zone with an
+/// error handler is an error zone, and a future's error never reaches a
+/// listener in another one. The clients and completers an app makes at
+/// startup would be in that zone while a tap's handler runs in the zone the
+/// binding was made in, so a request the tap made would fail into the handler
+/// here and its page would wait for ever.
 Object? _start(bool Function() ranApp, Object? Function() main) {
   var said = false;
   void stopped(Object error) {
@@ -372,41 +381,37 @@ Object? _start(bool Function() ranApp, Object? Function() main) {
     }
   }
 
-  return runZoned(
-    () {
-      Object? started;
-      try {
-        started = main();
-      } catch (error) {
-        stopped(error);
-        rethrow;
-      }
-      if (started is! Future) {
-        returned = true;
-        settle();
-        return started;
-      }
-      return started.then<Object?>(
-        (value) {
-          returned = true;
-          settle();
-          return value;
-        },
-        onError: (Object error, StackTrace stack) {
-          stopped(error);
-          Error.throwWithStackTrace(error, stack);
-        },
-      );
+  var previous = PlatformDispatcher.instance.onError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    if (uncaught == null && !ranApp()) {
+      uncaught = error;
+      settle();
+    }
+    return previous?.call(error, stack) ?? false;
+  };
+
+  Object? started;
+  try {
+    started = main();
+  } catch (error) {
+    stopped(error);
+    rethrow;
+  }
+  if (started is! Future) {
+    returned = true;
+    settle();
+    return started;
+  }
+  return started.then<Object?>(
+    (value) {
+      returned = true;
+      settle();
+      return value;
     },
-    zoneSpecification: ZoneSpecification(
-      handleUncaughtError: (self, parent, zone, error, stack) {
-        if (uncaught == null && !ranApp()) {
-          uncaught = error;
-          settle();
-        }
-        parent.handleUncaughtError(zone, error, stack);
-      },
-    ),
+    onError: (Object error, StackTrace stack) {
+      stopped(error);
+      Error.throwWithStackTrace(error, stack);
+    },
   );
 }
 ''';
