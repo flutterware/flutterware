@@ -676,13 +676,8 @@ class TranslationsCore extends PluginCore {
       ),
     };
     var maxLengthDevice = arguments['max-length-device'];
-    if (maxLengthDevice != null &&
-        (maxLengthDevice is! String || !isDeviceId(maxLengthDevice))) {
-      throw ArgumentError.value(
-        maxLengthDevice,
-        'max-length-device',
-        'no such device. Accepted: ${deviceIds.join(', ')}',
-      );
+    if (maxLengthDevice != null) {
+      checkDeviceId(maxLengthDevice, 'max-length-device');
     }
     if (maxLengthDevice != null && !measureMaxLengths) {
       throw ArgumentError(

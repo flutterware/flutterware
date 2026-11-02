@@ -6,6 +6,8 @@ import 'package:dart_mcp/client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/plugins.dart' show Address, Artifact;
 import 'package:flutterware/src/constants.dart';
+import 'package:flutterware_app/src/plugins/native/dev_stack_core.dart';
+import 'package:flutterware_app/src/plugins/native/dev_stack_results.dart';
 import 'package:flutterware_app/src/plugins/native/run_plugin.dart';
 import 'package:flutterware_app/src/plugins/plugin_core.dart';
 import 'package:flutterware_app/src/session/cli.dart';
@@ -409,6 +411,49 @@ void main() {
       // "Not scanned yet." — every MCP call builds a fresh session, so a
       // report read without a load first is of a core that has seen nothing.
       expect('${payload['report']}', isNot(contains('Not scanned yet.')));
+    });
+
+    /// A consumer stopped their stack one evening; the next afternoon the
+    /// brief status still answered `up` in a good tone, and the one row saying
+    /// when that was read is in the view, which brief drops. The status line
+    /// has to carry the age itself.
+    test('an old stack reading says its age in the brief status', () async {
+      var runDir = Directory.systemTemp.createTempSync('fw-mcp-stack-');
+      DevStackCore.runDirProvider = () => runDir.path;
+      addTearDown(() {
+        DevStackCore.runDirProvider = flutterwareRunDir;
+        runDir.deleteSync(recursive: true);
+      });
+      Future<Map<String, Object?>> status() async => _decode(
+        await connection.callTool(
+          CallToolRequest(
+            name: 'flutterware_status',
+            arguments: {'plugin': 'dev_stack', 'brief': true},
+          ),
+        ),
+      );
+      // The cache is keyed by the worktree the session answers about, and the
+      // reply says which that is. Every call builds a fresh session, so the
+      // second one loads what this writes.
+      var root = (await status())['root']! as String;
+      File(stackCachePath(runDir.path, root)).writeAsStringSync(
+        jsonEncode({
+          'services': {
+            'server': {
+              'state': 'up',
+              'checkedAt': DateTime.now()
+                  .subtract(const Duration(hours: 16))
+                  .toIso8601String(),
+            },
+          },
+        }),
+      );
+
+      var plugin = ((await status())['plugins']! as List)
+          .cast<Map<String, Object?>>()
+          .single;
+      expect(plugin, isNot(contains('view')));
+      expect(plugin['status'], {'tone': 'neutral', 'message': 'up · 16h ago'});
     });
 
     test('and the declarations are still one tool away', () async {

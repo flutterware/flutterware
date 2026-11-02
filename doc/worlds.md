@@ -122,6 +122,19 @@ The script runs with the environment a new terminal window has, whichever way
 the studio was started. So opening a world doesn't run your dependencies'
 build hooks again after you ran the script from a terminal.
 
+A script that starts another Dart program runs it with its own `dart`, which
+is `Platform.resolvedExecutable`:
+
+```dart
+await Process.start(Platform.resolvedExecutable, ['run', 'bin/server.dart']);
+```
+
+Started with `fvm dart` instead, the program gets a different PATH: fvm puts
+the SDK's `bin` at the front again, even when it is already first. Build hooks
+rerun whenever the PATH changes, so the package's build hooks run again on
+every start. A consumer measured about 50 seconds per start. The same goes for
+a [dev stack](dev_stack.md) script that starts a Dart program.
+
 ## A world on your dev stack
 
 A stack that is slow to start, or more than one server (a database, an auth
@@ -607,8 +620,9 @@ Each delivery is a step on the person's app, named like a tap:
 A typed code runs the field's own callbacks, so what they send belongs to the
 step directly. A link reaches the app through its link listener, so what it
 starts is joined to the step by time, within a second and a half. `deliver`
-waits that long and answers with what the step caused, which is nothing for a
-link the app ignored.
+waits that long. Its answer says in `via` which way the link went, and lists
+in `caused` the requests the step started. `caused` is empty when the link
+only moved the app to a screen. A link nothing in the app took is refused.
 
 When a message has several links, the one handed to the app is:
 
@@ -639,6 +653,11 @@ your stack's own mail catcher. A service on this machine sends to
 `host.docker.internal` with Docker Desktop. On Linux it uses the bridge's
 address, and the inbox must listen beyond loopback:
 `w.smtp('identity', address: InternetAddress.anyIPv4)`.
+
+The inbox takes a free port on each opening. A service in the stack that
+reads its SMTP settings once at startup and stays up between worlds needs the
+same port each time: `w.smtp('identity', port: 2525)` listens on that port on
+every opening.
 
 To show a message as sent by another service rather than the server
 reporting it, add `'from': 'identity'` to its event. A service that is not

@@ -57,7 +57,19 @@ class UrlSourceWeb implements UrlSource {
         // replaceState overwrites the current entry and — unlike assigning
         // location.hash — does not fire `hashchange`. We already notified
         // in-app listeners above, so no external event is needed.
-        html.window.history.replaceState(null, '', '#${path.toString()}');
+        //
+        // The page's own path and query are spelled out because a relative
+        // URL here resolves against the document's `<base href>`, and a
+        // Flutter web app served under a path points that at its asset
+        // folder. A bare `#…` moved the address to that folder, and a reload
+        // asked the server for it. Assigning `location.hash` never resolves
+        // anything, so the other branch keeps its short form.
+        var location = html.window.location;
+        html.window.history.replaceState(
+          null,
+          '',
+          '${location.pathname}${location.search}#${path.toString()}',
+        );
       } else {
         html.window.location.hash = path.toString();
       }

@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware_app/src/utils/run_dir.dart';
+import 'package:flutterware_app/src/utils/terminal_environment.dart';
 import 'package:flutterware_app/src/world/world_script.dart';
 import 'package:path/path.dart' as p;
 import 'package:vm_service/vm_service.dart';
@@ -150,6 +152,114 @@ void main() {
       aborted,
     );
     expect(last(['#0 main (file:///a.dart:1:1)']), isNull);
+  });
+
+  group('a script that never connects', () {
+    late Directory package;
+
+    setUp(() {
+      package = Directory.systemTemp.createTempSync('world_script');
+      debugTerminalEnvironment = Map.of(Platform.environment);
+    });
+
+    tearDown(() {
+      debugTerminalEnvironment = null;
+      package.deleteSync(recursive: true);
+    });
+
+    /// A `dart` that prints [says] and then runs on without ever connecting,
+    /// leaving its pid in `pid` next to it.
+    String dartThat(String says) {
+      var file = File(p.join(package.path, 'dart'))
+        ..writeAsStringSync(
+          '#!/bin/sh\n'
+          'echo \$\$ > "${p.join(package.path, 'pid')}"\n'
+          '$says\n'
+          'exec sleep 60\n',
+        );
+      Process.runSync('chmod', ['+x', file.path]);
+      return file.path;
+    }
+
+    int pidLeft() =>
+        int.parse(File(p.join(package.path, 'pid')).readAsStringSync().trim());
+
+    test('is killed, and the failure says the build hooks were still '
+        'running', () async {
+      var progress = <String>[];
+      await expectLater(
+        WorldScriptProcess.start(
+          // No newline after it, as `dart run` prints it.
+          dart: dartThat("printf 'Running build hooks...'"),
+          packageRoot: package.path,
+          file: 'world.dart',
+          onProgress: progress.add,
+          connectTimeout: const Duration(seconds: 1),
+        ),
+        throwsA(
+          isA<WorldScriptNotConnected>()
+              .having((f) => f.buildingHooks, 'buildingHooks', isTrue)
+              .having(
+                (f) => '$f',
+                'message',
+                'The world script did not connect within 1 s. `dart run` was '
+                    "still running the package's build hooks.",
+              ),
+        ),
+      );
+      // Said once, while the wait was on.
+      expect(progress, [runningBuildHooks]);
+      expect(isProcessAlive(pidLeft()), isFalse);
+    });
+
+    test('is killed, and the failure quotes the last thing it said', () async {
+      var printed = <String>[];
+      await expectLater(
+        WorldScriptProcess.start(
+          dart: dartThat("echo 'Seeding the menu'"),
+          packageRoot: package.path,
+          file: 'world.dart',
+          onOutput: printed.add,
+          connectTimeout: const Duration(seconds: 1),
+        ),
+        throwsA(
+          isA<WorldScriptNotConnected>()
+              .having((f) => f.buildingHooks, 'buildingHooks', isFalse)
+              .having(
+                (f) => '$f',
+                'message',
+                'The world script did not connect within 1 s. It last said: '
+                    'Seeding the menu',
+              ),
+        ),
+      );
+      expect(printed, ['Seeding the menu']);
+      expect(isProcessAlive(pidLeft()), isFalse);
+    });
+  });
+
+  test('the build hooks notice is seen across a chunk boundary, and said '
+      'once', () {
+    var seen = 0;
+    var watch = BuildHooksWatch(onSeen: () => seen++);
+    expect(watch.watch('Running build'), 'Running build');
+    expect(watch.seen, isFalse);
+    expect(watch.watch(' hooks...Running build hooks...'), isNotEmpty);
+    expect(watch.seen, isTrue);
+    watch.watch('Running build hooks...Mood is calm\n');
+    expect(seen, 1);
+  });
+
+  test('how long a script that never connected was given is said in plain '
+      'words', () {
+    String said(Duration waited) => '${WorldScriptNotConnected(waited)}';
+    expect(
+      said(const Duration(minutes: 2)),
+      'The world script did not connect within 2 minutes.',
+    );
+    expect(said(const Duration(minutes: 1)), contains('within 1 minute.'));
+    expect(said(const Duration(seconds: 90)), contains('within 90 s.'));
+    expect(said(const Duration(milliseconds: 250)), contains('within 250 ms.'));
   });
 
   test('still refused once it has waited long enough, saying why', () async {

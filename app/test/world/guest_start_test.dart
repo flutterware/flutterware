@@ -7,7 +7,8 @@ import 'package:test/test.dart';
 import '../support/dart_executable.dart';
 
 /// The guest entry's `_start`, run as the entry runs it, with an outer zone
-/// that reports what reaches it as the engine does and carries on.
+/// that reports what reaches it and hands it to `PlatformDispatcher.onError`,
+/// as the engine does, and carries on.
 void main() {
   late Directory dir;
   var said = <String, List<String>>{};
@@ -77,6 +78,10 @@ $_scenarios''');
       stoppedOnFailure,
     ]);
   });
+
+  test('a failure on what the app made at startup reaches a tap', () {
+    expect(said['fails a request a tap made'], ['caught: Bad state: failed']);
+  });
 }
 
 const _names = [
@@ -86,6 +91,7 @@ const _names = [
   'drops a failure, then runs the app',
   'drops a failure while it waits, then runs the app',
   'drops a failure, then returns',
+  'fails a request a tap made',
 ];
 
 /// Each of [_names] as an app's `main`, and the `main` that runs one.
@@ -98,6 +104,9 @@ Future<void> fail() async {
 }
 
 void runApp() => ran = true;
+
+/// What the app made at startup and a tap waits on later.
+Completer<void>? startup;
 
 Object? Function() scenario(String name) => switch (name) {
   'throws' => () => throw StateError('thrown'),
@@ -118,13 +127,42 @@ Object? Function() scenario(String name) => switch (name) {
     unawaited(fail());
     await Future<void>.delayed(const Duration(milliseconds: 50));
   },
+  // A client made at startup fails, on its own connection, a request a tap
+  // makes later.
+  'fails a request a tap made' => () {
+    var request = startup = Completer<void>();
+    Timer(
+      const Duration(milliseconds: 50),
+      () => request.completeError(StateError('failed')),
+    );
+    runApp();
+  },
   _ => throw ArgumentError(name),
 };
 
+/// Stands in for `dart:ui`'s, which a plain `dart` process has not. The
+/// harness hands it what reaches its zone, as the engine does with what
+/// reaches the root zone.
+class PlatformDispatcher {
+  static final instance = PlatformDispatcher();
+  bool Function(Object error, StackTrace stack)? onError;
+}
+
 Future<void> main(List<String> args) async {
   runZonedGuarded(
-    () => _start(() => ran, scenario(args.single)),
-    (error, stack) => print('reported: $error'),
+    () {
+      _start(() => ran, scenario(args.single));
+      // A tap's handler runs where the binding was made, outside `_start`,
+      // and waits on what the app made at startup.
+      startup?.future.then(
+        (_) => print('answered'),
+        onError: (Object error) => print('caught: $error'),
+      );
+    },
+    (error, stack) {
+      print('reported: $error');
+      PlatformDispatcher.instance.onError?.call(error, stack);
+    },
   );
   await Future<void>.delayed(const Duration(milliseconds: 1200));
   exit(0);

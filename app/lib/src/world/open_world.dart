@@ -788,6 +788,7 @@ class OpenWorld {
             if (starting) said.add(line);
             _say(line, printed: true);
           },
+          onProgress: _say,
         );
         starting = false;
         return script;

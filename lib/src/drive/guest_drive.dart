@@ -16,6 +16,7 @@ import '../scenarios/target.dart';
 import 'drive.dart';
 import 'human_actions.dart';
 import 'live_settle.dart';
+import 'navigator.dart';
 import 'resolve.dart';
 
 /// The guest half of the drive wire: one `ext.flutterware.act` extension,
@@ -86,7 +87,13 @@ class GuestDrive {
   /// The `navigate` verb's registration point. A routing system — the app's
   /// own, or a package like router_outlet — sets this to jump straight to a
   /// screen; unset, `navigate` refuses loudly rather than tap-hunting.
-  static void Function(String route)? navigator;
+  ///
+  /// The slot itself is [driveNavigator], in a file router_outlet can import
+  /// without the rest of this one; this is its public name.
+  static void Function(String route)? get navigator => driveNavigator;
+  static set navigator(void Function(String route)? handler) {
+    driveNavigator = handler;
+  }
 
   /// What a beat's picture is capped at, against an agent step's 900. A beat
   /// is scanned in a timeline rather than read for fine print, and the cap

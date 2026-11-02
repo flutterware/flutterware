@@ -2087,13 +2087,7 @@ class ScenariosCore extends PluginCore {
   /// is wrong without looking wrong.
   static ScenarioAxes _axesFrom(Map<String, Object?> arguments) {
     var device = arguments['device'];
-    if (device != null && (device is! String || !isDeviceId(device))) {
-      throw ArgumentError.value(
-        device,
-        'device',
-        'no such device. Accepted: ${deviceIds.join(', ')}',
-      );
-    }
+    if (device != null) checkDeviceId(device, 'device');
     var orientation = arguments['orientation'];
     if (orientation != null &&
         (orientation is! String || !isOrientationId(orientation))) {
@@ -3054,13 +3048,7 @@ class ScenariosCore extends PluginCore {
     var tag = arguments['tag'] as String?;
     var devices = _axisList(arguments['devices'], 'devices');
     for (var id in devices) {
-      if (!isDeviceId(id)) {
-        throw ArgumentError.value(
-          id,
-          'devices',
-          'no such device. Accepted: ${deviceIds.join(', ')}',
-        );
-      }
+      checkDeviceId(id, 'devices');
     }
     var languages = _axisList(arguments['languages'], 'languages');
     for (var locale in languages) {
@@ -3592,13 +3580,7 @@ class ScenariosCore extends PluginCore {
     // project learns one and gets both.
     var devices = _axisList(arguments['devices'], 'devices');
     for (var id in devices) {
-      if (!isDeviceId(id)) {
-        throw ArgumentError.value(
-          id,
-          'devices',
-          'no such device. Accepted: ${deviceIds.join(', ')}',
-        );
-      }
+      checkDeviceId(id, 'devices');
     }
     var languages = _axisList(arguments['languages'], 'languages');
     for (var tag in languages) {

@@ -61,7 +61,13 @@ class WorldScriptProcess {
   /// it resolves and runs its build hooks as any script of that package does,
   /// through [compiler] — and answers once it has connected. The world opens
   /// when it is sent [WorldMessage.open]. [onOutput] gets what it prints: its
-  /// server's log, usually.
+  /// server's log, usually. [onProgress] gets what `dart run` is doing before
+  /// the script runs, once: its build hooks, which can take minutes.
+  ///
+  /// A script that has not connected after [connectTimeout] is killed, and
+  /// the failure says what it was doing: the build hooks, or the last line it
+  /// printed. Left running, `dart run` would go on building in the background
+  /// with nothing waiting for it.
   ///
   /// In a new terminal's environment, whoever owns the world: the build hooks
   /// rerun from scratch whenever `PATH`, `HOME`, `TMPDIR` or `ANDROID_HOME`
@@ -74,6 +80,7 @@ class WorldScriptProcess {
     required String file,
     WorldCompiler? compiler,
     void Function(String line)? onOutput,
+    void Function(String message)? onProgress,
     Duration connectTimeout = const Duration(minutes: 2),
   }) async {
     var name = 'world-$pid-${_count++}';
@@ -108,9 +115,16 @@ class WorldScriptProcess {
       rethrow;
     }
     var said = LastSaid();
+    var hooks = BuildHooksWatch(
+      onSeen: () => onProgress?.call(runningBuildHooks),
+    );
     for (var stream in [process.stdout, process.stderr]) {
       stream
           .transform(utf8.decoder)
+          // Before the line split: `Running build hooks...` has no newline
+          // after it, so as a line it arrives only with the script's first
+          // line, which is after the hooks.
+          .map(hooks.watch)
           .transform(const LineSplitter())
           .map(withoutToolNoise)
           .where((line) => line != null)
@@ -130,6 +144,19 @@ class WorldScriptProcess {
         server.first,
         process.exitCode.then<Socket>((code) => throw WorldScriptExited(code)),
       ]).timeout(connectTimeout);
+    } on TimeoutException {
+      process.kill();
+      // Gone before the failure is reported, so nothing of it is left
+      // building; a process that will not die is not waited on for long.
+      await process.exitCode.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => -1,
+      );
+      throw WorldScriptNotConnected(
+        connectTimeout,
+        buildingHooks: hooks.seen,
+        lastSaid: said.line,
+      );
     } finally {
       await server.close();
       if (File(socketPath).existsSync()) File(socketPath).deleteSync();
@@ -433,6 +460,79 @@ class WorldScriptExited implements Exception {
 
   @override
   String toString() => 'The world script exited ($exitCode) before it started.';
+}
+
+/// A world script that had not connected when the wait for it ran out, and
+/// was killed: what it says is what the script was doing meanwhile.
+class WorldScriptNotConnected implements Exception {
+  WorldScriptNotConnected(
+    this.waited, {
+    this.buildingHooks = false,
+    this.lastSaid,
+  });
+
+  /// How long it was given.
+  final Duration waited;
+
+  /// Whether `dart run` had said it was running the package's build hooks.
+  final bool buildingHooks;
+
+  /// The last line the script printed, when it printed one.
+  final String? lastSaid;
+
+  @override
+  String toString() => [
+    'The world script did not connect within ${_describe(waited)}.',
+    if (buildingHooks)
+      "`dart run` was still running the package's build hooks."
+    else if (lastSaid case var line?)
+      'It last said: $line',
+  ].join(' ');
+
+  static String _describe(Duration waited) {
+    if (waited.inMinutes >= 1 && waited.inSeconds % 60 == 0) {
+      return '${waited.inMinutes} minute${waited.inMinutes == 1 ? '' : 's'}';
+    }
+    if (waited.inSeconds >= 1) return '${waited.inSeconds} s';
+    return '${waited.inMilliseconds} ms';
+  }
+}
+
+/// What a held opening is told while `dart run` runs the build hooks.
+const runningBuildHooks =
+    "`dart run` is running the package's build hooks before the script.";
+
+/// Looks for `Running build hooks...` in what `dart run` prints, chunk by
+/// chunk as it is decoded, and says so once. A chunk may end in the middle
+/// of it, so the tail of each is kept in front of the next.
+@visibleForTesting
+class BuildHooksWatch {
+  BuildHooksWatch({required this.onSeen});
+
+  final void Function() onSeen;
+
+  /// Whether it has been seen.
+  bool get seen => _seen;
+  var _seen = false;
+  var _tail = '';
+
+  static const _notice = 'Running build hooks...';
+
+  /// [chunk], as it was; the watch is in passing.
+  String watch(String chunk) {
+    if (!_seen) {
+      var joined = _tail + chunk;
+      if (joined.contains(_notice)) {
+        _seen = true;
+        onSeen();
+      } else {
+        _tail = joined.length > _notice.length
+            ? joined.substring(joined.length - _notice.length + 1)
+            : joined;
+      }
+    }
+    return chunk;
+  }
 }
 
 /// The last line a script said that was not a stack trace: of an uncaught

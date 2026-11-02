@@ -3699,13 +3699,7 @@ class PreviewsCore extends PluginCore {
     ),
   }) {
     var deviceId = arguments['device'] ?? fallback.device?.id;
-    if (deviceId != null && (deviceId is! String || !isDeviceId(deviceId))) {
-      throw ArgumentError.value(
-        deviceId,
-        'device',
-        'no such device. Accepted: ${deviceIds.join(', ')}',
-      );
-    }
+    if (deviceId != null) checkDeviceId(deviceId, 'device');
     // Only when the device is the declared one too: an orientation belongs to
     // the device it turns, so a caller naming a phone should not inherit the
     // landscape the project declared for its tablet.

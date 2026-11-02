@@ -844,6 +844,44 @@ const _renamed = {
   'android-medium': 'android-tall',
 };
 
+/// The id that replaced [id], or null when [id] was never renamed.
+///
+/// [deviceById] answers a dropped id with the device that replaced it, and
+/// that is right for an id flutterware wrote down itself: an address, an
+/// artifact path, a cached run. An id a person typed or a config lists is the
+/// other case. Resolving it runs a whole suite at another phone's screen, and
+/// nothing in the output says so: a consumer's CI kept asking for
+/// `iphone-13-mini` after the mini was dropped and ran at 390×844 for weeks
+/// without anyone knowing. So the places that read a typed id refuse one this
+/// answers, naming the id to write instead — see [checkDeviceId].
+String? renamedDeviceId(String id) => _renamed[id];
+
+/// Refuses [id], passed as the argument [name], unless it is [fitDeviceId] or
+/// the id of a device this build offers.
+///
+/// For an id a person typed or a config lists: an action's `device`, a
+/// `devices` list, `fw.devices`. A stored id goes through [deviceById]
+/// instead, which still resolves the ones this build renamed; here a renamed
+/// id is refused with the id to write, because a run at a device nobody asked
+/// for is wrong without looking wrong.
+void checkDeviceId(Object? id, String name) {
+  if (id is String) {
+    if (renamedDeviceId(id) case var current?) {
+      throw ArgumentError.value(
+        id,
+        name,
+        "'$id' is '$current' now. Write $current.",
+      );
+    }
+    if (isDeviceId(id)) return;
+  }
+  throw ArgumentError.value(
+    id,
+    name,
+    'no such device. Accepted: ${deviceIds.join(', ')}',
+  );
+}
+
 /// Whether [id] is a value this build accepts at all.
 bool isDeviceId(String id) => id == fitDeviceId || deviceById(id) != null;
 
