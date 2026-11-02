@@ -117,6 +117,12 @@ semantics label, a tooltip, a widget inside another, or a point.
 If a target matches nothing or several things, the action fails, and the answer
 lists what is on screen so the next try can be exact.
 
+`navigate` jumps to a screen through a handler the app registers with
+`GuestDrive.navigator`. An app on `router_outlet` has one already and registers
+nothing: the route is the path the URL carries, with its query string. Any other
+router registers its own in one line. `router_outlet` is the router the package
+ships. The studio's own address system is internal and not exported.
+
 An agent does the same over MCP with `flutterware_act`, and gets a screenshot
 and the visible texts back with each step, so it can edit code, hot reload and
 look again in about two seconds. You're sharing the app with it: your own taps

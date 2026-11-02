@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../drive/navigator.dart';
 import '../utils/value_stream.dart';
 import 'path.dart';
 import 'provider.dart';
@@ -30,6 +31,42 @@ class RouterRoot extends StatefulWidget {
 }
 
 class _RouterRootState extends State<RouterRoot> {
+  /// The `navigate` handler this root installed. The slot is one global, so
+  /// this is what says whether the handler standing there is still ours.
+  void Function(String route)? _navigator;
+
+  @override
+  void initState() {
+    super.initState();
+    _registerNavigator();
+  }
+
+  @override
+  void didUpdateWidget(RouterRoot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.urlSource != widget.urlSource) _registerNavigator();
+  }
+
+  /// Gives the drive layer's `navigate` verb a handler, so an app on this
+  /// router is driven to a screen by its path without registering anything.
+  /// The route is the path the URL carries, query string included.
+  void _registerNavigator() {
+    _navigator = driveNavigator = (route) {
+      widget.urlSource.go(PagePath(route, isAbsolute: true));
+    };
+  }
+
+  /// Clears the slot only if the handler is still ours. Flutter builds a
+  /// subtree's replacement before retiring the old one, so a rebuild that
+  /// moves this root runs the new root's `initState` and then this `dispose`;
+  /// clearing unconditionally would throw away the registration the new root
+  /// had just made.
+  @override
+  void dispose() {
+    if (identical(driveNavigator, _navigator)) driveNavigator = null;
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<PagePath>(
