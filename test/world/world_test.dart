@@ -307,6 +307,7 @@ void main() {
         'From: Identity <no-reply@example.test>',
         'To: leo@example.test',
         'Subject: Your sign-up code',
+        'Message-ID: <code-1@example.test>',
         '',
         'Your verification code is 48213.',
       ]),
@@ -324,6 +325,8 @@ void main() {
       'subject': 'Your sign-up code',
       'text': 'Your verification code is 48213.\n',
       'from': 'identity',
+      // What tells a mail the stack's catcher also caught apart.
+      'messageId': 'code-1@example.test',
     });
 
     owner.send(WorldMessage.close);

@@ -754,6 +754,7 @@ class OpenWorld {
         return;
       }
       services = up!;
+      await _catchMail();
     }
     script.send(WorldMessage.open, {
       'knobs': knobs,
@@ -768,6 +769,17 @@ class OpenWorld {
     if (stack == null) throw WorldRefusal(noDevStackFor(file));
     _say('Bringing up ${file.needs.map(stack.nameOf).join(', ')}');
     return stack.bringUp(file.needs, say: _say, world: file.name);
+  }
+
+  /// Reads the mail catchers the [services] run, from before the script
+  /// opens: what they catch from then on reaches its person.
+  Future<void> _catchMail() async {
+    var stack = this.stack;
+    var tracer = this.tracer;
+    if (stack == null || tracer == null) return;
+    for (var catcher in await stack.mailCatchers(services, say: _say)) {
+      await tracer.catchMail(catcher, say: _say);
+    }
   }
 
   /// Starts the script, once more with a fresh compiler if it died on the

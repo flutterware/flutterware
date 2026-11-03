@@ -609,7 +609,7 @@ adapter for that channel:
 ```dart
 FlutterwareServer.event('sms', {'to': phone, 'body': body});
 FlutterwareServer.event('push', {'to': userId, 'title': title, 'body': body, 'link': ?link});
-FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text, 'html': html, 'link': ?link});
+FlutterwareServer.event('mail', {'to': address, 'subject': subject, 'text': text, 'html': html, 'link': ?link, 'messageId': ?messageId});
 ```
 
 The world finds the person by the phone number, user id or address they were
@@ -636,10 +636,47 @@ When a message has several links, the one handed to the app is:
 So a mail that lists two store badges before its invitation hands over the
 invitation.
 
-A service in your stack that is not written in Dart and sends its own mail
-can get an inbox from the world script. Point the service's SMTP settings at
-the inbox's port; any username and password are accepted, and TLS is not
-offered:
+A mail with `html` is shown as its recipient would see it. Clicking it opens
+it in the person's panel, next to their app, as a picture drawn by WebKit,
+with each link clickable where it sits. A link goes where a phone
+would send it: into the app if the app opens it (a scheme of its own, or a
+web host it claims), and otherwise to the live web page, with **Email** and
+**Page** to switch between the two. Under the mail are the links opened from
+it in the app, and when. For an agent, `fw run worlds show --message=<id>`
+draws the picture with each link's box, and
+`fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
+Drawing needs the Xcode command line tools, as Run's native layer does; the
+helper is compiled on first use.
+
+### Mail from your dev stack
+
+When your services send their mail to a mail catcher in your
+[dev stack](dev_stack.md), whatever language they are written in, add the
+catcher to the service that runs it
+([A mail catcher](dev_stack.md#a-mail-catcher)) and name that service in the
+world's `needs:`. The world script needs no code for it. While the world is
+open, every mail the catcher receives reaches its person: a banner on their
+screen, a line on their **Messages** tab and an arrow on the timeline. Mail
+that was in the catcher before the world opened is left out. The world's log
+says where it reads it:
+`Reading the mail mailcatcher catches, at http://localhost:1080/`.
+
+A mail from the catcher carries no step, so it joins the newest step heard in
+the three seconds before it, and says it was joined by time. It shows as sent
+by the service that `senders:` names for its `From` address, and otherwise by
+`mailcatcher`.
+
+A Dart server that reports a mail and also sends it to the catcher should
+report its `Message-ID` as `messageId`. The world then shows the mail once,
+with the server's step, and drops the catcher's copy. Case and angle brackets
+don't matter.
+
+### An inbox from the world script
+
+A service in your stack that is not written in Dart and sends its own mail,
+with no mail catcher to send it to, can get an inbox from the world script.
+Point the service's SMTP settings at the inbox's port; any username and
+password are accepted, and TLS is not offered:
 
 ```dart
 var mail = await w.smtp('identity');
@@ -648,7 +685,8 @@ var mail = await w.smtp('identity');
 
 Each mail is decoded and reported as sent by that service. With
 `relay: (host: 'localhost', port: 1025)`, each mail also goes on unchanged to
-your stack's own mail catcher. A service on this machine sends to
+your stack's own mail catcher. If that catcher is declared on your dev stack
+too, the world still shows each mail once. A service on this machine sends to
 `localhost`. One in a container reaches the machine as
 `host.docker.internal` with Docker Desktop. On Linux it uses the bridge's
 address, and the inbox must listen beyond loopback:
@@ -663,18 +701,6 @@ To show a message as sent by another service rather than the server
 reporting it, add `'from': 'identity'` to its event. A service that is not
 Dart carries no step, so what it sent joins the newest step heard in the
 three seconds before it, and says it was joined by time.
-
-A mail with `html` is shown as its recipient would see it. Clicking it opens
-it in the person's panel, next to their app, as a picture drawn by WebKit,
-with each link clickable where it sits. A link goes where a phone
-would send it: into the app if the app opens it (a scheme of its own, or a
-web host it claims), and otherwise to the live web page, with **Email** and
-**Page** to switch between the two. Under the mail are the links opened from
-it in the app, and when. For an agent, `fw run worlds show --message=<id>`
-draws the picture with each link's box, and
-`fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
-Drawing needs the Xcode command line tools, as Run's native layer does; the
-helper is compiled on first use.
 
 ## See what the system holds
 

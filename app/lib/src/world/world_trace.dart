@@ -20,6 +20,7 @@ import '../run/panel_client.dart';
 import '../run/run_sources.dart';
 import '../utils/run_dir.dart';
 import 'declared_links.dart';
+import 'mail_catcher.dart';
 
 final _logger = Logger('world_trace');
 
@@ -377,6 +378,10 @@ class SystemServer {
   /// How many times it reached someone on a connection they held open.
   var reached = 0;
 
+  /// Whether it has reported nothing the canvas would draw.
+  bool get isEmpty =>
+      parts.isEmpty && tables.isEmpty && sent.isEmpty && reached == 0;
+
   String partNode(String part) => '$name/part/$part';
   String tableNode(String table) => '$name/table/$table';
   String sentNode(String channel) => '$name/sent/$channel';
@@ -592,6 +597,11 @@ class WorldTrace {
 
   /// Who each request was, by `server/rid`, as the server identified it.
   final _callers = <String, String>{};
+
+  /// The mails a server reported with a `messageId`, and the caught ones no
+  /// server has reported yet, by [_mailKey].
+  final _reportedMail = <String>{};
+  final _caughtMail = <String, _ServerEvent>{};
   final _changed = StreamController<void>.broadcast(sync: true);
 
   /// What each server has reported, in the order they first did.
@@ -733,6 +743,67 @@ class WorldTrace {
   /// are still what the system holds.
   void addServerEvent(String reporter, InspectorEvent event) {
     if (event.time.isBefore(since)) return;
+    // The server's own report of a mail a catcher caught first takes its
+    // place: it says which step sent it.
+    if (event.channel == 'mail') {
+      if (_mailKey(event.payload) case var key?) {
+        _reportedMail.add(key);
+        if (_reportedMail.length > cap) {
+          _reportedMail.remove(_reportedMail.first);
+        }
+        if (_caughtMail.remove(key) case var caught?) _forget(caught);
+      }
+    }
+    _addServerEvent(reporter, event);
+  }
+
+  /// A mail the stack's mail catcher [catcher] caught, as a `mail` event. A
+  /// catcher knows no step, so it joins the step before it by time. Dropped
+  /// when a server reported the same mail to the same address, by its
+  /// `messageId`: that report says which step sent it.
+  void addCaughtMail(String catcher, InspectorEvent event) {
+    if (event.time.isBefore(since)) return;
+    var key = _mailKey(event.payload);
+    if (key != null && _reportedMail.contains(key)) return;
+    var caught = _addServerEvent(catcher, event, stepless: true);
+    if (key == null) return;
+    _caughtMail[key] = caught;
+    if (_caughtMail.length > cap) _caughtMail.remove(_caughtMail.keys.first);
+  }
+
+  /// A mail by its `Message-ID`, as any sender spells it, and the address it
+  /// went to; null for a mail that has none.
+  static String? _mailKey(Map<String, Object?> payload) {
+    if (payload['messageId'] case String id) {
+      var bare = id.trim().toLowerCase();
+      if (bare.startsWith('<') && bare.endsWith('>')) {
+        bare = bare.substring(1, bare.length - 1).trim();
+      }
+      if (bare.isEmpty) return null;
+      return '$bare ${'${payload['to'] ?? ''}'.trim().toLowerCase()}';
+    }
+    return null;
+  }
+
+  /// Takes back [event], which [_summarize] counted.
+  void _forget(_ServerEvent event) {
+    _server.remove(event);
+    var server = _servers[event.server];
+    if (server == null) return;
+    var sent = (server.sent[event.channel] ?? 1) - 1;
+    if (sent > 0) {
+      server.sent[event.channel] = sent;
+    } else {
+      server.sent.remove(event.channel);
+    }
+    if (server.isEmpty) _servers.remove(event.server);
+  }
+
+  _ServerEvent _addServerEvent(
+    String reporter,
+    InspectorEvent event, {
+    bool stepless = false,
+  }) {
     // A message another service sent — the mail an identity provider sends
     // itself, reported by whatever caught it — is drawn as that service's.
     var from = _sentChannels.contains(event.channel)
@@ -768,7 +839,7 @@ class WorldTrace {
     // A service that is not Dart carries no step: what it sent joins the
     // newest step heard just before, and says it joined by time.
     var byTime = false;
-    if (step == null && server != reporter) {
+    if (step == null && (stepless || server != reporter)) {
       step = _stepBefore(event.time);
       byTime = step != null;
     }
@@ -786,6 +857,7 @@ class WorldTrace {
       }
     }
     _changed.add(null);
+    return served;
   }
 
   /// How long before a message from a service that carries no step the step
@@ -2433,6 +2505,8 @@ class WorldTracer {
 
   final _apps = <String, _App>{};
   final _servers = <String, ServerAttachClient>{};
+  final _catchers = <CatcherWatch>[];
+  var _caught = 0;
   var _closed = false;
   DateTime? _lastScan;
   Future<void>? _nextScan;
@@ -2560,6 +2634,40 @@ class WorldTracer {
     }
   }
 
+  /// Reads [catcher] until this tracer closes: each mail it catches from now
+  /// on is a `mail` event of [catcher]'s, which reaches its person. [say] is
+  /// where it says what it does and when the catcher does not answer.
+  Future<void> catchMail(
+    WorldMailCatcher catcher, {
+    required void Function(String line) say,
+  }) async {
+    if (_closed) return;
+    var watch = await CatcherWatch.start(
+      catcher,
+      opened: trace.since,
+      onMail: (caught) => trace.addCaughtMail(
+        catcher.name,
+        InspectorEvent(
+          channel: 'mail',
+          id: ++_caught,
+          time: caught.mail.received,
+          isReplay: false,
+          payload: {
+            'to': caught.to,
+            'subject': ?caught.mail.subject,
+            'text': ?caught.mail.text,
+            'html': ?caught.mail.html,
+            if (caught.sender != catcher.name) 'from': caught.sender,
+            'messageId': ?caught.mail.messageId,
+          },
+        ),
+      ),
+      say: say,
+    );
+    if (_closed) return watch.close();
+    _catchers.add(watch);
+  }
+
   void _heard(_App app, InspectorEvent event) {
     if (event.id <= app.seen) return;
     app.seen = event.id;
@@ -2594,6 +2702,8 @@ class WorldTracer {
 
   Future<void> close() async {
     _closed = true;
+    await Future.wait([for (var watch in _catchers) watch.close()]);
+    _catchers.clear();
     await Future.wait([for (var app in _apps.values) app.close()]);
     _apps.clear();
     await Future.wait([for (var server in _servers.values) server.close()]);

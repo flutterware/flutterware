@@ -359,6 +359,7 @@ final class World {
         'text': ?mail.text,
         'html': ?mail.html,
         'from': service,
+        'messageId': ?mail.messageId,
       });
     }
   }, zoneValues: {FlutterwareServer.stepKey: null});

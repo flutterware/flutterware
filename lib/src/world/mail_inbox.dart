@@ -212,6 +212,7 @@ final class InboxMail {
     this.subject,
     this.text,
     this.html,
+    this.messageId,
     required this.received,
   });
 
@@ -242,6 +243,7 @@ final class InboxMail {
       },
       text: bodies.text,
       html: bodies.html,
+      messageId: _messageId(message.headers['message-id']),
       received: received ?? DateTime.now(),
     );
   }
@@ -271,11 +273,24 @@ final class InboxMail {
   /// line breaks as `\n`.
   final String? html;
 
+  /// The `Message-ID` header without its angle brackets: what tells this mail
+  /// apart from every other, wherever else it was seen.
+  final String? messageId;
+
   /// When it was received.
   final DateTime received;
 
   @override
   String toString() => 'InboxMail($from to ${to.join(', ')}: $subject)';
+}
+
+/// A `Message-ID` header without its angle brackets, or null for none.
+String? _messageId(String? header) {
+  var id = header?.trim() ?? '';
+  if (id.startsWith('<') && id.endsWith('>')) {
+    id = id.substring(1, id.length - 1).trim();
+  }
+  return id.isEmpty ? null : id;
 }
 
 const _serverName = 'flutterware';

@@ -178,6 +178,42 @@ Mark a command `danger: true` if it destroys data, and set
 database. The studio asks before running those. An owned service already has
 **Logs** and **Restart**.
 
+## A mail catcher
+
+When your services send their development mail to a mail catcher, add it to
+the service that runs it:
+
+```dart
+StackService.delegated(
+  'db',
+  name: 'Database',
+  probe: ...,
+  start: StackRun.command(['docker', 'compose', 'up', '--wait']),
+  stop: StackRun.command(['docker', 'compose', 'down']),
+  mail: MailCatcher.mailcatcher(
+    http: 1080,
+    senders: {'no-reply@identity.test': 'identity'},
+  ),
+),
+```
+
+A [world](worlds.md#mail-from-your-dev-stack) that needs this service then
+hands every mail the catcher receives to the person it was sent to. Your
+services keep sending to the catcher as they do now, and with no world open
+nothing changes.
+
+- `http:` is the port of the catcher's web interface on this machine: 1080 for
+  Mailcatcher, or the port your container publishes it on.
+- When each checkout runs its own stack on its own ports, give `httpFrom:`
+  instead: a script that prints the port, the same as for
+  [`Ready.httpFrom`](#a-port-from-your-own-tools). It runs each time a world
+  opens.
+- `senders:` says which service sent a mail, by the address in its `From`
+  header. A mail from an address it doesn't list shows as sent by
+  `mailcatcher`. `name:` changes that name.
+
+Mailcatcher is the only catcher it reads for now.
+
 ## Services that need other services
 
 A service can name the services it needs, and `ensure` brings those up first.

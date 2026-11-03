@@ -892,6 +892,90 @@ void main() {
         },
       );
     });
+
+    group('caught by the stack', () {
+      void caught(int ms, Map<String, Object?> payload) =>
+          trace.addCaughtMail('mailcatcher', at(ms, 'mail', payload));
+
+      setUp(() {
+        trace.addPerson('Leo', email: 'leo@example.com');
+        step('Leo', 'leo.1', 1000, '"Invite"');
+      });
+
+      test('joins the step before it by time, as sent by its catcher or by '
+          'whom its senders name', () {
+        caught(1400, {
+          'to': 'Leo@Example.com',
+          'subject': 'Your invoice',
+          'messageId': 'bill-1@example.com',
+        });
+        caught(1500, {
+          'to': 'leo@example.com',
+          'subject': 'You are invited',
+          'from': 'identity',
+          'messageId': 'inv-1@identity.test',
+        });
+        var [invite, invoice] = trace.outbox(person: 'Leo');
+        expect(
+          (invite.sender, invite.step, invite.byTime),
+          ('identity', 'leo.1', true),
+        );
+        expect(invite.id, matches(r'^identity/mailcatcher-\d+$'));
+        expect((invoice.sender, invoice.step), ('mailcatcher', 'leo.1'));
+        expect(invoice.id, matches(r'^mailcatcher/\d+$'));
+        expect(traced()['leo.1 tap "Invite"'], [
+          '+400 ms  mailcatcher → Leo by mail  Your invoice, joined by time',
+          '+500 ms  identity → Leo by mail  You are invited, joined by time',
+        ]);
+      });
+
+      test('is dropped when a server reported the same mail with its step', () {
+        lab(1300, 'mail', {
+          'to': 'leo@example.com',
+          'subject': 'You are invited',
+          'step': 'leo.1',
+          'messageId': '<INV-1@identity.test>',
+        });
+        caught(1400, {
+          'to': 'leo@example.com',
+          'subject': 'You are invited',
+          'messageId': 'inv-1@identity.test',
+        });
+        // Another mail, to someone else, under the same Message-ID.
+        caught(1450, {
+          'to': 'ana@example.com',
+          'subject': 'You are invited',
+          'messageId': 'inv-1@identity.test',
+        });
+        var [toAna, invite] = trace.outbox();
+        expect((invite.sender, invite.byTime), ('lab', false));
+        expect(toAna.to, 'ana@example.com');
+      });
+
+      test("gives way to a server's report that comes after it", () {
+        caught(1300, {
+          'to': 'leo@example.com',
+          'subject': 'You are invited',
+          'messageId': 'inv-1@identity.test',
+        });
+        expect(trace.outbox().single.sender, 'mailcatcher');
+        lab(1400, 'mail', {
+          'to': 'leo@example.com',
+          'subject': 'You are invited',
+          'step': 'leo.1',
+          'messageId': '<Inv-1@Identity.Test>',
+        });
+        var invite = trace.outbox().single;
+        expect((invite.sender, invite.byTime), ('lab', false));
+        // Nothing is left of the catcher's copy, not even its column.
+        expect(
+          {for (var server in trace.servers) server.name: server.sent},
+          {
+            'lab': {'mail': 1},
+          },
+        );
+      });
+    });
   });
 
   group('statements', () {

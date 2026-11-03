@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterware/plugins.dart' show MailCatcherKind;
 // ignore: implementation_imports
 import 'package:flutterware/src/server/attach_session.dart';
 // ignore: implementation_imports
@@ -11,11 +12,14 @@ import 'package:flutterware_app/src/plugins/native/worlds_results.dart';
 import 'package:flutterware_app/src/run/entrypoint_knobs.dart';
 import 'package:flutterware_app/src/utils/parameter_knobs.dart';
 import 'package:flutterware_app/src/utils/run_dir.dart';
+import 'package:flutterware_app/src/world/mail_catcher.dart';
 import 'package:flutterware_app/src/world/open_world.dart';
 import 'package:flutterware_app/src/world/world_files.dart';
 import 'package:flutterware_app/src/world/world_script.dart';
 import 'package:flutterware_app/src/world/world_stack.dart';
 import 'package:path/path.dart' as p;
+
+import 'fake_mail_catcher.dart';
 
 void main() {
   late String emptyRunDir;
@@ -366,6 +370,68 @@ void main() {
       expect(world.log, isNot(contains(contains('Seeding'))));
     }, timeout: const Timeout(Duration(minutes: 2)));
 
+    test('hands every mail the stack catches to its person, from the moment '
+        'it opens', () async {
+      var catcher = await FakeMailCatcher.start();
+      addTearDown(catcher.close);
+      catcher.catches(
+        from: 'no-reply@identity.test',
+        recipients: ['ana.before@example.com'],
+        subject: 'From the last opening',
+      );
+      var world = worldOn(_FakeStack(catcher: catcher.api));
+      addTearDown(world.close);
+      await world.open();
+      expect(world.phase, WorldPhase.open, reason: world.log.join('\n'));
+      expect(
+        world.log,
+        contains(
+          endsWith('Reading the mail mailcatcher catches, at ${catcher.api}'),
+        ),
+      );
+
+      var ana = 'ana.${world.id}@example.com';
+      catcher.catches(
+        from: 'The Lab <no-reply@identity.test>',
+        recipients: [ana],
+        subject: 'You are invited',
+        text: 'Join the team at https://example.com/join?code=42',
+        messageId: '<inv-1@identity.test>',
+      );
+      var trace = world.tracer!.trace;
+      var deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (trace.outbox().isEmpty && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      var invite = trace.outbox().single;
+      expect(
+        (invite.person, invite.sender, invite.text, invite.link),
+        (
+          'Ana',
+          'identity',
+          'You are invited',
+          'https://example.com/join?code=42',
+        ),
+      );
+
+      // The server that sent it reports it too, with its step: one mail.
+      trace.addServerEvent(
+        'api',
+        InspectorEvent(
+          channel: 'mail',
+          id: 1,
+          time: DateTime.now(),
+          payload: {
+            'to': ana,
+            'subject': 'You are invited',
+            'messageId': 'INV-1@identity.test',
+          },
+          isReplay: false,
+        ),
+      );
+      expect([for (var m in trace.outbox()) m.sender], ['api']);
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
     test(
       'needs with no dev stack fails, saying where to declare one',
       () async {
@@ -612,12 +678,27 @@ void main() {
 }
 
 /// A dev stack whose one service is always up at port 8123, or never comes
-/// up.
+/// up, and runs a mail catcher at [catcher] when there is one.
 class _FakeStack implements WorldStack {
-  _FakeStack({this.fails});
+  _FakeStack({this.fails, this.catcher});
 
   final String? fails;
+  final Uri? catcher;
   final asked = <List<String>>[];
+
+  @override
+  Future<List<WorldMailCatcher>> mailCatchers(
+    List<WorldService> services, {
+    required void Function(String line) say,
+  }) async => [
+    if (catcher case var api?)
+      WorldMailCatcher(
+        name: 'mailcatcher',
+        kind: MailCatcherKind.mailcatcher,
+        api: api,
+        senders: {'no-reply@identity.test': 'identity'},
+      ),
+  ];
 
   @override
   String nameOf(String id) => id == 'server' ? 'API server' : id;
