@@ -99,6 +99,11 @@ users through your server's API.
   `on: Studio(Devices.window)` for someone at a desktop, which runs the same
   app in a 1280 × 800 window inside a browser the studio draws. The default
   is an iPhone 16.
+- For someone at a desktop, `Launch(url:)` is the address the app is served
+  at on the web: `Launch('Dashboard', url: 'http://localhost:8080/clinic/acme')`.
+  The browser's address bar shows it, followed by the route the app reports.
+  Without it, the address bar shows the entry point's name as a host,
+  `dashboard.localhost`.
 - A person with no `app:` is someone the script acts for.
 - `w.knob('Leo', options: ['signed out', 'signed in'], initial: 'signed out')`
   adds a choice to the world and returns the value the world was opened
@@ -320,8 +325,9 @@ it says so: `done in 30.1 s, across reload.2`.
 
 An open world shows its people's apps live and side by side, each in its
 device. A phone app is drawn in the phone's body. A desktop app is drawn in a
-browser whose address bar shows the route the app reports; type a route there
-and the app goes to it. Back and forward step through the routes it has been
+browser whose address bar shows the app's address (its `url:`) and the route
+the app reports. Type a route there, or an address that starts with the app's
+own, and the app goes to that route. Back and forward step through the routes it has been
 on, as a browser does for a Flutter web app, and reload starts that person's
 app again on the same address. Every device is drawn at the same scale, so a
 window looks as large next to a phone as it really is. Above each device are
@@ -333,10 +339,19 @@ you would the phones: an order placed on one shows up on another.
 
 The toolbar holds the world's knobs, an **Actions** menu with every action
 the script declares, and, on the right, who is in view: **Everyone** or one
-person. Clicking a person's name above their device does the same. With one
-person in focus, their device is as large as the space allows, next to their
-panel. The panel says who they are and what their app runs on, and has these
-tabs:
+person. Clicking a person's name above their device does the same.
+
+With one person in focus, their device is as large as the space allows, up
+to its real size. Everyone else with an app is in a column on the left, each
+one small and live, so you still see what is on their screen and the
+messages that reach them. Click someone in that column to put them in focus.
+On the right is the person's panel. **Hide the panel** (the arrow at its top
+right) folds it into a narrow strip and gives the device the room; the arrow
+on the strip brings it back. The studio remembers whether the panel was
+hidden, for every world. Opening an email from a message on the screen shows
+the panel again.
+
+The panel says who they are and what their app runs on, and has these tabs:
 
 - **Messages**: the texts, pushes and emails the servers sent that person,
   and the notifications their app posted, newest first. A dot marks one
@@ -374,8 +389,8 @@ statements its request ran, a message with its code and links, or a mail as
 its recipient sees it. `worlds trace` takes the same levels:
 `--level=product`, `system` or `wire` (the default).
 
-When nobody can see an app (someone else is in focus, it is zoomed out of
-view, or the timeline is showing), it is told it is *hidden* a couple of
+When nobody can see an app (it is zoomed out of view, or the timeline is
+showing), it is told it is *hidden* a couple of
 seconds later, as a minimised desktop window is. It stops drawing and frees
 the memory drawing used, and keeps running its timers, connections and sync.
 It draws again as soon as it is back in view. It is not sent to the
@@ -387,8 +402,10 @@ background, so the app's own code for that runs only when you choose it from
 A world opens in the studio, where its people's apps are drawn. While the
 studio has the checkout open, a `worlds open` from `fw` or from an agent is
 sent there, so you and the agent see the same world, and its log says who
-asked. The answer says where the world opened, and everything the agent does
-next reaches it as usual.
+asked. The studio switches to the world as it starts opening, whatever page
+it was on, and does the same when the world is already open. The answer says
+where the world opened, and everything the agent does next reaches it as
+usual.
 
 ```shell
 fw run worlds list
