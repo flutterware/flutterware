@@ -20,7 +20,7 @@ void main() {
 import 'dart:async';
 import 'dart:io';
 
-${guestStartSource(grace: const Duration(milliseconds: 300))}
+${guestStartSource(grace: const Duration(milliseconds: 300), stuck: const Duration(milliseconds: 600))}
 $_scenarios''');
     var dart = resolveDartExecutable();
     await Future.wait([
@@ -82,6 +82,21 @@ $_scenarios''');
   test('a failure on what the app made at startup reaches a tap', () {
     expect(said['fails a request a tap made'], ['caught: Bad state: failed']);
   });
+
+  test('an app that catches its own failure and never calls runApp is '
+      'stuck', () {
+    expect(said['catches its own failure'], [
+      'Zone error Bad state: failed',
+      '${guestStuckMarker}0 s',
+    ]);
+  });
+
+  test('an app that calls runApp after it was said to be stuck says so', () {
+    expect(said['runs the app late'], [
+      '${guestStuckMarker}0 s',
+      guestRanLateMarker,
+    ]);
+  });
 }
 
 const _names = [
@@ -92,6 +107,8 @@ const _names = [
   'drops a failure while it waits, then runs the app',
   'drops a failure, then returns',
   'fails a request a tap made',
+  'catches its own failure',
+  'runs the app late',
 ];
 
 /// Each of [_names] as an app's `main`, and the `main` that runs one.
@@ -136,6 +153,14 @@ Object? Function() scenario(String name) => switch (name) {
       () => request.completeError(StateError('failed')),
     );
     runApp();
+  },
+  // As an app whose `main` runs in a zone of its own does: the error is
+  // printed there and nothing else hears of it.
+  'catches its own failure' => () {
+    runZonedGuarded(fail, (error, _) => print('Zone error $error'));
+  },
+  'runs the app late' => () {
+    Timer(const Duration(milliseconds: 800), runApp);
   },
   _ => throw ArgumentError(name),
 };

@@ -22,6 +22,7 @@ import '../run/handle.dart';
 import '../run/journal.dart';
 import '../session/job.dart';
 import '../utils/parameter_knobs.dart';
+import '../previews/asset_bundle.dart' show BundleSync;
 import 'app_guest.dart';
 import 'bundle_id.dart';
 import 'declared_links.dart';
@@ -887,6 +888,7 @@ class OpenWorld {
       _changed();
       await previous?._stop();
       await build.ready;
+      await build.freshBundle(_restarts);
       await build.freshKernel();
       await _start(person, build, device);
     } on Object catch (error) {
@@ -956,8 +958,20 @@ class OpenWorld {
         platform: platform.platform.answer,
         onOutput: (line) {
           log.line(line);
+          person._lastWords.hear(line);
           if (stoppedBeforeDrawing(line) case var why?) {
             _stoppedEarly(person, why);
+          } else if (stuckBeforeDrawing(line) case var after?) {
+            _stoppedEarly(
+              person,
+              stuckProblem(
+                after,
+                person._lastWords,
+                hooksFailure: build.hooksFailure,
+              ),
+            );
+          } else if (line.contains(guestRanLateMarker)) {
+            _ranLate(person);
           }
         },
       ),
@@ -1005,6 +1019,21 @@ class OpenWorld {
       ..phase = PersonPhase.failed
       ..problem = why;
     _say('${person.name}: $why');
+    _changed();
+  }
+
+  /// [person]'s app called `runApp` after it was said to be stuck: it is up
+  /// after all.
+  void _ranLate(WorldPerson person) {
+    if (person._stopped == null) return;
+    person._stopped = null;
+    if (people[person.name] != person || person.phase != PersonPhase.failed) {
+      return;
+    }
+    person
+      ..phase = PersonPhase.running
+      ..problem = null;
+    _say('${person.name}: the app called runApp after all');
     _changed();
   }
 
@@ -1066,7 +1095,7 @@ class OpenWorld {
       );
       // Built ahead, it may serve nobody this time; its failure is then
       // nobody's to handle.
-      build.ready = build.prepare(_host)..ignore();
+      build.ready = build.prepare(_host, opening: _restarts)..ignore();
       return build;
     });
   }
@@ -1189,10 +1218,20 @@ class _Build {
   final people = <WorldPerson>[];
   var _edits = Future<void>.value();
 
-  Future<void> prepare(Future<String> host) async {
+  /// Why the build hooks left the bundle without native libraries, when they
+  /// did.
+  String? hooksFailure;
+
+  /// Which opening of the world the bundle was last built for. A restart
+  /// builds it again, so a native library a build hook now builds — or no
+  /// longer does — reaches the apps it starts.
+  late int _bundleFor;
+
+  Future<void> prepare(Future<String> host, {required int opening}) async {
     _say('Building $label');
+    _bundleFor = opening;
     await host;
-    await app.assets();
+    _hooks(await app.assets());
     var outcome = await app.compile();
     if (!outcome.ok) {
       throw WorldRefusal(
@@ -1200,6 +1239,18 @@ class _Build {
       );
     }
     _say('Built $label');
+  }
+
+  /// Builds the bundle again for [opening], once whoever asks first.
+  Future<void> freshBundle(int opening) => _serial(() async {
+    if (_bundleFor == opening) return;
+    _bundleFor = opening;
+    _hooks(await app.assets());
+  });
+
+  void _hooks(BundleSync sync) {
+    hooksFailure = sync.hooksFailure;
+    if (hooksFailure case var failure?) _say('$label: $failure');
   }
 
   /// Whether the running guests are ahead of the kernel on disk — a reload
@@ -1345,6 +1396,9 @@ class WorldPerson {
   /// Their app's run key, once it is up — what `flutterware_act` reaches it
   /// by, beside the device `studio-<name>`.
   String? get runKey => handle?.key;
+
+  /// What their app last printed: a stuck app is shown with it.
+  final _lastWords = LastWords();
 
   Future<void> _stop() async {
     _build?.people.remove(this);

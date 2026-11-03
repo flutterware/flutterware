@@ -93,8 +93,9 @@ class AppGuestBuild {
   /// The seed this build started from, when [seeds] found one.
   SeedKernel? get seed => _seed;
 
-  /// The asset bundle, the build hooks' native libraries included.
-  Future<void> assets() => AssetBundleBuilder(
+  /// The asset bundle, the build hooks' native libraries included. Says
+  /// whether the hooks failed, which left it with none.
+  Future<BundleSync> assets() => AssetBundleBuilder(
     cache: cache,
     rootPackageRoot: package,
     packageConfigPath: packageConfig,
@@ -340,9 +341,12 @@ ${[for (var knob in enums) "  r'${knob.name}': (name) => ${knob.enumType}.values
 /// The guest entry's `_start`, which runs the app's `main` and calls
 /// `ranApp` to learn whether it has called `runApp` yet.
 ///
-/// Its own function, and [grace] a parameter, so that a test can run it as
-/// the entry does.
-String guestStartSource({Duration grace = const Duration(seconds: 5)}) =>
+/// Its own function, and [grace] and [stuck] parameters, so that a test can
+/// run it as the entry does.
+String guestStartSource({
+  Duration grace = const Duration(seconds: 5),
+  Duration stuck = const Duration(seconds: 10),
+}) =>
     '''
 /// Runs the app's `main`, and says so when it fails before `runApp`: that app
 /// will never draw, and whoever waits for its first frame need not wait out
@@ -362,6 +366,11 @@ String guestStartSource({Duration grace = const Duration(seconds: 5)}) =>
 /// startup would be in that zone while a tap's handler runs in the zone the
 /// binding was made in, so a request the tap made would fail into the handler
 /// here and its page would wait for ever.
+///
+/// An app that has not called `runApp` ${stuck.inSeconds} s after it started
+/// is said to be stuck, whatever stopped it: an error its own zone caught and
+/// printed, an await that never returns. It draws nothing, and only its own
+/// output says why. Should `runApp` come after all, that is said too.
 Object? _start(bool Function() ranApp, Object? Function() main) {
   var said = false;
   void stopped(Object error) {
@@ -369,6 +378,16 @@ Object? _start(bool Function() ranApp, Object? Function() main) {
     said = true;
     print('$guestStoppedMarker\${'\$error'.split('\\n').first}');
   }
+
+  Timer(const Duration(milliseconds: ${stuck.inMilliseconds}), () {
+    if (said || ranApp()) return;
+    print('$guestStuckMarker${stuck.inSeconds} s');
+    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!ranApp()) return;
+      timer.cancel();
+      print('$guestRanLateMarker');
+    });
+  });
 
   Object? uncaught;
   var returned = false;
@@ -420,6 +439,21 @@ Object? _start(bool Function() ranApp, Object? Function() main) {
 /// failed before calling `runApp`.
 const guestStoppedMarker = '[world] main failed before runApp: ';
 
+/// What a guest prints, before how long it waited, when the app has not
+/// called `runApp` that long after it started.
+const guestStuckMarker = '[world] no runApp after ';
+
+/// What a guest prints when `runApp` came after it was said to be stuck.
+const guestRanLateMarker = '[world] runApp came late';
+
+/// How long the app had gone without calling `runApp` — `10 s` — when
+/// [line] is the guest saying so; otherwise null.
+String? stuckBeforeDrawing(String line) {
+  var at = line.indexOf(guestStuckMarker);
+  if (at < 0) return null;
+  return line.substring(at + guestStuckMarker.length).trim();
+}
+
 /// Why the app stopped before it drew, when [line] is the guest saying so;
 /// otherwise null. In words for the person's panel, with what to do when the
 /// cause is a plugin a world cannot run.
@@ -431,6 +465,44 @@ String? stoppedBeforeDrawing(String line) {
       '${error.contains('FailedToLoadClassException') ? ' A plugin calls its '
                 'native code directly, and a world builds none. Fake the '
                 'plugin in the entry point, behind a knob.' : ''}';
+}
+
+/// The last lines an app printed that say something — not its stack frames,
+/// nor the world's own lines. A stuck app is shown with them, since its own
+/// output is the only place it says why.
+class LastWords {
+  final _lines = <String>[];
+
+  List<String> get lines => List.unmodifiable(_lines);
+
+  void hear(String line) {
+    var text = line.startsWith('flutter: ') ? line.substring(9) : line;
+    text = text.trim();
+    if (text.isEmpty ||
+        text.startsWith('[world] ') ||
+        text.startsWith('[{') ||
+        text.startsWith('<asynchronous suspension>') ||
+        text.startsWith('The Dart VM service is listening') ||
+        RegExp(r'^#\d+ ').hasMatch(text)) {
+      return;
+    }
+    _lines.add(text.length > 300 ? '${text.substring(0, 300)}…' : text);
+    if (_lines.length > 3) _lines.removeAt(0);
+  }
+}
+
+/// Why an app draws nothing, [after] it started without calling `runApp`:
+/// its [words], and the build hooks' failure when there was one — the usual
+/// reason an app fails before it draws in a world.
+String stuckProblem(String after, LastWords words, {String? hooksFailure}) {
+  var stuck =
+      'The app has not called runApp $after after it started, so it draws '
+      'nothing.';
+  return [
+    stuck,
+    if (words.lines.isNotEmpty) 'Its last lines:\n${words.lines.join('\n')}',
+    ?hooksFailure,
+  ].join('\n\n');
 }
 
 /// [path], emptied and made: a person's home as their guest starts. A world

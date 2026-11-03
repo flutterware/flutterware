@@ -254,7 +254,9 @@ each one brings up first.
   one. It takes well under a second.
 - **Restart** runs the script again for new people and starts each app
   afresh with its storage emptied, so no app opens as the previous person.
-  It takes about a second and rebuilds nothing.
+  It takes about a second. It recompiles nothing, but it does build each
+  app's assets again, which is quick when nothing changed, so a native
+  library a build hook now builds reaches the restarted apps.
 - **Close** stops everything.
 
 A reload keeps everything the world holds: the people, their sessions and the
@@ -734,18 +736,29 @@ HTTP, WebSockets and native libraries built by build hooks, such as
 folder, so a file it writes relative to its working directory stays theirs.
 Cameras, maps and web views aren't available.
 
+If one build hook fails, the app has no native library at all. The world log
+names the hook and the first line it wrote to stderr: `objective_c's build
+hook failed: Can't load Kernel binary: Invalid SDK hash.` That one means the
+hook had been compiled by another Flutter SDK; flutterware compiles such a
+hook again before it runs the hooks, so you should not see it.
+
 Any other plugin needs a fake. A call that the studio does not answer fails
 in the app, as it would on a platform the plugin doesn't support. The world
 reports the first one: a line in the world log, a warning on the person, and
-`unanswered` in `worlds status`. A plugin that calls its native code directly,
-through FFI, fails as soon as the app uses it, because a world builds no
-native code. When that happens in `main`, before `runApp`, the person's app
-fails at once and the world says why. When it happens in a future that `main`
-starts but does not return, the app fails 5 seconds later, unless it has
-called `runApp` by then. Fake the plugin in the entry point the world starts,
-behind a knob, as you would in a scenario. The studio registers each
-plugin's Dart half before it calls `main`, so whatever `main` sets wins: a
-plugin's platform interface, or a class of your own that wraps the plugin.
+`unanswered` in `worlds status`. A plugin that calls its native code
+directly, through FFI, fails as soon as the app uses it, because a world
+builds no native code. When that happens in `main`, before `runApp`, the
+person's app fails at once and the world says why. When it happens in a
+future that `main` starts but does not return, the app fails 5 seconds later,
+unless it has called `runApp` by then. An app that has not called `runApp` 10
+seconds after it started, whatever stopped it (an error its own zone caught
+and printed, an await that never returns), is shown failed on its device with
+the last lines it printed, and with the build hooks' failure when there was
+one. Should `runApp` come later, the app is back. Fake the plugin in the
+entry point the world starts, behind a knob, as you would in a scenario. The
+studio registers each plugin's Dart half before it calls `main`, so whatever
+`main` sets wins: a plugin's platform interface, or a class of your own that
+wraps the plugin.
 
 ```dart
 void main({String server = '', bool fakeScale = false}) {
