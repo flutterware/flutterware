@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware/run_guest.dart' show GuestDrive;
@@ -52,6 +55,31 @@ void main() {
     source.go(PagePath('/detail/3'));
     await tester.pump();
     expect(find.text('init:3 current:3'), findsOneWidget);
+  });
+
+  group('a route the platform pushes', () {
+    tearDown(() => GuestDrive.navigator = null);
+
+    testWidgets('moves the source, query string included', (tester) async {
+      var source = UrlSourceFake(initial: PagePath('/detail/1'));
+      await tester.pumpWidget(app(source));
+
+      var taken = await _pushRoute(tester, '/detail/7?tab=2');
+      await tester.pump();
+
+      expect(taken, isTrue);
+      expect(source.current, PagePath('/detail/7?tab=2'));
+      expect(find.text('init:7 current:7'), findsOneWidget);
+    });
+
+    testWidgets('is no longer taken once the root is gone', (tester) async {
+      await tester.pumpWidget(app(UrlSourceFake(initial: PagePath.root)));
+      await tester.pumpWidget(const SizedBox());
+
+      var taken = await _pushRoute(tester, '/detail/8');
+
+      expect(taken, isFalse);
+    });
   });
 
   group('the drive navigate handler', () {
@@ -112,6 +140,22 @@ void main() {
       expect(GuestDrive.navigator, isNull);
     });
   });
+}
+
+/// What the engine sends when the platform opens the app on a link.
+Future<bool> _pushRoute(WidgetTester tester, String location) async {
+  var channel = SystemChannels.navigation;
+  var reply = Completer<bool>();
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    channel.name,
+    channel.codec.encodeMethodCall(
+      MethodCall('pushRouteInformation', {'location': location, 'state': null}),
+    ),
+    (data) => reply.complete(
+      data != null && channel.codec.decodeEnvelope(data) == true,
+    ),
+  );
+  return reply.future;
 }
 
 class _RouteState extends StatefulWidget {

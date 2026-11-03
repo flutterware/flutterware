@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../drive/navigator.dart';
@@ -30,7 +31,7 @@ class RouterRoot extends StatefulWidget {
   }
 }
 
-class _RouterRootState extends State<RouterRoot> {
+class _RouterRootState extends State<RouterRoot> with WidgetsBindingObserver {
   /// The `navigate` handler this root installed. The slot is one global, so
   /// this is what says whether the handler standing there is still ours.
   void Function(String route)? _navigator;
@@ -39,6 +40,22 @@ class _RouterRootState extends State<RouterRoot> {
   void initState() {
     super.initState();
     _registerNavigator();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// A deep link the platform opens the app on, the way a phone hands one
+  /// over: its path and query go to the source. On the web the source follows
+  /// the browser's address itself, so the push is left to it.
+  @override
+  Future<bool> didPushRouteInformation(RouteInformation routeInformation) {
+    if (kIsWeb) return SynchronousFuture(false);
+    var uri = routeInformation.uri;
+    var route = Uri(
+      path: uri.path.isEmpty ? '/' : uri.path,
+      query: uri.hasQuery ? uri.query : null,
+    ).toString();
+    widget.urlSource.go(PagePath(route, isAbsolute: true));
+    return SynchronousFuture(true);
   }
 
   @override
@@ -63,6 +80,7 @@ class _RouterRootState extends State<RouterRoot> {
   /// had just made.
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (identical(driveNavigator, _navigator)) driveNavigator = null;
     super.dispose();
   }
