@@ -746,16 +746,29 @@ class WorldsCore extends PluginCore {
       throw WorldRefusal('The studio takes openings here, not "$action".');
     }
     var asker = arguments['from'];
+    var world = '${arguments['world']}';
+    // The world already open, asked for again: shown as a new one would be.
+    if (_open case var open? when open.file.id == world) {
+      onOpenedForAnother?.call(open);
+    }
     var opened = await openWorld(
-      '${arguments['world']}',
+      world,
       knobs: parseWorldKnobs(arguments['knobs'] as String?),
-      onCreated: (open) => open.say(
-        'Opened for another process${asker == null ? '' : ' (pid $asker)'}, '
-        'such as `fw` or the MCP server, which reaches it from there',
-      ),
+      onCreated: (open) {
+        open.say(
+          'Opened for another process${asker == null ? '' : ' (pid $asker)'}, '
+          'such as `fw` or the MCP server, which reaches it from there',
+        );
+        onOpenedForAnother?.call(open);
+      },
     );
     return WorldStateResult.of(opened).toJson();
   }
+
+  /// Told as a world starts opening here because another process asked —
+  /// `fw`, the MCP server — or when one asks for the world already open: the
+  /// studio puts it on screen.
+  void Function(OpenWorld world)? onOpenedForAnother;
 
   /// The studio taking this worktree's openings, when it is another process.
   WorldDoor? openingElsewhere() {

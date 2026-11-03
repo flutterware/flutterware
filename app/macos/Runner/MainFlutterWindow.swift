@@ -2,11 +2,19 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  static let frameName = "Studio"
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
+
+    // Where it was last closed, at the size it had: AppKit keeps the frame
+    // in the studio's defaults under this name as the window moves and
+    // resizes, and the first launch keeps the nib's.
+    self.setFrameUsingName(Self.frameName)
+    self.setFrameAutosaveName(Self.frameName)
 
     // Extend content under the titlebar and reclaim that band for the shell.
     // The traffic lights stay real — they just float over our content, which
