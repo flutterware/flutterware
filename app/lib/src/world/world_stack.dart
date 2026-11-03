@@ -1,9 +1,13 @@
+import 'package:flutterware/plugins.dart' show ScriptSource, ValueSource;
 // ignore: implementation_imports
 import 'package:flutterware/src/world/world.dart' show WorldService;
+import 'package:path/path.dart' as p;
 
 import '../plugins/native/dev_stack_core.dart';
 import '../plugins/native/dev_stack_results.dart';
+import '../run/define_scripts.dart';
 import '../session/job.dart' show ActionRefusal;
+import 'mail_catcher.dart';
 import 'open_world.dart' show WorldRefusal;
 import 'world_files.dart';
 
@@ -32,6 +36,13 @@ abstract interface class WorldStack {
     List<String> ids, {
     required void Function(String line) say,
     required String world,
+  });
+
+  /// The mail catchers [services] run, each with where it answers. One whose
+  /// port cannot be worked out is left out, and [say] says why.
+  Future<List<WorldMailCatcher>> mailCatchers(
+    List<WorldService> services, {
+    required void Function(String line) say,
   });
 }
 
@@ -93,6 +104,70 @@ class DevStackForWorlds implements WorldStack {
           },
         ),
     ];
+  }
+
+  @override
+  Future<List<WorldMailCatcher>> mailCatchers(
+    List<WorldService> services, {
+    required void Function(String line) say,
+  }) async {
+    var catchers = <WorldMailCatcher>[];
+    for (var service in services) {
+      var core = stack.services.where((s) => s.id == service.id).firstOrNull;
+      var mail = core?.declaration.mail;
+      if (core == null || mail == null) continue;
+      var port = mail.http;
+      if (mail.httpFrom case var source?) {
+        String? problem;
+        (port, problem) = await _portFrom(core, source);
+        if (problem != null) {
+          say(
+            "${core.label}'s mail catcher has no port: $problem A mail it "
+            'catches reaches nobody in this world.',
+          );
+          continue;
+        }
+      }
+      catchers.add(
+        WorldMailCatcher(
+          name: mail.name,
+          kind: mail.kind,
+          api: Uri.parse('http://localhost:$port/'),
+          senders: mail.senders,
+        ),
+      );
+    }
+    return catchers;
+  }
+
+  /// The port [source] prints, run for [service]'s checkout, or why not.
+  static Future<(int?, String?)> _portFrom(
+    StackServiceCore service,
+    ValueSource source,
+  ) async {
+    if (source is! ScriptSource) {
+      return (null, 'only ValueSource.script can give its port.');
+    }
+    var outcome = await runDefineScript(
+      source,
+      dartExecutable: p.join(
+        service.host.workspace.flutterSdk.root,
+        'bin',
+        'dart',
+      ),
+      worktreePath: service.host.worktree.path,
+    );
+    if (outcome.problem case var problem?) return (null, '$problem.');
+    var printed = outcome.value?.trim();
+    if (int.tryParse(printed ?? '') case var port? when port > 0) {
+      return (port, null);
+    }
+    return (
+      null,
+      printed == null
+          ? '${source.path} printed ${outcome.options.length} values.'
+          : '${source.path} printed "$printed", which is not a port number.',
+    );
   }
 
   static void _sayEnded(

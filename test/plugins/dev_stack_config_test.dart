@@ -29,6 +29,13 @@ void main() {
         start: StackRun.script('tool/local_env.dart', args: ['up']),
         stop: StackRun.script('tool/local_env.dart', args: ['down']),
         stopIsDestructive: true,
+        mail: MailCatcher.mailcatcher(
+          httpFrom: ValueSource.script(
+            'packages/server/tool/local_env.dart',
+            args: ['port', 'mailcatcher'],
+          ),
+          senders: {'no-reply@identity.test': 'identity'},
+        ),
         commands: [
           StackCommand(
             'logs',
@@ -58,6 +65,7 @@ void main() {
         start: StackRun.script('bin/worker_local.dart'),
         ready: Ready.processAlive(),
         env: {'FFMPEG_BIN': 'ffmpeg', 'CONVERT_BIN': 'convert'},
+        mail: MailCatcher.mailcatcher(http: 1080, name: 'worker mail'),
       ),
       StackService.owned(
         'ml',
@@ -141,12 +149,77 @@ void main() {
       );
     });
 
+    test('a mail catcher comes back on the service that runs it', () {
+      var read = readBack();
+      var stack = read[0].mail!;
+      expect(stack.kind, MailCatcherKind.mailcatcher);
+      expect(stack.http, isNull);
+      expect((stack.httpFrom! as ScriptSource).args, ['port', 'mailcatcher']);
+      expect(stack.name, 'mailcatcher');
+      expect(stack.senders, {'no-reply@identity.test': 'identity'});
+
+      var worker = read[2].mail!;
+      expect((worker.http, worker.httpFrom), (1080, null));
+      expect(worker.name, 'worker mail');
+      expect(read[1].mail, isNull);
+    });
+
     test('what each service needs comes back, and none means none', () {
       var read = readBack();
       expect(read[0].needs, isEmpty);
       expect(read[1].needs, ['stack']);
       expect(read[2].needs, ['stack', 'server']);
       expect(read[3].needs, isEmpty);
+    });
+  });
+
+  group('a mail catcher is checked when the config loads', () {
+    DevStack withCatcher(MailCatcher mail) => DevStack(
+      services: [
+        StackService.delegated(
+          'db',
+          probe: Probe.exitCode(StackRun.command(['true'])),
+          mail: mail,
+        ),
+      ],
+    );
+
+    test('it needs a port', () {
+      expect(
+        () => withCatcher(const MailCatcher.mailcatcher()),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('on service "db" has neither `http:` nor `httpFrom:`'),
+          ),
+        ),
+      );
+    });
+
+    test('and only one', () {
+      expect(
+        () => withCatcher(
+          MailCatcher.mailcatcher(
+            http: 1080,
+            httpFrom: ValueSource.script('tool/ports.dart'),
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('has both `http:` and `httpFrom:`'),
+          ),
+        ),
+      );
+    });
+
+    test('a kind this build does not know reads as no catcher', () {
+      expect(
+        MailCatcher.fromJson({'kind': 'tomorrows_catcher', 'http': 8025}),
+        isNull,
+      );
     });
   });
 

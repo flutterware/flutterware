@@ -335,6 +335,18 @@ body'''),
       expect(mail.html, '<b>✓</b>');
       expect(mail.text, isNull);
     });
+
+    test('the Message-ID, without its angle brackets', () {
+      InboxMail mail(String header) =>
+          InboxMail.parse(utf8.encode('$header\r\n\r\nHello\r\n'));
+      expect(
+        mail('Message-ID: <Inv-1@Identity.Test>').messageId,
+        'Inv-1@Identity.Test',
+      );
+      expect(mail('Message-Id:\r\n <a@b>').messageId, 'a@b');
+      expect(mail('Message-ID: bare@b').messageId, 'bare@b');
+      expect(mail('Subject: none').messageId, isNull);
+    });
   });
 
   group('relay', () {

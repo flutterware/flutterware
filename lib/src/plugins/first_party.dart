@@ -1367,6 +1367,16 @@ class DevStack extends Plugin {
         '${circle.join(' → ')}. Remove one of these needs.',
       );
     }
+    for (var service in services) {
+      if (service.mail case var mail?
+          when (mail.http == null) == (mail.httpFrom == null)) {
+        throw StateError(
+          'The mail catcher on service "${service.id}" has '
+          '${mail.http == null ? 'neither `http:` nor `httpFrom:`' : 'both `http:` and `httpFrom:`'}. '
+          'Give one of them: the port its web interface answers on.',
+        );
+      }
+    }
   }
 
   /// The first circle [StackService.needs] makes, as the ids around it with
@@ -1409,6 +1419,7 @@ class DevStack extends Plugin {
     Duration commandTimeout = const Duration(minutes: 10),
     bool stopIsDestructive = false,
     List<StackCommand> commands = const [],
+    MailCatcher? mail,
     String? label,
   }) : this(
          label: label,
@@ -1424,6 +1435,7 @@ class DevStack extends Plugin {
              commandTimeout: commandTimeout,
              stopIsDestructive: stopIsDestructive,
              commands: commands,
+             mail: mail,
            ),
          ],
        );
@@ -1451,6 +1463,7 @@ sealed class StackService {
     this.poll = const Duration(seconds: 10),
     this.commandTimeout = const Duration(minutes: 10),
     this.commands = const [],
+    this.mail,
   });
 
   /// A lifecycle the project's own commands own. flutterware polls [probe] and
@@ -1467,6 +1480,7 @@ sealed class StackService {
     Duration commandTimeout,
     bool stopIsDestructive,
     List<StackCommand> commands,
+    MailCatcher? mail,
   }) = DelegatedStackService;
 
   /// A process flutterware spawns and holds itself: it has the pid, it owns
@@ -1484,6 +1498,7 @@ sealed class StackService {
     Duration poll,
     Duration commandTimeout,
     List<StackCommand> commands,
+    MailCatcher? mail,
   }) = OwnedStackService;
 
   /// Stable within the plugin — what an action, a teardown step and a cached
@@ -1557,6 +1572,10 @@ sealed class StackService {
   /// or an HTTP port, which is another command.
   final List<StackCommand> commands;
 
+  /// The mail catcher this service runs, if it runs one: a world that needs
+  /// the service hands every mail the catcher receives to its person.
+  final MailCatcher? mail;
+
   Map<String, Object?> toJson();
 
   /// The fields every kind carries, so a reader can pick the kind apart from
@@ -1570,6 +1589,7 @@ sealed class StackService {
     'poll': poll.inMilliseconds,
     'commandTimeout': commandTimeout.inMilliseconds,
     if (commands.isNotEmpty) 'commands': [for (var c in commands) c.toJson()],
+    if (mail != null) 'mail': mail!.toJson(),
   };
 
   /// Every service a `config` map declares, in declaration order.
@@ -1741,6 +1761,7 @@ final class DelegatedStackService extends StackService {
     super.commandTimeout,
     this.stopIsDestructive = false,
     super.commands,
+    super.mail,
   });
 
   /// How to find out what state the stack is in.
@@ -1793,6 +1814,7 @@ final class DelegatedStackService extends StackService {
           if (entry is Map)
             ?StackCommand.fromJson(entry.cast<String, Object?>()),
       ],
+      mail: MailCatcher.fromJson(json['mail']),
     );
   }
 }
@@ -1860,6 +1882,7 @@ final class OwnedStackService extends StackService {
     super.poll = const Duration(seconds: 3),
     super.commandTimeout,
     super.commands,
+    super.mail,
   });
 
   /// What to spawn. It is expected **not** to return — that is what makes this
@@ -1978,6 +2001,7 @@ final class OwnedStackService extends StackService {
           if (entry is Map)
             ?StackCommand.fromJson(entry.cast<String, Object?>()),
       ],
+      mail: MailCatcher.fromJson(json['mail']),
     );
   }
 }
@@ -2186,6 +2210,111 @@ final class HttpReady extends Ready {
     'path': path,
     'timeout': timeout.inMilliseconds,
   };
+}
+
+/// A mail catcher a [StackService] runs: the inbox a development stack sends
+/// its mail to.
+///
+/// A world that needs the service reads every mail the catcher receives while
+/// the world is open, and hands each one to the person it was sent to, as it
+/// does a mail a Dart server reports. The world script does nothing for it,
+/// and what sends to the catcher keeps its settings: with no world open, its
+/// mail lands in the catcher as before.
+///
+/// ```dart
+/// StackService.delegated(
+///   'db',
+///   probe: …,
+///   start: StackRun.command(['docker', 'compose', 'up', '--wait']),
+///   mail: MailCatcher.mailcatcher(
+///     http: 1080,
+///     senders: {'no-reply@identity.test': 'identity'},
+///   ),
+/// ),
+/// ```
+///
+/// Each kind is read through its own web interface, so its port is the one
+/// to give, not the SMTP port.
+final class MailCatcher {
+  /// [Mailcatcher](https://mailcatcher.me), whose web interface answers on
+  /// `localhost:`[http]: `1080` unless it was started with `--http-port`, or
+  /// the port a container publishes it on.
+  ///
+  /// When each checkout runs its own stack on its own ports, give [httpFrom]
+  /// instead, a script that prints the port. It runs each time a world opens,
+  /// the way [Ready.httpFrom]'s does before a start. Give one of the two.
+  const MailCatcher.mailcatcher({
+    this.http,
+    this.httpFrom,
+    this.name = 'mailcatcher',
+    this.senders = const {},
+  }) : kind = MailCatcherKind.mailcatcher;
+
+  const MailCatcher._(
+    this.kind, {
+    this.http,
+    this.httpFrom,
+    required this.name,
+    required this.senders,
+  });
+
+  /// Which catcher it is, and so which API it is read through.
+  final MailCatcherKind kind;
+
+  /// The port its web interface answers on, on `localhost`, or null when
+  /// [httpFrom] works it out.
+  final int? http;
+
+  /// Where the port comes from, or null when [http] is written down.
+  final ValueSource? httpFrom;
+
+  /// Who sent a mail that no entry in [senders] names. The world draws it as
+  /// a service of its own.
+  final String name;
+
+  /// Who sent a mail, by the address in its `From` header, ignoring case:
+  /// `{'no-reply@identity.test': 'identity'}` shows a mail from that address
+  /// as sent by `identity`, the service that sends it.
+  final Map<String, String> senders;
+
+  Map<String, Object?> toJson() => {
+    'kind': kind.name,
+    if (http != null) 'http': http,
+    if (httpFrom != null) 'httpFrom': httpFrom!.toJson(),
+    'name': name,
+    if (senders.isNotEmpty) 'senders': senders,
+  };
+
+  /// Reads back what [toJson] wrote, or null for a kind this build does not
+  /// know or a catcher with no port.
+  static MailCatcher? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    var kind = MailCatcherKind.values
+        .where((kind) => kind.name == raw['kind'])
+        .firstOrNull;
+    var http = raw['http'];
+    var from = ValueSource.fromJson(raw['httpFrom']);
+    if (kind == null || (http is! int && from == null)) return null;
+    return MailCatcher._(
+      kind,
+      http: http is int ? http : null,
+      httpFrom: http is int ? null : from,
+      name: switch (raw['name']) {
+        String name when name.isNotEmpty => name,
+        _ => kind.name,
+      },
+      senders: {
+        for (var entry in (raw['senders'] as Map? ?? const {}).entries)
+          if (entry.value is String) '${entry.key}': entry.value! as String,
+      },
+    );
+  }
+}
+
+/// The mail catchers a [MailCatcher] can be.
+enum MailCatcherKind {
+  /// See [MailCatcher.mailcatcher].
+  mailcatcher,
 }
 
 /// Something a [DevStack] runs: the probe, `start`, `stop`, a [StackCommand].
