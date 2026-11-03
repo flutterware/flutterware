@@ -501,6 +501,40 @@ class _RoundedBox extends CustomPainter {
   bool shouldRepaint(_RoundedBox old) => old.radius != radius;
 }
 
+/// What a person's browser shows before the route their app reports: the
+/// address the app is served at ([Launch.url]), or the entry point's name as
+/// a host, `lab.localhost`, for an app the world gave no address.
+String browserHost(Launch? app) {
+  if (app?.url case var url?) {
+    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
+  var name = app?.entrypoint ?? 'app';
+  var slug = name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-');
+  return '$slug.localhost';
+}
+
+/// The route an address typed into a person's browser goes to, or null for
+/// a link to open in their app instead.
+///
+/// An address under [host] ([browserHost]), with or without its scheme, goes
+/// to the route after it: `http://localhost:8080/clinic/acme/patients` to
+/// `/patients`. Any other address with a scheme is a link. Anything else is
+/// taken from its first `/`, so a path typed alone goes to that path.
+String? typedRoute(String typed, {required String host}) {
+  var scheme = RegExp('^[a-zA-Z][a-zA-Z0-9+.-]*://');
+  var bare = typed.replaceFirst(scheme, '');
+  var base = host.replaceFirst(scheme, '');
+  if (bare.startsWith(base)) {
+    var rest = bare.substring(base.length);
+    if (rest.isEmpty) return '/';
+    if (rest.startsWith('/')) return rest;
+    if (rest.startsWith('?') || rest.startsWith('#')) return '/$rest';
+  }
+  if (scheme.hasMatch(typed)) return null;
+  var slash = typed.indexOf('/');
+  return slash < 0 ? '/' : typed.substring(slash);
+}
+
 /// The browser around a desktop person's app, showing the title the app
 /// gives itself and the route it reports.
 class _Browser extends StatefulWidget {
@@ -545,28 +579,20 @@ class _BrowserState extends State<_Browser> {
     super.dispose();
   }
 
-  /// `lab.localhost`: the entry point's name as a host, since a desktop app
-  /// has none of its own.
-  String get _host {
-    var name = widget.person.spec.app?.entrypoint ?? 'app';
-    var slug = name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-');
-    return '$slug.localhost';
-  }
+  String get _host => browserHost(widget.person.spec.app);
 
-  /// A typed address, taken where a browser would take it: a link with a
-  /// scheme into the app the way a delivered one goes, anything else as the
-  /// path to show.
+  /// A typed address, taken where a browser would take it: a route under
+  /// the app's own address to that route, another link with a scheme into
+  /// the app the way a delivered one goes.
   void _go(String typed) {
     var platform = widget.person.platform;
     if (platform == null || typed.isEmpty) return;
-    if (typed.contains('://')) {
-      platform.links.open(typed);
-      return;
+    switch (typedRoute(typed, host: _host)) {
+      case var route?:
+        platform.navigation.go(route);
+      case null:
+        platform.links.open(typed);
     }
-    var path = typed.startsWith(_host) ? typed.substring(_host.length) : typed;
-    var slash = path.indexOf('/');
-    path = slash < 0 ? '/' : path.substring(slash);
-    platform.navigation.go(path);
   }
 
   Future<void> _reload() async {

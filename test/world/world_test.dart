@@ -112,6 +112,11 @@ void main() {
         on: const Studio(Devices.iPad),
       );
       w.person('Leo', phone: '+32470000001');
+      w.person(
+        'Cleo',
+        app: const Launch('Desk', url: 'http://localhost:8080/shop/canal'),
+        on: const Studio(Devices.window),
+      );
     });
     owner.send(WorldMessage.open);
     var hello = await owner.next(WorldMessage.hello);
@@ -119,10 +124,12 @@ void main() {
 
     var id = hello['id']! as String;
     expect(id, hasLength(6));
-    var [ana, leo] = [
+    var [ana, leo, cleo] = [
       for (var message in owner.of(WorldMessage.person))
         personFromJson(message),
     ];
+    expect(ana.app!.url, isNull);
+    expect(cleo.app!.url, 'http://localhost:8080/shop/canal');
     expect(ana.email, 'ana.$id@example.com');
     expect(ana.app!.entrypoint, 'Shop');
     // An enum by its constant's name, which is how Run takes one.

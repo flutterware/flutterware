@@ -38,7 +38,8 @@ class BrowserFrame extends StatefulWidget {
   /// Beside the title, the way a site's icon is.
   final Color? titleColor;
 
-  /// The address's muted part, before [path]: `lab.localhost`.
+  /// The address's muted part, before [path]: where the app is served,
+  /// `http://localhost:8080/clinic/acme`, or `lab.localhost`.
   final String host;
 
   /// What the app says it is showing: `/orders/o3`. Empty until it says.
