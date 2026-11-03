@@ -91,6 +91,8 @@ users through your server's API.
   last time. The script writes each address and phone number itself, one line
   each, in a form your server accepts. Pass them to
   `w.person(email:, phone:)` and the studio shows them next to the person.
+  Add `password:` for someone who signs in with one. A focused field in any
+  person's app offers these; see [Fill in a field](#fill-in-a-field).
 - `Launch` names an entry point and the [knobs](run.md#knobs) its `main` is
   called with. That is how a person starts signed in: a session token, a
   server URL or a starting page are all knobs. A knob of an enum type takes
@@ -675,6 +677,57 @@ draws the picture with each link's box, and
 `fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
 Drawing needs the Xcode command line tools, as Run's native layer does; the
 helper is compiled on first use.
+
+## Fill in a field
+
+When a text field in a person's app has focus, a bar under their device
+offers what the world knows, the way a phone's autofill does. With that
+person in focus, the bar is in their panel, under their name. Click an entry
+to type it into the field:
+
+- An email or username field offers every person's address, the person
+  typing first.
+- A password field offers that person's own password.
+- A name field offers their name.
+- A phone field offers every person's phone number.
+- A one-time code field offers the last code they received, as **Enter
+  code** does.
+
+Any other field offers nothing. Each entry shows whose it is; hover it to see
+the address or number. A password is never shown.
+
+The bar reads what a field is for from its `autofillHints` first, then its
+keyboard type, then `obscureText`, which marks a password. Give a field the
+hint it would have on a phone and the bar offers the right thing:
+
+```dart
+TextField(
+  keyboardType: TextInputType.emailAddress,
+  autofillHints: const [AutofillHints.email],
+)
+```
+
+In a sign-in form, the address field and the password field sit in one
+`AutofillGroup`. There, picking a person fills in both their address and
+their password, as a password manager does.
+
+Each pick is a step on the person's app, named after what it filled:
+`manager.4 filled Nurse's address`. What the field's callbacks send belongs
+to that step. The step and the Run journal name a password by whose it is,
+`Nurse's password`, and never by its value.
+
+From a terminal or an agent, tap the field first, then:
+
+```shell
+fw run worlds fill --person=Manager --value=Nurse.email
+fw run worlds fill --person=Nurse --value=Nurse.password
+fw run worlds fill --person=Manager --value='Ward 7'
+```
+
+`--value` takes `<Person>.email`, `.password`, `.name` or `.phone`, or any
+other text, which is typed as it is. It is refused when no field has focus,
+and when the person was given no such value. The answer names the step and
+lists in `caused` what the step started.
 
 ## See what the system holds
 

@@ -698,6 +698,7 @@ String causeOf(TraceStep step) {
     'longPress' => "$person's long press on $target",
     'drag' => "$person's drag on $target",
     'type' => "$target entered in $person's app",
+    'fill' => "$target filled in $person's app",
     'open' => "$target opened in $person's app",
     'start' => "$person's app starting",
     _ => "$person's ${step.did}",

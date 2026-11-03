@@ -11,6 +11,7 @@ import '../ui/empty_state.dart';
 import '../ui/loading_state.dart';
 import '../ui/theme.dart';
 import '../ui/zoom_buttons.dart';
+import 'autofill_bar.dart';
 import 'live_guest.dart';
 import 'open_world.dart';
 import 'world_focus.dart';
@@ -225,6 +226,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                           world: world,
                           person: person,
                           color: colorOf(person.name),
+                          colorOf: colorOf,
                           run: widget.run,
                           reading: _reading,
                           onRead: (id) {
@@ -305,6 +307,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
             sizeOf: (name) => personSize(world.people[name]!),
             scales: (name) => hasApp(world.people[name]!),
             labelHeight: _tagHeight,
+            footHeight: _barHeight,
             view: _view,
             onScale: (scale) => _magnify(world.people.values, scale),
             onGround: _keys.requestFocus,
@@ -350,6 +353,24 @@ class _WorldCanvasState extends State<WorldCanvas> {
                       name: name,
                       actions: actionsFor(name, world.actions.keys),
                     ),
+                  if (hasApp(person)) ...[
+                    const SizedBox(height: _barHeight - AutofillBar.height),
+                    SizedBox(
+                      height: AutofillBar.height,
+                      child: Center(
+                        // Like the tag: a bar wider than a device drawn
+                        // small yields rather than reach over a neighbour.
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: AutofillBar(
+                            world: world,
+                            person: name,
+                            colorOf: colorOf,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               );
             },
@@ -380,6 +401,9 @@ class _WorldCanvasState extends State<WorldCanvas> {
 
   /// A person's tag and the room under it, above their device.
   static const _tagHeight = PersonTag.height + FwSpacing.md;
+
+  /// What their focused field can be filled with, under their device.
+  static const _barHeight = AutofillBar.height + FwSpacing.md;
 }
 
 /// The stage before anyone is on it: what the world is doing while it opens,
