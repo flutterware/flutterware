@@ -198,7 +198,7 @@ class BuildHooks {
   Future<BuildHooksResult> _guarded(String key) async {
     BuildHooksResult result;
     try {
-      result = await _run();
+      result = await oneAtATime(p.dirname(packageConfigPath), _run);
     } on Object catch (e) {
       result = _failed('Build hooks failed: $e');
     }
@@ -212,6 +212,32 @@ class BuildHooks {
     } else {
       _heldFailures.remove(key);
     }
+    return result;
+  }
+
+  /// The last run started in each `.dart_tool`, which the next one there
+  /// waits for.
+  static final _lastIn = <String, Future<void>>{};
+
+  /// Runs [run] once every run started before it in [dartTool] has ended.
+  ///
+  /// [_runs] keeps one run per package, and the packages of one workspace
+  /// share a `.dart_tool` and so one `hooks_runner` folder. Two of them
+  /// building at once build a hook they both depend on into the same
+  /// folder: a CMake hook's install step then fails on the files the other
+  /// is writing, as a world opening a phone app and a desktop app together
+  /// did.
+  @visibleForTesting
+  static Future<T> oneAtATime<T>(String dartTool, Future<T> Function() run) {
+    var before = _lastIn[dartTool] ?? Future<void>.value();
+    var result = before.then((_) => run());
+    var done = result.then<void>((_) {}, onError: (Object _) {});
+    _lastIn[dartTool] = done;
+    unawaited(
+      done.then((_) {
+        if (identical(_lastIn[dartTool], done)) _lastIn.remove(dartTool);
+      }),
+    );
     return result;
   }
 
@@ -501,10 +527,15 @@ List<String> failedHooks(List<String> severe) => [
         var reason = stderr
             .split('\n')
             .map((line) => line.trim())
-            .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+            .firstWhere(
+              (line) => line.isNotEmpty && line != 'Unhandled exception:',
+              orElse: () => '',
+            )
+            .replaceFirst(RegExp(r'^Exception: '), '')
+            .replaceFirst(RegExp(r'[.:]$'), '');
         var package = match[1];
         return reason.isEmpty
             ? "$package's build hook failed."
-            : "$package's build hook failed: ${reason.replaceAll(RegExp(r'\.$'), '')}.";
+            : "$package's build hook failed: $reason.";
       }(),
 ];

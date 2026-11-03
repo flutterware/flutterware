@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -249,6 +250,55 @@ void main() {
     expect(hooks.run(), same(hooks.run()));
   });
 
+  test('one workspace builds its hooks one package at a time', () async {
+    var running = <String>{};
+    var started = <String>[];
+    Future<String> build(String name, Completer<void> gate) async {
+      started.add(name);
+      running.add(name);
+      await gate.future;
+      running.remove(name);
+      return name;
+    }
+
+    var phone = Completer<void>();
+    var desk = Completer<void>();
+    var other = Completer<void>();
+    var workspace = '/ws/.dart_tool';
+    var first = BuildHooks.oneAtATime(workspace, () => build('app', phone));
+    var second = BuildHooks.oneAtATime(workspace, () => build('admin', desk));
+    var elsewhere = BuildHooks.oneAtATime(
+      '/other/.dart_tool',
+      () => build('other', other),
+    );
+    await pumpEventQueue();
+    // Another workspace's run is not held up; the same one's is.
+    expect(running, {'app', 'other'});
+
+    phone.complete();
+    expect(await first, 'app');
+    await pumpEventQueue();
+    expect(running, {'admin', 'other'});
+
+    desk.complete();
+    other.complete();
+    expect(await second, 'admin');
+    expect(await elsewhere, 'other');
+    expect(started, ['app', 'other', 'admin']);
+  });
+
+  test('a run that throws does not hold up the next one', () async {
+    var failing = BuildHooks.oneAtATime<void>(
+      '/ws2/.dart_tool',
+      () async => throw StateError('hook'),
+    );
+    await expectLater(failing, throwsStateError);
+    expect(
+      await BuildHooks.oneAtATime('/ws2/.dart_tool', () async => 'next'),
+      'next',
+    );
+  });
+
   test('the pinned hooks_runner is the one the SDK builds with', () {
     var tools = p.join(sdk.root, 'packages', 'flutter_tools', 'pubspec.yaml');
     if (!File(tools).existsSync()) {
@@ -339,6 +389,23 @@ void main() {
           "objective_c's build hook failed: Can't load Kernel binary: "
           'Invalid SDK hash.';
       expect(failedHooks(['Some other line', logged]), [expected]);
+    });
+
+    test('names what a hook that threw said, not that it threw', () {
+      // As hooks_runner logs a CMake hook whose install step failed.
+      var logged = '''
+  Building assets for package:webcrypto failed.
+  stderr:
+  Unhandled exception:
+  Exception: Failed to build CMake project: CMake Error at cmake_install.cmake:41 (file):
+    file INSTALL cannot set modification time
+
+  #0      RunCMakeBuilder.run (package:native_toolchain_cmake/src/builder/run_builder.dart:192:7)
+  ''';
+      var expected =
+          "webcrypto's build hook failed: Failed to build CMake project: "
+          'CMake Error at cmake_install.cmake:41 (file).';
+      expect(failedHooks([logged]), [expected]);
     });
   });
 }
