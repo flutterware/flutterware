@@ -26,7 +26,16 @@ import 'project_shaders.dart';
 /// old program until it is told which keys now stand for other bytes. Only
 /// the project's own shaders are listed; the framework's change with the
 /// engine, and a new engine is a new guest.
-typedef BundleSync = ({bool changed, bool fontsChanged, Set<String> shaders});
+///
+/// [hooksFailure] is [BuildHooksResult.failure]: the bundle holds no native
+/// library at all, and a caller with a better place than stderr to say so —
+/// a world's log — says it there.
+typedef BundleSync = ({
+  bool changed,
+  bool fontsChanged,
+  Set<String> shaders,
+  String? hooksFailure,
+});
 
 /// The backends `impellerc` writes runtime stage data for: the **union** of
 /// every stage list flutter_tools has, in its order.
@@ -261,8 +270,10 @@ class AssetBundleBuilder {
     // that dependency than to a broken catalog, and every entry that did not
     // need its output still builds. [BuildHooks] says so on stderr itself,
     // because the logger is not listened to in the two processes that call
-    // this most. What *is* consumed is the native-assets mapping, below.
+    // this most, and the result carries it for a caller that has a better
+    // place. What *is* consumed is the native-assets mapping, below.
     List<KernelAsset> nativeAssets;
+    String? hooksFailure;
     if (nativeAssetsForTesting case var overridden?) {
       nativeAssets = overridden;
     } else {
@@ -272,6 +283,7 @@ class AssetBundleBuilder {
         rootPackageRoot: rootPackageRoot,
       ).run();
       nativeAssets = hooks.nativeAssets;
+      hooksFailure = hooks.failure;
     }
 
     var catalog = await AssetCatalog.resolve(
@@ -292,6 +304,7 @@ class AssetBundleBuilder {
       changed: sync.changed,
       fontsChanged: sync.fontsChanged,
       shaders: sync.shaders,
+      hooksFailure: hooksFailure,
     );
   }
 
