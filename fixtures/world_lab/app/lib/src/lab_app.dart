@@ -160,6 +160,12 @@ class _HomeState extends State<_Home> {
   late final _api = Api(widget.server);
   final _phone = TextEditingController();
   final _code = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  final _invitee = TextEditingController();
+
+  /// Who the counter last invited, said under the field.
+  String? _invited;
 
   List<PluginResult>? _plugins;
   User? _user;
@@ -305,8 +311,13 @@ class _HomeState extends State<_Home> {
       _orders = [];
       _codeSent = false;
       _code.clear();
+      _password.clear();
     });
   }
+
+  Future<void> _keepSession() => secureStorage
+      .write(key: 'session', value: _api.token)
+      .catchError((Object _) {});
 
   @override
   void dispose() {
@@ -319,6 +330,9 @@ class _HomeState extends State<_Home> {
     _cache?.close();
     _phone.dispose();
     _code.dispose();
+    _email.dispose();
+    _password.dispose();
+    _invitee.dispose();
     super.dispose();
   }
 
@@ -500,6 +514,8 @@ class _HomeState extends State<_Home> {
                 children: [
                   Text('Pickup · Counter', style: theme.textTheme.titleLarge),
                   const Spacer(),
+                  _invite(),
+                  const SizedBox(width: 24),
                   Text(user.name, style: theme.textTheme.bodyMedium),
                   const SizedBox(width: 8),
                   const Icon(Icons.account_circle_outlined),
@@ -586,11 +602,44 @@ class _HomeState extends State<_Home> {
     );
   }
 
+  /// A colleague brought onto the counter by address: the field a phone's
+  /// autofill offers every address it knows for.
+  Widget _invite() => SizedBox(
+    width: 360,
+    child: Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _invitee,
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: 'Invite a colleague by email',
+              helperText: _invited,
+            ),
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+          ),
+        ),
+        const SizedBox(width: 8),
+        TextButton(
+          onPressed: () => _run(() async {
+            var email = _invitee.text.trim();
+            await _api.invite(email);
+            _invitee.clear();
+            setState(() => _invited = 'Invited $email');
+          }),
+          child: const Text('Invite'),
+        ),
+      ],
+    ),
+  );
+
   List<Widget> _signIn() => [
     TextField(
       controller: _phone,
       decoration: const InputDecoration(labelText: 'Phone'),
       keyboardType: TextInputType.phone,
+      autofillHints: const [AutofillHints.telephoneNumber],
     ),
     const SizedBox(height: 8),
     if (!_codeSent)
@@ -606,19 +655,51 @@ class _HomeState extends State<_Home> {
         controller: _code,
         decoration: const InputDecoration(labelText: 'Code'),
         keyboardType: TextInputType.number,
+        autofillHints: const [AutofillHints.oneTimeCode],
       ),
       const SizedBox(height: 8),
       FilledButton(
         onPressed: () => _run(() async {
           await _api.verify(_phone.text, _code.text);
-          await secureStorage
-              .write(key: 'session', value: _api.token)
-              .catchError((Object _) {});
+          await _keepSession();
           await _signedIn();
         }),
         child: const Text('Sign in'),
       ),
     ],
+    const SizedBox(height: 24),
+    Text('Or, for staff', style: Theme.of(context).textTheme.labelLarge),
+    const SizedBox(height: 8),
+    // One group, as a sign-in form is: a password manager fills both.
+    AutofillGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _email,
+            decoration: const InputDecoration(labelText: 'Email'),
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _password,
+            decoration: const InputDecoration(labelText: 'Password'),
+            obscureText: true,
+            autofillHints: const [AutofillHints.password],
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 8),
+    FilledButton.tonal(
+      onPressed: () => _run(() async {
+        await _api.signIn(_email.text.trim(), _password.text);
+        await _keepSession();
+        await _signedIn();
+      }),
+      child: const Text('Sign in with email'),
+    ),
   ];
 
   Widget _pluginsTab() {

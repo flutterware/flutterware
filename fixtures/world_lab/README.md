@@ -49,6 +49,14 @@ the order* button opens the order in Ana's app — the address bar moves to it
 and the board picks it out. Each delivery is a step of its own,
 `leo.3 typed the code from the SMS`.
 
+In *New barista* Ana invites Ben onto the counter, and Ben signs in with
+his address and password. Click the invite field on Ana's counter: the bar
+under her browser offers Ana's and Ben's addresses, and a click types Ben's
+in, as the step `ana.1 filled Ben's address`. Ben's invitation reaches him
+by mail. On Ben's phone, click the email field under *Or, for staff*: the
+email and password fields are one `AutofillGroup`, so picking Ben fills in
+both. `fw run worlds fill --person=Ben --value=Ben.email` does the same.
+
 Every app has a database to look at in its person's panel, under *App*: the synced
 worlds' PowerSync copy, and otherwise the orders the app has seen, which the
 plain app keeps in a SQLite cache (`app/lib/src/order_cache.dart`).

@@ -461,6 +461,14 @@ void main() => Flutterware.configure((fw) {
                   'app; an action orders for her.',
             ),
             WorldScript(
+              'tool/worlds/new_barista.dart',
+              name: 'New barista',
+              description:
+                  'Ana invites Ben onto the counter by email, and Ben signs '
+                  'in with his address and password. The fields offer what '
+                  'the world knows, so nobody types either.',
+            ),
+            WorldScript(
               'tool/worlds/rush_hour.dart',
               name: 'Rush hour',
               description:
