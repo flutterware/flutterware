@@ -20,27 +20,22 @@ import 'world_timeline_detail.dart' show WorldSources;
 import 'world_timeline_view.dart';
 import 'world_toolbar.dart';
 import 'world_trace.dart';
-import 'worlds_memory.dart';
 
 /// The open world under its header: one toolbar — the world's knobs and
 /// actions, and who is in view — above everyone's devices side by side on
-/// the stage, or one person in focus with the others small beside them
-/// ([PersonFocus]); and along the bottom, the dock whose first tab is the
-/// world's own log.
+/// the stage, or one person in focus beside their panel; and along the
+/// bottom, the dock whose first tab is the world's own log.
 ///
 /// The devices sit on a [WorldStage], which gives every scroll, drag and
 /// pinch to exactly one of the stage and an app.
 class WorldCanvas extends StatefulWidget {
-  const WorldCanvas({super.key, required this.world, this.run, this.memory});
+  const WorldCanvas({super.key, required this.world, this.run});
 
   final OpenWorld world;
 
   /// Run's core, whose views the focus shows of a person's app; null where
   /// the project declares no run plugin.
   final RunCore? run;
-
-  /// Where the view is remembered between studios; this machine's when null.
-  final WorldsMemory? memory;
 
   @override
   State<WorldCanvas> createState() => _WorldCanvasState();
@@ -49,14 +44,6 @@ class WorldCanvas extends StatefulWidget {
 class _WorldCanvasState extends State<WorldCanvas> {
   final _view = StageView();
   Timer? _sharpen;
-
-  /// The scale each app is to render for, once the zoom settles.
-  final _sharpenTo = <WorldPerson, double>{};
-
-  late final _memory = widget.memory ?? WorldsMemory();
-
-  /// Whether the person in focus has their panel beside them.
-  late var _panel = _memory.panel;
   WorldTracer? _tracer;
   StreamSubscription<void>? _heard;
   Timer? _redraw;
@@ -92,33 +79,12 @@ class _WorldCanvasState extends State<WorldCanvas> {
   /// Once a zoom settles, each app renders for the size it is now drawn at.
   /// Not on every frame of a pinch: each is a new surface for the guest.
   void _magnify(Iterable<WorldPerson> people, double scale) {
-    for (var person in people) {
-      _sharpenTo[person] = scale;
-    }
     _sharpen?.cancel();
     _sharpen = Timer(const Duration(milliseconds: 200), () {
-      for (var MapEntry(key: person, value: scale) in _sharpenTo.entries) {
+      for (var person in people) {
         if (person.guest case LiveWorldGuest live) live.magnify(scale);
       }
-      _sharpenTo.clear();
     });
-  }
-
-  void _showPanel(bool shown) {
-    if (shown == _panel) return;
-    setState(() => _panel = shown);
-    _memory.panel = shown;
-  }
-
-  /// What [person] was sent, by kind, for their tag.
-  Map<String, int> _countsOf(String person) {
-    var counts = <String, int>{};
-    for (var message
-        in widget.world.tracer?.trace.outbox(person: person, limit: 1 << 30) ??
-            const <OutboxMessage>[]) {
-      counts[message.kind] = (counts[message.kind] ?? 0) + 1;
-    }
-    return counts;
   }
 
   /// Tells each app whether it is drawn (`GuestSystem.drawn`): one in view
@@ -219,13 +185,9 @@ class _WorldCanvasState extends State<WorldCanvas> {
     var timeline = _viewing == WorldView.timeline;
     // Someone who left the world at a restart is no longer anyone to show.
     var focused = timeline ? null : world.people[_focus];
-    var others = [
-      for (var person in world.people.values)
-        if (person != focused && hasApp(person)) person,
-    ];
-    // In focus, theirs is drawn and so are the others', small; on the stage,
-    // it says; on the timeline, none is.
-    if (focused != null) _see({focused.name, for (var p in others) p.name});
+    // In focus, theirs is the one app drawn; on the stage, it says; on the
+    // timeline, none is.
+    if (focused != null) _see({focused.name});
     if (timeline) _see(const {});
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
@@ -267,17 +229,9 @@ class _WorldCanvasState extends State<WorldCanvas> {
                           reading: _reading,
                           onRead: (id) {
                             setState(() => _reading = id);
-                            // A mail is read in the panel.
-                            if (id != null) _showPanel(true);
                             _keys.requestFocus();
                           },
-                          onScale: (person, scale) => _magnify([person], scale),
-                          others: others,
-                          colorOf: colorOf,
-                          countsOf: _countsOf,
-                          onFocus: _focusOn,
-                          panel: _panel,
-                          onPanel: _showPanel,
+                          onScale: (scale) => _magnify([person], scale),
                         ),
                       },
                     ),
@@ -332,6 +286,17 @@ class _WorldCanvasState extends State<WorldCanvas> {
   /// Everyone, on the stage, with the zoom on its corner.
   Widget _stage(BuildContext context, Color Function(String?) colorOf) {
     var world = widget.world;
+    var trace = world.tracer?.trace;
+    Map<String, int> countsOf(String person) {
+      var counts = <String, int>{};
+      for (var message
+          in trace?.outbox(person: person, limit: 1 << 30) ??
+              const <OutboxMessage>[]) {
+        counts[message.kind] = (counts[message.kind] ?? 0) + 1;
+      }
+      return counts;
+    }
+
     return Stack(
       children: [
         Positioned.fill(
@@ -358,7 +323,7 @@ class _WorldCanvasState extends State<WorldCanvas> {
                         child: PersonTag(
                           name: name,
                           color: colorOf(name),
-                          counts: _countsOf(name),
+                          counts: countsOf(name),
                           onTap: () => _focusOn(name),
                         ),
                       ),
@@ -377,7 +342,6 @@ class _WorldCanvasState extends State<WorldCanvas> {
                         onRead: (id) {
                           _focusOn(name);
                           setState(() => _reading = id);
-                          _showPanel(true);
                         },
                       ),
                     )

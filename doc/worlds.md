@@ -327,31 +327,22 @@ An open world shows its people's apps live and side by side, each in its
 device. A phone app is drawn in the phone's body. A desktop app is drawn in a
 browser whose address bar shows the app's address (its `url:`) and the route
 the app reports. Type a route there, or an address that starts with the app's
-own, and the app goes to that route. Back and forward step through the routes it has been
-on, as a browser does for a Flutter web app, and reload starts that person's
-app again on the same address. Every device is drawn at the same scale, so a
-window looks as large next to a phone as it really is. Above each device are
-the person's name and the messages the servers sent them, by kind (mail,
-push, SMS). A person with no app is a small card listing the actions that act
-for them. Zoom with the buttons in the corner, a pinch or ⌘-scroll. A scroll
-over a phone scrolls its app; anywhere else it pans the view. Use the apps as
-you would the phones: an order placed on one shows up on another.
+own, and the app goes to that route. Back and forward step through the routes
+it has been on, as a browser does for a Flutter web app, and reload starts
+that person's app again on the same address. Every device is drawn at the same
+scale, so a window looks as large next to a phone as it really is. Above each
+device are the person's name and the messages the servers sent them, by kind
+(mail, push, SMS). A person with no app is a small card listing the actions
+that act for them. Zoom with the buttons in the corner, a pinch or ⌘-scroll. A
+scroll over a phone scrolls its app; anywhere else it pans the view. Use the
+apps as you would the phones: an order placed on one shows up on another.
 
 The toolbar holds the world's knobs, an **Actions** menu with every action
 the script declares, and, on the right, who is in view: **Everyone** or one
-person. Clicking a person's name above their device does the same.
-
-With one person in focus, their device is as large as the space allows, up
-to its real size. Everyone else with an app is in a column on the left, each
-one small and live, so you still see what is on their screen and the
-messages that reach them. Click someone in that column to put them in focus.
-On the right is the person's panel. **Hide the panel** (the arrow at its top
-right) folds it into a narrow strip and gives the device the room; the arrow
-on the strip brings it back. The studio remembers whether the panel was
-hidden, for every world. Opening an email from a message on the screen shows
-the panel again.
-
-The panel says who they are and what their app runs on, and has these tabs:
+person. Clicking a person's name above their device does the same. With one
+person in focus, their device is as large as the space allows, next to their
+panel. The panel says who they are and what their app runs on, and has these
+tabs:
 
 - **Messages**: the texts, pushes and emails the servers sent that person,
   and the notifications their app posted, newest first. A dot marks one
@@ -389,8 +380,8 @@ statements its request ran, a message with its code and links, or a mail as
 its recipient sees it. `worlds trace` takes the same levels:
 `--level=product`, `system` or `wire` (the default).
 
-When nobody can see an app (it is zoomed out of view, or the timeline is
-showing), it is told it is *hidden* a couple of
+When nobody can see an app (someone else is in focus, it is zoomed out of
+view, or the timeline is showing), it is told it is *hidden* a couple of
 seconds later, as a minimised desktop window is. It stops drawing and frees
 the memory drawing used, and keeps running its timers, connections and sync.
 It draws again as soon as it is back in view. It is not sent to the
@@ -700,11 +691,11 @@ A mail with `html` is shown as its recipient would see it. Clicking it opens
 it in the person's panel, next to their app, as a picture drawn by WebKit,
 with each link clickable where it sits. A link goes where a phone
 would send it: into the app if the app opens it (a scheme of its own, a web
-host it claims, or the address it is served at), and otherwise to the live web page, with **Email** and
-**Page** to switch between the two. Under the mail are the links opened from
-it in the app, and when. For an agent, `fw run worlds show --message=<id>`
-draws the picture with each link's box, and
-`fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
+host it claims, or the address it is served at), and otherwise to the live
+web page, with **Email** and **Page** to switch between the two. Under the
+mail are the links opened from it in the app, and when. For an agent,
+`fw run worlds show --message=<id>` draws the picture with each link's box,
+and `fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
 Drawing needs the Xcode command line tools, as Run's native layer does; the
 helper is compiled on first use.
 
