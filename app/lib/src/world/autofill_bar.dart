@@ -82,8 +82,9 @@ class _AutofillBarState extends State<AutofillBar> {
   }
 }
 
-/// [offers] for a focused field of [kind], drawn: a pill of whose each one
-/// is under a device, or a row of them with their values in a panel.
+/// [offers] for a focused field of [kind], drawn: under a device, a callout
+/// pointing up at it in the accent its focus ring is drawn in, saying whose
+/// each one is; in a panel, a row of them with their values.
 class AutofillOffers extends StatelessWidget {
   const AutofillOffers({
     super.key,
@@ -109,8 +110,9 @@ class AutofillOffers extends StatelessWidget {
   /// only the names, with the value in a tooltip.
   final bool detailed;
 
-  /// Its height under a device: a person's tag's, the pill above it.
-  static const height = PersonTag.height;
+  /// Its height under a device: a person's tag's, and the point that
+  /// reaches up to the device.
+  static const height = PersonTag.height + _Callout.caret;
 
   @override
   Widget build(BuildContext context) {
@@ -161,25 +163,38 @@ class AutofillOffers extends StatelessWidget {
         ),
       );
     }
-    return Container(
+    var accent = colors.accent;
+    return SizedBox(
       height: height,
-      padding: const EdgeInsets.symmetric(horizontal: FwSpacing.sm),
-      decoration: BoxDecoration(
-        color: colors.bg,
-        borderRadius: BorderRadius.circular(context.radii.pill),
-        boxShadow: [
-          BoxShadow(color: colors.line, spreadRadius: 1),
-          ...context.elevation.sm,
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(width: FwSpacing.xs),
-          icon,
-          const SizedBox(width: FwSpacing.xs),
-          content,
-        ],
+      child: CustomPaint(
+        painter: _Callout(
+          fill: Color.lerp(colors.bg, accent, 0.08)!,
+          border: accent,
+          radius: context.radii.radius,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            FwSpacing.sm,
+            _Callout.caret,
+            FwSpacing.xs,
+            0,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(_iconOf(kind), size: FwIconSize.sm, color: accent),
+              const SizedBox(width: FwSpacing.xs),
+              if (refused == null) ...[
+                Text(
+                  'Fill in',
+                  style: context.type.body.copyWith(color: accent),
+                ),
+                const SizedBox(width: FwSpacing.xs),
+              ],
+              content,
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -249,7 +264,7 @@ class _Offer extends StatelessWidget {
           : 'Fill in ${offer.label}: $shown',
       child: Tappable(
         onTap: onPick,
-        borderRadius: BorderRadius.circular(context.radii.pill),
+        borderRadius: BorderRadius.circular(context.radii.radiusSmall),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: FwSpacing.sm,
@@ -276,4 +291,52 @@ class _Offer extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A box with a point at the middle of its top edge, reaching up at the
+/// device whose field the offers are for.
+class _Callout extends CustomPainter {
+  const _Callout({
+    required this.fill,
+    required this.border,
+    required this.radius,
+  });
+
+  final Color fill;
+  final Color border;
+  final double radius;
+
+  /// How far the point reaches above the box, and half its width.
+  static const caret = 6.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    var middle = size.width / 2;
+    var shape = Path.combine(
+      PathOperation.union,
+      Path()..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(0, caret, size.width, size.height),
+          Radius.circular(radius),
+        ),
+      ),
+      Path()
+        ..moveTo(middle - caret, caret + 1)
+        ..lineTo(middle, 0)
+        ..lineTo(middle + caret, caret + 1)
+        ..close(),
+    );
+    canvas
+      ..drawPath(shape, Paint()..color = fill)
+      ..drawPath(
+        shape,
+        Paint()
+          ..color = border
+          ..style = PaintingStyle.stroke,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_Callout old) =>
+      old.fill != fill || old.border != border || old.radius != radius;
 }

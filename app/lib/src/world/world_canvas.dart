@@ -402,8 +402,9 @@ class _WorldCanvasState extends State<WorldCanvas> {
   /// A person's tag and the room under it, above their device.
   static const _tagHeight = PersonTag.height + FwSpacing.md;
 
-  /// What their focused field can be filled with, under their device.
-  static const _barHeight = AutofillBar.height + FwSpacing.md;
+  /// What their focused field can be filled with, under their device, its
+  /// point close enough to reach it.
+  static const _barHeight = AutofillBar.height + FwSpacing.sm;
 }
 
 /// The stage before anyone is on it: what the world is doing while it opens,
