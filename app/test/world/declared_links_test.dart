@@ -305,6 +305,18 @@ void main() {
       }
     });
 
+    test('a link under the address the app is served at', () {
+      var served = links.servedAt('http://localhost:20032/clinic/acme');
+      expect(
+        served.claims('http://localhost:20032/clinic/acme#/invitation/t1'),
+        isTrue,
+      );
+      expect(served.claims('http://localhost:20032/other'), isFalse);
+      // What the app declares still holds.
+      expect(served.claims('exampleapp://order/42'), isTrue);
+      expect(links.servedAt(null), same(links));
+    });
+
     test('a host under a custom scheme is not a web claim', () {
       var hostless = DeclaredLinks(schemes: {'exampleapp'});
       expect(hostless.claims('https://exampleapp/order/42'), isFalse);

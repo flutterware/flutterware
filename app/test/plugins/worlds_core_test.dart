@@ -256,8 +256,9 @@ void main() {
   });
 
   test('a world open already, in another process, is the one opened', () async {
-    var owner = await WorldOwnerServer.start((action, _) async {
-      expect(action, 'status');
+    var owner = await WorldOwnerServer.start((action, arguments) async {
+      expect(action, 'open');
+      expect(arguments['world'], 'lab');
       return lab.toJson();
     });
     addTearDown(owner.close);
@@ -295,5 +296,38 @@ void main() {
     expect(WorldDoor.read(root.path), isNull);
     // Disposed twice by tearDown: once here is what is under test.
     core = WorldsCore(core.host);
+  });
+
+  test('a world the studio opens for another process is put on screen as '
+      'it starts opening, and again when it is asked for once open', () async {
+    await core.takeOpenings();
+    var shown = <String>[];
+    core.onOpenedForAnother = (world) => shown.add(world.file.id);
+    var door = WorldDoor.read(root.path)!;
+    Future<void> ask() async {
+      try {
+        await askWorldOwner(
+          door.socket,
+          'open',
+          arguments: {'world': 'lab', 'from': studio.pid},
+        );
+      } on WorldOwnerRefusal {
+        // No SDK here to run the script with: the world fails to open, after
+        // it was shown opening.
+      }
+    }
+
+    await ask();
+    expect(shown, ['lab']);
+    await ask();
+    expect(shown, ['lab', 'lab']);
+
+    // Another process asking for it again reaches it as its owner.
+    await askWorldOwner(
+      WorldHandle.read(root.path)!.socket,
+      'open',
+      arguments: {'world': 'lab'},
+    );
+    expect(shown, ['lab', 'lab', 'lab']);
   });
 }

@@ -99,6 +99,11 @@ users through your server's API.
   `on: Studio(Devices.window)` for someone at a desktop, which runs the same
   app in a 1280 × 800 window inside a browser the studio draws. The default
   is an iPhone 16.
+- For someone at a desktop, `Launch(url:)` is the address the app is served
+  at on the web: `Launch('Dashboard', url: 'http://localhost:8080/clinic/acme')`.
+  The browser's address bar shows it, followed by the route the app reports.
+  Without it, the address bar shows the entry point's name as a host,
+  `dashboard.localhost`.
 - A person with no `app:` is someone the script acts for.
 - `w.knob('Leo', options: ['signed out', 'signed in'], initial: 'signed out')`
   adds a choice to the world and returns the value the world was opened
@@ -322,16 +327,17 @@ it says so: `done in 30.1 s, across reload.2`.
 
 An open world shows its people's apps live and side by side, each in its
 device. A phone app is drawn in the phone's body. A desktop app is drawn in a
-browser whose address bar shows the route the app reports; type a route there
-and the app goes to it. Back and forward step through the routes it has been
-on, as a browser does for a Flutter web app, and reload starts that person's
-app again on the same address. Every device is drawn at the same scale, so a
-window looks as large next to a phone as it really is. Above each device are
-the person's name and the messages the servers sent them, by kind (mail,
-push, SMS). A person with no app is a small card listing the actions that act
-for them. Zoom with the buttons in the corner, a pinch or ⌘-scroll. A scroll
-over a phone scrolls its app; anywhere else it pans the view. Use the apps as
-you would the phones: an order placed on one shows up on another.
+browser whose address bar shows the app's address (its `url:`) and the route
+the app reports. Type a route there, or an address that starts with the app's
+own, and the app goes to that route. Back and forward step through the routes
+it has been on, as a browser does for a Flutter web app, and reload starts
+that person's app again on the same address. Every device is drawn at the same
+scale, so a window looks as large next to a phone as it really is. Above each
+device are the person's name and the messages the servers sent them, by kind
+(mail, push, SMS). A person with no app is a small card listing the actions
+that act for them. Zoom with the buttons in the corner, a pinch or ⌘-scroll. A
+scroll over a phone scrolls its app; anywhere else it pans the view. Use the
+apps as you would the phones: an order placed on one shows up on another.
 
 The toolbar holds the world's knobs, an **Actions** menu with every action
 the script declares, and, on the right, who is in view: **Everyone** or one
@@ -389,8 +395,10 @@ background, so the app's own code for that runs only when you choose it from
 A world opens in the studio, where its people's apps are drawn. While the
 studio has the checkout open, a `worlds open` from `fw` or from an agent is
 sent there, so you and the agent see the same world, and its log says who
-asked. The answer says where the world opened, and everything the agent does
-next reaches it as usual.
+asked. The studio switches to the world as it starts opening, whatever page
+it was on, and does the same when the world is already open. The answer says
+where the world opened, and everything the agent does next reaches it as
+usual.
 
 ```shell
 fw run worlds list
@@ -605,6 +613,21 @@ app with a `Router` (`go_router`, for one) or named routes goes to it. The
 answer's `via` says which way the link went. If nothing in the app takes the
 link, `deliver` says so.
 
+For someone at a desktop whose `Launch` has a `url:`, a link under that
+address goes to the app's router as the route after the address, the way the
+browser would open it. Under it means the same scheme, host and port, and a
+path that starts with the address's path. For a dashboard served at
+`http://localhost:8080/clinic/acme`:
+
+- `http://localhost:8080/clinic/acme#/invitation/t1` goes to `/invitation/t1`,
+  for a web build that reads its route after the `#`.
+- `http://localhost:8080/clinic/acme/invitation/t1?x=1` goes to
+  `/invitation/t1?x=1`.
+
+`via` is then `flutter/navigation as /invitation/t1`. A link anywhere else
+goes as described above. Typing one of these links in the browser's address
+bar goes to the same route.
+
 A server takes part by reporting each message with its recipient, in its
 adapter for that channel:
 
@@ -631,7 +654,7 @@ When a message has several links, the one handed to the app is:
 1. the `link` the adapter reported, if any;
 2. otherwise the first link on a scheme or host the recipient's app declares:
    its URL schemes and associated domains on iOS and macOS, its `VIEW` intent
-   filters on Android;
+   filters on Android, and the `url:` its `Launch` is served at;
 3. otherwise the first link on a custom scheme;
 4. otherwise the first link.
 
@@ -669,12 +692,12 @@ three seconds before it, and says it was joined by time.
 A mail with `html` is shown as its recipient would see it. Clicking it opens
 it in the person's panel, next to their app, as a picture drawn by WebKit,
 with each link clickable where it sits. A link goes where a phone
-would send it: into the app if the app opens it (a scheme of its own, or a
-web host it claims), and otherwise to the live web page, with **Email** and
-**Page** to switch between the two. Under the mail are the links opened from
-it in the app, and when. For an agent, `fw run worlds show --message=<id>`
-draws the picture with each link's box, and
-`fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
+would send it: into the app if the app opens it (a scheme of its own, a web
+host it claims, or the address it is served at), and otherwise to the live
+web page, with **Email** and **Page** to switch between the two. Under the
+mail are the links opened from it in the app, and when. For an agent,
+`fw run worlds show --message=<id>` draws the picture with each link's box,
+and `fw run worlds deliver --message=<id> --link=<link>` opens a chosen link.
 Drawing needs the Xcode command line tools, as Run's native layer does; the
 helper is compiled on first use.
 

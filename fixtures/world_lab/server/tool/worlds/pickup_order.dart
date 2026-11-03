@@ -31,6 +31,9 @@ void main(List<String> args) => World.run(args, (w) async {
     app: Launch(
       'Lab',
       knobs: {'server': '${server.url}', 'session': ana.token, 'person': 'Ana'},
+      // Where the counter would be served on the web: the browser's address
+      // bar shows it before the route the app reports.
+      url: 'http://localhost:8080/shops/canal',
     ),
     // The counter is a desktop: the same app, in a window, in a browser.
     on: const Studio(Devices.window),
