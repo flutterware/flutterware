@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
@@ -271,8 +272,9 @@ class BuildHooks {
       );
     }
 
+    var severe = <String>[];
     var runner = NativeAssetsBuildRunner(
-      logger: _forwarder(),
+      logger: _forwarder(severe),
       dartExecutable: Uri.file(dartExecutable),
       fileSystem: fileSystem,
       packageLayout: PackageLayout.fromPackageConfig(
@@ -297,6 +299,11 @@ class BuildHooks {
     }
     if (packages.isEmpty) return _nothing;
 
+    dropHooksCompiledElsewhere(
+      hooksDir: p.join(p.dirname(packageConfigPath), 'hooks_runner'),
+      dartExecutable: dartExecutable,
+    );
+
     var watch = Stopwatch()..start();
     Result<BuildResult, HooksRunnerFailure> result;
     try {
@@ -310,10 +317,15 @@ class BuildHooks {
       return _failed('Build hooks failed: $e', packages: packages);
     }
     if (!result.isSuccess) {
+      var failed = failedHooks(severe);
+      var what = failed.isEmpty
+          ? 'The build hooks of ${packages.join(', ')} did not finish '
+                '(${result.asFailure.failure.name}).'
+          : failed.join(' ');
       return _failed(
-        'The build hooks of ${packages.join(', ')} did not finish '
-        '(${result.asFailure.failure.name}). Anything that needed the '
-        'files they generate will be missing from the bundle.',
+        '$what No native library is in the bundle, so code that calls one '
+        'fails, and anything that needed the files a hook generates is '
+        'missing.',
         packages: packages,
       );
     }
@@ -398,16 +410,101 @@ class BuildHooks {
 
   /// `hooks_runner` speaks `package:logging`, and so does the app — but a
   /// hook's own console is verbose enough that only what it says about
-  /// *failing* belongs anywhere a human is looking.
-  logging.Logger _forwarder() => logging.Logger.detached('hooks')
-    ..level = logging.Level.ALL
-    ..onRecord.listen((record) {
-      if (record.level >= logging.Level.SEVERE) {
-        _log.severe(record.message);
-      } else if (record.level >= logging.Level.WARNING) {
-        _log.warning(record.message);
-      } else {
-        _log.finer(record.message);
-      }
-    });
+  /// *failing* belongs anywhere a human is looking. That is also kept in
+  /// [severe], for the failure sentence to name the hook.
+  logging.Logger _forwarder(List<String> severe) =>
+      logging.Logger.detached('hooks')
+        ..level = logging.Level.ALL
+        ..onRecord.listen((record) {
+          if (record.level >= logging.Level.SEVERE) {
+            severe.add(record.message);
+            _log.severe(record.message);
+          } else if (record.level >= logging.Level.WARNING) {
+            _log.warning(record.message);
+          } else {
+            _log.finer(record.message);
+          }
+        });
 }
+
+/// Deletes the compiled hook of each build under [hooksDir] that another Dart
+/// SDK compiled, so `hooks_runner` compiles it again with [dartExecutable]'s.
+///
+/// `hooks_runner` 1.6.1 keeps a hook's kernel while the files it was compiled
+/// from are unchanged, and the SDK's `version` file is one of them — the
+/// compiling SDK's. So a checkout whose hooks were last built by another SDK
+/// (another tool on the machine, a process spawned from a checkout pinned to
+/// another Flutter) keeps that kernel, and the VM that runs it refuses it:
+/// `Can't load Kernel binary: Invalid SDK hash`. Every native library of the
+/// project goes with it.
+@visibleForTesting
+void dropHooksCompiledElsewhere({
+  required String hooksDir,
+  required String dartExecutable,
+}) {
+  var ours = p.normalize(
+    p.join(p.dirname(p.dirname(dartExecutable)), 'version'),
+  );
+  var root = Directory(hooksDir);
+  if (!root.existsSync()) return;
+  for (var package in root.listSync().whereType<Directory>()) {
+    for (var build in package.listSync().whereType<Directory>()) {
+      var hashes = File(p.join(build.path, 'hook.dependencies_hash_file.json'));
+      if (!hashes.existsSync()) continue;
+      List<Object?> files;
+      try {
+        var json = jsonDecode(hashes.readAsStringSync()) as Map;
+        files = json['file_system'] as List? ?? const [];
+      } on Object {
+        continue;
+      }
+      var sdks = [
+        for (var file in files)
+          if (file case {'path': String path} when _isSdkVersionFile(path))
+            p.normalize(path),
+      ];
+      if (sdks.isEmpty || sdks.every((sdk) => sdk == ours)) continue;
+      for (var name in [
+        'hook.dill',
+        'hook.dill.d',
+        'hook.dependencies_hash_file.json',
+      ]) {
+        var file = File(p.join(build.path, name));
+        if (file.existsSync()) file.deleteSync();
+      }
+    }
+  }
+}
+
+/// Whether [path] is a Dart SDK's `version` file: one beside the SDK's
+/// `bin/`, or in a `dart-sdk` directory, which is where Flutter keeps one —
+/// whether or not that SDK is still on disk.
+bool _isSdkVersionFile(String path) {
+  if (p.basename(path) != 'version') return false;
+  var sdk = p.dirname(path);
+  return p.basename(sdk) == 'dart-sdk' ||
+      File(p.join(sdk, 'bin', 'dart')).existsSync();
+}
+
+/// Each hook [severe] says failed, as `objective_c's build hook failed: <the
+/// first line it wrote to stderr>.` — what `hooks_runner` logs is a dozen
+/// lines with the command that reproduces it, which belongs in a log rather
+/// than in a sentence.
+@visibleForTesting
+List<String> failedHooks(List<String> severe) => [
+  for (var message in severe)
+    if (RegExp(r'Building (?:native )?assets for package:(\w+) failed')
+            .firstMatch(message)
+        case var match?)
+      () {
+        var stderr = message.split('stderr:').skip(1).join('stderr:');
+        var reason = stderr
+            .split('\n')
+            .map((line) => line.trim())
+            .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+        var package = match[1];
+        return reason.isEmpty
+            ? "$package's build hook failed."
+            : "$package's build hook failed: ${reason.replaceAll(RegExp(r'\.$'), '')}.";
+      }(),
+];

@@ -75,7 +75,7 @@ Map<String, Object?> personToJson(Person person) => {
   'userId': ?person.userId,
   'password': ?person.password,
   if (person.app case var app?)
-    'app': {'entrypoint': app.entrypoint, 'knobs': app.knobs},
+    'app': {'entrypoint': app.entrypoint, 'knobs': app.knobs, 'url': ?app.url},
   'on': switch (person.on) {
     Studio(:var device) => {'kind': 'studio', 'device': deviceToJson(device)},
   },
@@ -96,6 +96,7 @@ Person personFromJson(Map<String, Object?> json) {
         : Launch(
             app['entrypoint']! as String,
             knobs: (app['knobs'] as Map? ?? const {}).cast<String, Object?>(),
+            url: app['url'] as String?,
           ),
     on: switch (on['kind']) {
       'studio' || null => Studio(

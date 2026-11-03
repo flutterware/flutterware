@@ -7,6 +7,8 @@
 /// iPhone cannot look like one thing in the studio and another in the export.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import 'device_platform.dart';
@@ -46,6 +48,25 @@ export 'third_party/device_frame/lib/device_frame.dart' hide Devices;
 /// than in a second, sideways `DeviceInfo`.
 DeviceInfo? deviceFrameFor(Device device) =>
     _bodyFor(device) ?? _islandFrameFor(device) ?? _genericFrameFor(device);
+
+/// [frame]'s whole body in its screen's logical pixels: what it takes up
+/// when the screen inside it is drawn at the device's own size.
+///
+/// [DeviceInfo.frameSize] is in the units its artwork was drawn in, which are
+/// not the screen's. A hand-drawn iPhone 16 is 873 units across around a
+/// 393-point screen, about two to a point, while [islandPhoneFrame] is drawn
+/// in points. Two bodies laid out at their frame sizes show their screens at
+/// two different scales.
+Size bodySize(DeviceInfo frame) {
+  var glass = frame.screenPath.getBounds();
+  var screen = frame.screenSize;
+  // `DeviceFrame` fits the screen into its glass as a `FittedBox` would.
+  var units = math.min(
+    glass.width / screen.width,
+    glass.height / screen.height,
+  );
+  return frame.frameSize / units;
+}
 
 /// `device_frame`'s hand-drawn body for [id], with its own numbers, or null
 /// when it has none.

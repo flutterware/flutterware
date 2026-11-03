@@ -38,8 +38,8 @@ one caused, and `fw run worlds contents --part=orders` what the orders table
 holds, each order with its life from the tap to both phones.
 
 In *Pickup order* Ana runs the counter at a desktop: her app is the same
-one, in a browser the studio draws, whose address bar shows the route the app
-reports. Mia has no app; *Mia orders a flat white* orders for her.
+one, in a browser the studio draws, whose address bar shows the address the
+world gives it and the route the app reports. Mia has no app; *Mia orders a flat white* orders for her.
 
 Leo's sign-up code comes down on his phone as a text: tap the code field on
 the phone, then *Enter code* on the banner — or `fw run worlds deliver` with

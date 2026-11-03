@@ -1018,13 +1018,22 @@ class ShellController extends ChangeNotifier {
       // including the panels of the eleven plugins that did not move. The rail
       // is the only part of the shell that reads a plugin's report, and it
       // subscribes per row; a panel already listens to its own plugin.
-      open.session = WorktreeSession.resolve(
+      var session = open.session = WorktreeSession.resolve(
         worktree: worktree,
         manifest: manifest,
         registry: registry,
         workspace: workspace,
         coreRegistry: coreRegistry,
       );
+      for (var plugin in session.plugins) {
+        plugin.show = (segments) => go(
+          Address(
+            worktree: worktree.name,
+            plugin: plugin.id,
+            segments: segments,
+          ),
+        );
+      }
       return null;
     } catch (e) {
       // Returned rather than only recorded. A caller that logged "opened, 3

@@ -2,6 +2,8 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  static let frameName = "Studio"
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -15,6 +17,16 @@ class MainFlutterWindow: NSWindow {
     self.titleVisibility = .hidden
     self.styleMask.insert(.fullSizeContentView)
     self.isMovableByWindowBackground = true
+
+    // Where it was last closed, at the size it had: AppKit keeps the frame
+    // in the studio's defaults under this name as the window moves and
+    // resizes, and the first launch keeps the nib's. After the style above,
+    // which keeps the content's size and so would take the title bar's
+    // height off a frame restored before it, on every launch. When macOS
+    // restores the window itself, after an app was killed rather than quit,
+    // its frame comes after this one and is the same last frame.
+    self.setFrameUsingName(Self.frameName)
+    self.setFrameAutosaveName(Self.frameName)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     EmbedderTexturePlugin.register(

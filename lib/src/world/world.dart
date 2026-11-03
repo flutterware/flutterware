@@ -207,6 +207,7 @@ final class World {
               for (var MapEntry(:key, :value) in app.knobs.entries)
                 key: value is Enum ? value.name : value,
             },
+            url: app.url,
           );
     if (launch != null) {
       for (var MapEntry(:key, :value) in launch.knobs.entries) {
@@ -516,12 +517,18 @@ final class Person {
 /// A knob of an enum type takes the constant, or the constant's name:
 /// `'env': Env.local` and `'env': 'local'` start the app the same way.
 final class Launch {
-  const Launch(this.entrypoint, {this.knobs = const {}});
+  const Launch(this.entrypoint, {this.knobs = const {}, this.url});
 
   /// A Run entry point's name, as `tool/flutterware.dart` declares it.
   final String entrypoint;
 
   final Map<String, Object?> knobs;
+
+  /// Where the app is served on the web, `http://localhost:8080/clinic/acme`,
+  /// for a person at a desktop. The browser the studio draws around their
+  /// app shows this address followed by the route the app reports. Without
+  /// one it shows the entry point's name as the host: `lab.localhost/orders`.
+  final String? url;
 }
 
 /// Where a person's app runs.
@@ -613,6 +620,7 @@ String _personLine(Map<String, Object?> message) {
       ' — no app'
     else ...[
       ' — ${app.entrypoint} on $on',
+      if (app.url case var url?) ' at $url',
       for (var MapEntry(:key, :value) in app.knobs.entries)
         '\n      $key: ${jsonEncode(value)}',
     ],

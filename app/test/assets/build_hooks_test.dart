@@ -274,4 +274,71 @@ void main() {
           '`native_toolchain_c` and takes `sqlite3` back a major version.',
     );
   });
+
+  group('a hook another SDK compiled', () {
+    late Directory hooks;
+    setUp(() => hooks = Directory.systemTemp.createTempSync('hooks_runner'));
+    tearDown(() => hooks.deleteSync(recursive: true));
+
+    const ours = '/fvm/versions/3.50.0-0.3.pre/bin/cache/dart-sdk';
+    Directory build(String package, String compiledBy) {
+      var dir = Directory(p.join(hooks.path, package, '0b282c055b'))
+        ..createSync(recursive: true);
+      for (var name in ['hook.dill', 'hook.dill.d', 'output.json']) {
+        File(p.join(dir.path, name)).writeAsStringSync('');
+      }
+      File(p.join(dir.path, 'hook.dependencies_hash_file.json'))
+          .writeAsStringSync(
+            jsonEncode({
+              'file_system': [
+                {'path': '/project/.dart_tool/package_config.json', 'hash': 1},
+                {'path': '$compiledBy/version', 'hash': 2},
+              ],
+              'environment': <Object>[],
+            }),
+          );
+      return dir;
+    }
+
+    test('is compiled again, and one ours compiled is kept', () {
+      var stale = build(
+        'objective_c',
+        '/fvm/versions/3.50.0-0.1.pre/bin/cache/dart-sdk',
+      );
+      var fresh = build('sqlite3', ours);
+
+      dropHooksCompiledElsewhere(
+        hooksDir: hooks.path,
+        dartExecutable: '$ours/bin/dart',
+      );
+
+      List<String> left(Directory dir) =>
+          dir.listSync().map((f) => p.basename(f.path)).toList()..sort();
+      expect(left(stale), ['output.json']);
+      expect(left(fresh), [
+        'hook.dependencies_hash_file.json',
+        'hook.dill',
+        'hook.dill.d',
+        'output.json',
+      ]);
+    });
+
+    test('fails naming the hook and what it wrote', () {
+      // As hooks_runner 1.6.1 logs a hook whose kernel the VM refused.
+      var logged = '''
+  Building assets for package:objective_c failed.
+  build.dart returned with exit code: 255.
+  To reproduce run:
+  (cd /pub-cache/objective_c-9.5.0/; dart hook.dill --config=input.json)
+  stderr:
+  Can't load Kernel binary: Invalid SDK hash.
+
+  stdout:
+  ''';
+      var expected =
+          "objective_c's build hook failed: Can't load Kernel binary: "
+          'Invalid SDK hash.';
+      expect(failedHooks(['Some other line', logged]), [expected]);
+    });
+  });
 }

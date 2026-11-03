@@ -56,6 +56,12 @@ abstract class NativePlugin<C extends PluginCore> extends ChangeNotifier
   /// copy of them. Set by the [WorktreeSession] that holds them both.
   NativePlugin? Function(String id) peer = (_) => null;
 
+  /// Puts this panel on screen at [segments], below its own id in the
+  /// address, as if that address had been typed. For something that happened
+  /// here that the panel should show: a world another process opened. Set by
+  /// the shell; does nothing outside one.
+  void Function(List<String> segments) show = (_) {};
+
   /// What this plugin is still working on, or null when it has nothing in
   /// flight.
   ///
