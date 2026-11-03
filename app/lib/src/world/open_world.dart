@@ -32,6 +32,7 @@ import 'guest_platform.dart';
 import 'guest_process.dart';
 import 'platform/studio_platform.dart';
 import 'web_address.dart';
+import 'world_autofill.dart';
 import 'world_files.dart';
 import 'world_script.dart';
 import 'world_stack.dart';
@@ -494,6 +495,110 @@ class OpenWorld {
     return via;
   }
 
+  /// What the field that has focus in [person]'s app can be filled with —
+  /// see [offersFor] — or nothing, while no field has focus or it is one the
+  /// world has nothing for.
+  List<WorldOffer> offers(String person) {
+    var field = tracer?.fieldOf(person);
+    if (field == null || people[person]?.running != true) return const [];
+    return offersFor(person, field, [
+      for (var each in people.values) each.spec,
+    ], received: tracer?.trace.outbox(person: person, limit: 20) ?? const []);
+  }
+
+  /// [offer], picked for the field that has focus in [person]'s app: a code
+  /// typed as Enter code types it, anything else filled. Answers the step
+  /// it was.
+  Future<String?> pick(
+    String person,
+    WorldOffer offer, {
+    String actor = 'agent',
+  }) async {
+    if (offer.message case var message?) {
+      return (await deliver(message, how: 'type', actor: actor)).step;
+    }
+    return (await _fill(person, offer, actor: actor)).step;
+  }
+
+  /// Types [value] into the field that has focus in [person]'s app, as a
+  /// step of theirs, the way a phone's autofill does. `Nurse.email` is
+  /// Nurse's address — `.password`, `.name` and `.phone` the rest of what
+  /// the world knows of her — and in a sign-in form it brings her password
+  /// with it. Anything else is typed as it is.
+  Future<WorldFill> fill(
+    String person,
+    String value, {
+    String actor = 'agent',
+  }) async {
+    if (!people.containsKey(person)) {
+      throw WorldRefusal(
+        'Nobody in ${file.name} is called $person: '
+        '${people.keys.join(', ')}.',
+      );
+    }
+    var field = tracer?.fieldOf(person);
+    var offer =
+        offerNamed(value, [for (var each in people.values) each.spec], field) ??
+        WorldOffer(
+          kind: field?.kind ?? FieldKind.other,
+          value: value,
+          label: field?.kind == FieldKind.password ? 'a password' : '"$value"',
+        );
+    return _fill(person, offer, actor: actor);
+  }
+
+  Future<WorldFill> _fill(
+    String name,
+    WorldOffer offer, {
+    required String actor,
+  }) async {
+    var person = people[name];
+    var tracer = this.tracer;
+    if (person == null || !person.running || tracer == null) {
+      throw WorldRefusal("$name's app is not running.");
+    }
+    Map<String, Object?> answer;
+    try {
+      answer = await tracer.ask(name, worldInputChannel, 'fill', {
+        'text': offer.value,
+        'target': offer.label,
+        'group': {
+          for (var MapEntry(:key, :value) in offer.group.entries)
+            key.name: value,
+        },
+      });
+    } on Object catch (error) {
+      throw WorldRefusal(
+        '$error'.contains('no handler')
+            ? "$name's app can't be filled: its flutterware is too old. "
+                  'Upgrade flutterware in the app.'
+            : "$name's app did not take it: $error",
+      );
+    }
+    var fields = switch (answer['filled']) {
+      int fields => fields,
+      _ => 0,
+    };
+    if (fields == 0) {
+      throw WorldRefusal(
+        "No field has focus in $name's app. Tap one first, then try again.",
+      );
+    }
+    _journal(
+      person,
+      'enterText',
+      actor,
+      '${offer.label} into the focused field',
+    );
+    return WorldFill(
+      person: name,
+      label: offer.label,
+      fields: fields,
+      step: answer['step'] as String?,
+      at: DateTime.now(),
+    );
+  }
+
   /// The step [link] arrived on, if the app reports one, and the way it
   /// went.
   ///
@@ -634,7 +739,9 @@ class OpenWorld {
     // The stamps start again at 0.0; a long log says which opening it is.
     if (_restarts > 0) _say('Restart $_restarts');
     unawaited(tracer?.close());
-    tracer = WorldTracer(worktree: worktree, runDir: runDir)..onSync = _changed;
+    tracer = WorldTracer(worktree: worktree, runDir: runDir)
+      ..onSync = _changed
+      ..onField = _changed;
 
     void settle() {
       if (!setUp || settled.isCompleted) return;

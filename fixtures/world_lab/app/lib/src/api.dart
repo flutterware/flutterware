@@ -97,6 +97,20 @@ class Api {
     return User.fromJson((json['user']! as Map).cast());
   }
 
+  /// Signs in with an address and a password, and keeps the session.
+  Future<User> signIn(String email, String password) async {
+    var json = await _send('POST', '/auth/password', {
+      'email': email,
+      'password': password,
+    });
+    token = json['token']! as String;
+    return User.fromJson((json['user']! as Map).cast());
+  }
+
+  /// Brings whoever has [email] onto the counter. Staff only.
+  Future<void> invite(String email) =>
+      _send('POST', '/invites', {'email': email});
+
   Future<User> me() async => User.fromJson(await _send('GET', '/me'));
 
   Future<List<Order>> orders() async {

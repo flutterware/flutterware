@@ -182,6 +182,10 @@ final class World {
   /// is open is declared by the phone number they will type. [app] is what
   /// they use, [on] is where it runs; a person with no [app] is headless — the
   /// script acts for them through the server.
+  ///
+  /// [email], [phone] and [password] are what a focused field in anyone's
+  /// app is offered: an address field every person's address, a password
+  /// field its own person's password.
   Person person(
     String name, {
     String? email,

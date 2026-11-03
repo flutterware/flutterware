@@ -7371,6 +7371,44 @@ final resultShapes = <String, ResultShape>{
       },
     ],
   }),
+  'WorldFillResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'WorldFillResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'person',
+        'type': 'String',
+        'doc': 'Whose app it was typed into.',
+      },
+      <String, Object?>{
+        'name': 'filled',
+        'type': 'String',
+        'doc': 'What it filled, as the step is named: `Nurse\'s address`.',
+      },
+      <String, Object?>{
+        'name': 'fields',
+        'type': 'int',
+        'doc':
+            'How many fields: two for a sign-in form\'s address and password.',
+      },
+      <String, Object?>{
+        'name': 'said',
+        'type': 'String',
+        'doc': 'The step, said: `manager.4 filled Nurse\'s address`.',
+      },
+      <String, Object?>{
+        'name': 'step',
+        'type': 'String',
+        'optional': true,
+        'doc': 'The step it was on the person\'s app: `manager.4`.',
+      },
+      <String, Object?>{
+        'name': 'caused',
+        'type': 'List<String>',
+        'optional': true,
+        'doc': 'What that step caused in the moments after, as `worlds trace` says it.',
+      },
+    ],
+  }),
   'WorldListResult': ResultShape.fromJson(<String, Object?>{
     'type': 'WorldListResult',
     'fields': <Object?>[

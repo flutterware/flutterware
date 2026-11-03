@@ -3036,6 +3036,31 @@ caused: List<String>?   # What that step caused in the moments after, as `worlds
 | `link` | string | no | — | Which of its links to open, when not the first: one `worlds outbox` lists |
 | `world` | string | no | — | The world it is for, by its file name — checked against the one open |
 
+#### `fill` — Fill
+
+Types what the world knows into the field that has focus in a person's app, the way a phone's autofill does: a person's address, password, name or phone number, or any text. In a sign-in form, an address brings its owner's password with it. Focus the field first — tap it. The fill is a step on the person's app, and the answer is what it caused in the moments after.
+
+```sh
+fw run worlds fill --person=<string> --value=<string> [--world=…]
+```
+
+Returns `WorldFillResult`:
+
+```
+person: String   # Whose app it was typed into.
+filled: String   # What it filled, as the step is named: `Nurse's address`.
+fields: int   # How many fields: two for a sign-in form's address and password.
+said: String   # The step, said: `manager.4 filled Nurse's address`.
+step: String?   # The step it was on the person's app: `manager.4`.
+caused: List<String>?   # What that step caused in the moments after, as `worlds trace` says it.
+```
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `person` | string | yes | — | Whose app it is typed into: who has the field |
+| `value` | string | yes | — | `<Person>.email`, `.password`, `.name` or `.phone` for what the world declared of them — `Nurse.email` — or the text itself |
+| `world` | string | no | — | The world it is for, by its file name — checked against the one open |
+
 #### `show` — Show
 
 Draws a message as its recipient would see it — a mail's HTML rendered by WebKit to a PNG — with the box of each link on it. Read the picture to see the mail; open a link in the person's app with `worlds deliver`.

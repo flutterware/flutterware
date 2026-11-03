@@ -55,12 +55,14 @@ Future<LabUser> createUser(
   String role = 'customer',
   String? email,
   String? phone,
+  String? password,
 }) async {
   var json = await call(server, 'POST', '/admin/users', {
     'name': name,
     'role': role,
     'email': ?email,
     'phone': ?phone,
+    'password': ?password,
   });
   return (
     id: json['id']! as String,

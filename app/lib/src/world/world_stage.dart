@@ -149,6 +149,7 @@ class WorldStage extends StatefulWidget {
     required this.sizeOf,
     required this.scales,
     required this.labelHeight,
+    this.footHeight = 0,
     required this.person,
     required this.view,
     required this.onScale,
@@ -168,6 +169,10 @@ class WorldStage extends StatefulWidget {
 
   /// How much of a person's view is above their device.
   final double labelHeight;
+
+  /// How much of it is below: room for what a field in their app can be
+  /// filled with, kept whether or not one has focus so nobody moves.
+  final double footHeight;
 
   /// A person drawn at [scale], their app told which events to leave alone.
   final Widget Function(
@@ -234,7 +239,7 @@ class _WorldStageState extends State<WorldStage> {
     var down =
         (viewport.height -
             2 * _pad -
-            rows.length * widget.labelHeight -
+            rows.length * (widget.labelHeight + widget.footHeight) -
             (rows.length - 1) * _gap) /
         (rows.length * _tallest);
     var across = [
@@ -287,6 +292,7 @@ class _WorldStageState extends State<WorldStage> {
           row.map((p) => _drawn(p, scale).width).fold(0.0, (a, b) => a + b) +
               (row.length - 1) * _gap,
           widget.labelHeight +
+              widget.footHeight +
               row.map((p) => _drawn(p, scale).height).fold(0.0, max),
         ),
     ];
@@ -312,7 +318,7 @@ class _WorldStageState extends State<WorldStage> {
       var x = origin.dx + (content.width - rowSizes[i].width) / 2;
       for (var person in row) {
         var size = _drawn(person, scale);
-        var height = widget.labelHeight + size.height;
+        var height = widget.labelHeight + size.height + widget.footHeight;
         // Centred down the row, so someone shorter than its tallest — a
         // phone beside a browser, a card — stands level with them.
         placed[person] = Rect.fromLTWH(
@@ -439,7 +445,7 @@ class _WorldStageState extends State<WorldStage> {
                           rect.left,
                           rect.top + widget.labelHeight,
                           rect.right,
-                          rect.bottom,
+                          rect.bottom - widget.footHeight,
                         ),
                   };
                   var inView = Offset.zero & viewport;

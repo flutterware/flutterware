@@ -6,6 +6,7 @@ import '../../world/guest_platform.dart';
 import '../../world/open_world.dart';
 import '../../world/world_files.dart';
 import '../../world/web_snapshot.dart';
+import '../../world/world_autofill.dart' show WorldFill;
 import '../../world/world_trace.dart';
 
 /// What `worlds list` answers: every world the project declares, and which
@@ -764,6 +765,72 @@ class WorldOutboxResult implements PluginResult {
 
   @override
   Map<String, Object?> toJson() => {'messages': messages, 'note': ?note};
+}
+
+/// What `worlds fill` answers: what went into the field that had focus in
+/// whose app, and the step it was.
+class WorldFillResult implements PluginResult {
+  const WorldFillResult({
+    required this.person,
+    required this.filled,
+    required this.fields,
+    required this.said,
+    this.step,
+    this.caused,
+  });
+
+  /// [caused] is the trace of its step, read once the app had the time to
+  /// act on it.
+  factory WorldFillResult.of(WorldFill fill, {TracedStep? caused}) =>
+      WorldFillResult(
+        person: fill.person,
+        filled: fill.label,
+        fields: fill.fields,
+        said: fill.said,
+        step: fill.step,
+        caused: switch (caused) {
+          (:var step, :var beats) => traceLines(beats, step.at!),
+          null => fill.step == null ? null : const [],
+        },
+      );
+
+  factory WorldFillResult.fromJson(Map<String, Object?> json) =>
+      WorldFillResult(
+        person: json['person']! as String,
+        filled: json['filled']! as String,
+        fields: json['fields']! as int,
+        said: json['said']! as String,
+        step: json['step'] as String?,
+        caused: (json['caused'] as List?)?.cast<String>(),
+      );
+
+  /// Whose app it was typed into.
+  final String person;
+
+  /// What it filled, as the step is named: `Nurse's address`.
+  final String filled;
+
+  /// How many fields: two for a sign-in form's address and password.
+  final int fields;
+
+  /// The step, said: `manager.4 filled Nurse's address`.
+  final String said;
+
+  /// The step it was on the person's app: `manager.4`.
+  final String? step;
+
+  /// What that step caused in the moments after, as `worlds trace` says it.
+  final List<String>? caused;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'person': person,
+    'filled': filled,
+    'fields': fields,
+    'said': said,
+    'step': ?step,
+    'caused': ?caused,
+  };
 }
 
 /// What `worlds deliver` answers: what it handed to whose app.
