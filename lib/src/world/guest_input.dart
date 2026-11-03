@@ -154,7 +154,8 @@ const _hinted = {
   AutofillHints.telephoneNumberNational: FieldKind.phone,
   'tel': FieldKind.phone,
   AutofillHints.oneTimeCode: FieldKind.code,
-  AutofillHints.emailOTPCode: FieldKind.code,
+  // AutofillHints.emailOTPCode, which stable Flutter does not have yet.
+  'emailOTPCode': FieldKind.code,
   'one-time-code': FieldKind.code,
 };
 
