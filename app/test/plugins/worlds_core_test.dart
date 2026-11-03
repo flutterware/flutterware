@@ -256,8 +256,9 @@ void main() {
   });
 
   test('a world open already, in another process, is the one opened', () async {
-    var owner = await WorldOwnerServer.start((action, _) async {
-      expect(action, 'status');
+    var owner = await WorldOwnerServer.start((action, arguments) async {
+      expect(action, 'open');
+      expect(arguments['world'], 'lab');
       return lab.toJson();
     });
     addTearDown(owner.close);
@@ -320,5 +321,13 @@ void main() {
     expect(shown, ['lab']);
     await ask();
     expect(shown, ['lab', 'lab']);
+
+    // Another process asking for it again reaches it as its owner.
+    await askWorldOwner(
+      WorldHandle.read(root.path)!.socket,
+      'open',
+      arguments: {'world': 'lab'},
+    );
+    expect(shown, ['lab', 'lab', 'lab']);
   });
 }

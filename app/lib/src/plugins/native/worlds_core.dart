@@ -609,6 +609,13 @@ class WorldsCore extends PluginCore {
     String action,
     Map<String, Object?> arguments,
   ) async {
+    // Asked to open the world open here: its state, and the studio shows it
+    // as it would a world it opened for the asker.
+    if (_open case var open?
+        when action == 'open' && open.file.id == arguments['world']) {
+      onOpenedForAnother?.call(open);
+      return WorldStateResult.of(open).toJson();
+    }
     if (!const {
       'status',
       'trace',
@@ -834,8 +841,10 @@ class WorldsCore extends PluginCore {
     }
     var elsewhere = _open == null ? openElsewhere() : null;
     if (elsewhere != null && elsewhere.world == world) {
-      // Open already, somewhere: an opening asked twice is the one there.
-      return await _forward(elsewhere, 'status', const {}) as WorldStateResult;
+      // Open already, somewhere: an opening asked twice is the one there,
+      // which answers with its state and, in the studio, shows it.
+      return await _forward(elsewhere, 'open', {'world': world})
+          as WorldStateResult;
     }
     if (!hold && _open == null && elsewhere == null) {
       if (openingElsewhere() case var studio?) {
