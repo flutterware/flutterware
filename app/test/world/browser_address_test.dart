@@ -15,7 +15,7 @@ void main() {
     );
   });
 
-  test('an address typed under the app\'s own goes to the route after it, '
+  test("an address typed under the app's own goes to the route after it, "
       'with or without its scheme', () {
     const host = 'http://localhost:8080/clinic/acme';
     String? go(String typed) => typedRoute(typed, host: host);

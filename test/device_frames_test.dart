@@ -42,7 +42,7 @@ void main() {
     }
   });
 
-  test('a body is measured in its screen\'s points, whatever units its '
+  test("a body is measured in its screen's points, whatever units its "
       'artwork is drawn in', () {
     // A hand-drawn iPhone is about two units to a point; our island body is
     // drawn in points. Measured this way, both hold their screen at its size.
