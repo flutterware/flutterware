@@ -65,8 +65,9 @@ class GuestNavigation {
   /// there moves along the history rather than adding to it.
   int? _moving;
 
-  /// Whether the next report is an address typed in: a new entry, although
-  /// a `Router` reports a route it was told to show as a replacement.
+  /// Whether the next report is an address typed in, or a link to the app
+  /// opened from outside it: a new entry, although a `Router` reports a
+  /// route it was told to show as a replacement.
   var _typed = false;
 
   /// Where a reloaded app is taken back to once it says where it started,
@@ -98,6 +99,11 @@ class GuestNavigation {
     _typed = true;
     _show(location);
   }
+
+  /// Takes the next route the app reports as a new entry, as [go] does: for
+  /// a link to the app opened from outside it, which the app is handed
+  /// itself, as a browser would open it.
+  void arriving() => _typed = true;
 
   void _show(String location) =>
       _call('pushRouteInformation', {'location': location, 'state': null});

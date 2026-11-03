@@ -620,6 +620,21 @@ app with a `Router` (`go_router`, for one) or named routes goes to it. The
 answer's `via` says which way the link went. If nothing in the app takes the
 link, `deliver` says so.
 
+For someone at a desktop whose `Launch` has a `url:`, a link under that
+address goes to the app's router as the route after the address, the way the
+browser would open it. Under it means the same scheme, host and port, and a
+path that starts with the address's path. For a dashboard served at
+`http://localhost:8080/clinic/acme`:
+
+- `http://localhost:8080/clinic/acme#/invitation/t1` goes to `/invitation/t1`,
+  for a web build that reads its route after the `#`.
+- `http://localhost:8080/clinic/acme/invitation/t1?x=1` goes to
+  `/invitation/t1?x=1`.
+
+`via` is then `flutter/navigation as /invitation/t1`. A link anywhere else
+goes as described above. Typing one of these links in the browser's address
+bar goes to the same route.
+
 A server takes part by reporting each message with its recipient, in its
 adapter for that channel:
 
@@ -646,7 +661,7 @@ When a message has several links, the one handed to the app is:
 1. the `link` the adapter reported, if any;
 2. otherwise the first link on a scheme or host the recipient's app declares:
    its URL schemes and associated domains on iOS and macOS, its `VIEW` intent
-   filters on Android;
+   filters on Android, and the `url:` its `Launch` is served at;
 3. otherwise the first link on a custom scheme;
 4. otherwise the first link.
 
@@ -684,8 +699,8 @@ three seconds before it, and says it was joined by time.
 A mail with `html` is shown as its recipient would see it. Clicking it opens
 it in the person's panel, next to their app, as a picture drawn by WebKit,
 with each link clickable where it sits. A link goes where a phone
-would send it: into the app if the app opens it (a scheme of its own, or a
-web host it claims), and otherwise to the live web page, with **Email** and
+would send it: into the app if the app opens it (a scheme of its own, a web
+host it claims, or the address it is served at), and otherwise to the live web page, with **Email** and
 **Page** to switch between the two. Under the mail are the links opened from
 it in the app, and when. For an agent, `fw run worlds show --message=<id>`
 draws the picture with each link's box, and

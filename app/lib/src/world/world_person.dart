@@ -14,6 +14,7 @@ import '../ui/theme.dart';
 import 'live_guest.dart';
 import 'message_banner.dart';
 import 'open_world.dart';
+import 'web_address.dart';
 import 'world_messages.dart';
 import 'world_views.dart';
 
@@ -499,40 +500,6 @@ class _RoundedBox extends CustomPainter {
 
   @override
   bool shouldRepaint(_RoundedBox old) => old.radius != radius;
-}
-
-/// What a person's browser shows before the route their app reports: the
-/// address the app is served at ([Launch.url]), or the entry point's name as
-/// a host, `lab.localhost`, for an app the world gave no address.
-String browserHost(Launch? app) {
-  if (app?.url case var url?) {
-    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
-  }
-  var name = app?.entrypoint ?? 'app';
-  var slug = name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-');
-  return '$slug.localhost';
-}
-
-/// The route an address typed into a person's browser goes to, or null for
-/// a link to open in their app instead.
-///
-/// An address under [host] ([browserHost]), with or without its scheme, goes
-/// to the route after it: `http://localhost:8080/clinic/acme/patients` to
-/// `/patients`. Any other address with a scheme is a link. Anything else is
-/// taken from its first `/`, so a path typed alone goes to that path.
-String? typedRoute(String typed, {required String host}) {
-  var scheme = RegExp('^[a-zA-Z][a-zA-Z0-9+.-]*://');
-  var bare = typed.replaceFirst(scheme, '');
-  var base = host.replaceFirst(scheme, '');
-  if (bare.startsWith(base)) {
-    var rest = bare.substring(base.length);
-    if (rest.isEmpty) return '/';
-    if (rest.startsWith('/')) return rest;
-    if (rest.startsWith('?') || rest.startsWith('#')) return '/$rest';
-  }
-  if (scheme.hasMatch(typed)) return null;
-  var slash = typed.indexOf('/');
-  return slash < 0 ? '/' : typed.substring(slash);
 }
 
 /// The browser around a desktop person's app, showing the title the app
