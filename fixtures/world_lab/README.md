@@ -38,8 +38,8 @@ one caused, and `fw run worlds contents --part=orders` what the orders table
 holds, each order with its life from the tap to both phones.
 
 In *Pickup order* Ana runs the counter at a desktop: her app is the same
-one, in a browser the studio draws, whose address bar shows the route the app
-reports. Mia has no app; *Mia orders a flat white* orders for her.
+one, in a browser the studio draws, whose address bar shows the address the
+world gives it and the route the app reports. Mia has no app; *Mia orders a flat white* orders for her.
 
 Leo's sign-up code comes down on his phone as a text: tap the code field on
 the phone, then *Enter code* on the banner — or `fw run worlds deliver` with
@@ -48,6 +48,14 @@ click the mail on Ana's screen, or in her messages, to read it, and its *Open
 the order* button opens the order in Ana's app — the address bar moves to it
 and the board picks it out. Each delivery is a step of its own,
 `leo.3 typed the code from the SMS`.
+
+In *New barista* Ana invites Ben onto the counter, and Ben signs in with
+his address and password. Click the invite field on Ana's counter: the bar
+under her browser offers Ana's and Ben's addresses, and a click types Ben's
+in, as the step `ana.1 filled Ben's address`. Ben's invitation reaches him
+by mail. On Ben's phone, click the email field under *Or, for staff*: the
+email and password fields are one `AutofillGroup`, so picking Ben fills in
+both. `fw run worlds fill --person=Ben --value=Ben.email` does the same.
 
 Every app has a database to look at in its person's panel, under *App*: the synced
 worlds' PowerSync copy, and otherwise the orders the app has seen, which the

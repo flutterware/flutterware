@@ -406,6 +406,7 @@ class Timeline {
       'longPress' => 'long-presses $target',
       'drag' => 'drags $target',
       'type' => 'types $target',
+      'fill' => 'fills in $target',
       'open' => 'opens $target',
       'start' => 'starts $target',
       'action' => 'runs $target',

@@ -106,6 +106,17 @@ class GuestTextInput with TextInputControl {
   /// Whether a field has focus: somewhere [fill] can put what it is given.
   bool get focused => _client != null;
 
+  /// What the focused field says about itself — its autofill hints, its
+  /// keyboard, whether it hides what is typed — or null while none has
+  /// focus. Set on each focus, and again when the field changes its mind.
+  ValueListenable<TextInputConfiguration?> get field => _field;
+  final _field = ValueNotifier<TextInputConfiguration?>(null);
+
+  /// The fields filled with the focused one: those of its `AutofillGroup`,
+  /// itself among them, or none outside one.
+  Iterable<AutofillClient> get group =>
+      _client?.currentAutofillScope?.autofillClients ?? const [];
+
   /// Fills the focused field with [text], as a platform's autofill does — a
   /// one-time code offered from an SMS — replacing what it held. False when
   /// no field has focus: there is nowhere for it to go.
@@ -123,6 +134,7 @@ class GuestTextInput with TextInputControl {
   void attach(TextInputClient client, TextInputConfiguration configuration) {
     _client = client;
     _configuration = configuration;
+    _field.value = configuration;
     // On while attached, off otherwise: an unfocused catalog pays nothing per
     // key, and a demo's own key handling sees every key whenever no field has
     // focus.
@@ -171,11 +183,13 @@ class GuestTextInput with TextInputControl {
     _client = null;
     _configuration = null;
     _value = TextEditingValue.empty;
+    _field.value = null;
   }
 
   @override
   void updateConfig(TextInputConfiguration configuration) {
     _configuration = configuration;
+    if (_client != null) _field.value = configuration;
     // A field that swaps its keyboard type while focused — a "use a custom
     // pad" toggle, a "this is a phone number" switch — has to move the
     // keyboard with it, in both directions and between variants.

@@ -14,6 +14,7 @@ import '../ui/theme.dart';
 import 'live_guest.dart';
 import 'message_banner.dart';
 import 'open_world.dart';
+import 'web_address.dart';
 import 'world_messages.dart';
 import 'world_views.dart';
 
@@ -25,14 +26,18 @@ Device deviceOf(WorldPerson person) => switch (person.spec.on) {
 /// for them.
 bool hasApp(WorldPerson person) => person.spec.app != null;
 
-/// What [person] stands on the stage as, in logical pixels: their device in
-/// its body — a phone's, or a browser around a desktop window — or, with no
-/// app, a card, whose size is on the screen rather than the device's.
+/// What [person] stands on the stage as, in their screen's logical pixels:
+/// their device in its body — a phone's, or a browser around a desktop
+/// window — or, with no app, a card, whose size is on the screen rather than
+/// the device's. Measured in the screen's pixels, so that people drawn at one
+/// scale have their screens drawn at that scale.
 Size personSize(WorldPerson person) {
   if (!hasApp(person)) return HeadlessCard.size;
   var device = deviceOf(person);
-  var screen = Size(device.width, device.height);
-  return deviceFrameFor(device)?.frameSize ?? BrowserFrame.frameSize(screen);
+  return switch (deviceFrameFor(device)) {
+    var frame? => bodySize(frame),
+    null => BrowserFrame.frameSize(Size(device.width, device.height)),
+  };
 }
 
 /// `Lab on iPhone 16`, `Lab in a browser, 1280 × 800`.
@@ -290,7 +295,7 @@ class PersonDevice extends StatelessWidget {
     CustomPainter body;
     if (frame != null) {
       framed = DeviceFrame(device: frame, screen: content);
-      body = frame.framePainter;
+      body = _Artwork(frame.framePainter, frame.frameSize);
     } else {
       framed = _Browser(
         world: world,
@@ -459,6 +464,28 @@ class _Ring extends CustomPainter {
       _bodyChanged(body, old.body) || old.color != color || old.width != width;
 }
 
+/// A phone's body as its artwork paints it, in [units] of its own, scaled
+/// to the size the device is laid out at ([personSize]).
+class _Artwork extends CustomPainter {
+  const _Artwork(this.painter, this.units);
+
+  final CustomPainter painter;
+  final Size units;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas
+      ..save()
+      ..scale(size.width / units.width, size.height / units.height);
+    painter.paint(canvas, units);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_Artwork old) =>
+      _bodyChanged(painter, old.painter) || old.units != units;
+}
+
 /// A browser window's body: its box, with [radius] corners.
 class _RoundedBox extends CustomPainter {
   const _RoundedBox(this.radius);
@@ -519,28 +546,20 @@ class _BrowserState extends State<_Browser> {
     super.dispose();
   }
 
-  /// `lab.localhost`: the entry point's name as a host, since a desktop app
-  /// has none of its own.
-  String get _host {
-    var name = widget.person.spec.app?.entrypoint ?? 'app';
-    var slug = name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-');
-    return '$slug.localhost';
-  }
+  String get _host => browserHost(widget.person.spec.app);
 
-  /// A typed address, taken where a browser would take it: a link with a
-  /// scheme into the app the way a delivered one goes, anything else as the
-  /// path to show.
+  /// A typed address, taken where a browser would take it: a route under
+  /// the app's own address to that route, another link with a scheme into
+  /// the app the way a delivered one goes.
   void _go(String typed) {
     var platform = widget.person.platform;
     if (platform == null || typed.isEmpty) return;
-    if (typed.contains('://')) {
-      platform.links.open(typed);
-      return;
+    switch (typedRoute(typed, host: _host)) {
+      case var route?:
+        platform.navigation.go(route);
+      case null:
+        platform.links.open(typed);
     }
-    var path = typed.startsWith(_host) ? typed.substring(_host.length) : typed;
-    var slash = path.indexOf('/');
-    path = slash < 0 ? '/' : path.substring(slash);
-    platform.navigation.go(path);
   }
 
   Future<void> _reload() async {

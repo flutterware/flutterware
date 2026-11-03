@@ -14,6 +14,7 @@ import '../ui/popover.dart' show PopoverAlign;
 import '../ui/stage.dart' show stageGroundColor;
 import '../ui/tappable.dart';
 import '../ui/theme.dart';
+import 'autofill_bar.dart';
 import 'guest_platform.dart';
 import 'mail_view.dart';
 import 'open_world.dart';
@@ -32,6 +33,7 @@ class PersonFocus extends StatefulWidget {
     required this.world,
     required this.person,
     required this.color,
+    required this.colorOf,
     required this.run,
     required this.reading,
     required this.onRead,
@@ -41,6 +43,9 @@ class PersonFocus extends StatefulWidget {
   final OpenWorld world;
   final WorldPerson person;
   final Color color;
+
+  /// Everyone's colour, for whose address the bar offers.
+  final Color Function(String? person) colorOf;
 
   /// Run's core, whose views the panel shows of the person's app; null where
   /// the project declares no run plugin.
@@ -147,6 +152,12 @@ class _PersonFocusState extends State<PersonFocus> {
           color: widget.color,
           sync: world.tracer?.syncOf(person.name),
           openLink: (link) => world.openLink(person.name, link, actor: 'human'),
+        ),
+        AutofillBar(
+          world: world,
+          person: person.name,
+          colorOf: widget.colorOf,
+          detailed: true,
         ),
         if (person.platform?.platform.unanswered case var unanswered?
             when person.running && unanswered.isNotEmpty)

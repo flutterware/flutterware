@@ -42,6 +42,29 @@ void main() {
     }
   });
 
+  test("a body is measured in its screen's points, whatever units its "
+      'artwork is drawn in', () {
+    // A hand-drawn iPhone is about two units to a point; our island body is
+    // drawn in points. Measured this way, both hold their screen at its size.
+    for (var device in Devices.all) {
+      var frame = deviceFrameFor(device);
+      if (frame == null) continue;
+      var points = bodySize(frame).width / frame.frameSize.width;
+      var glass = frame.screenPath.getBounds();
+      var spare = Size(
+        glass.width * points - device.width,
+        glass.height * points - device.height,
+      );
+      expect(
+        [spare.width, spare.height].reduce((a, b) => a < b ? a : b),
+        moreOrLessEquals(0, epsilon: 1e-6),
+        reason: device.id,
+      );
+      expect(spare.width, greaterThan(-1e-6), reason: device.id);
+      expect(spare.height, greaterThan(-1e-6), reason: device.id);
+    }
+  });
+
   test('the frame is drawn with the body and laid out with the table', () {
     // The body's own safe areas are its author's snapshot of one OS. Ours are
     // what ships now, so the frame carries ours — portrait and turned — and

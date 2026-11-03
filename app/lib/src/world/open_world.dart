@@ -22,6 +22,7 @@ import '../run/handle.dart';
 import '../run/journal.dart';
 import '../session/job.dart';
 import '../utils/parameter_knobs.dart';
+import '../previews/asset_bundle.dart' show BundleSync;
 import 'app_guest.dart';
 import 'bundle_id.dart';
 import 'declared_links.dart';
@@ -30,6 +31,8 @@ import 'guest_log.dart';
 import 'guest_platform.dart';
 import 'guest_process.dart';
 import 'platform/studio_platform.dart';
+import 'web_address.dart';
+import 'world_autofill.dart';
 import 'world_files.dart';
 import 'world_script.dart';
 import 'world_stack.dart';
@@ -492,8 +495,116 @@ class OpenWorld {
     return via;
   }
 
+  /// What the field that has focus in [person]'s app can be filled with —
+  /// see [offersFor] — or nothing, while no field has focus or it is one the
+  /// world has nothing for.
+  List<WorldOffer> offers(String person) {
+    var field = tracer?.fieldOf(person);
+    if (field == null || people[person]?.running != true) return const [];
+    return offersFor(person, field, [
+      for (var each in people.values) each.spec,
+    ], received: tracer?.trace.outbox(person: person, limit: 20) ?? const []);
+  }
+
+  /// [offer], picked for the field that has focus in [person]'s app: a code
+  /// typed as Enter code types it, anything else filled. Answers the step
+  /// it was.
+  Future<String?> pick(
+    String person,
+    WorldOffer offer, {
+    String actor = 'agent',
+  }) async {
+    if (offer.message case var message?) {
+      return (await deliver(message, how: 'type', actor: actor)).step;
+    }
+    return (await _fill(person, offer, actor: actor)).step;
+  }
+
+  /// Types [value] into the field that has focus in [person]'s app, as a
+  /// step of theirs, the way a phone's autofill does. `Nurse.email` is
+  /// Nurse's address — `.password`, `.name` and `.phone` the rest of what
+  /// the world knows of her — and in a sign-in form it brings her password
+  /// with it. Anything else is typed as it is.
+  Future<WorldFill> fill(
+    String person,
+    String value, {
+    String actor = 'agent',
+  }) async {
+    if (!people.containsKey(person)) {
+      throw WorldRefusal(
+        'Nobody in ${file.name} is called $person: '
+        '${people.keys.join(', ')}.',
+      );
+    }
+    var field = tracer?.fieldOf(person);
+    var offer =
+        offerNamed(value, [for (var each in people.values) each.spec], field) ??
+        WorldOffer(
+          kind: field?.kind ?? FieldKind.other,
+          value: value,
+          label: field?.kind == FieldKind.password ? 'a password' : '"$value"',
+        );
+    return _fill(person, offer, actor: actor);
+  }
+
+  Future<WorldFill> _fill(
+    String name,
+    WorldOffer offer, {
+    required String actor,
+  }) async {
+    var person = people[name];
+    var tracer = this.tracer;
+    if (person == null || !person.running || tracer == null) {
+      throw WorldRefusal("$name's app is not running.");
+    }
+    Map<String, Object?> answer;
+    try {
+      answer = await tracer.ask(name, worldInputChannel, 'fill', {
+        'text': offer.value,
+        'target': offer.label,
+        'group': {
+          for (var MapEntry(:key, :value) in offer.group.entries)
+            key.name: value,
+        },
+      });
+    } on Object catch (error) {
+      throw WorldRefusal(
+        '$error'.contains('no handler')
+            ? "$name's app can't be filled: its flutterware is too old. "
+                  'Upgrade flutterware in the app.'
+            : "$name's app did not take it: $error",
+      );
+    }
+    var fields = switch (answer['filled']) {
+      int fields => fields,
+      _ => 0,
+    };
+    if (fields == 0) {
+      throw WorldRefusal(
+        "No field has focus in $name's app. Tap one first, then try again.",
+      );
+    }
+    _journal(
+      person,
+      'enterText',
+      actor,
+      '${offer.label} into the focused field',
+    );
+    return WorldFill(
+      person: name,
+      label: offer.label,
+      fields: fields,
+      step: answer['step'] as String?,
+      at: DateTime.now(),
+    );
+  }
+
   /// The step [link] arrived on, if the app reports one, and the way it
   /// went.
+  ///
+  /// A link under the address the app is served at ([Launch.url]) goes
+  /// where a browser on that address would take it: to the route after the
+  /// address ([routeUnder]), handed to the app's router.
   Future<(String?, String)> _openLink(
     WorldPerson person,
     String link, {
@@ -501,8 +612,12 @@ class OpenWorld {
   }) async {
     var name = person.name;
     var tracer = this.tracer;
+    var route = switch (person.spec.app?.url) {
+      var url? => routeUnder(url, link),
+      null => null,
+    };
     var links = person.platform?.links;
-    if (links != null && links.listening) {
+    if (route == null && links != null && links.listening) {
       String? step;
       // The step first, so what the link starts has one to join.
       try {
@@ -520,24 +635,32 @@ class OpenWorld {
     Map<String, Object?> answer;
     try {
       if (tracer == null) throw StateError('the world is not open');
+      if (route != null) person.platform?.navigation.arriving();
       answer = await tracer.ask(name, worldInputChannel, 'open', {
         'target': target,
-        'link': link,
+        'link': route ?? link,
       });
     } on Object catch (error) {
       throw WorldRefusal("$name's app did not take the link: $error");
     }
     if (answer['routed'] != true) {
-      throw WorldRefusal(
-        answer.containsKey('routed')
-            ? "$name's app didn't open $link. It has no app_links handler, "
-                  "and its router didn't take the link."
-            : "$name's app didn't open $link. It has no app_links handler, "
-                  'and its flutterware is too old to route links. Upgrade '
-                  'flutterware in the app.',
-      );
+      throw WorldRefusal(switch (route) {
+        _ when !answer.containsKey('routed') =>
+          "$name's app didn't open $link. It has no app_links handler, "
+              'and its flutterware is too old to route links. Upgrade '
+              'flutterware in the app.',
+        var route? =>
+          "$name's app didn't open $link. It is under the app's address, "
+              "so it went to its router as $route, which didn't take it.",
+        null =>
+          "$name's app didn't open $link. It has no app_links handler, "
+              "and its router didn't take the link.",
+      });
     }
-    return (answer['step'] as String?, 'flutter/navigation');
+    return (
+      answer['step'] as String?,
+      route == null ? 'flutter/navigation' : 'flutter/navigation as $route',
+    );
   }
 
   /// What each message was delivered as, by its id, oldest first: the codes
@@ -616,7 +739,9 @@ class OpenWorld {
     // The stamps start again at 0.0; a long log says which opening it is.
     if (_restarts > 0) _say('Restart $_restarts');
     unawaited(tracer?.close());
-    tracer = WorldTracer(worktree: worktree, runDir: runDir)..onSync = _changed;
+    tracer = WorldTracer(worktree: worktree, runDir: runDir)
+      ..onSync = _changed
+      ..onField = _changed;
 
     void settle() {
       if (!setUp || settled.isCompleted) return;
@@ -899,6 +1024,7 @@ class OpenWorld {
       _changed();
       await previous?._stop();
       await build.ready;
+      await build.freshBundle(_restarts);
       await build.freshKernel();
       await _start(person, build, device);
     } on Object catch (error) {
@@ -968,8 +1094,20 @@ class OpenWorld {
         platform: platform.platform.answer,
         onOutput: (line) {
           log.line(line);
+          person._lastWords.hear(line);
           if (stoppedBeforeDrawing(line) case var why?) {
             _stoppedEarly(person, why);
+          } else if (stuckBeforeDrawing(line) case var after?) {
+            _stoppedEarly(
+              person,
+              stuckProblem(
+                after,
+                person._lastWords,
+                hooksFailure: build.hooksFailure,
+              ),
+            );
+          } else if (line.contains(guestRanLateMarker)) {
+            _ranLate(person);
           }
         },
       ),
@@ -1004,7 +1142,13 @@ class OpenWorld {
     build.people.add(person);
     person.phase = PersonPhase.running;
     if (person._stopped case var why?) _stoppedEarly(person, why);
-    unawaited(tracer?.follow(name, person.handle!, links: build.links));
+    unawaited(
+      tracer?.follow(
+        name,
+        person.handle!,
+        links: build.links.servedAt(person.spec.app?.url),
+      ),
+    );
   }
 
   /// [person]'s app failed in `main` before it called `runApp`, so it will
@@ -1017,6 +1161,21 @@ class OpenWorld {
       ..phase = PersonPhase.failed
       ..problem = why;
     _say('${person.name}: $why');
+    _changed();
+  }
+
+  /// [person]'s app called `runApp` after it was said to be stuck: it is up
+  /// after all.
+  void _ranLate(WorldPerson person) {
+    if (person._stopped == null) return;
+    person._stopped = null;
+    if (people[person.name] != person || person.phase != PersonPhase.failed) {
+      return;
+    }
+    person
+      ..phase = PersonPhase.running
+      ..problem = null;
+    _say('${person.name}: the app called runApp after all');
     _changed();
   }
 
@@ -1078,7 +1237,7 @@ class OpenWorld {
       );
       // Built ahead, it may serve nobody this time; its failure is then
       // nobody's to handle.
-      build.ready = build.prepare(_host)..ignore();
+      build.ready = build.prepare(_host, opening: _restarts)..ignore();
       return build;
     });
   }
@@ -1201,10 +1360,20 @@ class _Build {
   final people = <WorldPerson>[];
   var _edits = Future<void>.value();
 
-  Future<void> prepare(Future<String> host) async {
+  /// Why the build hooks left the bundle without native libraries, when they
+  /// did.
+  String? hooksFailure;
+
+  /// Which opening of the world the bundle was last built for. A restart
+  /// builds it again, so a native library a build hook now builds — or no
+  /// longer does — reaches the apps it starts.
+  late int _bundleFor;
+
+  Future<void> prepare(Future<String> host, {required int opening}) async {
     _say('Building $label');
+    _bundleFor = opening;
     await host;
-    await app.assets();
+    _hooks(await app.assets());
     var outcome = await app.compile();
     if (!outcome.ok) {
       throw WorldRefusal(
@@ -1212,6 +1381,18 @@ class _Build {
       );
     }
     _say('Built $label');
+  }
+
+  /// Builds the bundle again for [opening], once whoever asks first.
+  Future<void> freshBundle(int opening) => _serial(() async {
+    if (_bundleFor == opening) return;
+    _bundleFor = opening;
+    _hooks(await app.assets());
+  });
+
+  void _hooks(BundleSync sync) {
+    hooksFailure = sync.hooksFailure;
+    if (hooksFailure case var failure?) _say('$label: $failure');
   }
 
   /// Whether the running guests are ahead of the kernel on disk — a reload
@@ -1358,6 +1539,9 @@ class WorldPerson {
   /// by, beside the device `studio-<name>`.
   String? get runKey => handle?.key;
 
+  /// What their app last printed: a stuck app is shown with it.
+  final _lastWords = LastWords();
+
   Future<void> _stop() async {
     _build?.people.remove(this);
     handle?.delete();
@@ -1445,7 +1629,9 @@ class WorldDelivery {
   final String what;
 
   /// How a link reached the app: `app_links`, or `flutter/navigation` for
-  /// an app that takes links through Flutter's own deep linking.
+  /// an app that takes links through Flutter's own deep linking, and
+  /// `flutter/navigation as /invitation/t1` for a link under the address the
+  /// app is served at, handed over as its route.
   final String? via;
 
   /// The step it was, on the person's app — `leo.13` — whose trace is what

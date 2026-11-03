@@ -342,6 +342,35 @@ class WorldsCore extends PluginCore {
       ],
     ),
     const PluginAction(
+      'fill',
+      'Fill',
+      returns: WorldFillResult,
+      description:
+          'Types what the world knows into the field that has focus in a '
+          "person's app, the way a phone's autofill does: a person's "
+          'address, password, name or phone number, or any text. In a '
+          "sign-in form, an address brings its owner's password with it. "
+          'Focus the field first — tap it. The fill is a step on the '
+          "person's app, and the answer is what it caused in the moments "
+          'after.',
+      parameters: [
+        ActionParameter(
+          'person',
+          'Person',
+          description: 'Whose app it is typed into: who has the field',
+        ),
+        ActionParameter(
+          'value',
+          'Value',
+          description:
+              '`<Person>.email`, `.password`, `.name` or `.phone` for what '
+              'the world declared of them — `Nurse.email` — or the text '
+              'itself',
+        ),
+        _worldParameter,
+      ],
+    ),
+    const PluginAction(
       'show',
       'Show',
       returns: WorldShowResult,
@@ -542,6 +571,7 @@ class WorldsCore extends PluginCore {
     'contents' ||
     'outbox' ||
     'deliver' ||
+    'fill' ||
     'show' ||
     'reload' ||
     'restart' ||
@@ -556,6 +586,7 @@ class WorldsCore extends PluginCore {
     'contents' => _contentsAction(arguments),
     'outbox' => _outboxAction(arguments),
     'deliver' => await _deliverAction(arguments),
+    'fill' => await _fillAction(arguments),
     'show' => await _showAction(arguments),
     'reload' => WorldReloadResult.of(await _required.reload()),
     'restart' => await _restartAction(
@@ -592,6 +623,7 @@ class WorldsCore extends PluginCore {
       'contents' => WorldContentsResult.fromJson(json),
       'outbox' => WorldOutboxResult.fromJson(json),
       'deliver' => WorldDeliveryResult.fromJson(json),
+      'fill' => WorldFillResult.fromJson(json),
       'show' => WorldShowResult.fromJson(json),
       'reload' => WorldReloadResult.fromJson(json),
       _ => WorldStateResult.fromJson(
@@ -609,12 +641,20 @@ class WorldsCore extends PluginCore {
     String action,
     Map<String, Object?> arguments,
   ) async {
+    // Asked to open the world open here: its state, and the studio shows it
+    // as it would a world it opened for the asker.
+    if (_open case var open?
+        when action == 'open' && open.file.id == arguments['world']) {
+      onOpenedForAnother?.call(open);
+      return WorldStateResult.of(open).toJson();
+    }
     if (!const {
       'status',
       'trace',
       'contents',
       'outbox',
       'deliver',
+      'fill',
       'show',
       'reload',
       'restart',
@@ -746,16 +786,29 @@ class WorldsCore extends PluginCore {
       throw WorldRefusal('The studio takes openings here, not "$action".');
     }
     var asker = arguments['from'];
+    var world = '${arguments['world']}';
+    // The world already open, asked for again: shown as a new one would be.
+    if (_open case var open? when open.file.id == world) {
+      onOpenedForAnother?.call(open);
+    }
     var opened = await openWorld(
-      '${arguments['world']}',
+      world,
       knobs: parseWorldKnobs(arguments['knobs'] as String?),
-      onCreated: (open) => open.say(
-        'Opened for another process${asker == null ? '' : ' (pid $asker)'}, '
-        'such as `fw` or the MCP server, which reaches it from there',
-      ),
+      onCreated: (open) {
+        open.say(
+          'Opened for another process${asker == null ? '' : ' (pid $asker)'}, '
+          'such as `fw` or the MCP server, which reaches it from there',
+        );
+        onOpenedForAnother?.call(open);
+      },
     );
     return WorldStateResult.of(opened).toJson();
   }
+
+  /// Told as a world starts opening here because another process asked —
+  /// `fw`, the MCP server — or when one asks for the world already open: the
+  /// studio puts it on screen.
+  void Function(OpenWorld world)? onOpenedForAnother;
 
   /// The studio taking this worktree's openings, when it is another process.
   WorldDoor? openingElsewhere() {
@@ -821,8 +874,10 @@ class WorldsCore extends PluginCore {
     }
     var elsewhere = _open == null ? openElsewhere() : null;
     if (elsewhere != null && elsewhere.world == world) {
-      // Open already, somewhere: an opening asked twice is the one there.
-      return await _forward(elsewhere, 'status', const {}) as WorldStateResult;
+      // Open already, somewhere: an opening asked twice is the one there,
+      // which answers with its state and, in the studio, shows it.
+      return await _forward(elsewhere, 'open', {'world': world})
+          as WorldStateResult;
     }
     if (!hold && _open == null && elsewhere == null) {
       if (openingElsewhere() case var studio?) {
@@ -1001,6 +1056,20 @@ class WorldsCore extends PluginCore {
     await Future<void>.delayed(deliveryWindow);
     var traced = open.tracer?.trace.steps(step: step, limit: 1);
     return WorldDeliveryResult.of(delivery, caused: traced?.firstOrNull);
+  }
+
+  /// A fill, answered with what its step caused, as a delivery is.
+  Future<WorldFillResult> _fillAction(Map<String, Object?> arguments) async {
+    var open = _required;
+    var fill = await open.fill(
+      '${arguments['person']}',
+      '${arguments['value']}',
+    );
+    var step = fill.step;
+    if (step == null) return WorldFillResult.of(fill);
+    await Future<void>.delayed(deliveryWindow);
+    var traced = open.tracer?.trace.steps(step: step, limit: 1);
+    return WorldFillResult.of(fill, caused: traced?.firstOrNull);
   }
 
   WorldOutboxResult _outboxAction(Map<String, Object?> arguments) {

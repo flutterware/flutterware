@@ -21,6 +21,7 @@ import '../run/run_sources.dart';
 import '../utils/run_dir.dart';
 import 'declared_links.dart';
 import 'mail_catcher.dart';
+import 'world_autofill.dart' show WorldField;
 
 final _logger = Logger('world_trace');
 
@@ -38,7 +39,8 @@ class TraceStep {
   /// When the gesture ended — where the offsets of what it caused start.
   DateTime? at;
 
-  /// `tap`, `longPress` or `drag`; `type` or `open` for a delivery;
+  /// `tap`, `longPress` or `drag`; `type` or `open` for a delivery, `fill`
+  /// for what the world knows typed into a field;
   /// `start` for the app starting, its `.0`; `action` for a world's own;
   /// `reload` for the world brought to the code on disk.
   String? verb;
@@ -2499,9 +2501,13 @@ class WorldTracer {
   final RunChannels channels;
   final String Function() _runDir;
 
-  /// Called when a person's sync state was read anew — the one thing here a
-  /// surface draws as it changes. Everything else is read when asked.
+  /// Called when a person's sync state was read anew — one of the two things
+  /// here a surface draws as it changes. Everything else is read when asked.
   void Function()? onSync;
+
+  /// Called when focus moved in a person's app, the other: what a bar under
+  /// their device offers follows it.
+  void Function()? onField;
 
   final _apps = <String, _App>{};
   final _servers = <String, ServerAttachClient>{};
@@ -2516,6 +2522,10 @@ class WorldTracer {
   /// `{engine, clientId, pendingUploads, lastSyncedAt, buckets}` — for those
   /// whose app declares one.
   Map<String, Object?>? syncOf(String person) => _apps[person]?.sync;
+
+  /// The field that has focus in [person]'s app, as it last said; null when
+  /// none has, or the app is too old to say.
+  WorldField? fieldOf(String person) => _apps[person]?.field;
 
   /// How many times [follow] tries an app that is not answering yet, a
   /// quarter second apart.
@@ -2673,6 +2683,10 @@ class WorldTracer {
     app.seen = event.id;
     trace.addGuestEvent(app.person, event);
     if (event.channel == worldRequestsChannel) unawaited(scanServers());
+    if (event.channel == worldFocusChannel) {
+      app.field = WorldField.fromJson(event.payload);
+      onField?.call();
+    }
     // A devbar declares its panels once it is mounted — after the attach,
     // as often as not — and says so.
     if (event.channel == panelsChannel && app.syncPanel == null) {
@@ -2720,6 +2734,7 @@ class _App {
   var seen = -1;
   String? syncPanel;
   Map<String, Object?>? sync;
+  WorldField? field;
   Timer? _syncSoon;
 
   Future<void> readSync() async {

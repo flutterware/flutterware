@@ -91,6 +91,8 @@ users through your server's API.
   last time. The script writes each address and phone number itself, one line
   each, in a form your server accepts. Pass them to
   `w.person(email:, phone:)` and the studio shows them next to the person.
+  Add `password:` for someone who signs in with one. A focused field in any
+  person's app offers these; see [Fill in a field](#fill-in-a-field).
 - `Launch` names an entry point and the [knobs](run.md#knobs) its `main` is
   called with. That is how a person starts signed in: a session token, a
   server URL or a starting page are all knobs. A knob of an enum type takes
@@ -99,6 +101,11 @@ users through your server's API.
   `on: Studio(Devices.window)` for someone at a desktop, which runs the same
   app in a 1280 × 800 window inside a browser the studio draws. The default
   is an iPhone 16.
+- For someone at a desktop, `Launch(url:)` is the address the app is served
+  at on the web: `Launch('Dashboard', url: 'http://localhost:8080/clinic/acme')`.
+  The browser's address bar shows it, followed by the route the app reports.
+  Without it, the address bar shows the entry point's name as a host,
+  `dashboard.localhost`.
 - A person with no `app:` is someone the script acts for.
 - `w.knob('Leo', options: ['signed out', 'signed in'], initial: 'signed out')`
   adds a choice to the world and returns the value the world was opened
@@ -254,7 +261,9 @@ each one brings up first.
   one. It takes well under a second.
 - **Restart** runs the script again for new people and starts each app
   afresh with its storage emptied, so no app opens as the previous person.
-  It takes about a second and rebuilds nothing.
+  It takes about a second. It recompiles nothing, but it does build each
+  app's assets again, which is quick when nothing changed, so a native
+  library a build hook now builds reaches the restarted apps.
 - **Close** stops everything.
 
 A reload keeps everything the world holds: the people, their sessions and the
@@ -320,16 +329,17 @@ it says so: `done in 30.1 s, across reload.2`.
 
 An open world shows its people's apps live and side by side, each in its
 device. A phone app is drawn in the phone's body. A desktop app is drawn in a
-browser whose address bar shows the route the app reports; type a route there
-and the app goes to it. Back and forward step through the routes it has been
-on, as a browser does for a Flutter web app, and reload starts that person's
-app again on the same address. Every device is drawn at the same scale, so a
-window looks as large next to a phone as it really is. Above each device are
-the person's name and the messages the servers sent them, by kind (mail,
-push, SMS). A person with no app is a small card listing the actions that act
-for them. Zoom with the buttons in the corner, a pinch or ⌘-scroll. A scroll
-over a phone scrolls its app; anywhere else it pans the view. Use the apps as
-you would the phones: an order placed on one shows up on another.
+browser whose address bar shows the app's address (its `url:`) and the route
+the app reports. Type a route there, or an address that starts with the app's
+own, and the app goes to that route. Back and forward step through the routes
+it has been on, as a browser does for a Flutter web app, and reload starts
+that person's app again on the same address. Every device is drawn at the same
+scale, so a window looks as large next to a phone as it really is. Above each
+device are the person's name and the messages the servers sent them, by kind
+(mail, push, SMS). A person with no app is a small card listing the actions
+that act for them. Zoom with the buttons in the corner, a pinch or ⌘-scroll. A
+scroll over a phone scrolls its app; anywhere else it pans the view. Use the
+apps as you would the phones: an order placed on one shows up on another.
 
 The toolbar holds the world's knobs, an **Actions** menu with every action
 the script declares, and, on the right, who is in view: **Everyone** or one
@@ -387,8 +397,10 @@ background, so the app's own code for that runs only when you choose it from
 A world opens in the studio, where its people's apps are drawn. While the
 studio has the checkout open, a `worlds open` from `fw` or from an agent is
 sent there, so you and the agent see the same world, and its log says who
-asked. The answer says where the world opened, and everything the agent does
-next reaches it as usual.
+asked. The studio switches to the world as it starts opening, whatever page
+it was on, and does the same when the world is already open. The answer says
+where the world opened, and everything the agent does next reaches it as
+usual.
 
 ```shell
 fw run worlds list
@@ -603,6 +615,21 @@ app with a `Router` (`go_router`, for one) or named routes goes to it. The
 answer's `via` says which way the link went. If nothing in the app takes the
 link, `deliver` says so.
 
+For someone at a desktop whose `Launch` has a `url:`, a link under that
+address goes to the app's router as the route after the address, the way the
+browser would open it. Under it means the same scheme, host and port, and a
+path that starts with the address's path. For a dashboard served at
+`http://localhost:8080/clinic/acme`:
+
+- `http://localhost:8080/clinic/acme#/invitation/t1` goes to `/invitation/t1`,
+  for a web build that reads its route after the `#`.
+- `http://localhost:8080/clinic/acme/invitation/t1?x=1` goes to
+  `/invitation/t1?x=1`.
+
+`via` is then `flutter/navigation as /invitation/t1`. A link anywhere else
+goes as described above. Typing one of these links in the browser's address
+bar goes to the same route.
+
 A server takes part by reporting each message with its recipient, in its
 adapter for that channel:
 
@@ -629,7 +656,7 @@ When a message has several links, the one handed to the app is:
 1. the `link` the adapter reported, if any;
 2. otherwise the first link on a scheme or host the recipient's app declares:
    its URL schemes and associated domains on iOS and macOS, its `VIEW` intent
-   filters on Android;
+   filters on Android, and the `url:` its `Launch` is served at;
 3. otherwise the first link on a custom scheme;
 4. otherwise the first link.
 
@@ -702,6 +729,57 @@ reporting it, add `'from': 'identity'` to its event. A service that is not
 Dart carries no step, so what it sent joins the newest step heard in the
 three seconds before it, and says it was joined by time.
 
+## Fill in a field
+
+When a text field in a person's app has focus, a bar under their device
+offers what the world knows, the way a phone's autofill does. With that
+person in focus, the bar is in their panel, under their name. Click an entry
+to type it into the field:
+
+- An email or username field offers every person's address, the person
+  typing first.
+- A password field offers that person's own password.
+- A name field offers their name.
+- A phone field offers every person's phone number.
+- A one-time code field offers the last code they received, as **Enter
+  code** does.
+
+Any other field offers nothing. Each entry shows whose it is; hover it to see
+the address or number. A password is never shown.
+
+The bar reads what a field is for from its `autofillHints` first, then its
+keyboard type, then `obscureText`, which marks a password. Give a field the
+hint it would have on a phone and the bar offers the right thing:
+
+```dart
+TextField(
+  keyboardType: TextInputType.emailAddress,
+  autofillHints: const [AutofillHints.email],
+)
+```
+
+In a sign-in form, the address field and the password field sit in one
+`AutofillGroup`. There, picking a person fills in both their address and
+their password, as a password manager does.
+
+Each pick is a step on the person's app, named after what it filled:
+`manager.4 filled Nurse's address`. What the field's callbacks send belongs
+to that step. The step and the Run journal name a password by whose it is,
+`Nurse's password`, and never by its value.
+
+From a terminal or an agent, tap the field first, then:
+
+```shell
+fw run worlds fill --person=Manager --value=Nurse.email
+fw run worlds fill --person=Nurse --value=Nurse.password
+fw run worlds fill --person=Manager --value='Ward 7'
+```
+
+`--value` takes `<Person>.email`, `.password`, `.name` or `.phone`, or any
+other text, which is typed as it is. It is refused when no field has focus,
+and when the person was given no such value. The answer names the step and
+lists in `caused` what the step started.
+
 ## See what the system holds
 
 `worlds contents` shows what one part of the system (a route, a table, the
@@ -760,18 +838,29 @@ HTTP, WebSockets and native libraries built by build hooks, such as
 folder, so a file it writes relative to its working directory stays theirs.
 Cameras, maps and web views aren't available.
 
+If one build hook fails, the app has no native library at all. The world log
+names the hook and the first line it wrote to stderr: `objective_c's build
+hook failed: Can't load Kernel binary: Invalid SDK hash.` That one means the
+hook had been compiled by another Flutter SDK; flutterware compiles such a
+hook again before it runs the hooks, so you should not see it.
+
 Any other plugin needs a fake. A call that the studio does not answer fails
 in the app, as it would on a platform the plugin doesn't support. The world
 reports the first one: a line in the world log, a warning on the person, and
-`unanswered` in `worlds status`. A plugin that calls its native code directly,
-through FFI, fails as soon as the app uses it, because a world builds no
-native code. When that happens in `main`, before `runApp`, the person's app
-fails at once and the world says why. When it happens in a future that `main`
-starts but does not return, the app fails 5 seconds later, unless it has
-called `runApp` by then. Fake the plugin in the entry point the world starts,
-behind a knob, as you would in a scenario. The studio registers each
-plugin's Dart half before it calls `main`, so whatever `main` sets wins: a
-plugin's platform interface, or a class of your own that wraps the plugin.
+`unanswered` in `worlds status`. A plugin that calls its native code
+directly, through FFI, fails as soon as the app uses it, because a world
+builds no native code. When that happens in `main`, before `runApp`, the
+person's app fails at once and the world says why. When it happens in a
+future that `main` starts but does not return, the app fails 5 seconds later,
+unless it has called `runApp` by then. An app that has not called `runApp` 10
+seconds after it started, whatever stopped it (an error its own zone caught
+and printed, an await that never returns), is shown failed on its device with
+the last lines it printed, and with the build hooks' failure when there was
+one. Should `runApp` come later, the app is back. Fake the plugin in the
+entry point the world starts, behind a knob, as you would in a scenario. The
+studio registers each plugin's Dart half before it calls `main`, so whatever
+`main` sets wins: a plugin's platform interface, or a class of your own that
+wraps the plugin.
 
 ```dart
 void main({String server = '', bool fakeScale = false}) {

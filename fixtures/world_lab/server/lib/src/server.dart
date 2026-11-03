@@ -90,13 +90,19 @@ class _User {
     required this.role,
     this.phone,
     this.email,
+    this.password,
   });
 
   final String id;
   final String name;
-  final String role;
+
+  /// Staff once a colleague invites them.
+  String role;
   final String? phone;
   final String? email;
+
+  /// What they sign in with by address, when they were given one.
+  final String? password;
 
   bool get isStaff => role == 'staff';
 
@@ -188,11 +194,26 @@ class _Shop {
           role: body['role'] == 'staff' ? 'staff' : 'customer',
           phone: body['phone'] as String?,
           email: body['email'] as String?,
+          password: body['password'] as String?,
         );
         _users[user.id] = user;
         var token = _token();
         _sessions[token] = user.id;
         return _json({...user.toJson(), 'token': token});
+      case ('POST', ['auth', 'password']):
+        var body = await _body(request);
+        var email = '${body['email'] ?? ''}'.toLowerCase();
+        var user = _users.values
+            .where((u) => u.email?.toLowerCase() == email)
+            .firstOrNull;
+        if (user == null ||
+            user.password == null ||
+            user.password != body['password']) {
+          return _error(401, 'wrong address or password');
+        }
+        var token = _token();
+        _sessions[token] = user.id;
+        return _json({'token': token, 'user': user.toJson()});
       case ('POST', ['auth', 'code']):
         var phone = '${(await _body(request))['phone'] ?? ''}';
         if (phone.isEmpty) return _error(400, 'phone is required');
@@ -241,6 +262,27 @@ class _Shop {
         var order = Order(id: orders.newId(), customerId: user.id, item: item);
         await _write(order, user, 'insert');
         return _json(_served(order));
+      // A barista brings a colleague onto the counter by address: whoever
+      // has it is staff from now on, and hears so by mail.
+      case ('POST', ['invites']):
+        if (!user.isStaff) return _error(403, 'staff only');
+        var email = '${(await _body(request))['email'] ?? ''}'.trim();
+        if (!email.contains('@')) return _error(400, 'not an address: $email');
+        for (var each in _users.values) {
+          if (each.email?.toLowerCase() == email.toLowerCase()) {
+            each.role = 'staff';
+          }
+        }
+        _log.info('${user.name} invited $email to the counter');
+        await mail.send(
+          email,
+          subject: '${user.name} invited you to the counter',
+          text:
+              '${user.name} added you to the Pickup counter. Sign in with '
+              'this address to see the orders: worldlab://orders',
+          html: _inviteMail(user.name),
+        );
+        return Response(204);
       case ('POST', ['orders', var id, 'advance']):
         if (!user.isStaff) return _error(403, 'staff only');
         var order = await orders.find(id);
@@ -464,6 +506,25 @@ Middleware _inspect() {
 final _anId = RegExp(
   r'^([a-z]?\d+|[a-z][a-z0-9]*-\d+|[0-9a-f]{8}-[0-9a-f-]{27})$',
 );
+
+/// An invitation to the counter, as a mail client shows it.
+String _inviteMail(String from) =>
+    '''
+<!doctype html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#f3f1ee;font-family:-apple-system,Helvetica,Arial,sans-serif;color:#221a15">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px">
+<tr><td style="padding:28px">
+<p style="margin:0 0 4px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#8a817a">Pickup · the counter</p>
+<h1 style="margin:0 0 12px;font-size:22px">$from invited you to the counter</h1>
+<p style="margin:0 0 20px;font-size:15px;line-height:1.5">Sign in with this address to see the orders and move them along.</p>
+<p style="margin:0"><a href="worldlab://orders" style="display:inline-block;background:#8a4b1f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:24px;font-weight:600">Open the counter</a></p>
+</td></tr></table>
+<p style="font-size:12px;color:#8a817a">Pickup · the world lab's shop</p>
+</td></tr></table>
+</body></html>
+''';
 
 /// A new order as a mail client shows it: the kind of HTML a transactional
 /// mail is — a table layout, inline styles, a button carrying an app link.

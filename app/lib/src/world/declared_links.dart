@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
+import 'web_address.dart';
+
 /// The links a Flutter app says it opens: the custom URL schemes it registers
 /// and the web hosts it claims as universal links (iOS, macOS) or app links
 /// (Android), read off the project's own platform files.
@@ -12,14 +14,19 @@ import 'package:xml/xml.dart';
 /// A mail can list two store badges before the link that matters, so the
 /// first URL is not the answer.
 ///
-/// It answers for the host, never the path. An app claims a host and then
+/// It answers for the host, never the path, except for the address the app
+/// is served at on the web ([servedAt]). An app claims a host and then
 /// narrows it — Android with `pathPrefix` and its siblings, Apple in the
 /// association file the host itself serves — and only the first half is in
 /// the project. A value only a build can resolve is left out rather than
 /// matched literally: Xcode resolves `$(APP_SCHEME)`, Gradle `${linkHost}`
 /// and the resource merger `@string/link_host`, and none of them runs here.
 final class DeclaredLinks {
-  const DeclaredLinks({this.schemes = const {}, this.hosts = const {}});
+  const DeclaredLinks({
+    this.schemes = const {},
+    this.hosts = const {},
+    this.address,
+  });
 
   /// Reads [projectRoot]'s iOS, macOS and Android project files. Never
   /// throws: a missing or unreadable file declares nothing.
@@ -65,11 +72,24 @@ final class DeclaredLinks {
   /// both declares both.
   final Set<String> hosts;
 
-  bool get isEmpty => schemes.isEmpty && hosts.isEmpty;
+  /// Where the app is served on the web, as a world's `Launch(url:)` says:
+  /// a link under it opens in the app, at the route after it.
+  final String? address;
+
+  /// These links, and those under [address] besides: a person at a desktop
+  /// whose app is served there.
+  DeclaredLinks servedAt(String? address) => address == null
+      ? this
+      : DeclaredLinks(schemes: schemes, hosts: hosts, address: address);
+
+  bool get isEmpty => schemes.isEmpty && hosts.isEmpty && address == null;
 
   /// Whether [link] would open in the app: its scheme is one of [schemes], or
   /// it is http(s) on one of [hosts].
   bool claims(String link) {
+    if (address case var address? when routeUnder(address, link) != null) {
+      return true;
+    }
     var uri = Uri.tryParse(link.trim());
     if (uri == null || !uri.hasScheme) return false;
     var scheme = uri.scheme.toLowerCase();
