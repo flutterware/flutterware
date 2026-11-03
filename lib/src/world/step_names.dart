@@ -31,7 +31,42 @@ const worldRequestsChannel = 'world/requests';
 
 /// The channel a world types into a person's app on: `type {text}` fills the
 /// app's focused field, answering `{typed}` — false when nothing has focus.
+/// `fill {text, group}` does too, and fills the rest of the field's
+/// `AutofillGroup` from `group`, by kind, answering `{filled}`: how many
+/// fields it filled.
 const worldInputChannel = 'world/input';
+
+/// The channel a world guest reports its focused text field on, each time
+/// focus moves: `{kind, group}` — the field's [FieldKind] and those of the
+/// other fields in its `AutofillGroup` — or `{}` when no field has focus.
+const worldFocusChannel = 'world/focus';
+
+/// What a text field in a person's app is for, as a phone's autofill reads
+/// it: what the world offers to fill it with. Its name is how the
+/// [worldFocusChannel] spells it.
+enum FieldKind {
+  /// An address or a username: every person's address is offered.
+  email,
+
+  /// The person's own password.
+  password,
+
+  /// The person's name.
+  name,
+
+  /// A phone number: every person's.
+  phone,
+
+  /// A one-time code: the last one the person received.
+  code,
+
+  /// Anything else, which is offered nothing.
+  other;
+
+  /// [name] back into a kind; [other] for one this world does not know.
+  static FieldKind of(Object? name) =>
+      values.asNameMap()[name] ?? FieldKind.other;
+}
 
 /// The header a request carries its step in — what a server's adapter puts
 /// in the zone as `FlutterwareServer.stepKey`.
