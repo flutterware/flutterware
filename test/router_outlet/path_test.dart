@@ -271,6 +271,58 @@ void main() {
     expect(newPath2.toString(), '/url');
   });
 
+  test('MatchedPath.resolve keeps a relative url query', () {
+    var matched = PagePath('/emails?device=phone').rootMatch
+        .matchesRemaining(PathPattern('emails'))!;
+
+    var relative = matched.resolve('reset-password/reset?language=nl');
+    expect(relative.toString(), '/emails/reset-password/reset?language=nl');
+    expect(relative.queryParameters, {'language': 'nl'});
+
+    expect(
+      matched.resolve('../reminders?language=nl').toString(),
+      '/reminders?language=nl',
+    );
+
+    expect(matched.resolve('?language=nl').toString(), '/emails?language=nl');
+  });
+
+  test('MatchedPath.resolve gives a relative url what its absolute gives', () {
+    var mounts = [
+      PagePath('/?tab=2').rootMatch,
+      PagePath('/users/1/profile?tab=2').rootMatch
+          .matchesRemaining(PathPattern('users'))!
+          .matchesRemaining(PathPattern(':id'))!,
+    ];
+    var urls = [
+      'a',
+      'a?x=1',
+      'a/b?x=1&y=2',
+      './a?x=1',
+      'a/?x=1',
+      '../a?x=1',
+      '?x=1',
+      '',
+      'a?x=a%20b',
+      'a?x',
+    ];
+    for (var matched in mounts) {
+      for (var url in urls) {
+        var absolute = '${matched.matched.toPath()}/$url'.replaceFirst(
+          '//',
+          '/',
+        );
+        var resolved = matched.resolve(url);
+        expect(resolved, matched.resolve(absolute), reason: url);
+        expect(
+          resolved.queryParameters,
+          matched.resolve(absolute).queryParameters,
+          reason: url,
+        );
+      }
+    }
+  });
+
   test('MatchedPath.resolve 3 with extra parameters', () {
     var path = PagePath('/users/1/profile?auto');
     var matched = path.rootMatch
