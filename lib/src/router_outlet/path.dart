@@ -75,9 +75,11 @@ class PagePath {
 
   PagePath subPath(PagePath subPath, {Map<String, dynamic>? extra}) {
     assert(!subPath.isAbsolute);
-    return PagePath(
-      p.url.join(toPath(), subPath.toPath()),
+    var joined = PagePath(p.url.join(toPath(), subPath.toPath()));
+    return PagePath._(
+      joined._segments,
       isAbsolute: isAbsolute,
+      queryParameters: subPath.queryParameters,
       extra: extra,
     );
   }
