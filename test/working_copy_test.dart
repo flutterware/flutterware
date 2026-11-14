@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutterware/src/working_copy.dart';
@@ -141,6 +142,53 @@ void main() {
     copyPackageInto(source, destination, stamp);
 
     expect(workingCopyStampFile(destination).readAsStringSync(), stamp);
+  });
+
+  // A CI job restored a cached copy beside a pub cache filled for another
+  // lock: the stamp matched, nothing re-resolved, and the comparison's web
+  // viewer failed to compile, unable to read a package file.
+  group('the resolution outlives its packages', () {
+    late String cache;
+
+    setUp(() {
+      cache = p.join(temp.path, 'pub-cache');
+      Directory(p.join(cache, 'device_frame-1.4.0', 'lib'))
+          .createSync(recursive: true);
+    });
+
+    void resolve(List<String> rootUris) => _write(
+      p.join(destination, '.dart_tool', 'package_config.json'),
+      jsonEncode({
+        'configVersion': 2,
+        'packages': [
+          for (var rootUri in rootUris)
+            {'name': p.basename(rootUri), 'rootUri': rootUri},
+        ],
+      }),
+    );
+
+    test('is intact while every package is on disk', () {
+      resolve([
+        p.toUri(p.join(cache, 'device_frame-1.4.0')).toString(),
+        '../app',
+      ]);
+      Directory(p.join(destination, 'app')).createSync(recursive: true);
+
+      expect(workingCopyResolutionIsIntact(destination), isTrue);
+    });
+
+    test('is not once a package has left the pub cache', () {
+      resolve([p.toUri(p.join(cache, 'device_frame-1.4.0')).toString()]);
+      Directory(cache).deleteSync(recursive: true);
+
+      expect(workingCopyResolutionIsIntact(destination), isFalse);
+    });
+
+    test('is not when the copy was never resolved', () {
+      copyPackageInto(source, destination, 'stamp');
+
+      expect(workingCopyResolutionIsIntact(destination), isFalse);
+    });
   });
 
   /// What a finished copy is allowed to keep.

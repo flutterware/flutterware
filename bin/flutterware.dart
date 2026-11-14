@@ -220,14 +220,17 @@ Future<ProcessLog?> _prepare(
   // fresh stamp anyway.
   if (stamp != null && !unpacks) touchWorkingCopy(root);
 
-  // Resolve exactly when the tree was just replaced, which is the only time the
-  // copy holds a resolution it did not make itself: [workingCopyStamp] unpacks
-  // when the sources change and when the SDK does, and [copyPackageInto] leaves
-  // no lock behind for `pub get` to honour. A checkout never unpacks and never
-  // needs to — it reached `main` through `dart run flutterware`, which resolved
-  // the whole workspace, and `app/` is a member of it, so getting it again
-  // resolves the same thing twice for nothing.
-  var resolves = unpacks;
+  // Resolve when the tree was just replaced, which is the only time the copy
+  // holds a resolution it did not make itself: [workingCopyStamp] unpacks when
+  // the sources change and when the SDK does, and [copyPackageInto] leaves no
+  // lock behind for `pub get` to honour. And when a package the copy resolved
+  // to has left the pub cache: the copy's own lock brings back the same
+  // versions, so the binaries built from them stay current. A checkout never
+  // unpacks and never needs to — it reached `main` through `dart run
+  // flutterware`, which resolved the whole workspace, and `app/` is a member of
+  // it, so getting it again resolves the same thing twice for nothing.
+  var resolves =
+      unpacks || (stamp != null && !workingCopyResolutionIsIntact(root));
   // An unpack replaces the sources *and* the resolution both binaries were
   // compiled from, and neither test would notice on its own: the GUI's is only
   // that a binary exists at all, and [_isFresh] happens to say no because the
