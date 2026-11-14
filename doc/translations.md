@@ -98,7 +98,8 @@ fw run translations export --max-lengths=true
 
 The export runs your scenarios and writes `build/translations/`: one
 screenshot per screen, a `keys.json` saying where each key was seen (with its
-box on the screenshot), and an `index.html` a translator can open. Nothing is
+box on the screenshot) and how many screenshot pixels make one of the app's
+pixels (`captureScale`), and an `index.html` a translator can open. Nothing is
 cropped or drawn on the pictures, so the same files can be pushed to a
 translation service. `package:flutterware/translations.dart` reads
 `keys.json` back, typed, for the script that does the push.

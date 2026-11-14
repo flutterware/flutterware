@@ -209,6 +209,7 @@ class TranslationExporter {
     var localeFindings = survey.localeFindings();
     var export = TranslationExport(
       directory: output,
+      captureScale: captureScale,
       measuredMaxLengths: maxLengths != null,
       maxLengthDevices: maxLengths?.devices ?? const [],
       catalogs: [

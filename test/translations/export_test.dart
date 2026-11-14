@@ -216,6 +216,25 @@ void main() {
       });
 
       expect(back['app/save'], isNotNull);
+      expect(back.captureScale, isNull);
+    });
+
+    test('the capture scale survives the round trip', () {
+      var original = TranslationExport(captureScale: 2.5);
+
+      var back = TranslationExport.fromJson(
+        jsonDecode(jsonEncode(original.toJson())) as Map<String, Object?>,
+      );
+
+      expect(back.captureScale, 2.5);
+    });
+
+    test('a whole-number capture scale reads back as a double', () {
+      // `jsonEncode(3.0)` is `3.0`, but a file written by anything else may
+      // well say `3`.
+      var back = TranslationExport.fromJson({'version': 1, 'captureScale': 3});
+
+      expect(back.captureScale, 3.0);
     });
 
     test('seen is the keys that were photographed', () {

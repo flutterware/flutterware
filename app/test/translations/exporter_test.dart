@@ -144,6 +144,21 @@ void main() {
       expect(written.export['app/save']?.representative?.rect?.x, 30);
       expect(written.export['app/save']?.representative?.rect?.width, 300);
     });
+
+    test('the scale they were captured at is in keys.json', () {
+      var written = write(survey(sightings: [sighting()]), captureScale: 3);
+
+      var json = jsonDecode(
+        File(written.keysJson).readAsStringSync(),
+      ) as Map<String, Object?>;
+      expect(json['captureScale'], 3);
+      expect(written.export.captureScale, 3);
+      expect(
+        TranslationExport.fromJson(json).captureScale,
+        3,
+        reason: 'what a reader of the file gets back',
+      );
+    });
   });
 
   group('the index', () {

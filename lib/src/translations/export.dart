@@ -592,9 +592,19 @@ class TranslationExport {
     this.findings = const ExportFindings(),
     this.measuredMaxLengths = false,
     this.maxLengthDevices = const [],
+    this.captureScale,
   });
 
   final int version;
+
+  /// How many of a frame's pixels make one of the app's logical pixels.
+  ///
+  /// Every [ExportedRect] already has it applied, so drawing a box needs
+  /// nothing more. It is here for the reader that keeps frames from several
+  /// exports side by side, or compares a frame against a size in the app's own
+  /// units, and would otherwise have to guess it from a PNG's dimensions.
+  /// Null for an export written before it was recorded.
+  final double? captureScale;
 
   /// Whether a max-length probe ran at all. False is "not measured", which a
   /// reader must keep distinguishable from "measured and roomy" — absence of
@@ -694,11 +704,16 @@ class TranslationExport {
         ],
         _ => const [],
       },
+      captureScale: switch (json['captureScale']) {
+        num scale => scale.toDouble(),
+        _ => null,
+      },
     );
   }
 
   Map<String, Object?> toJson() => {
     'version': version,
+    'captureScale': ?captureScale,
     if (measuredMaxLengths) 'maxLengths': {'devices': maxLengthDevices},
     'catalogs': [for (var it in catalogs) it.toJson()],
     'keys': [for (var it in keys) it.toJson()],
