@@ -36,7 +36,9 @@ A catalog is where your strings live. Two layouts are supported:
   is the language. This is `TranslationCatalog(files: …)`.
 - **One file with every language under each key**:
   `{"addToCart": {"en": "Add to cart", "fr": "Ajouter au panier"}}`. This is
-  `TranslationCatalog.localesPerKey(file: …)`.
+  `TranslationCatalog.localesPerKey(file: …)`. An entry whose name starts
+  with `@`, such as `"@description"`, is a note for the translator and is not
+  read as a language.
 
 `template:` names the language your source text is written in (English by
 default). A key missing from another language falls back to it, and the table
@@ -98,7 +100,8 @@ fw run translations export --max-lengths=true
 
 The export runs your scenarios and writes `build/translations/`: one
 screenshot per screen, a `keys.json` saying where each key was seen (with its
-box on the screenshot), and an `index.html` a translator can open. Nothing is
+box on the screenshot) and how many screenshot pixels make one of the app's
+pixels (`captureScale`), and an `index.html` a translator can open. Nothing is
 cropped or drawn on the pictures, so the same files can be pushed to a
 translation service. `package:flutterware/translations.dart` reads
 `keys.json` back, typed, for the script that does the push.
