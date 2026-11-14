@@ -156,6 +156,30 @@ void main() {
     tearDown(() => expect(captures.last.failure, isNull));
   });
 
+  group('act whose body pumps by hand while a timer waits', () {
+    // The act waits for the body on microtasks, and a pump flushes them: a
+    // pump the body calls itself, as a press held over a few frames does,
+    // woke the act inside it, and the act pumped over it.
+    scenario('leaves the body’s own pumps alone', (s) async {
+      var backend = ValueNotifier('Empty');
+      await s.pumpWidget(_Board(backend));
+      var ticking = Timer.periodic(const Duration(seconds: 1), (_) {});
+      var before = s.tester.binding.clock.now();
+      await s.act('Pressed for a few frames', () async {
+        await s.tester.pump();
+        await s.tester.pump(const Duration(milliseconds: 40));
+        backend.value = 'Pressed';
+      }, settle: Settle.none);
+      expect(s.visibleTexts(), contains('Pressed'));
+      expect(
+        s.tester.binding.clock.now().difference(before),
+        const Duration(milliseconds: 40),
+      );
+      ticking.cancel();
+    });
+    tearDown(() => expect(captures.last.failure, isNull));
+  });
+
   group('act awaiting an animation it started', () {
     scenario('pumps the frames the animation needs', (s) async {
       var key = GlobalKey<_FadeState>();
