@@ -36,7 +36,9 @@ A catalog is where your strings live. Two layouts are supported:
   is the language. This is `TranslationCatalog(files: …)`.
 - **One file with every language under each key**:
   `{"addToCart": {"en": "Add to cart", "fr": "Ajouter au panier"}}`. This is
-  `TranslationCatalog.localesPerKey(file: …)`.
+  `TranslationCatalog.localesPerKey(file: …)`. An entry whose name starts
+  with `@`, such as `"@description"`, is a note for the translator and is not
+  read as a language.
 
 `template:` names the language your source text is written in (English by
 default). A key missing from another language falls back to it, and the table

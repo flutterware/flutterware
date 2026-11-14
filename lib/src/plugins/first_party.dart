@@ -441,6 +441,9 @@ sealed class TranslationCatalog {
   /// languages a key at a time — the row is the unit of work, so the row holds
   /// every language.
   ///
+  /// An entry whose name starts with `@`, such as `"@description"`, is a note
+  /// for the translator, as in an ARB file, and is not read as a language.
+  ///
   /// ```dart
   /// TranslationCatalog.localesPerKey(
   ///   name: 'server',

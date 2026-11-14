@@ -195,6 +195,10 @@ Future<Map<String, LoadedCatalog>> loadCatalogs(
             var key = '${row.key}';
             for (var perLocale in (row.value as Map).entries) {
               if (perLocale.value is! String) continue;
+              // `@description` and its kin are notes for the translator, as
+              // in an ARB file. Read as a locale, every key with a note would
+              // add one more language that nobody declared.
+              if ('${perLocale.key}'.startsWith('@')) continue;
               // Accumulated rather than assigned: a locale is spread across
               // every row here, where the other layout hands one whole locale
               // per file.

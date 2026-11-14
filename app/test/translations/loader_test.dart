@@ -238,6 +238,26 @@ void main() {
       expect(loaded['server']!.valueOf('nl', 'open'), isNull);
     });
 
+    test('a note beside the locales is not read as one', () async {
+      var loaded = await loadCatalogs(
+        [
+          const TranslationCatalog.localesPerKey(
+            name: 'server',
+            file: 'strings.json',
+          ),
+        ],
+        read: (glob) async => {
+          'strings.json':
+              '{"save":{"@description":"The button that saves the form",'
+              '"en":"Save","nl":"Opslaan"},'
+              '"open":{"@description":"Opens a file","en":"Open"}}',
+        },
+      );
+
+      expect(loaded['server']!.byLocale.keys, unorderedEquals(['en', 'nl']));
+      expect(loaded['server']!.keys, {'save', 'open'});
+    });
+
     test('the file name carries nothing under localesPerKey', () async {
       var loaded = await loadCatalogs(
         [
