@@ -478,12 +478,14 @@ void main() {
     /// A zombie answers `kill` as a running process does. On Dart 3.14 every
     /// detached launcher that exits becomes one, and a crashed `flutter run`
     /// read as building for ever. `sleep` never collects the child the shell
-    /// started before turning into it, which makes a zombie on any SDK.
+    /// started before turning into it, which makes a zombie on any SDK. The
+    /// shell itself collects a child that exits sooner, so the child waits
+    /// until the shell has become `sleep`, and gives up if the shell is gone.
     test('a process that exited and was never collected is dead', () async {
-      var parent = await Process.start('/bin/sh', [
-        '-c',
-        r'true & echo $!; exec sleep 30',
-      ]);
+      var script =
+          r'(while kill -0 $$ 2>/dev/null && ! ps -o comm= -p $$ | grep -q sleep;'
+          r' do :; done) & echo $!; exec sleep 30';
+      var parent = await Process.start('/bin/sh', ['-c', script]);
       addTearDown(() async {
         parent.kill();
         await parent.exitCode;
