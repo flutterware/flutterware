@@ -56,6 +56,40 @@ String buildLockPath(String root, {String? home}) =>
 /// Where [copyPackageInto] records the stamp of the copy it made.
 File workingCopyStampFile(String root) => File(p.join(root, '.source_stamp'));
 
+/// Whether every package the copy was last resolved to is still on disk.
+///
+/// The copy is resolved once, when it is unpacked, but the packages it
+/// resolved to live in the pub cache, outside it, and the two can part:
+/// `dart pub cache clean` empties the cache under every copy, and a CI job
+/// that caches `~/.flutterware` restores a copy beside a pub cache filled for
+/// a different lock. The stamp still matches and the binaries still run, so
+/// nothing notices until something compiles from the copy's sources: the
+/// comparison's web viewer, a minute in, failing to read a package file.
+///
+/// No package config is a resolution that never finished, so not intact either.
+bool workingCopyResolutionIsIntact(String root) {
+  var config = File(p.join(root, '.dart_tool', 'package_config.json'));
+  if (!config.existsSync()) return false;
+  Object? json;
+  try {
+    json = jsonDecode(config.readAsStringSync());
+  } on FormatException {
+    return false;
+  }
+  if (json is! Map<String, Object?>) return false;
+  var packages = json['packages'];
+  if (packages is! List<Object?>) return false;
+  for (var package in packages) {
+    if (package is! Map<String, Object?>) return false;
+    var rootUri = package['rootUri'];
+    if (rootUri is! String) return false;
+    var location = config.uri.resolve(rootUri);
+    if (location.scheme != 'file') continue;
+    if (!Directory.fromUri(location).existsSync()) return false;
+  }
+  return true;
+}
+
 /// The files the copy is made of: everything the walk finds except
 /// `pubspec.lock`.
 ///
