@@ -4675,6 +4675,52 @@ final resultShapes = <String, ResultShape>{
       },
     ],
   }),
+  'ScenarioReplayResult': ResultShape.fromJson(<String, Object?>{
+    'type': 'ScenarioReplayResult',
+    'fields': <Object?>[
+      <String, Object?>{
+        'name': 'output',
+        'type': 'String',
+        'doc': 'The directory to serve, worktree-relative where it sits inside one.',
+      },
+      <String, Object?>{
+        'name': 'files',
+        'type': 'List<String>',
+        'doc': 'The scenario files the page runs.',
+      },
+      <String, Object?>{'name': 'scenarios', 'type': 'int'},
+      <String, Object?>{
+        'name': 'steps',
+        'type': 'int',
+        'doc': 'Steps in the index: what a request can stop on.',
+      },
+      <String, Object?>{
+        'name': 'keys',
+        'type': 'int',
+        'doc': 'Translation keys some step shows.',
+      },
+      <String, Object?>{
+        'name': 'testsPassed',
+        'type': 'bool',
+        'optional': true,
+        'doc': 'Whether the `flutter test` run that wrote the index passed, or null when the index was read from a directory.',
+      },
+      <String, Object?>{
+        'name': 'droppedFonts',
+        'type': 'List<String>',
+        'doc': 'Font families the page leaves out because no step draws text in them.',
+      },
+      <String, Object?>{'name': 'indexMs', 'type': 'int'},
+      <String, Object?>{'name': 'buildMs', 'type': 'int'},
+      <String, Object?>{
+        'name': 'serve',
+        'type': 'String',
+        'doc': 'How to open it.',
+      },
+      <String, Object?>{'name': 'ok', 'type': 'bool'},
+    ],
+    'gates': true,
+  }),
   'ScenarioRestartResult': ResultShape.fromJson(<String, Object?>{
     'type': 'ScenarioRestartResult',
     'fields': <Object?>[

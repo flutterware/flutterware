@@ -45,6 +45,22 @@ Map<String, dynamic> _$ScenarioWebExportResultToJson(
   'ok': instance.ok,
 };
 
+Map<String, dynamic> _$ScenarioReplayResultToJson(
+  ScenarioReplayResult instance,
+) => <String, dynamic>{
+  'output': instance.output,
+  'files': instance.files,
+  'scenarios': instance.scenarios,
+  'steps': instance.steps,
+  'keys': instance.keys,
+  'testsPassed': ?instance.testsPassed,
+  'droppedFonts': instance.droppedFonts,
+  'indexMs': instance.indexMs,
+  'buildMs': instance.buildMs,
+  'serve': instance.serve,
+  'ok': instance.ok,
+};
+
 Map<String, dynamic> _$ScenarioNewResultToJson(ScenarioNewResult instance) =>
     <String, dynamic>{
       'package': instance.package,

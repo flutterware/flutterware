@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import '../environment.dart';
+
 /// Where a package keeps what its scenarios recorded, unless it says otherwise.
 ///
 /// Package-relative and committed. Both lanes run with the package root as
@@ -29,7 +31,7 @@ String resolvedScenarioNetworkStore() {
   if (scenarioNetworkStorePath case var path?) return path;
   const define = String.fromEnvironment('fw.network.store');
   if (define.isNotEmpty) return define;
-  var env = Platform.environment['FW_NETWORK_STORE'];
+  var env = processEnvironment['FW_NETWORK_STORE'];
   return env == null || env.isEmpty ? defaultScenarioNetworkStore : env;
 }
 

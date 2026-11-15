@@ -515,6 +515,12 @@ jobs:
         env:
           FW_WEB_DEMO_BUILD: build/web
         working-directory: app
+      - name: "the scenario replay page answers in a browser"
+        # Builds a replay page of `fixtures/probe_app/replay_probes/` and asks
+        # it for steps the way an embedding page does: one with a draft, one
+        # whose fixture reads the disk, one that fails after it ends.
+        run: dart test integration_test/scenario_replay_test.dart
+        working-directory: app
       - uses: actions/upload-artifact@v4
         # One screenshot per step the browser took, green or red.
         if: always()

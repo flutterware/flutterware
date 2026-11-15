@@ -36,7 +36,8 @@ import 'package:flutter/services.dart';
 /// `Image.asset`, an `AssetImage`, a `SvgPicture.asset` — is already reading
 /// through it.
 class ScenarioAssetBundle extends AssetBundle {
-  ScenarioAssetBundle({AssetBundle? source}) : _source = source ?? rootBundle;
+  ScenarioAssetBundle({AssetBundle? source})
+    : _source = source ?? scenarioAssetSource ?? rootBundle;
 
   /// Where a miss actually reads from. Only [AssetBundle.load] and
   /// [AssetBundle.loadBuffer] are ever asked of it, and [CachingAssetBundle]
@@ -136,3 +137,7 @@ class ScenarioAssetBundle extends AssetBundle {
     _structuredBinary.clear();
   }
 }
+
+/// Where a [ScenarioAssetBundle] made without a source reads: `rootBundle`,
+/// unless the replay index has put a recorder in front of it.
+AssetBundle? scenarioAssetSource;

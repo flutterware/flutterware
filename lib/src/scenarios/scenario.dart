@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
+import '../environment.dart';
 import '../bytes.dart';
 import '../clock.dart';
 import '../flutter_gpu_diagnosis.dart';
@@ -40,6 +41,7 @@ import 'run_args.dart';
 import 'run_listener.dart';
 import 'settle.dart';
 import 'reel.dart';
+import 'replay_hooks.dart';
 import 'stage.dart';
 import 'stall.dart';
 import 'still_ticking.dart';
@@ -149,6 +151,7 @@ void scenario(
       : description;
 
   scenarioDeclarationSink?.add(name);
+  scenarioDeclarationHook?.call(name, description, assignment);
 
   // Only the standalone lane needs it, and only it pays for it: under the
   // runner the harness knows the file it generated the group from, and a suite
@@ -203,10 +206,15 @@ void scenario(
         edit: edit,
         pinned: pinned,
       );
-      var origin = resolvedScenarioClockOrigin;
-      if (origin == null) return scenarioBody(null);
-      var pinned = _PinnedClock(origin, tester.binding.clock);
-      return withClock(Clock(pinned.now), () => scenarioBody(pinned));
+      scenarioRunningHook?.call(description);
+      try {
+        var origin = resolvedScenarioClockOrigin;
+        if (origin == null) return await scenarioBody(null);
+        var pinned = _PinnedClock(origin, tester.binding.clock);
+        return await withClock(Clock(pinned.now), () => scenarioBody(pinned));
+      } finally {
+        scenarioRunningHook?.call(null);
+      }
     },
   );
 }
@@ -372,7 +380,7 @@ DateTime? get resolvedScenarioClockOrigin =>
 /// so the run still reports a date somebody could write down and re-run with.
 DateTime? get _scenarioClockOrigin {
   const define = String.fromEnvironment('fw.clock');
-  var raw = define.isNotEmpty ? define : Platform.environment['FW_CLOCK'];
+  var raw = define.isNotEmpty ? define : processEnvironment['FW_CLOCK'];
   if (raw == null || raw.isEmpty) return null;
   return raw == 'now' ? DateTime.now() : DateTime.parse(raw);
 }
@@ -423,7 +431,7 @@ ScenarioNetwork _reachOf(
       (scenarioHarnessTime.isReal ? ScenarioNetwork.live : ScenarioNetwork.off);
   if (recordOverriddenMessage(scenario, own, run) case var said?
       when _recordOverridesSaid.add(noticeKey)) {
-    stderr.writeln('[flutterware] $said');
+    writeDiagnostic('[flutterware] $said');
   }
   return reach;
 }
@@ -572,7 +580,7 @@ String? notRecordedFailure(String scenario, List<String> missed, String store) {
 
 ScenarioNetwork? get _scenarioNetworkFromHost {
   const define = String.fromEnvironment('fw.network');
-  var raw = define.isNotEmpty ? define : Platform.environment['FW_NETWORK'];
+  var raw = define.isNotEmpty ? define : processEnvironment['FW_NETWORK'];
   if (raw == null || raw.isEmpty) return null;
   return parseScenarioNetwork(raw);
 }
@@ -682,6 +690,7 @@ Future<void> _runScenario(
   var state = _ReplayState(
     branches: film?.settings.branches,
     scenario: description,
+    aimed: scenarioAimedBranches,
   );
   // Under the runner only: every exception the binding sees goes into the
   // harness's buffer *before* the binding aggregates. Two exceptions in one
@@ -719,8 +728,8 @@ Future<void> _runScenario(
     if (details.exception is ScenarioNetworkRefusal) return;
     announceFlutterGpuDiagnosis(
       details.exceptionAsString(),
-      executableArguments: Platform.executableArguments,
-      macOS: Platform.isMacOS,
+      executableArguments: isWeb ? const [] : Platform.executableArguments,
+      macOS: !isWeb && Platform.isMacOS,
     );
     caught?.add(
       ScenarioCaughtError(
@@ -809,17 +818,19 @@ Future<void> _runScenario(
         // instead, once, the way the `runAsync` watchdog says its own.
         announceFlutterGpuDiagnosis(
           '$error',
-          executableArguments: Platform.executableArguments,
-          macOS: Platform.isMacOS,
+          executableArguments: isWeb ? const [] : Platform.executableArguments,
+          macOS: !isWeb && Platform.isMacOS,
         );
         // Rethrown with the original stack, so the report still points at
         // the user's line; only the message gains its split branch.
         Error.throwWithStackTrace(inContext, stack);
       }
-    } while (state.plan.advance());
+      // A replay aimed at one branch has taken it, and the others are not
+      // what it asked for.
+    } while (state.plan.aimed == null && state.plan.advance());
 
     if (guessedLandingNotice(description, state.guessed) case var said?) {
-      stderr.writeln('[flutterware] $said');
+      writeDiagnostic('[flutterware] $said');
     }
 
     if (inertNetworkMessage(
@@ -834,7 +845,7 @@ Future<void> _runScenario(
         // record run could not reach it — and it already names the fix.
         when !_recordOverridesSaid.contains(noticeKey) &&
             _inertNetworksSaid.add(noticeKey)) {
-      stderr.writeln('[flutterware] $said');
+      writeDiagnostic('[flutterware] $said');
     }
 
     if (notRecordedFailure(
@@ -853,7 +864,7 @@ Future<void> _runScenario(
       try {
         await film.finish(tester);
       } catch (error) {
-        stderr.writeln('[flutterware] the film could not be written: $error');
+        writeDiagnostic('[flutterware] the film could not be written: $error');
       }
     }
     ambientFrozen = false;
@@ -978,8 +989,8 @@ void _countFrames(WidgetTester tester) {
 /// What survives across a scenario's replays: which paths ran, which step
 /// positions were already captured, and the global step numbering.
 class _ReplayState {
-  _ReplayState({List<String>? branches, String scenario = ''})
-    : plan = _SplitPlan(stated: branches, scenario: scenario);
+  _ReplayState({List<String>? branches, String scenario = '', List<int>? aimed})
+    : plan = _SplitPlan(stated: branches, scenario: scenario, aimed: aimed);
 
   final _SplitPlan plan;
 
@@ -1024,7 +1035,7 @@ class _ReplayState {
 /// [advance] bumps the deepest split that still has an unvisited branch and
 /// drops everything after it.
 class _SplitPlan {
-  _SplitPlan({this.stated, this.scenario = ''});
+  _SplitPlan({this.stated, this.scenario = '', this.aimed});
 
   /// The branches a **film** was told to take, outermost first — null for
   /// every ordinary run, which walks all of them.
@@ -1038,6 +1049,18 @@ class _SplitPlan {
   /// Whose splits these are, for the refusal.
   final String scenario;
 
+  /// The branches a replay goes straight to, by index, outermost first — see
+  /// [scenarioAimedBranches].
+  final List<int>? aimed;
+
+  int _aimed(int choice, List<String> names) {
+    if (choice < names.length) return choice;
+    throw StateError(
+      '`$scenario` has no branch ${choice + 1} here. It splits into '
+      '${names.length}: ${names.join(', ')}.',
+    );
+  }
+
   final _stack = <({int choice, List<String> names})>[];
   var _cursor = 0;
 
@@ -1046,7 +1069,10 @@ class _SplitPlan {
   /// The branch to take at the next split of the current run.
   int choose(List<String> names) {
     if (_cursor < _stack.length) return _stack[_cursor++].choice;
-    var choice = stated == null ? 0 : _stated(names);
+    var choice = switch (aimed) {
+      var aimed? when _cursor < aimed.length => _aimed(aimed[_cursor], names),
+      _ => stated == null ? 0 : _stated(names),
+    };
     // Pushed in both modes, because the choice path is half of every capture's
     // position: a stated walk that recorded nothing here would give the first
     // step after a split the same key as the first step before it, and the
@@ -2506,6 +2532,17 @@ class ScenarioTester {
     int? ms,
   }) async {
     var position = '${_state.plan.path}#${++_ordinal}';
+    if (scenarioStepHook case var hook?) {
+      await hook(
+        ScenarioStepEvent(
+          tester: tester,
+          scenario: _description,
+          position: position,
+          point: assignment?.label ?? '',
+          verb: verb,
+        ),
+      );
+    }
     if (!_capturing) return;
     var parent = _lastPosition == null ? null : _state.emitted[_lastPosition!];
     if (_state.emitted.containsKey(position)) {
@@ -3417,6 +3454,17 @@ class ScenarioTester {
     // taken so far plus the count since the last one. Replays of a shared
     // prefix land on the same position — captured once, recognised after.
     var position = '${_state.plan.path}#${++_ordinal}';
+    if (scenarioStepHook case var hook?) {
+      await hook(
+        ScenarioStepEvent(
+          tester: tester,
+          scenario: _description,
+          position: position,
+          point: assignment?.label ?? '',
+          verb: verb,
+        ),
+      );
+    }
     if (!_capturing) return;
     var parent = _lastPosition == null ? null : _state.emitted[_lastPosition!];
     if (_state.emitted.containsKey(position)) {
@@ -3877,7 +3925,7 @@ class ScenarioTester {
     if (screenshotsDestinationOverride case var override?) return override;
     const define = String.fromEnvironment('screenshots-destination');
     if (define.isNotEmpty) return define;
-    var env = Platform.environment['SCREENSHOTS_DESTINATION'];
+    var env = processEnvironment['SCREENSHOTS_DESTINATION'];
     if (env != null && env.isNotEmpty) return env;
     return null;
   }
