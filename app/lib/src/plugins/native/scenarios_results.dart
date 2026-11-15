@@ -161,6 +161,57 @@ class ScenarioWebExportResult implements PluginResult, ReportsFailure {
   Map<String, Object?> toJson() => _$ScenarioWebExportResultToJson(this);
 }
 
+/// `replay` — the scenario replay page, built, and its index.
+@JsonSerializable(createFactory: false, includeIfNull: false)
+class ScenarioReplayResult implements PluginResult, ReportsFailure {
+  ScenarioReplayResult({
+    required this.output,
+    required this.files,
+    required this.scenarios,
+    required this.steps,
+    required this.keys,
+    required this.testsPassed,
+    required this.droppedFonts,
+    required this.indexMs,
+    required this.buildMs,
+    required this.serve,
+  });
+
+  /// The directory to serve, worktree-relative where it sits inside one.
+  final String output;
+
+  /// The scenario files the page runs.
+  final List<String> files;
+
+  final int scenarios;
+
+  /// Steps in the index: what a request can stop on.
+  final int steps;
+
+  /// Translation keys some step shows.
+  final int keys;
+
+  /// Whether the `flutter test` run that wrote the index passed, or null
+  /// when the index was read from a directory. A failed run still writes the
+  /// steps it reached.
+  final bool? testsPassed;
+
+  /// Font families the page leaves out because no step draws text in them.
+  final List<String> droppedFonts;
+
+  final int indexMs;
+  final int buildMs;
+
+  /// How to open it.
+  final String serve;
+
+  @override
+  bool get ok => testsPassed ?? true;
+
+  @override
+  Map<String, Object?> toJson() => _$ScenarioReplayResultToJson(this);
+}
+
 /// `new` — a runnable scenario file written where the package keeps them.
 @JsonSerializable(
   explicitToJson: true,

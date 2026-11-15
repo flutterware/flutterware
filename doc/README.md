@@ -15,6 +15,7 @@ code. The guides link into it rather than repeat it.
 | [Scenarios](scenarios.md) | Widget tests that take a screenshot at every step, on every device and language. |
 | [Store screenshots](store_screenshots.md) | App Store and Google Play images made from your scenarios, framed by a widget you write. |
 | [Translations](translations.md) | Every key in every language, with a picture of where each string appears. |
+| [Scenario replay](scenario_replay.md) | A web page that shows any step of your scenarios, live, with a translator's drafts in place. |
 | [Comparison](comparison.md) | What a branch changed on screen, against its base, as a page for the pull request. |
 
 ## The running app

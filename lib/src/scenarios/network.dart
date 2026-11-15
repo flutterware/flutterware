@@ -7,6 +7,7 @@ import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
+import '../environment.dart';
 import '../app_events/events.dart';
 import '../flutter_gpu_diagnosis.dart';
 import 'network_mode.dart';
@@ -570,7 +571,7 @@ void _sayRecordLaneOnce() {
     flutterGpu: readRasterizerFlags(Platform.executableArguments).flutterGpu,
     dependsOnFlutterGpu: _resolvesFlutterGpu(Directory.current),
   );
-  if (said != null) stderr.writeln('[flutterware] $said');
+  if (said != null) writeDiagnostic('[flutterware] $said');
 }
 
 /// Whether the package config nearest [from] lists `flutter_gpu` — read from
@@ -1404,7 +1405,10 @@ Uint8List scenarioPlaceholderPng({
     0x1A,
     0x0A,
     ..._chunk('IHDR', ihdr.toBytes()),
-    ..._chunk('IDAT', ZLibEncoder().convert(raw.toBytes())),
+    ..._chunk(
+      'IDAT',
+      isWeb ? storedZlib(raw.toBytes()) : ZLibEncoder().convert(raw.toBytes()),
+    ),
     ..._chunk('IEND', const []),
   ]);
 }
@@ -1430,4 +1434,32 @@ int _crc32(List<int> bytes) {
     }
   }
   return crc ^ 0xFFFFFFFF;
+}
+
+/// [data] as a zlib stream of stored blocks, uncompressed: what the
+/// placeholder PNG uses in a browser, where `dart:io` has no `ZLibEncoder`.
+/// Any PNG decoder reads it, and a placeholder is small.
+@visibleForTesting
+List<int> storedZlib(List<int> data) {
+  var out = <int>[0x78, 0x01];
+  for (var start = 0; start < data.length || start == 0; start += 0xFFFF) {
+    var end = (start + 0xFFFF).clamp(0, data.length);
+    var length = end - start;
+    out
+      ..add(end == data.length ? 1 : 0)
+      ..addAll([
+        length & 0xFF,
+        length >> 8,
+        ~length & 0xFF,
+        (~length >> 8) & 0xFF,
+      ])
+      ..addAll(data.sublist(start, end));
+    if (end == data.length) break;
+  }
+  var a = 1, b = 0;
+  for (var byte in data) {
+    a = (a + byte) % 65521;
+    b = (b + a) % 65521;
+  }
+  return out..addAll(_be32((b << 16) | a));
 }

@@ -5,6 +5,8 @@ import 'dart:isolate';
 
 import 'package:collection/collection.dart';
 import 'package:flutterware/plugins.dart';
+import 'package:flutterware/scenario_replay_protocol.dart'
+    show ReplayMessages, replayIndexFile;
 import 'package:flutterware/app_events.dart' show AppChannel, AppEvent;
 // ignore: implementation_imports
 import 'package:flutterware/src/inspect/node.dart';
@@ -32,6 +34,7 @@ import '../../scenarios/axes.dart';
 import '../../scenarios/discovery.dart';
 import '../../scenarios/film_encode.dart';
 import '../../scenarios/opaque_png.dart';
+import '../../scenarios/replay_build.dart';
 import '../../scenarios/run_dirs.dart';
 import '../../scenarios/runner.dart';
 import '../../scene/export/video.dart' show VideoEncoder;
@@ -56,6 +59,9 @@ const _pluginDescription =
 /// The action that writes a run out as a page, named once so the CLI, the
 /// dialog and the command the dialog echoes cannot drift apart.
 const webExportActionId = 'export';
+
+/// `replay` — the scenario replay page and its index.
+const replayActionId = 'replay';
 
 /// `video` — one scenario, rendered as a film.
 const videoActionId = 'video';
@@ -1495,6 +1501,101 @@ class ScenariosCore extends PluginCore {
           ],
         ),
         PluginAction(
+          replayActionId,
+          'Build the replay page',
+          returns: ScenarioReplayResult,
+          description:
+              'Builds a web page that replays these scenarios: the real app on '
+              'the fake clock, stopped at the step a request names, with '
+              'translation drafts shown in place. Runs the scenarios once '
+              'first, under `flutter test`, to write the index beside the '
+              'page: which translation keys each step shows, and which assets '
+              'each scenario reads. A page embeds it in an iframe and talks to '
+              'it with `postMessage`. Needs serving over HTTP; the result says '
+              'how.',
+          parameters: [
+            ActionParameter(
+              'package',
+              'Package',
+              kind: ActionParameterKind.choice,
+              required: false,
+              description:
+                  'Which declared package; needed when there are '
+                  'several',
+              options: [
+                for (var path in packages)
+                  ActionOption(path, label: path == '.' ? 'root' : path),
+              ],
+            ),
+            const ActionParameter(
+              'file',
+              'File',
+              repeatable: true,
+              kind: ActionParameterKind.string,
+              required: false,
+              description:
+                  'Replay only this scenario file, package-relative, as '
+                  '`list` reports it. A directory takes everything under it',
+            ),
+            const ActionParameter(
+              'output',
+              'Output directory',
+              kind: ActionParameterKind.string,
+              required: false,
+              description:
+                  'Where the page goes, worktree-relative unless absolute; '
+                  'defaults to `${ScenarioReplayBuilder.defaultOutput}` under '
+                  'the package.',
+            ),
+            const ActionParameter(
+              'index-from',
+              'Index directory',
+              kind: ActionParameterKind.string,
+              required: false,
+              description:
+                  'Use the index a `flutter test` run already wrote, with '
+                  '`FW_REPLAY_INDEX` set to this directory, instead of running '
+                  'the scenarios again. Worktree-relative unless absolute',
+            ),
+            const ActionParameter(
+              'matrix',
+              'Matrix',
+              kind: ActionParameterKind.choice,
+              required: false,
+              defaultValue: 'heads',
+              description:
+                  'Which devices and languages the index runs at: `heads`, '
+                  "each folder's first, or `declared`, every one. The page "
+                  'replays any of them either way. An asset or a font only '
+                  'one language uses is found by `declared`; with `heads` '
+                  'the page fetches it when it is missed, more slowly, and '
+                  'says so in the result',
+              options: [ActionOption('heads'), ActionOption('declared')],
+            ),
+            const ActionParameter(
+              'keep-font',
+              'Keep font',
+              repeatable: true,
+              kind: ActionParameterKind.string,
+              required: false,
+              description:
+                  'A font family to keep in the page although no step drew '
+                  'text in it. The page leaves the others out, so it does not '
+                  'download them when it opens',
+            ),
+            const ActionParameter(
+              'offline',
+              'Self-contained',
+              kind: ActionParameterKind.choice,
+              required: false,
+              description:
+                  'Bundle the renderer into the page instead of fetching it '
+                  "from Google's CDN.",
+              options: [ActionOption('true'), ActionOption('false')],
+            ),
+          ],
+        ),
+        PluginAction(
           webExportActionId,
           'Export a web page',
           returns: ScenarioWebExportResult,
@@ -2318,6 +2419,7 @@ class ScenariosCore extends PluginCore {
       'run' => _run(arguments),
       'diff' => _diff(arguments),
       webExportActionId => _exportWeb(arguments),
+      replayActionId => buildReplay(arguments),
       videoActionId => _video(arguments),
       'new' => _new(arguments),
       'shots' => _shots(arguments),
@@ -4307,6 +4409,104 @@ class ScenariosCore extends PluginCore {
           '&& python3 -m http.server`. Opened as a file, index.html cannot '
           'load the report beside it. The studio can serve it for you: '
           '"Export a web page…" on the package, then Open in browser.',
+    );
+  }
+
+  /// The replay build in flight, so a second is refused.
+  ScenarioReplayBuilder? _replayBuild;
+
+  /// Builds the scenario replay page and writes its index.
+  ///
+  /// Public, like [exportWeb], so a caller with somewhere to put the build's
+  /// output can pass [onOutput].
+  Future<ScenarioReplayResult> buildReplay(
+    Map<String, Object?> arguments, {
+    void Function(String line)? onOutput,
+  }) async {
+    var paths = _requested(arguments);
+    if (paths.length > 1) {
+      throw ArgumentError(
+        'Which package? A replay page is built for one. Declared: '
+        '${packages.join(', ')}',
+      );
+    }
+    if (_replayBuild != null) {
+      throw ActionRefusal(
+        'A replay page is already being built. Wait for it, or close the '
+        'worktree to stop it.',
+      );
+    }
+    var path = paths.single;
+    var root = packageRootFor(path);
+    var selectors = _axisList(arguments['file'], 'file');
+    _rescan(path);
+    await _scans[path];
+    var scan = _results[path];
+    if (scan == null) {
+      throw ActionRefusal(
+        'The scenarios could not be listed: ${_errors[path]}',
+      );
+    }
+    var files = {
+      for (var ref in scan.scenarios)
+        if (selectors.isEmpty ||
+            selectors.any((file) => anySelectsFile(file, ref.file)))
+          ref.file,
+    }.toList()..sort();
+    if (files.isEmpty) {
+      throw ActionRefusal(
+        selectors.isEmpty
+            ? 'This package has no scenarios to replay.\n\n'
+                  '${scenarioAuthoringHint(newScenarioDirectoryFor(path))}'
+            : await _selectorMiss(path, file: selectors.first, scenario: null),
+      );
+    }
+    var output = switch (arguments['output'] as String?) {
+      var given? when given.isNotEmpty => _absolute(given),
+      _ => p.join(root, ScenarioReplayBuilder.defaultOutput),
+    };
+    var indexFrom = switch (arguments['index-from'] as String?) {
+      var given? when given.isNotEmpty => _absolute(given),
+      _ => null,
+    };
+    var builder = _replayBuild = ScenarioReplayBuilder(
+      flutterExecutable: host.workspace.flutterSdk.flutter,
+      packageRoot: root,
+    );
+    ScenarioReplayBuild built;
+    try {
+      built = await builder.build(
+        files: files,
+        output: output,
+        indexFrom: indexFrom,
+        everyPoint: arguments['matrix'] == 'declared',
+        offline: arguments['offline'] == 'true' || arguments['offline'] == true,
+        keepFonts: _axisList(arguments['keep-font'], 'keep-font'),
+        onOutput: onOutput,
+      );
+    } on StateError catch (error) {
+      throw ActionRefusal(error.message);
+    } finally {
+      _replayBuild = null;
+    }
+    var index = built.index;
+    return ScenarioReplayResult(
+      output: _relative(built.output),
+      files: built.files,
+      scenarios: index.scenarios.length,
+      steps: index.scenarios.fold(0, (sum, s) => sum + s.steps.length),
+      keys: index.keys.length,
+      testsPassed: built.testsPassed,
+      droppedFonts: built.droppedFonts,
+      indexMs: built.indexMs,
+      buildMs: built.buildMs,
+      serve:
+          'Serve it over HTTP, with the headers that let WebAssembly use '
+          'threads: `Cross-Origin-Opener-Policy: same-origin` and '
+          '`Cross-Origin-Embedder-Policy: require-corp`. Then open '
+          '`?file=<file>&scenario=<scenario>&position=%23<step>` on it, or '
+          'embed it and post `${ReplayMessages.run}` messages to it. Which '
+          'steps show a key is in ${_relative(p.join(built.output, replayIndexFile))}.',
     );
   }
 

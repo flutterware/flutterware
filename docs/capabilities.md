@@ -1506,6 +1506,42 @@ steps: List<String>   # The other captures of the same scenario, as bare file na
 | `treeNoise` | boolean | no | true | Drop the framework wrappers nobody wrote — `Padding`, `Semantics`, the twenty nodes under every `MaterialApp`. On by default; `false` keeps them. |
 | `screenshot` | boolean | no | false | Hand back the archived PNG as a picture rather than as a path. Off by default because the screen answers most questions for a fifth of the tokens; `lens: look` is the short way to say yes. |
 
+#### `replay` — Build the replay page
+
+Builds a web page that replays these scenarios: the real app on the fake clock, stopped at the step a request names, with translation drafts shown in place. Runs the scenarios once first, under `flutter test`, to write the index beside the page: which translation keys each step shows, and which assets each scenario reads. A page embeds it in an iframe and talks to it with `postMessage`. Needs serving over HTTP; the result says how.
+
+```sh
+fw run scenarios replay [--package=…] [--file=…] [--output=…] [--index-from=…] [--matrix=…] [--keep-font=…] [--offline=…]
+```
+
+Returns `ScenarioReplayResult`:
+
+```
+output: String   # The directory to serve, worktree-relative where it sits inside one.
+files: List<String>   # The scenario files the page runs.
+scenarios: int
+steps: int   # Steps in the index: what a request can stop on.
+keys: int   # Translation keys some step shows.
+testsPassed: bool?   # Whether the `flutter test` run that wrote the index passed, or null when the index was read from a directory.
+droppedFonts: List<String>   # Font families the page leaves out because no step draws text in them.
+indexMs: int
+buildMs: int
+serve: String   # How to open it.
+ok: bool
+```
+
+Exits 1 when `ok` is false, so a job can gate on this action.
+
+| parameter | kind | required | default | |
+|---|---|---|---|---|
+| `package` | choice | no | — | Which declared package; needed when there are several |
+| `file` | string | no | — | Replay only this scenario file, package-relative, as `list` reports it. A directory takes everything under it |
+| `output` | string | no | — | Where the page goes, worktree-relative unless absolute; defaults to `build/scenario_replay` under the package. |
+| `index-from` | string | no | — | Use the index a `flutter test` run already wrote, with `FW_REPLAY_INDEX` set to this directory, instead of running the scenarios again. Worktree-relative unless absolute |
+| `matrix` | choice | no | heads | Which devices and languages the index runs at: `heads`, each folder's first, or `declared`, every one. The page replays any of them either way. An asset or a font only one language uses is found by `declared`; with `heads` the page fetches it when it is missed, more slowly, and says so in the result |
+| `keep-font` | string | no | — | A font family to keep in the page although no step drew text in it. The page leaves the others out, so it does not download them when it opens |
+| `offline` | choice | no | — | Bundle the renderer into the page instead of fetching it from Google's CDN. |
+
 #### `export` — Export a web page
 
 Runs the scenarios and writes the result as a browsable page: the same flow canvas, step pages and inspect dock the GUI draws, over the run it just did. Takes every selector and axis `run` takes — the page shows what was run, so what to run is the question it asks. Needs serving over HTTP; the result says how. For a CI artifact, a review link, or anyone who has the app but not the checkout.

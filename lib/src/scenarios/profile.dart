@@ -1,17 +1,18 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:flutter_test/flutter_test.dart'
     show LiveTestWidgetsFlutterBinding, TestWidgetsFlutterBinding;
 import 'package:meta/meta.dart';
 
+import '../environment.dart';
 import '../devices.dart';
 import '../translations/index.dart';
 import 'app_axes.dart';
 import 'fonts.dart';
 import 'live_binding.dart';
 import 'network.dart';
+import 'replay_index.dart';
 import 'settle.dart';
 import 'shots.dart';
 import 'reel.dart';
@@ -351,7 +352,7 @@ Future<void> runScenarios(
   // before anything touches the engine.
   var resolvedTime =
       time ??
-      switch (Platform.environment['FW_TIME']) {
+      switch (processEnvironment['FW_TIME']) {
         null || '' => null,
         var raw => parseScenarioTime(raw),
       };
@@ -370,6 +371,12 @@ Future<void> runScenarios(
   // [loadDefaultScenarioFonts] for why the harness must not do this.
   await loadScenarioFonts();
   await loadDefaultScenarioFonts();
+
+  // What the scenario replay needs to know about this run: which keys each
+  // step shows and which assets each scenario reads. Only when asked for.
+  if (replayIndexDirectory case var directory?) {
+    ReplayIndexRecorder(directory).arm();
+  }
 
   var assignments = scenarioAssignments(profile);
   scenarioAmbientShots = shots;
@@ -668,7 +675,7 @@ String? _setting(String define, String variable) {
     _ => '',
   };
   if (defined.isNotEmpty) return defined;
-  var value = Platform.environment[variable];
+  var value = processEnvironment[variable];
   return (value == null || value.isEmpty) ? null : value;
 }
 

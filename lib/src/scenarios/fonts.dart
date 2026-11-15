@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../environment.dart';
+import 'default_fonts.dart';
+
 /// Loads every font the asset bundle's `FontManifest.json` declares — the
 /// project's own families plus `MaterialIcons`.
 ///
@@ -18,7 +21,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// Cached, so the second caller awaits the first one's work rather than
 /// repeating it. `FontLoader` registers into a process-wide collection, so
 /// loading twice is waste and nothing else.
-Future<List<String>> loadScenarioFonts() => _loading ??= _load();
+Future<List<String>> loadScenarioFonts() =>
+    _loading ??= isWeb ? Future.value(const <String>[]) : _load();
 
 Future<List<String>>? _loading;
 
@@ -63,24 +67,14 @@ void resetScenarioFontsForTest() {
 /// The harness lane must never come through here: its fonts are real already,
 /// and registering Roboto over `CupertinoSystemText` there would *replace*
 /// the genuine platform resolution with the approximation.
-Future<void> loadDefaultScenarioFonts() => _loadingDefaults ??= _loadDefaults();
+Future<void> loadDefaultScenarioFonts() =>
+    _loadingDefaults ??= isWeb ? Future.value() : _loadDefaults();
 
 Future<void>? _loadingDefaults;
 
-/// Every family the SDK's own themes fall back to when a style names none —
-/// material and cupertino typography across the platforms a device profile
-/// can put a scenario on.
-const _defaultFamilies = [
-  'Roboto',
-  '.AppleSystemUIFont',
-  'CupertinoSystemDisplay',
-  'CupertinoSystemText',
-  'Segoe UI',
-];
-
 Future<void> _loadDefaults() async {
   var declared = (await loadScenarioFonts()).toSet();
-  var root = Platform.environment['FLUTTER_ROOT'];
+  var root = processEnvironment['FLUTTER_ROOT'];
   if (root == null) return;
   var dir = Directory('$root/bin/cache/artifacts/material_fonts');
   if (!dir.existsSync()) return;
@@ -95,7 +89,7 @@ Future<void> _loadDefaults() async {
   }).toList()..sort((a, b) => a.path.compareTo(b.path));
   if (files.isEmpty) return;
   var faces = [for (var file in files) file.readAsBytesSync()];
-  for (var family in _defaultFamilies) {
+  for (var family in scenarioDefaultFontFamilies) {
     if (declared.contains(family)) continue;
     var loader = FontLoader(family);
     for (var face in faces) {
