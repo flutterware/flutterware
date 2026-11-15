@@ -75,6 +75,7 @@ frame.contentWindow.postMessage({
   language: 'fr',
   device: 'iphone-16',
   drafts: {'shop/total': 'Montant total'},
+  locate: ['shop/total'],
 }, '*');
 ```
 
@@ -93,9 +94,34 @@ The answer says:
 | `failures` | What failed, in words. |
 | `missedAssets` | Assets the app read that the index did not list. The page fetched them while the scenario waited. Rebuild with `--matrix=declared` to list them. |
 | `width`, `height` | The device's size, so you can give the iframe its shape. |
+| `boxes` | Where each key in `locate` is drawn: `key`, `left`, `top`, `width`, `height`, one per place it shows. |
 | `ms` | How long the step took to show. |
 
-The phone is scaled to fit the iframe and centered. The page also offers
+The phone is scaled to fit the iframe and centered. The page never takes the
+focus, so a translator can keep typing in the page around it.
+
+## Draw where a key is
+
+Name the keys in `locate`, and the answer gives a box for each place they are
+drawn, in the device's pixels, from its top left. To draw a box over the
+iframe, scale it the way the page scales the phone. For an iframe of `w` by
+`h` pixels:
+
+```js
+const scale = Math.min(w / result.width, h / result.height);
+const left = (w - result.width * scale) / 2;
+const top = (h - result.height * scale) / 2;
+// For each box:
+//   x = left + box.left * scale, y = top + box.top * scale,
+//   width = box.width * scale, height = box.height * scale
+```
+
+A key is found by the words it shows: the draft when there is one, else the
+catalog's text. A key whose text the app builds from a placeholder, like
+`Thanks {name}`, may not be found. Nor is a key on a screen hidden under
+another one.
+
+The page also offers
 `flutterwareReplay.run(request)` and `flutterwareReplay.scenarios()` in its
 console.
 

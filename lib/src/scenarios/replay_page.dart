@@ -31,7 +31,7 @@ import 'package:web/web.dart' as web;
 import '../translations/index.dart';
 import 'default_fonts.dart';
 import 'replay_hooks.dart';
-import 'replay_index.dart' show assetKeyOfMessage;
+import 'replay_index.dart' show assetKeyOfMessage, locateKeys;
 import 'replay_protocol.dart';
 
 /// One test file the replay page can run, as the generated entry point
@@ -319,6 +319,20 @@ class _ReplayPage {
       if (tester.takeException() case var pending?) {
         failures.add(describeReplayFailure(pending as Object));
       }
+      var boxes = [
+        for (var MapEntry(:key, value: rects) in locateKeys(
+          tester,
+          request.locate,
+        ).entries)
+          for (var rect in rects)
+            ReplayBox(
+              key: key,
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+            ),
+      ];
       _stopping = true;
       // All of it in `runAsync`'s real zone. A completer made in the fake
       // one completes as a fake microtask that nothing flushes, and the page
@@ -339,6 +353,7 @@ class _ReplayPage {
             missedAssets: missed.toList()..sort(),
             width: shown.size.width,
             height: shown.size.height,
+            boxes: boxes,
           ),
         );
         await release.future;

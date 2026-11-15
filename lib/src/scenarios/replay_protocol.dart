@@ -32,6 +32,7 @@ class ReplayRequest {
     this.language,
     this.device,
     this.drafts = const {},
+    this.locate = const [],
   });
 
   /// The test file, relative to the package: `test/scenarios/home_test.dart`.
@@ -52,6 +53,10 @@ class ReplayRequest {
   /// Words to show in place of the catalogs', by `catalog/key`.
   final Map<String, String> drafts;
 
+  /// Keys (`catalog/key`) whose places on screen the result should give, as
+  /// [ReplayResult.boxes], so the embedding page can draw over them.
+  final List<String> locate;
+
   factory ReplayRequest.fromJson(Map<String, Object?> json) => ReplayRequest(
     file: json['file'] as String? ?? '',
     scenario: json['scenario'] as String? ?? '',
@@ -63,6 +68,7 @@ class ReplayRequest {
           in (json['drafts'] as Map? ?? const {}).entries)
         '$key': '$value',
     },
+    locate: [for (var key in json['locate'] as List? ?? const []) '$key'],
   );
 
   /// A request from the page's address, or null when it names none:
@@ -84,6 +90,7 @@ class ReplayRequest {
           if (draft.indexOf('=') case var at when at > 0)
             draft.substring(0, at): draft.substring(at + 1),
       },
+      locate: query['locate'] ?? const [],
     );
   }
 
@@ -94,6 +101,7 @@ class ReplayRequest {
     'language': ?language,
     'device': ?device,
     if (drafts.isNotEmpty) 'drafts': drafts,
+    if (locate.isNotEmpty) 'locate': locate,
   };
 }
 
@@ -166,6 +174,7 @@ class ReplayResult {
     this.missedAssets = const [],
     this.width,
     this.height,
+    this.boxes = const [],
   });
 
   /// The request names nothing the page can run.
@@ -222,6 +231,9 @@ class ReplayResult {
   final double? width;
   final double? height;
 
+  /// Where the keys the request asked to [ReplayRequest.locate] are drawn.
+  final List<ReplayBox> boxes;
+
   Map<String, Object?> toJson() => {
     'request': request.toJson(),
     if (point case var point?) 'point': point.toJson(),
@@ -234,7 +246,41 @@ class ReplayResult {
     if (missedAssets.isNotEmpty) 'missedAssets': missedAssets,
     'width': ?width,
     'height': ?height,
+    if (boxes.isNotEmpty) 'boxes': [for (var box in boxes) box.toJson()],
   };
+}
+
+/// One place a key is drawn, in the device's logical pixels from its top
+/// left: the same space as [ReplayResult.width] and [ReplayResult.height].
+///
+/// The page shows the device scaled to fit, centered. In a frame of `w` by
+/// `h` CSS pixels the scale is `min(w / width, h / height)`, and the device
+/// starts `(w - width * scale) / 2` from the left and `(h - height * scale)
+/// / 2` from the top.
+class ReplayBox {
+  const ReplayBox({
+    required this.key,
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
+  });
+
+  final String key;
+  final double left;
+  final double top;
+  final double width;
+  final double height;
+
+  Map<String, Object?> toJson() => {
+    'key': key,
+    'left': _round(left),
+    'top': _round(top),
+    'width': _round(width),
+    'height': _round(height),
+  };
+
+  static double _round(double value) => (value * 10).roundToDouble() / 10;
 }
 
 /// What a failure says in a replay result.

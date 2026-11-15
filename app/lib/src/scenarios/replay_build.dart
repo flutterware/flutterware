@@ -323,6 +323,12 @@ const replayIndexHtml = '''<!DOCTYPE html>
   </style>
 </head>
 <body>
+  <script>
+    // The page is a picture of a step. The replayed app moves its focus as
+    // it runs, and the engine would follow it with the browser's, taking it
+    // from the page this one is embedded in, mid-word.
+    HTMLElement.prototype.focus = function () {};
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

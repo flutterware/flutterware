@@ -130,6 +130,7 @@ void main() {
         'position': ['1#2'],
         'language': ['fr'],
         'draft': ['shop/title=Bonjour = salut', 'broken'],
+        'locate': ['shop/title', 'shop/total'],
       })!;
       expect(request.toJson(), {
         'file': 'test/shop_test.dart',
@@ -137,7 +138,9 @@ void main() {
         'position': '1#2',
         'language': 'fr',
         'drafts': {'shop/title': 'Bonjour = salut'},
+        'locate': ['shop/title', 'shop/total'],
       });
+      expect(ReplayRequest.fromJson(request.toJson()).locate, request.locate);
     });
 
     test('is none without a step', () {

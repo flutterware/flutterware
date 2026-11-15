@@ -203,7 +203,7 @@ String assetKeyOfMessage(ByteData message) =>
     }
   }
 
-  void visit(RenderObject render) {
+  _visitShown(tester, (render, _) {
     shown.add(render);
     switch (render) {
       case RenderParagraph paragraph:
@@ -211,20 +211,7 @@ String assetKeyOfMessage(ByteData message) =>
       case RenderEditable editable:
         if (editable.text case var text?) readSpan(text, null);
     }
-    var onScreen = Set<RenderObject>.identity();
-    if (_showsAllChildren(render)) {
-      render.visitChildren(onScreen.add);
-    } else {
-      render.visitChildrenForSemantics(onScreen.add);
-    }
-    render.visitChildren((child) {
-      if (onScreen.contains(child)) visit(child);
-    });
-  }
-
-  for (var view in tester.binding.renderViews) {
-    visit(view);
-  }
+  });
 
   // Text a widget renders its own way, read off the property the project
   // registered with `indexTranslationsIn`.
@@ -242,6 +229,137 @@ String assetKeyOfMessage(ByteData message) =>
     fonts.add(face.substring(0, face.lastIndexOf(':')));
   }
   return (keys: keys, fonts: fonts, faces: faces);
+}
+
+/// Calls [onShown] with every render object on screen, and the view it is
+/// in. A route under the one on top keeps its render objects, and they are
+/// not visited.
+void _visitShown(
+  WidgetTester tester,
+  void Function(RenderObject render, RenderView view) onShown,
+) {
+  for (var view in tester.binding.renderViews) {
+    void visit(RenderObject render) {
+      onShown(render, view);
+      var onScreen = Set<RenderObject>.identity();
+      if (_showsAllChildren(render)) {
+        render.visitChildren(onScreen.add);
+      } else {
+        render.visitChildrenForSemantics(onScreen.add);
+      }
+      render.visitChildren((child) {
+        if (onScreen.contains(child)) visit(child);
+      });
+    }
+
+    visit(view);
+  }
+}
+
+/// Where each of [keys] (`catalog/key`) is drawn at this step: a rectangle
+/// per place it shows, in the view's logical pixels, from its top left.
+///
+/// A span is the key's when the index names it, or when its words are the
+/// key's current value: the draft, else what the catalog answered. The
+/// second half is what works in a browser, where two strings with the same
+/// words cannot be told apart. A key whose value the app built from a
+/// placeholder is found by the first half only.
+Map<String, List<Rect>> locateKeys(WidgetTester tester, Iterable<String> keys) {
+  var read = TranslationIndex.read;
+  var values = <String, String>{};
+  for (var key in keys) {
+    var at = key.indexOf('/');
+    if (at < 0) continue;
+    var value =
+        TranslationIndex.drafts[key] ??
+        read[key.substring(0, at)]?[key.substring(at + 1)];
+    values[key] = value ?? '';
+  }
+  String? keyOfText(String text) {
+    if (TranslationIndex.keyOf(text) case var found?
+        when values.containsKey('$found')) {
+      return '$found';
+    }
+    for (var MapEntry(:key, :value) in values.entries) {
+      if (value.isNotEmpty && value == text) return key;
+    }
+    return null;
+  }
+
+  var found = <String, List<Rect>>{};
+  void add(String key, Rect rect) {
+    if (!rect.isEmpty) (found[key] ??= []).add(rect);
+  }
+
+  var shown = Set<RenderObject>.identity();
+  var views = Map<RenderObject, RenderView>.identity();
+  _visitShown(tester, (render, view) {
+    shown.add(render);
+    views[render] = view;
+    if (render is! RenderParagraph) return;
+    var offset = 0;
+    void walk(InlineSpan span) {
+      if (span is! TextSpan) {
+        // A widget in the text takes one character's place.
+        offset += 1;
+        return;
+      }
+      if (span.text case var text?) {
+        if (keyOfText(text) case var key?) {
+          var boxes = render.getBoxesForSelection(
+            TextSelection(
+              baseOffset: offset,
+              extentOffset: offset + text.length,
+            ),
+          );
+          if (boxes.isNotEmpty) {
+            var rect = boxes
+                .map((box) => box.toRect())
+                .reduce((a, b) => a.expandToInclude(b));
+            add(key, _inView(render, view, rect));
+          }
+        }
+        offset += text.length;
+      }
+      for (var child in span.children ?? const <InlineSpan>[]) {
+        walk(child);
+      }
+    }
+
+    walk(render.text);
+  });
+
+  // Text a widget renders its own way: the widget's whole box.
+  void element(Element e) {
+    var render = e.renderObject;
+    if (render != null && !shown.contains(render)) return;
+    if (render is RenderBox && render.hasSize) {
+      for (var source in TranslationIndex.sources) {
+        var text = source(e.widget);
+        if (text == null) continue;
+        if (keyOfText(text) case var key?) {
+          add(key, _inView(render, views[render]!, Offset.zero & render.size));
+        }
+      }
+    }
+    e.visitChildren(element);
+  }
+
+  if (tester.binding.rootElement case var root?) element(root);
+  return found;
+}
+
+/// [rect], in [render]'s coordinates, in [view]'s logical pixels. The view's
+/// own transform scales to physical pixels, so it is taken back out.
+Rect _inView(RenderObject render, RenderView view, Rect rect) {
+  var physical = MatrixUtils.transformRect(render.getTransformTo(view), rect);
+  var ratio = view.configuration.devicePixelRatio;
+  return Rect.fromLTRB(
+    physical.left / ratio,
+    physical.top / ratio,
+    physical.right / ratio,
+    physical.bottom / ratio,
+  );
 }
 
 /// Whether every child of [render] is painted although the semantics walk

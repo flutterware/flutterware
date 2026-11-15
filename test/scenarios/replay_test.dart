@@ -138,6 +138,82 @@ void main() {
     });
   });
 
+  group('a key is located where it is drawn', () {
+    late Map<String, List<Rect>> boxes;
+    setUp(() {
+      TranslationIndex.recording = true;
+      TranslationIndex.drafts['shop/total'] = 'Grand total';
+      scenarioStepHook = (step) {
+        if (step.position == '#2') {
+          boxes = locateKeys(step.tester, [
+            'shop/title',
+            'shop/total',
+            'shop/menu',
+            'shop/missing',
+          ]);
+        }
+      };
+    });
+    tearDown(() {
+      TranslationIndex.recording = false;
+      TranslationIndex.drafts.clear();
+      TranslationIndex.reset();
+      // Found by the index, inside the paragraph it shares with other words.
+      var title = boxes['shop/title']!.single;
+      expect(title.left, greaterThan(100));
+      expect(title.top, closeTo(50, 5));
+      expect(title.height, closeTo(14, 4));
+      // Found by its words: the draft.
+      expect(boxes['shop/total']!.single.top, closeTo(200, 5));
+      // On the route underneath, so not on screen.
+      expect(boxes.containsKey('shop/menu'), isFalse);
+      expect(boxes.containsKey('shop/missing'), isFalse);
+    });
+    scenario('in the view, in logical pixels', (s) async {
+      var t = indexTranslations('shop');
+      await s.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                key: const Key('open'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => Material(
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            left: 0,
+                            top: 50,
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  const TextSpan(text: 'Welcome to '),
+                                  TextSpan(text: t('title', 'Brewline')),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            top: 200,
+                            child: Text(t('total', 'Total')),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                child: Text(t('menu', 'Menu')),
+              ),
+            ),
+          ),
+        ),
+      );
+      await s.tap(const Key('open'));
+    });
+  });
+
   test('the web placeholder PNG is a zlib stream any decoder reads', () {
     for (var size in [0, 10, 0xFFFF, 0xFFFF + 1, 200000]) {
       var data = [for (var i = 0; i < size; i++) i * 7 % 256];

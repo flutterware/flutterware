@@ -118,6 +118,7 @@ void main() {
           scenario: 'Greets',
           position: '#2',
           drafts: {'probe/greeting': 'Bonjour à tous'},
+          locate: ['probe/greeting'],
         ),
       );
       expect(result['reached'], isTrue);
@@ -136,8 +137,27 @@ void main() {
         '"flutter-view"); return [v.clientWidth, v.clientHeight]; }',
       );
       expect(view, [320, 420]);
+      // Where the draft is drawn, inside the device.
+      var box = (result['boxes']! as List).single as Map;
+      expect(box['key'], 'probe/greeting');
+      expect(box['width'] as num, greaterThan(0));
+      expect(
+        (box['left'] as num) + (box['width'] as num),
+        lessThanOrEqualTo(result['width']! as num),
+      );
     },
   );
+
+  test('the page leaves focus where the embedding page has it', () async {
+    var focused = await page.evaluate<String>('''async () => {
+      const input = document.getElementById("draft");
+      input.focus();
+      await window.ask({file: "$file", scenario: "Greets", position: "#2"});
+      await new Promise((r) => setTimeout(r, 500));
+      return document.activeElement.id;
+    }''');
+    expect(focused, 'draft');
+  });
 
   test('a fixture that reads the disk fails, and says why', () async {
     var result = await ask(
@@ -208,6 +228,7 @@ const _embed =
 <!DOCTYPE html>
 <html><body style="margin:0">
 <iframe id="replay" src="./" style="width:320px;height:420px;border:0"></iframe>
+<input id="draft">
 <script>
 const frame = document.getElementById('replay');
 const waiting = {};
