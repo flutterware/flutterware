@@ -10,6 +10,7 @@ class ScenarioStepEvent {
     required this.tester,
     required this.scenario,
     required this.position,
+    this.point = '',
     this.verb,
   });
 
@@ -27,6 +28,10 @@ class ScenarioStepEvent {
   /// Stable from one run to the next, and the same in every language and on
   /// every device the scenario runs on.
   final String position;
+
+  /// The point of the matrix the scenario runs at, as its test name says it:
+  /// `iPhone 16 · fr`, or empty when it runs one way.
+  final String point;
 
   final String? verb;
 }

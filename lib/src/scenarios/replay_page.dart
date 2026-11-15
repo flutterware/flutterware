@@ -70,6 +70,10 @@ class _ReplayPage {
 
   late final ReplayManifest manifest;
 
+  /// The index beside the page, for where each key was found at each step.
+  /// Read in the background; until it lands keys are found by their words.
+  ReplayIndex? _index;
+
   final _bytes = <String, ByteData>{};
 
   /// What the files declare, found by declaring each once at start.
@@ -109,6 +113,7 @@ class _ReplayPage {
       report(details, description);
     };
     manifest = await _readManifest();
+    unawaited(_readIndex());
     await _loadDefaultFonts();
     for (var file in files) {
       _scenarios.addAll(await _declared(file));
@@ -137,6 +142,17 @@ class _ReplayPage {
     } catch (_) {}
     // Without one every read is a miss, which each result says.
     return ReplayManifest.empty;
+  }
+
+  Future<void> _readIndex() async {
+    try {
+      var response = await http.get(Uri.base.resolve(replayIndexFile));
+      if (response.statusCode == 200) {
+        _index = ReplayIndex.fromJson(
+          jsonDecode(response.body) as Map<String, Object?>,
+        );
+      }
+    } catch (_) {}
   }
 
   /// Declares [file] and records what it declared. Nothing runs.
@@ -323,6 +339,13 @@ class _ReplayPage {
         for (var MapEntry(:key, value: rects) in locateKeys(
           tester,
           request.locate,
+          addresses:
+              _index?.addressesAt(
+                request.file,
+                request.scenario,
+                request.position,
+              ) ??
+              const {},
         ).entries)
           for (var rect in rects)
             ReplayBox(

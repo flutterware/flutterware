@@ -2538,6 +2538,7 @@ class ScenarioTester {
           tester: tester,
           scenario: _description,
           position: position,
+          point: assignment?.label ?? '',
           verb: verb,
         ),
       );
@@ -3459,6 +3460,7 @@ class ScenarioTester {
           tester: tester,
           scenario: _description,
           position: position,
+          point: assignment?.label ?? '',
           verb: verb,
         ),
       );

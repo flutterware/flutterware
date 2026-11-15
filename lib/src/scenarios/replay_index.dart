@@ -95,6 +95,12 @@ class ReplayIndexRecorder {
     var keys = record.steps.putIfAbsent(step.position, () => <String>{});
     keys.addAll(shown.keys);
     record.verbs[step.position] ??= step.verb;
+    // The first point of the matrix to reach a step draws its boxes: a box
+    // is where a key sat on one device, in one language.
+    if (!record.boxes.containsKey(step.position)) {
+      record.boxes[step.position] = keyBoxes(step.tester);
+      record.points[step.position] = step.point;
+    }
   }
 
   Map<String, Object?> toJson() => {
@@ -111,6 +117,18 @@ class ReplayIndexRecorder {
                 'position': position,
                 'verb': ?record.verbs[position],
                 'keys': keys.toList()..sort(),
+                'point': ?record.points[position],
+                'boxes': [
+                  for (var box in record.boxes[position]!)
+                    [
+                      box.key,
+                      box.at,
+                      box.rect.left,
+                      box.rect.top,
+                      box.rect.width,
+                      box.rect.height,
+                    ],
+                ],
               },
           ],
           'assets': record.assets.toList()..sort(),
@@ -153,6 +171,8 @@ class _ScenarioRecord {
   final String? file;
   final steps = <String, Set<String>>{};
   final verbs = <String, String?>{};
+  final boxes = <String, List<({String key, String at, Rect rect})>>{};
+  final points = <String, String>{};
   final assets = <String>{};
 }
 
@@ -256,47 +276,38 @@ void _visitShown(
   }
 }
 
-/// Where each of [keys] (`catalog/key`) is drawn at this step: a rectangle
-/// per place it shows, in the view's logical pixels, from its top left.
-///
-/// A span is the key's when the index names it, or when its words are the
-/// key's current value: the draft, else what the catalog answered. The
-/// second half is what works in a browser, where two strings with the same
-/// words cannot be told apart. A key whose value the app built from a
-/// placeholder is found by the first half only.
-Map<String, List<Rect>> locateKeys(WidgetTester tester, Iterable<String> keys) {
-  var read = TranslationIndex.read;
-  var values = <String, String>{};
-  for (var key in keys) {
-    var at = key.indexOf('/');
-    if (at < 0) continue;
-    var value =
-        TranslationIndex.drafts[key] ??
-        read[key.substring(0, at)]?[key.substring(at + 1)];
-    values[key] = value ?? '';
-  }
-  String? keyOfText(String text) {
-    if (TranslationIndex.keyOf(text) case var found?
-        when values.containsKey('$found')) {
-      return '$found';
-    }
-    for (var MapEntry(:key, :value) in values.entries) {
-      if (value.isNotEmpty && value == text) return key;
-    }
-    return null;
-  }
+/// One piece of text on screen: a span of a paragraph, or the text of a
+/// widget registered with `indexTranslationsIn`.
+class ShownText {
+  ShownText(this.at, this.text, this._rect);
 
-  var found = <String, List<Rect>>{};
-  void add(String key, Rect rect) {
-    if (!rect.isEmpty) (found[key] ??= []).add(rect);
-  }
+  /// Where it is, in a form that names the same text on the next run of the
+  /// same step: `p3.1` is the second span with text in the fourth paragraph
+  /// on screen, `w0` the first registered widget. The words do not come
+  /// into it, so a draft or another language leaves it unchanged.
+  final String at;
 
+  final String text;
+
+  final Rect Function() _rect;
+
+  /// Where it is drawn, in the view's logical pixels.
+  Rect get rect => _rect();
+}
+
+/// Every piece of text on screen, in the order a walk of the screen meets
+/// it, which is the same from one run of a step to the next.
+List<ShownText> shownTexts(WidgetTester tester) {
+  var texts = <ShownText>[];
   var shown = Set<RenderObject>.identity();
   var views = Map<RenderObject, RenderView>.identity();
+  var paragraphs = 0;
   _visitShown(tester, (render, view) {
     shown.add(render);
     views[render] = view;
     if (render is! RenderParagraph) return;
+    var paragraph = paragraphs++;
+    var spans = 0;
     var offset = 0;
     void walk(InlineSpan span) {
       if (span is! TextSpan) {
@@ -305,20 +316,25 @@ Map<String, List<Rect>> locateKeys(WidgetTester tester, Iterable<String> keys) {
         return;
       }
       if (span.text case var text?) {
-        if (keyOfText(text) case var key?) {
-          var boxes = render.getBoxesForSelection(
-            TextSelection(
-              baseOffset: offset,
-              extentOffset: offset + text.length,
-            ),
-          );
-          if (boxes.isNotEmpty) {
-            var rect = boxes
-                .map((box) => box.toRect())
-                .reduce((a, b) => a.expandToInclude(b));
-            add(key, _inView(render, view, rect));
-          }
-        }
+        var start = offset;
+        texts.add(
+          ShownText('p$paragraph.${spans++}', text, () {
+            var boxes = render.getBoxesForSelection(
+              TextSelection(
+                baseOffset: start,
+                extentOffset: start + text.length,
+              ),
+            );
+            if (boxes.isEmpty) return Rect.zero;
+            return _inView(
+              render,
+              view,
+              boxes
+                  .map((box) => box.toRect())
+                  .reduce((a, b) => a.expandToInclude(b)),
+            );
+          }),
+        );
         offset += text.length;
       }
       for (var child in span.children ?? const <InlineSpan>[]) {
@@ -330,15 +346,20 @@ Map<String, List<Rect>> locateKeys(WidgetTester tester, Iterable<String> keys) {
   });
 
   // Text a widget renders its own way: the widget's whole box.
+  var widgets = 0;
   void element(Element e) {
     var render = e.renderObject;
     if (render != null && !shown.contains(render)) return;
     if (render is RenderBox && render.hasSize) {
       for (var source in TranslationIndex.sources) {
-        var text = source(e.widget);
-        if (text == null) continue;
-        if (keyOfText(text) case var key?) {
-          add(key, _inView(render, views[render]!, Offset.zero & render.size));
+        if (source(e.widget) case var text?) {
+          texts.add(
+            ShownText(
+              'w${widgets++}',
+              text,
+              () => _inView(render, views[render]!, Offset.zero & render.size),
+            ),
+          );
         }
       }
     }
@@ -346,6 +367,61 @@ Map<String, List<Rect>> locateKeys(WidgetTester tester, Iterable<String> keys) {
   }
 
   if (tester.binding.rootElement case var root?) element(root);
+  return texts;
+}
+
+/// Where each key the index can name is drawn at this step, with the
+/// address it is drawn at, as `catalog/key`.
+///
+/// The index's half of locating a key. It runs where every string the
+/// catalogs handed out is its own object, so a key is named exactly,
+/// placeholders included.
+List<({String key, String at, Rect rect})> keyBoxes(WidgetTester tester) => [
+  for (var text in shownTexts(tester))
+    if (TranslationIndex.keyOf(text.text) case var key?)
+      if (text.rect case var rect when !rect.isEmpty)
+        (key: '$key', at: text.at, rect: rect),
+];
+
+/// Where each of [keys] (`catalog/key`) is drawn at this step, in the view's
+/// logical pixels: a rectangle per place it shows.
+///
+/// [addresses] are where the index found each key at this step. They name
+/// the same text whatever its words are now, so a key is found under a draft,
+/// in another language, and when its text was built from a placeholder. A
+/// key the index did not see is looked for by its words: the draft, else
+/// what the catalog answered.
+Map<String, List<Rect>> locateKeys(
+  WidgetTester tester,
+  Iterable<String> keys, {
+  Map<String, List<String>> addresses = const {},
+}) {
+  var texts = shownTexts(tester);
+  var byAddress = {for (var text in texts) text.at: text};
+  var read = TranslationIndex.read;
+  var found = <String, List<Rect>>{};
+  void add(String key, Rect rect) {
+    if (!rect.isEmpty) (found[key] ??= []).add(rect);
+  }
+
+  for (var key in keys) {
+    for (var at in addresses[key] ?? const <String>[]) {
+      if (byAddress[at] case var text?) add(key, text.rect);
+    }
+    if (found.containsKey(key)) continue;
+    var slash = key.indexOf('/');
+    if (slash < 0) continue;
+    var value =
+        TranslationIndex.drafts[key] ??
+        read[key.substring(0, slash)]?[key.substring(slash + 1)];
+    for (var text in texts) {
+      var named = TranslationIndex.keyOf(text.text)?.toString();
+      if (named == key ||
+          (value != null && value.isNotEmpty && text.text == value)) {
+        add(key, text.rect);
+      }
+    }
+  }
   return found;
 }
 

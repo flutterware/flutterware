@@ -116,10 +116,11 @@ const top = (h - result.height * scale) / 2;
 //   width = box.width * scale, height = box.height * scale
 ```
 
-A key is found by the words it shows: the draft when there is one, else the
-catalog's text. A key whose text the app builds from a placeholder, like
-`Thanks {name}`, may not be found. Nor is a key on a screen hidden under
-another one.
+The page finds each key at the address the index recorded for it, so the
+box follows the text as a draft or another language changes its length.
+Placeholders are found too. A key the index did not see at that step is
+looked for by its words: the draft, else the catalog's text. A key on a
+screen hidden under another one is not found.
 
 The page also offers
 `flutterwareReplay.run(request)` and `flutterwareReplay.scenarios()` in its
@@ -136,7 +137,20 @@ it:
 ]
 ```
 
-Each entry is a request, ready to send.
+Each entry is a request, ready to send. Its `scenarios` list each step with
+the keys it shows and where each one was drawn:
+
+```json
+{"position": "#5", "point": "iPhone 16 · en", "boxes": [
+  ["shop/total", "p11.0", 24.1, 730.2, 36.8, 18.8]
+]}
+```
+
+A box is `[key, address, left, top, width, height]`, in the device's pixels,
+measured on the device and in the language `point` names. It is exact,
+including for text the app builds from a placeholder, like `Thanks {name}`:
+the run that writes the index traces every string to its key. So an editor
+can outline a key from the index alone, before anything replays.
 
 ## What does not work in a page
 

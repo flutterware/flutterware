@@ -214,6 +214,63 @@ void main() {
     });
   });
 
+  group('the index records where each key is, placeholders included', () {
+    late List<({String key, String at, Rect rect})> recorded;
+    late Map<String, List<Rect>> again;
+    setUp(() {
+      TranslationIndex.recording = true;
+      scenarioStepHook = (step) {
+        recorded = keyBoxes(step.tester);
+        var thanks = recorded.firstWhere((box) => box.key == 'shop/thanks');
+        // Found by address alone, as a page does where words cannot name
+        // the key: the name asked for is not one the text knows.
+        again = locateKeys(
+          step.tester,
+          ['shop/elsewhere'],
+          addresses: {
+            'shop/elsewhere': [thanks.at],
+          },
+        );
+      };
+    });
+    tearDown(() {
+      TranslationIndex.recording = false;
+      TranslationIndex.reset();
+      expect(
+        [for (var box in recorded) box.key],
+        ['shop/title', 'shop/thanks'],
+      );
+      var thanks = recorded.last;
+      expect(thanks.at, 'p1.0');
+      expect(thanks.rect.top, closeTo(100, 5));
+      expect(again['shop/elsewhere'], [thanks.rect]);
+    });
+    scenario('in the run that writes it', (s) async {
+      var t = indexTranslations('shop');
+      var expand = indexExpansions('shop');
+      await s.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Stack(
+              children: [
+                Positioned(top: 20, child: Text(t('title', 'Brewline'))),
+                Positioned(
+                  top: 100,
+                  child: Text(
+                    expand(
+                      'thanks',
+                      t('thanks', 'Thanks {name}').replaceAll('{name}', 'Ada'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  });
+
   test('the web placeholder PNG is a zlib stream any decoder reads', () {
     for (var size in [0, 10, 0xFFFF, 0xFFFF + 1, 200000]) {
       var data = [for (var i = 0; i < size; i++) i * 7 % 256];

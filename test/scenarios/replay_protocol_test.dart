@@ -18,6 +18,12 @@ void main() {
               'position': '#2',
               'verb': 'tap',
               'keys': ['shop/menu', 'shop/title'],
+              'point': 'iPhone 16 · en',
+              'boxes': [
+                ['shop/title', 'p0.1', 120.04, 50, 80, 17],
+                ['shop/menu', 'p2.0', 16, 300, 60, 17],
+                ['shop/title', 'w0', 0, 400, 393, 40],
+              ],
             },
             {
               'position': '#1',
@@ -43,6 +49,10 @@ void main() {
             {
               'position': '#2',
               'keys': ['shop/cart'],
+              'point': 'iPhone SE · fr',
+              'boxes': [
+                ['shop/cart', 'p0.0', 0, 0, 10, 10],
+              ],
             },
           ],
           'assets': ['assets/logo.png'],
@@ -63,6 +73,29 @@ void main() {
       expect(order.assets, ['assets/i18n/en.json', 'assets/logo.png']);
       expect(index.fonts, ['MaterialIcons', 'Roboto']);
       expect(index.faces, ['Roboto:400']);
+    });
+
+    test('keeps the boxes of the first point to reach a step', () {
+      var step = ReplayIndex.merge([shop, again]).scenarios.single.steps[1];
+      expect(step.point, 'iPhone 16 · en');
+      expect(step.boxes, hasLength(3));
+      expect(step.boxes.first.toJson(), [
+        'shop/title',
+        'p0.1',
+        120.0,
+        50.0,
+        80.0,
+        17.0,
+      ]);
+    });
+
+    test('says where the index found each key at a step', () {
+      var index = ReplayIndex.fromJson(ReplayIndex.merge([shop]).toJson());
+      expect(index.addressesAt('test/shop_test.dart', 'Order', '#2'), {
+        'shop/title': ['p0.1', 'w0'],
+        'shop/menu': ['p2.0'],
+      });
+      expect(index.addressesAt('test/shop_test.dart', 'Order', '#9'), isEmpty);
     });
 
     test('says which steps show each key', () {

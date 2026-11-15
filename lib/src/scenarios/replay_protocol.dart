@@ -279,8 +279,6 @@ class ReplayBox {
     'width': _round(width),
     'height': _round(height),
   };
-
-  static double _round(double value) => (value * 10).roundToDouble() / 10;
 }
 
 /// What a failure says in a replay result.
@@ -407,6 +405,13 @@ class ReplayIndex {
           var position = s['position'] as String? ?? '';
           (merged.steps[position] ??= {}).addAll(_strings(s['keys']));
           merged.verbs[position] ??= s['verb'] as String?;
+          if (!merged.boxes.containsKey(position) && s['boxes'] is List) {
+            merged.boxes[position] = [
+              for (var box in s['boxes'] as List)
+                ReplayIndexBox.fromJson(box as List),
+            ];
+            merged.points[position] = s['point'] as String? ?? '';
+          }
         }
       }
     }
@@ -429,6 +434,8 @@ class ReplayIndex {
                   position: position,
                   verb: merged.verbs[position],
                   keys: merged.steps[position]!.toList()..sort(),
+                  point: merged.points[position],
+                  boxes: merged.boxes[position] ?? const [],
                 ),
             ],
           ),
@@ -448,6 +455,26 @@ class ReplayIndex {
     fonts: _strings(json['fonts']),
     faces: _strings(json['faces']),
   );
+
+  /// Where the index found each key at one step, by address: what the page
+  /// needs to find them again. Empty for a step it does not know.
+  Map<String, List<String>> addressesAt(
+    String file,
+    String scenario,
+    String position,
+  ) {
+    var addresses = <String, List<String>>{};
+    for (var s in scenarios) {
+      if (s.file != file || s.scenario != scenario) continue;
+      for (var step in s.steps) {
+        if (step.position != position) continue;
+        for (var box in step.boxes) {
+          (addresses[box.key] ??= []).add(box.at);
+        }
+      }
+    }
+    return addresses;
+  }
 
   /// Every key shown, with where: the steps a translator can be shown it on.
   Map<String, List<ReplayStepRef>> get keys {
@@ -494,6 +521,8 @@ class ReplayIndex {
 class _MergedScenario {
   final steps = <String, Set<String>>{};
   final verbs = <String, String?>{};
+  final boxes = <String, List<ReplayIndexBox>>{};
+  final points = <String, String>{};
   final assets = <String>{};
 }
 
@@ -534,6 +563,8 @@ class ReplayIndexStep {
     required this.position,
     required this.keys,
     this.verb,
+    this.point,
+    this.boxes = const [],
   });
 
   final String position;
@@ -542,18 +573,74 @@ class ReplayIndexStep {
   /// `catalog/key` of every key on screen at this step.
   final List<String> keys;
 
+  /// The point of the matrix [boxes] were measured at: `iPhone 16 · en`,
+  /// or empty when the scenarios run one way.
+  final String? point;
+
+  /// Where each key was drawn, in the run that wrote the index.
+  final List<ReplayIndexBox> boxes;
+
   factory ReplayIndexStep.fromJson(Map<String, Object?> json) =>
       ReplayIndexStep(
         position: json['position'] as String? ?? '',
         verb: json['verb'] as String?,
         keys: _strings(json['keys']),
+        point: json['point'] as String?,
+        boxes: [
+          for (var box in json['boxes'] as List? ?? const [])
+            ReplayIndexBox.fromJson(box as List),
+        ],
       );
 
   Map<String, Object?> toJson() => {
     'position': position,
     'verb': ?verb,
     'keys': keys,
+    'point': ?point,
+    if (boxes.isNotEmpty) 'boxes': [for (var box in boxes) box.toJson()],
   };
+}
+
+/// One place a key was drawn at a step, as the index records it:
+/// `[key, at, left, top, width, height]`, in the device's logical pixels.
+///
+/// The box is where the key sat in the run's own words. [at] names the same
+/// text on any later run of the step, whatever its words are then, which is
+/// how the page finds it again under a draft or in another language.
+class ReplayIndexBox {
+  const ReplayIndexBox({
+    required this.key,
+    required this.at,
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
+  });
+
+  final String key;
+  final String at;
+  final double left;
+  final double top;
+  final double width;
+  final double height;
+
+  factory ReplayIndexBox.fromJson(List<Object?> json) => ReplayIndexBox(
+    key: '${json[0]}',
+    at: '${json[1]}',
+    left: (json[2]! as num).toDouble(),
+    top: (json[3]! as num).toDouble(),
+    width: (json[4]! as num).toDouble(),
+    height: (json[5]! as num).toDouble(),
+  );
+
+  List<Object?> toJson() => [
+    key,
+    at,
+    _round(left),
+    _round(top),
+    _round(width),
+    _round(height),
+  ];
 }
 
 /// One step, as a request names it.
@@ -595,3 +682,5 @@ int comparePositions(String a, String b) {
 List<String> _strings(Object? value) => [
   for (var item in value as List? ?? const []) '$item',
 ];
+
+double _round(double value) => (value * 10).roundToDouble() / 10;
