@@ -133,7 +133,15 @@ class _ReplayPage {
     // would otherwise read as a pass.
     var report = reportTestException;
     reportTestException = (details, description) {
-      if (_stopping) return;
+      if (_stopping) {
+        // The stop itself, or a split's error wrapping it, is not news.
+        // Anything else raised past the step still goes to the console.
+        var said = '${details.exception}';
+        if (!said.contains(const _Stopped().toString())) {
+          print('[flutterware] After the step: $said\n${details.stack ?? ''}');
+        }
+        return;
+      }
       _onFailure?.call(details.exception);
       report(details, description);
     };
@@ -430,7 +438,33 @@ class _ReplayPage {
       // would hold this step forever.
       await tester.runAsync(() async {
         var release = _release = Completer<void>();
-        var shown = _paint(tester);
+        ({ui.Size size, Future<bool> drawn, Future<void> Function() dispose})
+        shown;
+        try {
+          shown = _paint(tester);
+        } catch (error, stack) {
+          // Said in the answer, never only in the binding's report, which
+          // the page leaves out once the step is reached.
+          print('[flutterware] The step could not be shown: $error\n$stack');
+          _release = null;
+          reached.complete(
+            ReplayResult(
+              request: request,
+              point: point,
+              reached: false,
+              ok: false,
+              steps: steps,
+              ms: watch.elapsedMilliseconds,
+              assetsMs: fetched,
+              failures: [
+                ...failures,
+                'The step was reached and could not be shown: ${describeReplayFailure(error)}',
+              ],
+              missedAssets: missed.toList()..sort(),
+            ),
+          );
+          return;
+        }
         _shown = (drawn: shown.drawn, release: release);
         reached.complete(
           ReplayResult(
@@ -674,7 +708,12 @@ class _ReplayPage {
     var priorMetrics = dispatcher.onMetricsChanged;
     dispatcher.onBeginFrame = null;
     dispatcher.onDrawFrame = () {
-      var rendering = _present(root, physical);
+      Future<void>? rendering;
+      try {
+        rendering = _present(root, physical);
+      } catch (error, stack) {
+        print('[flutterware] The step could not be drawn: $error\n$stack');
+      }
       if (rendering == null) {
         if (!drawn.isCompleted) drawn.complete(false);
         return;
