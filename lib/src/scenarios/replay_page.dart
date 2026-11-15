@@ -58,9 +58,27 @@ class ReplayFile {
 /// `flutterwareReplay.run(request)` from its own console, and its address
 /// (`?file=…&scenario=…&position=…`).
 Future<void> runScenarioReplay(List<ReplayFile> files) async {
+  await _startRasterThread();
   AutomatedTestWidgetsFlutterBinding.ensureInitialized();
   var page = _ReplayPage(files);
   await page.start();
+}
+
+/// Rasterizes one small picture, in the real zone, before any scenario runs.
+///
+/// On skwasm, when the first thing to use the raster thread is a scenario on
+/// the fake clock, that thread can stop answering for good: every frame the
+/// page renders after it is lost, and the page stays blank. Seen with Flutter
+/// 3.50 on an app whose every step was reached and none was drawn. Once the
+/// thread has answered here, it keeps answering.
+Future<void> _startRasterThread() async {
+  var recorder = ui.PictureRecorder();
+  Canvas(recorder).drawRect(Offset.zero & const Size(1, 1), Paint());
+  var picture = recorder.endRecording();
+  var image = await picture.toImage(1, 1);
+  await image.toByteData();
+  image.dispose();
+  picture.dispose();
 }
 
 class _ReplayPage {
@@ -581,27 +599,22 @@ class _ReplayPage {
   ///
   /// The engine takes a scene only from inside its own frame callback, and
   /// the fake-clock binding never runs one, so the frame is drawn from a real
-  /// one here, and again whenever the page is resized. It is captured first,
-  /// outside any frame: a hidden page gets no frames until it is shown, and
-  /// the answer should not wait for that.
+  /// one here, and again whenever the page is resized. What is drawn is the
+  /// tester's own layer tree, which the stopped scenario keeps until it is
+  /// released, so text and edges are drawn at the page's resolution rather
+  /// than scaled down from a picture of the device's screen.
   ({ui.Size size, void Function() dispose}) _paint(WidgetTester tester) {
-    var view = tester.binding.renderViews.first;
-    var physical = tester.view.physicalSize;
     // `layer`, not `debugLayer`: the page is built with asserts off, and
     // `debugLayer` answers only through one.
     // ignore: invalid_use_of_protected_member
-    var scene = view.layer!.buildScene(ui.SceneBuilder());
-    var frame = scene.toImageSync(
-      physical.width.ceil(),
-      physical.height.ceil(),
-    );
-    scene.dispose();
+    var root = tester.binding.renderViews.first.layer!;
+    var physical = tester.view.physicalSize;
     var dispatcher = ui.PlatformDispatcher.instance;
     var priorDraw = dispatcher.onDrawFrame;
     var priorBegin = dispatcher.onBeginFrame;
     var priorMetrics = dispatcher.onMetricsChanged;
     dispatcher.onBeginFrame = null;
-    dispatcher.onDrawFrame = () => _present(frame);
+    dispatcher.onDrawFrame = () => _present(root, physical);
     dispatcher.onMetricsChanged = () {
       priorMetrics?.call();
       dispatcher.scheduleFrame();
@@ -613,39 +626,40 @@ class _ReplayPage {
         dispatcher.onDrawFrame = priorDraw;
         dispatcher.onBeginFrame = priorBegin;
         dispatcher.onMetricsChanged = priorMetrics;
-        frame.dispose();
       },
     );
   }
 
-  /// Draws [frame] into the page's own view, as large as fits, centered.
-  static void _present(ui.Image frame) {
+  /// Draws [root], a frame of [frame] physical pixels, into the page's own
+  /// view, as large as fits, centered.
+  static void _present(ContainerLayer root, Size frame) {
     var real = ui.PlatformDispatcher.instance.implicitView;
-    if (real == null) return;
+    if (real == null || frame.isEmpty) return;
     // The window's size, said out loud. The test binding renders each frame
     // at the device's size, and the page would otherwise keep that size.
     var limits = real.physicalConstraints;
     var biggest = Size(limits.maxWidth, limits.maxHeight);
     var size = biggest.isFinite ? biggest : real.physicalSize;
     if (size.isEmpty) return;
-    var width = frame.width.toDouble();
-    var height = frame.height.toDouble();
-    var scale = math.min(size.width / width, size.height / height);
-    var shown = Size(width * scale, height * scale);
+    var scale = math.min(size.width / frame.width, size.height / frame.height);
+    var shown = frame * scale;
     var at = Offset(
       (size.width - shown.width) / 2,
       (size.height - shown.height) / 2,
     );
-    var recorder = ui.PictureRecorder();
-    Canvas(recorder).drawImageRect(
-      frame,
-      Offset.zero & Size(width, height),
-      at & shown,
-      Paint()..filterQuality = FilterQuality.medium,
-    );
     var builder = ui.SceneBuilder()
-      ..addPicture(Offset.zero, recorder.endRecording());
-    var scene = builder.build();
+      ..pushClipRect(at & shown)
+      ..pushTransform(
+        (Matrix4.translationValues(
+          at.dx,
+          at.dy,
+          0,
+        )..scaleByDouble(scale, scale, 1, 1)).storage,
+      );
+    // `buildScene` adds the tree under the two layers pushed above and
+    // builds the scene from the builder's root.
+    // ignore: invalid_use_of_protected_member
+    var scene = root.buildScene(builder);
     real.render(scene, size: size);
     scene.dispose();
   }

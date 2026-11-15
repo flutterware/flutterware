@@ -4,9 +4,11 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutterware/scenario_replay_protocol.dart';
 import 'package:flutterware_app/src/scenarios/replay_build.dart';
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:puppeteer/puppeteer.dart';
 import 'package:shelf/shelf.dart' as shelf;
@@ -147,6 +149,33 @@ void main() {
       );
     },
   );
+
+  test('the step is drawn on the page, not only reached', () async {
+    var result = await ask(
+      const ReplayRequest(file: file, scenario: 'Greets', position: '#2'),
+    );
+    expect(result['reached'], isTrue);
+    // What the browser shows in the frame: the app's scaffold and its words,
+    // over the page's grey. A page that reaches the step and draws nothing
+    // is all grey. The frame is drawn on the browser's next frame, so this
+    // waits for it.
+    var frame = await page.$('#replay');
+    var counted = (drawn: 0.0, dark: 0);
+    for (var tries = 0; tries < 20; tries++) {
+      var shot = img.decodePng(Uint8List.fromList(await frame.screenshot()))!;
+      var drawn = 0;
+      var dark = 0;
+      for (var pixel in shot) {
+        if (pixel.r != 0xec || pixel.g != 0xec || pixel.b != 0xec) drawn++;
+        if (pixel.luminance < 100) dark++;
+      }
+      counted = (drawn: drawn / (shot.width * shot.height), dark: dark);
+      if (counted.drawn > 0.3 && counted.dark > 20) break;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    expect(counted.drawn, greaterThan(0.3), reason: 'the scaffold');
+    expect(counted.dark, greaterThan(20), reason: 'the greeting');
+  });
 
   test('the page leaves focus where the embedding page has it', () async {
     var focused = await page.evaluate<String>('''async () => {
