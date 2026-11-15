@@ -223,9 +223,23 @@ const _clockInterval = Duration(milliseconds: 100);
 /// `TickerFuture`, say — by scheduling a microtask in *this* zone, and the
 /// pump flushes its microtasks between the frame's two halves. Run there, a
 /// body that goes on to call a verb calls it from inside a pump.
+///
+/// It also says when the body's own code is on the stack. A pump the body
+/// calls itself, `tester.pump` rather than a verb, flushes every microtask,
+/// the act's own among them: the act resumes inside that pump, and must not
+/// pump there.
 class _HeldMicrotasks {
   var holding = false;
   final _held = <void Function()>[];
+
+  var _depth = 0;
+  Completer<void>? _returned;
+
+  /// Whether the body's code is running, further down the stack.
+  bool get running => _depth > 0;
+
+  /// Completes once the body's code is no longer on the stack.
+  Future<void> get returned => (_returned ??= Completer()).future;
 
   late final Zone zone = Zone.current.fork(
     specification: ZoneSpecification(
@@ -236,8 +250,25 @@ class _HeldMicrotasks {
           parent.scheduleMicrotask(zone, task);
         }
       },
+      run: <R>(self, parent, zone, f) => _enter(() => parent.run(zone, f)),
+      runUnary: <R, T>(self, parent, zone, f, T arg) =>
+          _enter(() => parent.runUnary(zone, f, arg)),
+      runBinary: <R, T1, T2>(self, parent, zone, f, T1 arg1, T2 arg2) =>
+          _enter(() => parent.runBinary(zone, f, arg1, arg2)),
     ),
   );
+
+  R _enter<R>(R Function() run) {
+    _depth++;
+    try {
+      return run();
+    } finally {
+      if (--_depth == 0) {
+        _returned?.complete();
+        _returned = null;
+      }
+    }
+  }
 
   void release() {
     holding = false;
@@ -2209,10 +2240,11 @@ class ScenarioTester {
   /// on it — see [act].
   ///
   /// The clock moves only while the body is *parked*: the fake zone has
-  /// nothing queued, no verb is running inside the body, no `runAsync` is
-  /// open, and a timer or a frame is actually pending. Anything else is
-  /// either work that will finish without it or work it would break — a verb
-  /// pumping, real work that only a turn of the real loop lands — and the
+  /// nothing queued, no verb is running inside the body, none of the body's
+  /// code is on the stack, no `runAsync` is open, and a timer or a frame is
+  /// actually pending. Anything else is either work that will finish without
+  /// it or work it would break — a verb pumping, the body's own
+  /// `tester.pump`, real work that only a turn of the real loop lands — and the
   /// body is simply awaited, exactly as it was before the clock ever moved
   /// here. Frames are pumped at the settle interval, and each goes to the
   /// recorder, so a movie of the step has the wait in it rather than a cut.
@@ -2251,6 +2283,11 @@ class ScenarioTester {
     // and a pump already open there is a guarded call it did not await.
     await Future<void>.value();
     while (!done) {
+      // Resumed by a pump the body called itself, which is still running.
+      if (held.running) {
+        await Future.any([finished, held.returned]);
+        continue;
+      }
       // Behind whatever is queued: it may be the body getting on with it, and
       // a body that finishes on microtasks alone must move no time at all.
       if (tester.binding.microtaskCount > 0) {
