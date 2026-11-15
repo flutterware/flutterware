@@ -104,7 +104,11 @@ class _ReplayPage {
   Future<void> _queue = Future.value();
 
   /// How long an answer waits for its step to be drawn on a visible page.
-  static const _drawWait = Duration(seconds: 2);
+  static const _drawWait = Duration(seconds: 1);
+
+  /// The step the last request reached: whether it is drawn, and what
+  /// releases it.
+  ({Future<bool> drawn, Completer<void> release})? _shown;
 
   /// Completes to let the step on screen go, so its scenario can end.
   Completer<void>? _release;
@@ -269,9 +273,45 @@ class _ReplayPage {
     ReplayRequest request, {
     void Function()? onDrawn,
   }) {
-    var result = _queue.then((_) => _replay(request, onDrawn: onDrawn));
+    var result = _queue.then((_) async {
+      _shown = null;
+      var result = await _replay(request);
+      if (_shown case (:var drawn, :var release)? when result.reached) {
+        // Waited for here, by the page, and not inside the scenario's run:
+        // whatever holds up the draw, the answer goes out. A hidden page
+        // gets no frames until it is shown, and its answer waits for none.
+        var inTime =
+            web.document.visibilityState == 'visible' &&
+            await _within(drawn, _drawWait);
+        if (!inTime && onDrawn != null) {
+          unawaited(
+            drawn.then((late) {
+              if (late && identical(_release, release)) onDrawn();
+            }),
+          );
+        }
+        return result.withDrawn(inTime);
+      }
+      return result;
+    });
     _queue = result.then((_) {}, onError: (_) {});
     return result;
+  }
+
+  /// Whether [drawn] says true within [limit], timed on the page's own
+  /// clock.
+  static Future<bool> _within(Future<bool> drawn, Duration limit) {
+    var answer = Completer<bool>();
+    var timer = Zone.root.createTimer(limit, () {
+      if (!answer.isCompleted) answer.complete(false);
+    });
+    unawaited(
+      drawn.then((value) {
+        timer.cancel();
+        if (!answer.isCompleted) answer.complete(value);
+      }),
+    );
+    return answer.future;
   }
 
   Future<void> _letGo() async {
@@ -283,10 +323,7 @@ class _ReplayPage {
     }
   }
 
-  Future<ReplayResult> _replay(
-    ReplayRequest request, {
-    void Function()? onDrawn,
-  }) async {
+  Future<ReplayResult> _replay(ReplayRequest request) async {
     await _letGo();
     var watch = Stopwatch()..start();
     var scenario = _scenarios
@@ -394,18 +431,7 @@ class _ReplayPage {
       await tester.runAsync(() async {
         var release = _release = Completer<void>();
         var shown = _paint(tester);
-        // A hidden page gets no frames until it is shown, and its answer
-        // does not wait for one.
-        var drawn = web.document.visibilityState == 'visible'
-            ? await shown.drawn.timeout(_drawWait, onTimeout: () => false)
-            : false;
-        if (!drawn && onDrawn != null) {
-          unawaited(
-            shown.drawn.then((late) {
-              if (late && identical(_release, release)) onDrawn();
-            }),
-          );
-        }
+        _shown = (drawn: shown.drawn, release: release);
         reached.complete(
           ReplayResult(
             request: request,
@@ -420,7 +446,6 @@ class _ReplayPage {
             width: shown.size.width,
             height: shown.size.height,
             boxes: boxes,
-            drawn: drawn,
           ),
         );
         await release.future;
@@ -678,7 +703,9 @@ class _ReplayPage {
         dispatcher.onBeginFrame = priorBegin;
         dispatcher.onMetricsChanged = priorMetrics;
         if (!drawn.isCompleted) drawn.complete(false);
-        await inFlight?.timeout(const Duration(seconds: 2), onTimeout: () {});
+        if (inFlight case var drawing?) {
+          await _within(drawing.then((_) => true), const Duration(seconds: 2));
+        }
       },
     );
   }

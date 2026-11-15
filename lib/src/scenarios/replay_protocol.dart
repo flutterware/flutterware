@@ -241,10 +241,27 @@ class ReplayResult {
   final List<ReplayBox> boxes;
 
   /// Whether the step was on the page's canvas when this answer was sent.
-  /// When it was not (the page is hidden, or drawing took too long), the
+  /// When it was not (the page is hidden, or drawing took over a second), the
   /// canvas still shows an earlier step, and a [ReplayMessages.drawn] message
   /// follows once it shows this one.
   final bool drawn;
+
+  /// This answer, with [drawn] said.
+  ReplayResult withDrawn(bool drawn) => ReplayResult(
+    request: request,
+    point: point,
+    reached: reached,
+    ok: ok,
+    steps: steps,
+    ms: ms,
+    assetsMs: assetsMs,
+    failures: failures,
+    missedAssets: missedAssets,
+    width: width,
+    height: height,
+    boxes: boxes,
+    drawn: drawn,
+  );
 
   Map<String, Object?> toJson() => {
     'request': request.toJson(),
