@@ -16,6 +16,17 @@ void main() {
     await s.tap(const Key('greeting'));
   });
 
+  // One colour per step, so a picture says which step it is.
+  scenario('Paints three colours', (s) async {
+    for (var colour in const [
+      Color(0xFFFF0000),
+      Color(0xFF00FF00),
+      Color(0xFF0000FF),
+    ]) {
+      await s.pumpWidget(ColoredBox(color: colour));
+    }
+  });
+
   // Passes under `flutter test`, and cannot work in a browser.
   scenario('Reads the disk', (s) async {
     var name = File('pubspec.yaml').readAsLinesSync().first;

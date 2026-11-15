@@ -85,6 +85,12 @@ void main() {
     return jsonDecode(answer) as Map<String, Object?>;
   }
 
+  /// What the browser shows in the frame, now.
+  Future<img.Image> frameShot() async {
+    var frame = await page.$('#replay');
+    return img.decodePng(Uint8List.fromList(await frame.screenshot()))!;
+  }
+
   test('the index names the steps and the keys they show', () {
     var index =
         built?.index ??
@@ -96,6 +102,7 @@ void main() {
       'Breaks a build, then goes on',
       'Fails after it ends',
       'Greets',
+      'Paints three colours',
       'Reads the disk',
     ]);
     expect(index.keys.keys, ['probe/greeting']);
@@ -108,7 +115,7 @@ void main() {
     var scenarios = await page.evaluate<List<Object?>>(
       '() => window.scenarios',
     );
-    expect(scenarios, hasLength(4));
+    expect(scenarios, hasLength(5));
   });
 
   test(
@@ -155,26 +162,40 @@ void main() {
       const ReplayRequest(file: file, scenario: 'Greets', position: '#2'),
     );
     expect(result['reached'], isTrue);
-    // What the browser shows in the frame: the app's scaffold and its words,
-    // over the page's grey. A page that reaches the step and draws nothing
-    // is all grey. The frame is drawn on the browser's next frame, so this
-    // waits for it.
-    var frame = await page.$('#replay');
-    var counted = (drawn: 0.0, dark: 0);
-    for (var tries = 0; tries < 20; tries++) {
-      var shot = img.decodePng(Uint8List.fromList(await frame.screenshot()))!;
-      var drawn = 0;
-      var dark = 0;
-      for (var pixel in shot) {
-        if (pixel.r != 0xec || pixel.g != 0xec || pixel.b != 0xec) drawn++;
-        if (pixel.luminance < 100) dark++;
-      }
-      counted = (drawn: drawn / (shot.width * shot.height), dark: dark);
-      if (counted.drawn > 0.3 && counted.dark > 20) break;
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(result['drawn'], isTrue);
+    // The app's scaffold and its words, over the page's grey. A page that
+    // reaches the step and draws nothing is all grey.
+    var shot = await frameShot();
+    var drawn = 0;
+    var dark = 0;
+    for (var pixel in shot) {
+      if (pixel.r != 0xec || pixel.g != 0xec || pixel.b != 0xec) drawn++;
+      if (pixel.luminance < 100) dark++;
     }
-    expect(counted.drawn, greaterThan(0.3), reason: 'the scaffold');
-    expect(counted.dark, greaterThan(20), reason: 'the greeting');
+    expect(drawn / (shot.width * shot.height), greaterThan(0.3));
+    expect(dark, greaterThan(20), reason: 'the greeting');
+  });
+
+  test('each answer comes with its own step on the canvas', () async {
+    // Out of order, so a page a step behind, or drawing an earlier request
+    // late, shows the wrong colour.
+    for (var (position, colour) in const [
+      ('#1', 'red'),
+      ('#3', 'blue'),
+      ('#2', 'green'),
+      ('#1', 'red'),
+    ]) {
+      var result = await ask(
+        ReplayRequest(
+          file: file,
+          scenario: 'Paints three colours',
+          position: position,
+        ),
+      );
+      expect(result['reached'], isTrue, reason: position);
+      expect(result['drawn'], isTrue, reason: position);
+      expect(_colourOf(await frameShot()), colour, reason: position);
+    }
   });
 
   test('the page leaves focus where the embedding page has it', () async {
@@ -284,3 +305,23 @@ window.ask = (request) => new Promise((resolve) => {
 </script>
 </body></html>
 ''';
+
+/// The pure colour most of [shot] is, if one is.
+String? _colourOf(img.Image shot) {
+  var counts = <String, int>{};
+  for (var pixel in shot) {
+    var name = switch ((pixel.r > 200, pixel.g > 200, pixel.b > 200)) {
+      (true, false, false) => 'red',
+      (false, true, false) => 'green',
+      (false, false, true) => 'blue',
+      _ => null,
+    };
+    if (name != null) counts[name] = (counts[name] ?? 0) + 1;
+  }
+  var best = counts.entries.fold<MapEntry<String, int>?>(
+    null,
+    (best, entry) => best == null || entry.value > best.value ? entry : best,
+  );
+  if (best == null || best.value < shot.width * shot.height * 0.3) return null;
+  return best.key;
+}

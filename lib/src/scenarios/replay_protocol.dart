@@ -21,6 +21,11 @@ abstract final class ReplayMessages {
 
   /// The page's answer to [run], carrying the request's `id`.
   static const result = 'flutterware.replay.result';
+
+  /// Sent after a [result] whose `drawn` was false, once that request's step
+  /// is on the page's canvas, carrying the request's `id`. Not sent if
+  /// another request ran first.
+  static const drawn = 'flutterware.replay.drawn';
 }
 
 /// Which step to show, how, and with which drafts.
@@ -175,6 +180,7 @@ class ReplayResult {
     this.width,
     this.height,
     this.boxes = const [],
+    this.drawn = false,
   });
 
   /// The request names nothing the page can run.
@@ -234,6 +240,12 @@ class ReplayResult {
   /// Where the keys the request asked to [ReplayRequest.locate] are drawn.
   final List<ReplayBox> boxes;
 
+  /// Whether the step was on the page's canvas when this answer was sent.
+  /// When it was not (the page is hidden, or drawing took too long), the
+  /// canvas still shows an earlier step, and a [ReplayMessages.drawn] message
+  /// follows once it shows this one.
+  final bool drawn;
+
   Map<String, Object?> toJson() => {
     'request': request.toJson(),
     if (point case var point?) 'point': point.toJson(),
@@ -247,6 +259,7 @@ class ReplayResult {
     'width': ?width,
     'height': ?height,
     if (boxes.isNotEmpty) 'boxes': [for (var box in boxes) box.toJson()],
+    'drawn': drawn,
   };
 }
 
