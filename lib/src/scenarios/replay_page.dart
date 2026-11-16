@@ -58,9 +58,27 @@ class ReplayFile {
 /// `flutterwareReplay.run(request)` from its own console, and its address
 /// (`?file=…&scenario=…&position=…`).
 Future<void> runScenarioReplay(List<ReplayFile> files) async {
+  await _startRasterThread();
   AutomatedTestWidgetsFlutterBinding.ensureInitialized();
   var page = _ReplayPage(files);
   await page.start();
+}
+
+/// Rasterizes one small picture, in the real zone, before any scenario runs.
+///
+/// On skwasm, when the first thing to use the raster thread is a scenario on
+/// the fake clock, that thread can stop answering for good: every frame the
+/// page renders after it is lost, and the page stays blank. Seen with Flutter
+/// 3.50 on an app whose every step was reached and none was drawn. Once the
+/// thread has answered here, it keeps answering.
+Future<void> _startRasterThread() async {
+  var recorder = ui.PictureRecorder();
+  Canvas(recorder).drawRect(Offset.zero & const Size(1, 1), Paint());
+  var picture = recorder.endRecording();
+  var image = await picture.toImage(1, 1);
+  await image.toByteData();
+  image.dispose();
+  picture.dispose();
 }
 
 class _ReplayPage {
@@ -85,6 +103,13 @@ class _ReplayPage {
   /// Requests run one at a time, in order.
   Future<void> _queue = Future.value();
 
+  /// How long an answer waits for its step to be drawn on a visible page.
+  static const _drawWait = Duration(seconds: 1);
+
+  /// The step the last request reached: whether it is drawn, and what
+  /// releases it.
+  ({Future<bool> drawn, Completer<void> release})? _shown;
+
   /// Completes to let the step on screen go, so its scenario can end.
   Completer<void>? _release;
 
@@ -108,7 +133,15 @@ class _ReplayPage {
     // would otherwise read as a pass.
     var report = reportTestException;
     reportTestException = (details, description) {
-      if (_stopping) return;
+      if (_stopping) {
+        // The stop itself, or a split's error wrapping it, is not news.
+        // Anything else raised past the step still goes to the console.
+        var said = '${details.exception}';
+        if (!said.contains(const _Stopped().toString())) {
+          print('[flutterware] After the step: $said\n${details.stack ?? ''}');
+        }
+        return;
+      }
       _onFailure?.call(details.exception);
       report(details, description);
     };
@@ -212,7 +245,10 @@ class _ReplayPage {
         if (data['type'] != ReplayMessages.run) return;
         var id = data['id'];
         unawaited(
-          submit(ReplayRequest.fromJson(data)).then((result) {
+          submit(
+            ReplayRequest.fromJson(data),
+            onDrawn: () => _post({'type': ReplayMessages.drawn, 'id': ?id}),
+          ).then((result) {
             _post({
               'type': ReplayMessages.result,
               'id': ?id,
@@ -239,11 +275,51 @@ class _ReplayPage {
     parent.postMessage(message.jsify(), '*'.toJS);
   }
 
-  /// Runs [request] after every request before it.
-  Future<ReplayResult> submit(ReplayRequest request) {
-    var result = _queue.then((_) => _replay(request));
+  /// Runs [request] after every request before it. [onDrawn] is called if
+  /// the answer went out before its step was drawn, once it is.
+  Future<ReplayResult> submit(
+    ReplayRequest request, {
+    void Function()? onDrawn,
+  }) {
+    var result = _queue.then((_) async {
+      _shown = null;
+      var result = await _replay(request);
+      if (_shown case (:var drawn, :var release)? when result.reached) {
+        // Waited for here, by the page, and not inside the scenario's run:
+        // whatever holds up the draw, the answer goes out. A hidden page
+        // gets no frames until it is shown, and its answer waits for none.
+        var inTime =
+            web.document.visibilityState == 'visible' &&
+            await _within(drawn, _drawWait);
+        if (!inTime && onDrawn != null) {
+          unawaited(
+            drawn.then((late) {
+              if (late && identical(_release, release)) onDrawn();
+            }),
+          );
+        }
+        return result.withDrawn(inTime);
+      }
+      return result;
+    });
     _queue = result.then((_) {}, onError: (_) {});
     return result;
+  }
+
+  /// Whether [drawn] says true within [limit], timed on the page's own
+  /// clock.
+  static Future<bool> _within(Future<bool> drawn, Duration limit) {
+    var answer = Completer<bool>();
+    var timer = Zone.root.createTimer(limit, () {
+      if (!answer.isCompleted) answer.complete(false);
+    });
+    unawaited(
+      drawn.then((value) {
+        timer.cancel();
+        if (!answer.isCompleted) answer.complete(value);
+      }),
+    );
+    return answer.future;
   }
 
   Future<void> _letGo() async {
@@ -362,7 +438,34 @@ class _ReplayPage {
       // would hold this step forever.
       await tester.runAsync(() async {
         var release = _release = Completer<void>();
-        var shown = _paint(tester);
+        ({ui.Size size, Future<bool> drawn, Future<void> Function() dispose})
+        shown;
+        try {
+          shown = _paint(tester);
+        } catch (error, stack) {
+          // Said in the answer, never only in the binding's report, which
+          // the page leaves out once the step is reached.
+          print('[flutterware] The step could not be shown: $error\n$stack');
+          _release = null;
+          reached.complete(
+            ReplayResult(
+              request: request,
+              point: point,
+              reached: false,
+              ok: false,
+              steps: steps,
+              ms: watch.elapsedMilliseconds,
+              assetsMs: fetched,
+              failures: [
+                ...failures,
+                'The step was reached and could not be shown: ${describeReplayFailure(error)}',
+              ],
+              missedAssets: missed.toList()..sort(),
+            ),
+          );
+          return;
+        }
+        _shown = (drawn: shown.drawn, release: release);
         reached.complete(
           ReplayResult(
             request: request,
@@ -380,7 +483,7 @@ class _ReplayPage {
           ),
         );
         await release.future;
-        shown.dispose();
+        await shown.dispose();
       });
       throw const _Stopped();
     };
@@ -581,27 +684,51 @@ class _ReplayPage {
   ///
   /// The engine takes a scene only from inside its own frame callback, and
   /// the fake-clock binding never runs one, so the frame is drawn from a real
-  /// one here, and again whenever the page is resized. It is captured first,
-  /// outside any frame: a hidden page gets no frames until it is shown, and
-  /// the answer should not wait for that.
-  ({ui.Size size, void Function() dispose}) _paint(WidgetTester tester) {
-    var view = tester.binding.renderViews.first;
-    var physical = tester.view.physicalSize;
+  /// one here, and again whenever the page is resized. What is drawn is the
+  /// tester's own layer tree, which the stopped scenario keeps until it is
+  /// released, so text and edges are drawn at the page's resolution rather
+  /// than scaled down from a picture of the device's screen.
+  ///
+  /// `drawn` completes once the frame is on the canvas, with false if the
+  /// engine cannot say. Disposing waits for a draw still in flight, so the
+  /// tree is never torn down under one.
+  ({ui.Size size, Future<bool> drawn, Future<void> Function() dispose}) _paint(
+    WidgetTester tester,
+  ) {
     // `layer`, not `debugLayer`: the page is built with asserts off, and
     // `debugLayer` answers only through one.
     // ignore: invalid_use_of_protected_member
-    var scene = view.layer!.buildScene(ui.SceneBuilder());
-    var frame = scene.toImageSync(
-      physical.width.ceil(),
-      physical.height.ceil(),
-    );
-    scene.dispose();
+    var root = tester.binding.renderViews.first.layer!;
+    var physical = tester.view.physicalSize;
+    var drawn = Completer<bool>();
+    Future<void>? inFlight;
     var dispatcher = ui.PlatformDispatcher.instance;
     var priorDraw = dispatcher.onDrawFrame;
     var priorBegin = dispatcher.onBeginFrame;
     var priorMetrics = dispatcher.onMetricsChanged;
     dispatcher.onBeginFrame = null;
-    dispatcher.onDrawFrame = () => _present(frame);
+    dispatcher.onDrawFrame = () {
+      Future<void>? rendering;
+      try {
+        rendering = _present(root, physical);
+      } catch (error, stack) {
+        print('[flutterware] The step could not be drawn: $error\n$stack');
+      }
+      if (rendering == null) {
+        if (!drawn.isCompleted) drawn.complete(false);
+        return;
+      }
+      var done = rendering.then(
+        (_) {
+          if (!drawn.isCompleted) drawn.complete(true);
+        },
+        onError: (Object _) {
+          if (!drawn.isCompleted) drawn.complete(false);
+        },
+      );
+      var before = inFlight;
+      inFlight = before == null ? done : Future.wait([before, done]);
+    };
     dispatcher.onMetricsChanged = () {
       priorMetrics?.call();
       dispatcher.scheduleFrame();
@@ -609,45 +736,81 @@ class _ReplayPage {
     dispatcher.scheduleFrame();
     return (
       size: physical / tester.view.devicePixelRatio,
-      dispose: () {
+      drawn: drawn.future,
+      dispose: () async {
         dispatcher.onDrawFrame = priorDraw;
         dispatcher.onBeginFrame = priorBegin;
         dispatcher.onMetricsChanged = priorMetrics;
-        frame.dispose();
+        if (!drawn.isCompleted) drawn.complete(false);
+        if (inFlight case var drawing?) {
+          await _within(drawing.then((_) => true), const Duration(seconds: 2));
+        }
       },
     );
   }
 
-  /// Draws [frame] into the page's own view, as large as fits, centered.
-  static void _present(ui.Image frame) {
+  /// Draws [root], a frame of [frame] physical pixels, into the page's own
+  /// view, as large as fits, centered. Returns the draw, done once it is on
+  /// the canvas, or null when there is nothing to draw on or the engine
+  /// cannot say when it is done.
+  static Future<void>? _present(ContainerLayer root, Size frame) {
     var real = ui.PlatformDispatcher.instance.implicitView;
-    if (real == null) return;
+    if (real == null || frame.isEmpty) return null;
     // The window's size, said out loud. The test binding renders each frame
     // at the device's size, and the page would otherwise keep that size.
     var limits = real.physicalConstraints;
     var biggest = Size(limits.maxWidth, limits.maxHeight);
     var size = biggest.isFinite ? biggest : real.physicalSize;
-    if (size.isEmpty) return;
-    var width = frame.width.toDouble();
-    var height = frame.height.toDouble();
-    var scale = math.min(size.width / width, size.height / height);
-    var shown = Size(width * scale, height * scale);
+    if (size.isEmpty) return null;
+    var scale = math.min(size.width / frame.width, size.height / frame.height);
+    var shown = frame * scale;
     var at = Offset(
       (size.width - shown.width) / 2,
       (size.height - shown.height) / 2,
     );
-    var recorder = ui.PictureRecorder();
-    Canvas(recorder).drawImageRect(
-      frame,
-      Offset.zero & Size(width, height),
-      at & shown,
-      Paint()..filterQuality = FilterQuality.medium,
-    );
     var builder = ui.SceneBuilder()
-      ..addPicture(Offset.zero, recorder.endRecording());
-    var scene = builder.build();
-    real.render(scene, size: size);
-    scene.dispose();
+      ..pushClipRect(at & shown)
+      ..pushTransform(
+        (Matrix4.translationValues(
+          at.dx,
+          at.dy,
+          0,
+        )..scaleByDouble(scale, scale, 1, 1)).storage,
+      );
+    // `buildScene` adds the tree under the two layers pushed above and
+    // builds the scene from the builder's root.
+    // ignore: invalid_use_of_protected_member
+    var scene = root.buildScene(builder);
+    var rendering = _render(real, scene, size);
+    if (rendering == null) {
+      scene.dispose();
+      return null;
+    }
+    return rendering.whenComplete(scene.dispose);
+  }
+
+  /// `view.render(scene, size: size)`, and when it is done.
+  ///
+  /// `FlutterView.render` returns nothing, and the web engine draws a scene
+  /// asynchronously, so a page that only calls it cannot tell its answer's
+  /// step from an earlier one still on the canvas. The engine's own methods
+  /// behind it say when the draw is done. They are not public API, so when
+  /// they are not there this falls back to `render` and returns null.
+  static Future<void>? _render(ui.FlutterView view, ui.Scene scene, Size size) {
+    try {
+      // ignore: avoid_dynamic_calls
+      (view as dynamic).handleFrameworkResize(size);
+      // ignore: avoid_dynamic_calls
+      var drawing = (ui.PlatformDispatcher.instance as dynamic).render(
+        scene,
+        view,
+      );
+      if (drawing is Future<void>) return drawing;
+      return null;
+    } on NoSuchMethodError {
+      view.render(scene, size: size);
+      return null;
+    }
   }
 }
 

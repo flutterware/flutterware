@@ -96,6 +96,12 @@ The answer says:
 | `width`, `height` | The device's size, so you can give the iframe its shape. |
 | `boxes` | Where each key in `locate` is drawn: `key`, `left`, `top`, `width`, `height`, one per place it shows. |
 | `ms` | How long the step took to show. |
+| `drawn` | The step was on the page when the answer was sent. |
+
+When `drawn` is false, the page still shows an earlier step. This happens when
+the page is hidden, since a hidden page draws nothing. The page then sends
+`flutterware.replay.drawn` with the same `id` once the step is on screen. If
+another request runs first, that message never comes.
 
 The phone is scaled to fit the iframe and centered. The page never takes the
 focus, so a translator can keep typing in the page around it.
@@ -147,10 +153,15 @@ the keys it shows and where each one was drawn:
 ```
 
 A box is `[key, address, left, top, width, height]`, in the device's pixels,
-measured on the device and in the language `point` names. It is exact,
-including for text the app builds from a placeholder, like `Thanks {name}`:
-the run that writes the index traces every string to its key. So an editor
-can outline a key from the index alone, before anything replays.
+measured on the device and in the language `point` names. It covers text the
+app builds from a placeholder too, like `Thanks {name}`: the run that writes
+the index traces every string to its key. So an editor can outline a key from
+the index alone, before anything replays.
+
+The index is measured by `flutter test`, and the page lays text out in the
+browser. The two can differ by a few pixels, and more when a line breaks in a
+different place, which moves everything below it. To draw over what the page
+shows, use the answer's `boxes`.
 
 ## What does not work in a page
 
