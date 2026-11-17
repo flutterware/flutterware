@@ -223,17 +223,28 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// checkouts of it the client's order decides — the measured client lists
   /// the directory its session works in first, and the protocol promises no
   /// order at all.
+  ///
+  /// A path belongs to the innermost checkout holding it. A client can make
+  /// its worktrees inside the main checkout's directory, and git lists the
+  /// main checkout first, so the first checkout holding a path would be the
+  /// main one for every root.
   @visibleForTesting
   static String? checkoutIn({
     required List<String> roots,
     required String start,
     required List<String> checkouts,
   }) {
-    String? checkoutOf(String path) => checkouts
-        .where(
-          (checkout) => p.equals(checkout, path) || p.isWithin(checkout, path),
-        )
-        .firstOrNull;
+    String? checkoutOf(String path) {
+      String? innermost;
+      for (var checkout in checkouts) {
+        if (!p.equals(checkout, path) && !p.isWithin(checkout, path)) continue;
+        if (innermost == null || p.isWithin(innermost, checkout)) {
+          innermost = checkout;
+        }
+      }
+      return innermost;
+    }
+
     var home = checkoutOf(start);
     if (home == null) return null;
     for (var root in roots) {

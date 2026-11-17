@@ -128,6 +128,23 @@ void main() {
       expect(handles.single.entrypoint, 'a.dart');
     });
 
+    test('leaves out a worktree nested inside the one it filters to', () {
+      var nested = Directory(p.join(worktree.path, '.worktrees', 'feature'))
+        ..createSync(recursive: true);
+      File(p.join(nested.path, '.git')).writeAsStringSync('gitdir: elsewhere');
+      _writeHandle(runDir, worktree, device: 'phone', entrypoint: 'a.dart');
+      _writeHandle(runDir, nested, device: 'sim', entrypoint: 'b.dart');
+
+      expect(
+        scanRunHandles(runDir.path, underRoot: worktree.path).single.entrypoint,
+        'a.dart',
+      );
+      expect(
+        scanRunHandles(runDir.path, underRoot: nested.path).single.entrypoint,
+        'b.dart',
+      );
+    });
+
     test('ignores a handle it cannot read', () {
       File(p.join(runDir.path, 'app-torn-1.json')).writeAsStringSync('{"wor');
       expect(scanRunHandles(runDir.path), isEmpty);

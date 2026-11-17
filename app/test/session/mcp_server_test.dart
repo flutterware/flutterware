@@ -917,12 +917,15 @@ void main() {
       return connection;
     }
 
-    /// A repository with one linked worktree on branch `feature`.
-    ({String main, String linked}) repository() {
+    /// A repository with one linked worktree on branch `feature`, beside the
+    /// main checkout or, when [nested], inside it.
+    ({String main, String linked}) repository({bool nested = false}) {
       var base = Directory.systemTemp.createTempSync('fw_roots');
       addTearDown(() => base.deleteSync(recursive: true));
       var main = p.join(base.resolveSymbolicLinksSync(), 'main');
-      var linked = p.join(base.resolveSymbolicLinksSync(), 'linked');
+      var linked = nested
+          ? p.join(main, '.worktrees', 'linked')
+          : p.join(base.resolveSymbolicLinksSync(), 'linked');
       Directory(main).createSync();
       void git(List<String> arguments) {
         var result = Process.runSync('git', [
@@ -953,6 +956,15 @@ void main() {
       var client = _RootsClient()
         ..addRoot(rootAt(repo.linked))
         ..addRoot(rootAt(repo.main));
+      var payload = await status(await connect(client, startedIn: repo.main));
+
+      expect(payload['root'], repo.linked);
+      expect(payload['worktree'], 'feature');
+    });
+
+    test('a linked worktree inside the main checkout is found too', () async {
+      var repo = repository(nested: true);
+      var client = _RootsClient()..addRoot(rootAt(repo.linked));
       var payload = await status(await connect(client, startedIn: repo.main));
 
       expect(payload['root'], repo.linked);
@@ -1014,6 +1026,40 @@ void main() {
 
       test('a start in none of the checkouts takes no root', () {
         expect(checkoutIn(['worktrees/feature'], start: 'elsewhere'), isNull);
+      });
+
+      // Git lists the main checkout first, and a worktree inside it is also
+      // inside the main checkout's directory.
+      group('with worktrees inside the main checkout', () {
+        var nested = [at('repo/main'), at('repo/main/.worktrees/feature')];
+
+        String? nestedIn(List<String> roots, {String start = 'repo/main'}) =>
+            FlutterwareMcpServer.checkoutIn(
+              roots: [for (var root in roots) at(root)],
+              start: at(start),
+              checkouts: nested,
+            );
+
+        test('a root in the nested worktree names it', () {
+          expect(
+            nestedIn(['repo/main/.worktrees/feature/lib']),
+            at('repo/main/.worktrees/feature'),
+          );
+        });
+
+        test('the same place in the nested worktree', () {
+          expect(
+            nestedIn(['repo/main/.worktrees/feature'], start: 'repo/main/app'),
+            at('repo/main/.worktrees/feature/app'),
+          );
+        });
+
+        test('a server started in the nested worktree finds the main one', () {
+          expect(
+            nestedIn(['repo/main'], start: 'repo/main/.worktrees/feature/app'),
+            at('repo/main/app'),
+          );
+        });
       });
     });
   });

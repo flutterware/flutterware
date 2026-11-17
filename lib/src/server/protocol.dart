@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/checkout_paths.dart';
 import 'frames.dart';
 
 export 'frames.dart';
@@ -144,6 +145,7 @@ class ServerHandle {
 ///
 /// Containment rather than equality, deliberately: a server in a monorepo runs
 /// from `repo/server_pkg/` and must still appear under the `repo` worktree.
+/// A worktree nested inside `repo` is not part of it, so its servers are not.
 /// Reads files and nothing else — liveness is decided by connecting, and this
 /// is called from places (`report`, `computeAll`) that must not open sockets.
 List<ServerHandle> scanServerHandles(String runDir, {String? underRoot}) {
@@ -163,9 +165,7 @@ List<ServerHandle> scanServerHandles(String runDir, {String? underRoot}) {
     }
     var handle = ServerHandle.tryRead(entity);
     if (handle == null) continue;
-    if (underRoot != null &&
-        !p.equals(underRoot, handle.projectRoot) &&
-        !p.isWithin(underRoot, handle.projectRoot)) {
+    if (underRoot != null && !isInCheckout(underRoot, handle.projectRoot)) {
       continue;
     }
     handles.add(handle);
