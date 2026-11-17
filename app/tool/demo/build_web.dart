@@ -64,9 +64,9 @@ Future<void> main(List<String> args) async {
       out,
       '--base-href',
       baseHref,
-      // Leaves out the service worker Flutter is retiring, which only ever
-      // showed up as a console error on this page.
-      '--pwa-strategy=none',
+      // Leaves out the service worker Flutter retired in 3.51, which only
+      // ever showed up as a console error on this page.
+      ...sdk.webBuildWithoutServiceWorker,
     ],
     workingDirectory: demo,
     mode: ProcessStartMode.inheritStdio,

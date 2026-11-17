@@ -103,6 +103,10 @@ void main() {
             return 0;
           };
 
+    File(p.join(sdk.path, 'bin', 'cache', 'flutter.version.json'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync(jsonEncode({'frameworkVersion': '3.50.2'}));
+
     var built = await builder.build(
       files: ['test/scenarios/shop_test.dart'],
       output: output,
@@ -114,6 +118,7 @@ void main() {
     expect(buildArguments, containsAll(['--wasm', '-O2']));
     expect(buildArguments, contains('--dart-define=dart.vm.product=false'));
     expect(buildArguments, contains('--dart-define=fw.matrix=declared'));
+    expect(buildArguments, contains('--pwa-strategy=none'));
     expect(File(builder.entryPoint).existsSync(), isTrue);
 
     expect(built.testsPassed, isFalse);
