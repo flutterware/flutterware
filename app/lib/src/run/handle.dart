@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+// ignore: implementation_imports
+import 'package:flutterware/src/utils/checkout_paths.dart';
 import 'package:path/path.dart' as p;
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -359,7 +361,8 @@ String runHandleKey(
 }
 
 /// The `app-*.json` handles in [runDir], newest first, optionally filtered to
-/// runs launched from inside [underRoot].
+/// runs launched from inside [underRoot], the checkout itself included. A run
+/// from a worktree nested inside [underRoot] is that worktree's.
 ///
 /// Reads files and nothing else — deciding liveness means opening a socket, and
 /// this is called from `report` and `computeAll`, which must not.
@@ -386,7 +389,8 @@ List<RunHandle> scanRunHandles(
     if (!name.startsWith('app-') || !name.endsWith('.json')) continue;
     var handle = RunHandle.tryParse(path, () => files.readString(path));
     if (handle == null) continue;
-    if (underRoot != null && !_isAtOrWithin(underRoot, handle.worktree)) {
+    if (underRoot != null &&
+        !isInCheckout(underRoot, handle.worktree, exists: files.exists)) {
       continue;
     }
     handles.add(handle);
@@ -394,12 +398,6 @@ List<RunHandle> scanRunHandles(
   handles.sort((a, b) => b.startedAt.compareTo(a.startedAt));
   return handles;
 }
-
-/// The worktree root itself counts, not only what is under it — the launcher
-/// runs from the checkout, so equality is the common case and `p.isWithin`
-/// alone would filter out every handle a worktree wrote about itself.
-bool _isAtOrWithin(String root, String path) =>
-    p.canonicalize(root) == p.canonicalize(path) || p.isWithin(root, path);
 
 /// What is actually still there, for one handle.
 ///
