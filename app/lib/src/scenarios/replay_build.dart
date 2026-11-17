@@ -8,6 +8,8 @@ import 'package:flutterware/scenario_replay_protocol.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/flutter_sdk.dart';
+
 /// What a replay build put on disk.
 class ScenarioReplayBuild {
   const ScenarioReplayBuild({
@@ -150,7 +152,8 @@ class ScenarioReplayBuilder {
       // Every language and device the folders declare, so a request can
       // name any of them.
       '--dart-define=fw.matrix=declared',
-      '--pwa-strategy=none',
+      ...FlutterSdkPath.ofFlutter(flutterExecutable)
+          .webBuildWithoutServiceWorker,
       if (offline) '--no-web-resources-cdn',
       '--target',
       p.relative(entryPoint, from: packageRoot),

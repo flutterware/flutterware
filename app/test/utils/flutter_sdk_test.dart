@@ -23,6 +23,14 @@ void main() {
     return at;
   }
 
+  FlutterSdkPath recorded(String at, Map<String, String> version) {
+    var sdk = FlutterSdkPath(fakeSdk(at));
+    File(p.join(at, 'bin', 'cache', 'flutter.version.json'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync(jsonEncode(version));
+    return sdk;
+  }
+
   test("the launcher's dart is the answer", () async {
     var sdk = fakeSdk(p.join(tmp.path, 'sdk'));
     var found = await FlutterSdkPath.findSdk(
@@ -71,14 +79,6 @@ void main() {
   // A cache key. A CI image keeps Flutter at one path across every upgrade, so
   // a key naming the path served the previous engine's pictures to the next.
   group('what an SDK is, rather than where', () {
-    FlutterSdkPath recorded(String at, Map<String, String> version) {
-      var sdk = FlutterSdkPath(fakeSdk(at));
-      File(p.join(at, 'bin', 'cache', 'flutter.version.json'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync(jsonEncode(version));
-      return sdk;
-    }
-
     test('two SDKs at one path are two identities', () {
       var at = p.join(tmp.path, 'sdk');
       var older = recorded(at, {
@@ -112,6 +112,47 @@ void main() {
 
       expect(sdk.identity, sdk.root);
       expect(sdk.version, isNull);
+    });
+  });
+
+  test('the SDK of a flutter is the directory above its bin', () {
+    var sdk = fakeSdk(p.join(tmp.path, 'sdk'));
+
+    expect(
+      FlutterSdkPath.ofFlutter(p.join(sdk, 'bin', 'flutter')).root,
+      p.canonicalize(sdk),
+    );
+  });
+
+  // 3.51 retired the caching service worker and fails a build that passes
+  // `--pwa-strategy`. Before it, a build without the flag adds a worker.
+  group('a web build without a service worker', () {
+    List<String> on(String version) => recorded(p.join(tmp.path, 'sdk'), {
+      'frameworkVersion': version,
+    }).webBuildWithoutServiceWorker;
+
+    test('passes --pwa-strategy=none before Flutter 3.51', () {
+      for (var version in ['3.47.0', '3.47.9', '3.50.0-0.4.pre', '3.50.2']) {
+        expect(on(version), ['--pwa-strategy=none'], reason: version);
+      }
+    });
+
+    test('passes nothing from 3.51 on', () {
+      for (var version in [
+        '3.51.0-0.1.pre',
+        '3.51.0-1.0.pre-12',
+        '3.51.0',
+        '3.52.1',
+        '4.0.0',
+      ]) {
+        expect(on(version), isEmpty, reason: version);
+      }
+    });
+
+    test('passes nothing for an SDK that recorded no version', () {
+      var sdk = FlutterSdkPath(fakeSdk(p.join(tmp.path, 'bare')));
+
+      expect(sdk.webBuildWithoutServiceWorker, isEmpty);
     });
   });
 }

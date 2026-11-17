@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'flutter_sdk.dart';
+
 /// The one data-free viewer bundle: `lib/main_export_web.dart`, compiled once
 /// into a fixed directory and copied beside whatever data file an export just
 /// wrote.
@@ -67,10 +69,12 @@ class ViewerBundle {
       '--output',
       viewerDir,
       // No service worker. An exported page is read once from a link, and the
-      // caching worker Flutter is retiring only delayed that read: the page
-      // loaded nothing until the worker had fetched its files and activated.
-      // With this the build still writes the file, empty.
-      '--pwa-strategy=none',
+      // caching worker Flutter retired in 3.51 only delayed that read: the
+      // page loaded nothing until the worker had fetched its files and
+      // activated. An older Flutter takes a flag for it, and still writes the
+      // file, empty.
+      ...FlutterSdkPath.ofFlutter(flutterExecutable)
+          .webBuildWithoutServiceWorker,
       // No Wasm dry run. `flutter build web` otherwise compiles the whole
       // program a second time, to Wasm, only to print whether it could have
       // been — advice about flutterware's own code that nobody reading an

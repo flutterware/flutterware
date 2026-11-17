@@ -22,7 +22,8 @@ void main() {
     cache = ShotCache(p.join(temp.path, 'shots'));
     exporter =
         ComparisonWebExporter(
-            flutterExecutable: 'flutter-not-invoked',
+            // Not invoked: only its recorded version is read.
+            flutterExecutable: p.join(temp.path, 'flutter', 'bin', 'flutter'),
             appToolRoot: temp.path,
           )
           ..debugCompile = (arguments) async {
@@ -94,9 +95,11 @@ void main() {
     });
   });
 
-  test(
-    'the viewer is built with no service worker and no Wasm dry run',
-    () async {
+  group('the viewer is built with no service worker and no Wasm dry run', () {
+    Future<List<String>> buildOn(String flutterVersion) async {
+      File(p.join(temp.path, 'flutter', 'bin', 'cache', 'flutter.version.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(jsonEncode({'frameworkVersion': flutterVersion}));
       var arguments = <String>[];
       var compile = exporter.debugCompile!;
       exporter.debugCompile = (given) {
@@ -112,11 +115,23 @@ void main() {
         against: 'origin/master',
         output: p.join(temp.path, 'out'),
       );
+      return arguments;
+    }
+
+    test('asking for no worker before Flutter 3.51', () async {
+      var arguments = await buildOn('3.50.0-0.4.pre');
 
       expect(arguments, contains('--pwa-strategy=none'));
       expect(arguments, contains('--no-wasm-dry-run'));
-    },
-  );
+    });
+
+    test('from 3.51, which writes none and refuses the flag', () async {
+      var arguments = await buildOn('3.51.0-0.1.pre');
+
+      expect(arguments, isNot(contains(startsWith('--pwa-strategy'))));
+      expect(arguments, contains('--no-wasm-dry-run'));
+    });
+  });
 
   void file(String key, int value, {int width = 4, int height = 4}) {
     cache.write(

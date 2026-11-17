@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:pub_semver/pub_semver.dart';
 
 import '../constants.dart';
 
@@ -9,6 +10,10 @@ class FlutterSdkPath {
   final String root;
 
   FlutterSdkPath(String path) : root = p.canonicalize(path);
+
+  /// The SDK whose `bin/flutter` is [flutter].
+  factory FlutterSdkPath.ofFlutter(String flutter) =>
+      FlutterSdkPath(p.dirname(p.dirname(flutter)));
 
   factory FlutterSdkPath.fromJson(Map<String, dynamic> json) =>
       FlutterSdkPath(json['root'] as String);
@@ -57,6 +62,25 @@ class FlutterSdkPath {
   /// Which Flutter this is — `3.48.0-0.2.pre` — as the SDK itself records it,
   /// or null when it records nothing yet.
   String? get version => _versionFile()?['frameworkVersion'] as String?;
+
+  /// The arguments that keep `flutter build web` from writing a caching
+  /// service worker: `--pwa-strategy=none` before Flutter 3.51, and nothing
+  /// from 3.51 on, which writes no worker and fails a build that passes the
+  /// flag. An SDK that records no version gets nothing too: a worker the page
+  /// does not need is better than a build that fails.
+  List<String> get webBuildWithoutServiceWorker {
+    var recorded = version;
+    if (recorded == null) return const [];
+    try {
+      return Version.parse(recorded) < _pwaStrategyRemoved
+          ? const ['--pwa-strategy=none']
+          : const [];
+    } on FormatException {
+      return const [];
+    }
+  }
+
+  static final _pwaStrategyRemoved = Version(3, 51, 0, pre: '0');
 
   /// What this SDK draws like, for a cache key: its framework and engine
   /// revisions, or [root] when it has not recorded them.
