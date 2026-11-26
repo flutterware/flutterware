@@ -48,7 +48,7 @@ dependencies:
   # Drop the constraint when Flutter's own `compileSdkVersion` reaches 37 —
   # `packages/flutter_tools/lib/src/android/gradle_utils.dart` is where it is
   # written. Measured 2026-08-24.
-  flutter_scene: ^0.23.0
+  flutter_scene: ^0.24.6
   flutter_secure_storage: ^11.2.0
   flutterware:
     path: ../..

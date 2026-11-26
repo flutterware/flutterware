@@ -66,7 +66,7 @@ dependencies:
   # `code_assets ^2.0.0`, which evicts `native_toolchain_c` and drags `sqlite3`
   # back a major version under the Server panel. 1.6.1 adds one package and
   # changes nothing else.
-  hooks_runner: 1.6.1
+  hooks_runner: 1.6.4
   # The generator's own parser, so the splash panel reads `web/index.html` back
   # the way `flutter_native_splash` wrote it.
   html:
