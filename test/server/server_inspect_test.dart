@@ -19,6 +19,23 @@ Future<Directory> shortTempDir() {
 
 const maxProbePathLength = 90;
 
+// Temporary diagnostic: FW_DIAG_ONLY names the tests to run, by index.
+final Set<int>? _diagOnly = Platform.environment['FW_DIAG_ONLY']
+    ?.split(',')
+    .where((s) => s.isNotEmpty)
+    .map(int.parse)
+    .toSet();
+var _diagIndex = 0;
+void _t(Object description, dynamic Function() body) {
+  var index = ++_diagIndex;
+  var only = _diagOnly;
+  test(
+    '#$index $description',
+    body,
+    skip: only != null && !only.contains(index) ? 'diag' : false,
+  );
+}
+
 void main() {
   group('gates', () {
     bool enabled({bool product = false, String? env, bool runDir = true}) =>
@@ -28,35 +45,35 @@ void main() {
           runDirExists: runDir,
         );
 
-    test('JIT with a run dir is on', () {
+    _t('JIT with a run dir is on', () {
       expect(enabled(), isTrue);
     });
 
-    test('product builds are inert', () {
+    _t('product builds are inert', () {
       expect(enabled(product: true), isFalse);
     });
 
-    test('no run dir is inert, even under JIT', () {
+    _t('no run dir is inert, even under JIT', () {
       expect(enabled(runDir: false), isFalse);
     });
 
-    test('FW_SERVER_INSPECT=1 overrides product and the run dir', () {
+    _t('FW_SERVER_INSPECT=1 overrides product and the run dir', () {
       expect(enabled(product: true, env: '1', runDir: false), isTrue);
     });
 
-    test('FW_SERVER_INSPECT=0 wins over everything', () {
+    _t('FW_SERVER_INSPECT=0 wins over everything', () {
       expect(enabled(env: '0'), isFalse);
     });
   });
 
   group('handle names', () {
-    test('are filename- and length-safe', () {
+    _t('are filename- and length-safe', () {
       expect(sanitizeServerName('bin/my server.dart'), 'bin-my-server-dart');
       expect(sanitizeServerName(''), 'server');
       expect(sanitizeServerName('x' * 60).length, 24);
     });
 
-    test('scan matches by containment, not equality', () async {
+    _t('scan matches by containment, not equality', () async {
       var dir = await shortTempDir();
       addTearDown(() => dir.delete(recursive: true));
       var handle = ServerHandle(
@@ -105,7 +122,7 @@ void main() {
       return ServerAttachClient.connect(handles.single);
     }
 
-    test('publishes a handle that describes the socket', () async {
+    _t('publishes a handle that describes the socket', () async {
       var handle = scanServerHandles(runDir.path).single;
       expect(handle.projectRoot, '/repo/app');
       expect(handle.name, 'api');
@@ -113,7 +130,7 @@ void main() {
       expect(File(handle.socketPath).existsSync(), isTrue);
     });
 
-    test('replays the ring on attach, then streams live', () async {
+    _t('replays the ring on attach, then streams live', () async {
       inspector.addEvent('http', {'path': '/one'});
       inspector.addEvent('http', {'path': '/two'}, rid: 'r1');
 
@@ -135,7 +152,7 @@ void main() {
       expect(events()[2].isReplay, isFalse);
     });
 
-    test('the ring drops oldest beyond its size', () async {
+    _t('the ring drops oldest beyond its size', () async {
       for (var i = 0; i < 8; i++) {
         inspector.addEvent('http', {'i': i});
       }
@@ -146,7 +163,7 @@ void main() {
       expect(client.received.first.payload['i'], 3);
     });
 
-    test(
+    _t(
       'details are held lazily, fetched by id, and evict by bytes',
       () async {
         inspector.addEvent(
@@ -188,7 +205,7 @@ void main() {
       },
     );
 
-    test('requests reach handlers; unknown methods answer with err', () async {
+    _t('requests reach handlers; unknown methods answer with err', () async {
       inspector.registerHandler('sql', 'explain', (params) {
         return {'plan': 'SCAN ${params['table']}'};
       });
@@ -204,7 +221,7 @@ void main() {
       );
     });
 
-    test('a handler throwing answers err, not a dead socket', () async {
+    _t('a handler throwing answers err, not a dead socket', () async {
       inspector.registerHandler('sql', 'explain', (_) {
         throw StateError('no such table');
       });
@@ -225,7 +242,7 @@ void main() {
       await _until(() => client.replayComplete);
     });
 
-    test('a knock — connect and close without attaching — is free', () async {
+    _t('a knock — connect and close without attaching — is free', () async {
       var handle = scanServerHandles(runDir.path).single;
       var probe = await Socket.connect(
         InternetAddress(handle.socketPath, type: InternetAddressType.unix),
@@ -241,7 +258,7 @@ void main() {
       expect(client.hello.pid, pid);
     });
 
-    test('a peer that asks to attach and hangs up before the answer costs '
+    _t('a peer that asks to attach and hangs up before the answer costs '
         'the server nothing', () async {
       FlutterwareServer.debugAttachInspector(inspector);
       // Enough history that the replay is still being written when the
@@ -274,14 +291,14 @@ void main() {
       expect(client.hello.pid, pid);
     });
 
-    test('stop deletes the handle and the socket', () async {
+    _t('stop deletes the handle and the socket', () async {
       var handle = scanServerHandles(runDir.path).single;
       await inspector.stop();
       expect(scanServerHandles(runDir.path), isEmpty);
       expect(File(handle.socketPath).existsSync(), isFalse);
     });
 
-    test(
+    _t(
       'a dead handle is deleted on the way past by attachToServer',
       () async {
         var dead = ServerHandle(
@@ -299,7 +316,7 @@ void main() {
       },
     );
 
-    test('a mute listener keeps its handle — slow is not dead', () async {
+    _t('a mute listener keeps its handle — slow is not dead', () async {
       // Accepts the connection and never answers the hello: what a live
       // server swamped past the handshake window looks like. Deleting its
       // handle here is what once made a busy server vanish from every list
@@ -333,7 +350,7 @@ void main() {
       expect(File(busy.handlePath!).existsSync(), isTrue);
     });
 
-    test('activation cleans up a dead predecessor of the same server', () async {
+    _t('activation cleans up a dead predecessor of the same server', () async {
       var stale = ServerHandle(
         projectRoot: '/repo/app',
         name: 'api',
@@ -391,7 +408,7 @@ void main() {
       return client.received;
     }
 
-    test('span times the body and stamps the zone correlation id', () async {
+    _t('span times the body and stamps the zone correlation id', () async {
       var result = await runZoned(
         () => FlutterwareServer.span('sql', {'query': 'select 1'}, () async {
           await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -408,7 +425,7 @@ void main() {
       expect(events.single.payload['ms'], greaterThan(1));
     });
 
-    test('work handed off keeps the step it was queued under', () async {
+    _t('work handed off keeps the step it was queued under', () async {
       // A request queues a job, keeping the step with it; the job runs later,
       // outside the request's zone, and re-enters the step.
       String? queued;
@@ -430,7 +447,7 @@ void main() {
       expect(events.map((e) => e.payload['step']), ['ana.3', null]);
     });
 
-    test('a job runs under the step that queued it, as a request of its '
+    _t('a job runs under the step that queued it, as a request of its '
         'own, and says when it started and ended', () async {
       var result = await FlutterwareServer.job(
         'thumbnail',
@@ -464,7 +481,7 @@ void main() {
       expect(failed.payload['error'], contains('no file'));
     });
 
-    test(
+    _t(
       'a reloadable handler is built again on reassemble, from the code '
       'it has then; a build that throws leaves the last one serving',
       () async {
@@ -493,7 +510,7 @@ void main() {
       },
     );
 
-    test('onReassemble runs each callback in turn, awaited, after one that '
+    _t('onReassemble runs each callback in turn, awaited, after one that '
         'throws too', () async {
       var ran = <String>[];
       FlutterwareServer.onReassemble(() async {
@@ -507,7 +524,7 @@ void main() {
       expect(errors.whereType<StateError>(), hasLength(1));
     });
 
-    test('a failing span reports the error and rethrows', () async {
+    _t('a failing span reports the error and rethrows', () async {
       await expectLater(
         () => FlutterwareServer.spanSync('sql', {'query': 'boom'}, () {
           throw StateError('bad SQL');
@@ -518,7 +535,7 @@ void main() {
       expect(events.single.payload['error'], contains('bad SQL'));
     });
 
-    test('configure after activation throws instead of silently ignoring', () {
+    _t('configure after activation throws instead of silently ignoring', () {
       FlutterwareServer.event('log', {'message': 'activates'});
       expect(() => FlutterwareServer.configure(name: 'late'), throwsStateError);
     });
