@@ -127,6 +127,7 @@ class ReplayIndexRecorder {
                       box.rect.top,
                       box.rect.width,
                       box.rect.height,
+                      (box.visible * 100).roundToDouble() / 100,
                     ],
                 ],
               },
@@ -171,7 +172,8 @@ class _ScenarioRecord {
   final String? file;
   final steps = <String, Set<String>>{};
   final verbs = <String, String?>{};
-  final boxes = <String, List<({String key, String at, Rect rect})>>{};
+  final boxes =
+      <String, List<({String key, String at, Rect rect, double visible})>>{};
   final points = <String, String>{};
   final assets = <String>{};
 }
@@ -279,7 +281,7 @@ void _visitShown(
 /// One piece of text on screen: a span of a paragraph, or the text of a
 /// widget registered with `indexTranslationsIn`.
 class ShownText {
-  ShownText(this.at, this.text, this._rect);
+  ShownText(this.at, this.text, this._rect, this._visible);
 
   /// Where it is, in a form that names the same text on the next run of the
   /// same step: `p3.1` is the second span with text in the fourth paragraph
@@ -291,8 +293,15 @@ class ShownText {
 
   final Rect Function() _rect;
 
+  final double Function(Rect rect) _visible;
+
   /// Where it is drawn, in the view's logical pixels.
   Rect get rect => _rect();
+
+  /// How much of [rect] a person sees, from 0 to 1. Text is laid out where
+  /// nobody can see it: scrolled out of its list, past the edge of the
+  /// screen, or under a bar drawn over it.
+  double get visible => _visible(rect);
 }
 
 /// Every piece of text on screen, in the order a walk of the screen meets
@@ -333,7 +342,7 @@ List<ShownText> shownTexts(WidgetTester tester) {
                   .map((box) => box.toRect())
                   .reduce((a, b) => a.expandToInclude(b)),
             );
-          }),
+          }, (rect) => _visibleShare(tester, render, view, rect)),
         );
         offset += text.length;
       }
@@ -358,6 +367,7 @@ List<ShownText> shownTexts(WidgetTester tester) {
               'w${widgets++}',
               text,
               () => _inView(render, views[render]!, Offset.zero & render.size),
+              (rect) => _visibleShare(tester, render, views[render]!, rect),
             ),
           );
         }
@@ -376,15 +386,17 @@ List<ShownText> shownTexts(WidgetTester tester) {
 /// The index's half of locating a key. It runs where every string the
 /// catalogs handed out is its own object, so a key is named exactly,
 /// placeholders included.
-List<({String key, String at, Rect rect})> keyBoxes(WidgetTester tester) => [
+List<({String key, String at, Rect rect, double visible})> keyBoxes(
+  WidgetTester tester,
+) => [
   for (var text in shownTexts(tester))
     if (TranslationIndex.keyOf(text.text) case var key?)
       if (text.rect case var rect when !rect.isEmpty)
-        (key: '$key', at: text.at, rect: rect),
+        (key: '$key', at: text.at, rect: rect, visible: text.visible),
 ];
 
-/// Where each of [keys] (`catalog/key`) is drawn at this step, in the view's
-/// logical pixels: a rectangle per place it shows.
+/// Where each of [keys] (`catalog/key`) is drawn at this step: the text at
+/// each place it shows, for its [ShownText.rect] and [ShownText.visible].
 ///
 /// [addresses] are where the index found each key at this step. They tell
 /// apart two places showing the same words, and follow a key under a draft,
@@ -392,7 +404,7 @@ List<({String key, String at, Rect rect})> keyBoxes(WidgetTester tester) => [
 /// address counts only when the text there is still the key's: a page that
 /// draws another screen at this step has other text at the same address. A
 /// key with no such address is looked for over the whole screen.
-Map<String, List<Rect>> locateKeys(
+Map<String, List<ShownText>> locateKeys(
   WidgetTester tester,
   Iterable<String> keys, {
   Map<String, List<String>> addresses = const {},
@@ -400,21 +412,21 @@ Map<String, List<Rect>> locateKeys(
   var texts = shownTexts(tester);
   var byAddress = {for (var text in texts) text.at: text};
   var read = TranslationIndex.read;
-  var found = <String, List<Rect>>{};
-  void add(String key, Rect rect) {
-    if (!rect.isEmpty) (found[key] ??= []).add(rect);
+  var found = <String, List<ShownText>>{};
+  void add(String key, ShownText text) {
+    if (!text.rect.isEmpty) (found[key] ??= []).add(text);
   }
 
   for (var key in keys) {
     var words = _wordsOf(key, read);
     for (var at in addresses[key] ?? const <String>[]) {
       if (byAddress[at] case var text? when _isKeys(text, key, words)) {
-        add(key, text.rect);
+        add(key, text);
       }
     }
     if (found.containsKey(key)) continue;
     for (var text in texts) {
-      if (_isKeys(text, key, words)) add(key, text.rect);
+      if (_isKeys(text, key, words)) add(key, text);
     }
   }
   return found;
@@ -471,6 +483,74 @@ String? _wordsOf(String key, Map<String, Map<String, String>> read) {
       TranslationIndex.drafts[key] ??
       read[key.substring(0, slash)]?[key.substring(slash + 1)];
   return words == null || words.isEmpty ? null : words;
+}
+
+/// Points sampled across a text to measure how much of it is seen.
+const _visibleColumns = 5;
+const _visibleRows = 3;
+
+/// How much of [rect], the text [render] draws, a person sees, from 0 to 1:
+/// the share of points across it that are on the screen, inside every clip
+/// above [render], and not under something drawn over it.
+double _visibleShare(
+  WidgetTester tester,
+  RenderObject render,
+  RenderView view,
+  Rect rect,
+) {
+  if (rect.isEmpty) return 0;
+  var clip = Offset.zero & view.size;
+  var child = render;
+  for (var parent = render.parent; parent != null; parent = parent.parent) {
+    if (parent.describeApproximatePaintClip(child) case var own?) {
+      clip = clip.intersect(_inView(parent, view, own));
+    }
+    child = parent;
+  }
+  var seen = 0;
+  for (var row = 0; row < _visibleRows; row++) {
+    for (var column = 0; column < _visibleColumns; column++) {
+      var point = Offset(
+        rect.left + rect.width * (column + .5) / _visibleColumns,
+        rect.top + rect.height * (row + .5) / _visibleRows,
+      );
+      if (clip.contains(point) && _reaches(tester, view, render, point)) {
+        seen++;
+      }
+    }
+  }
+  return seen / (_visibleRows * _visibleColumns);
+}
+
+/// Whether a tap at [point] lands on [render]: on it, on what it holds, or
+/// on what holds it when it ignores pointers itself. Anything else there is
+/// drawn over it, except a text field's input, which lies over its own hint
+/// and draws nothing where it is empty.
+bool _reaches(
+  WidgetTester tester,
+  RenderView view,
+  RenderObject render,
+  Offset point,
+) {
+  var result = HitTestResult();
+  tester.binding.hitTestInView(result, point, view.flutterView.viewId);
+  for (var entry in result.path) {
+    // The deepest render object; a span of the text is not one.
+    if (entry.target case RenderObject hit) {
+      return identical(hit, render) ||
+          _holds(hit, render) ||
+          _holds(render, hit) ||
+          hit is RenderEditable;
+    }
+  }
+  return false;
+}
+
+bool _holds(RenderObject ancestor, RenderObject descendant) {
+  for (var at = descendant.parent; at != null; at = at.parent) {
+    if (identical(at, ancestor)) return true;
+  }
+  return false;
 }
 
 /// [rect], in [render]'s coordinates, in [view]'s logical pixels. The view's

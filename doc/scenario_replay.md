@@ -94,7 +94,7 @@ The answer says:
 | `failures` | What failed, in words. |
 | `missedAssets` | Assets the app read that the index did not list. The page fetched them while the scenario waited. Rebuild with `--matrix=declared` to list them. |
 | `width`, `height` | The device's size, so you can give the iframe its shape. |
-| `boxes` | Where each key in `locate` is drawn: `key`, `left`, `top`, `width`, `height`, one per place it shows. |
+| `boxes` | Where each key in `locate` is drawn: `key`, `left`, `top`, `width`, `height` and `visible`, one per place it shows. |
 | `unlocated` | The keys in `locate` drawn nowhere on the step. |
 | `ms` | How long the step took to show. |
 | `drawn` | The step was on the page when the answer was sent. |
@@ -123,12 +123,21 @@ const top = (h - result.height * scale) / 2;
 //   width = box.width * scale, height = box.height * scale
 ```
 
+A box's `visible` is how much of it a person sees, from 0 to 1. Text is laid
+out where nobody sees it: scrolled out of its list, past the edge of the
+screen, or under a bar drawn over it. Such a box has `visible` at 0, and is
+better left without an outline.
+
 The page finds each key at the address the index recorded for it, so the
 box follows the text as a draft or another language changes its length.
 Placeholders are found too. An address counts only while the text there is
 still the key's. A key the index did not see at that step is looked for by
 its words: the draft, else the catalog's text. A key on a screen hidden
 under another one is not found, and is listed in `unlocated`.
+
+The page also offers
+`flutterwareReplay.run(request)` and `flutterwareReplay.scenarios()` in its
+console.
 
 ### When the page draws another screen
 
@@ -140,32 +149,36 @@ If the step shows none of the keys the index saw there, `failures` says so
 and `ok` is false. Fix the app, so the step is the same in both, rather than
 trusting the picture.
 
-The page also offers
-`flutterwareReplay.run(request)` and `flutterwareReplay.scenarios()` in its
-console.
-
 ## Find where a key appears
 
-`replay_index.json`, beside the page, lists every key with the steps that show
-it:
+`replay_index.json`, beside the page, lists every key with the steps a person
+sees it at, best first: where most of the key is seen, then the step fewest
+steps into its scenario. A step where the key is laid out and nobody sees it
+is left out, so the first entry for a scenario is the one to show.
 
 ```json
 "shop/total": [
-  {"file": "test/scenarios/shop_test.dart", "scenario": "Order a cappuccino", "position": "#5"}
+  {"file": "test/scenarios/shop_test.dart", "scenario": "Order a cappuccino", "position": "#5", "visible": 1.0}
 ]
 ```
 
-Each entry is a request, ready to send. Its `scenarios` list each step with
-the keys it shows and where each one was drawn:
+Each entry is a request, ready to send, with how much of the key it shows.
+An index written by a flutterware that did not measure this has no `visible`,
+and lists the steps in the order it reached them.
+
+Its `scenarios` list each step with the keys it shows and where each one was
+drawn:
 
 ```json
 {"position": "#5", "point": "iPhone 16 · en", "boxes": [
-  ["shop/total", "p11.0", 24.1, 730.2, 36.8, 18.8]
+  ["shop/total", "p11.0", 24.1, 730.2, 36.8, 18.8, 1.0]
 ]}
 ```
 
-A box is `[key, address, left, top, width, height]`, in the device's pixels,
-measured on the device and in the language `point` names. It covers text the
+A box is `[key, address, left, top, width, height, visible]`, in the device's
+pixels, measured on the device and in the language `point` names. `visible`
+is the share of points across the box that are on the screen, inside every
+clip around the text, and not under something drawn over it. It covers text the
 app builds from a placeholder too, like `Thanks {name}`: the run that writes
 the index traces every string to its key. So an editor can outline a key from
 the index alone, before anything replays.

@@ -300,6 +300,7 @@ class ReplayBox {
     required this.top,
     required this.width,
     required this.height,
+    this.visible = 1,
   });
 
   final String key;
@@ -308,12 +309,18 @@ class ReplayBox {
   final double width;
   final double height;
 
+  /// How much of the box a person sees, from 0 to 1: none of it when it is
+  /// scrolled out of its list, past the edge of the screen or under
+  /// something drawn over it.
+  final double visible;
+
   Map<String, Object?> toJson() => {
     'key': key,
     'left': _round(left),
     'top': _round(top),
     'width': _round(width),
     'height': _round(height),
+    'visible': _share(visible),
   };
 }
 
@@ -525,25 +532,67 @@ class ReplayIndex {
           if (step.position == position) step,
   ];
 
-  /// Every key shown, with where: the steps a translator can be shown it on.
+  /// Every key shown, with the steps a translator can be shown it on, best
+  /// first: where most of it is seen, then fewest steps into its scenario,
+  /// then the index's order.
+  ///
+  /// A step where the key is laid out and nobody sees it (scrolled out of
+  /// its list, past the edge of the screen, under a bar) is left out. A step
+  /// that measured nothing about the key comes after the measured ones, in
+  /// the index's order: an index written before boxes were measured, or a
+  /// key shown only at another point of the matrix than the one that drew
+  /// the boxes.
   Map<String, List<ReplayStepRef>> get keys {
-    var keys = <String, List<ReplayStepRef>>{};
+    var places = <String, List<({ReplayStepRef ref, int depth, int order})>>{};
+    var order = 0;
     for (var scenario in scenarios) {
+      var positions = [for (var step in scenario.steps) step.position];
       for (var step in scenario.steps) {
+        var depth = stepsInto(step.position, positions);
         for (var key in step.keys) {
-          (keys[key] ??= []).add(
-            ReplayStepRef(
+          double? visible;
+          for (var box in step.boxes) {
+            if (box.key != key) continue;
+            if (box.visible case var seen? when seen > (visible ?? -1)) {
+              visible = seen;
+            }
+          }
+          if (visible == 0) continue;
+          (places[key] ??= []).add((
+            ref: ReplayStepRef(
               file: scenario.file,
               scenario: scenario.scenario,
               position: step.position,
+              visible: visible,
             ),
-          );
+            depth: depth,
+            order: order++,
+          ));
         }
       }
     }
-    return Map.fromEntries(
-      keys.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-    );
+    int best(
+      ({ReplayStepRef ref, int depth, int order}) a,
+      ({ReplayStepRef ref, int depth, int order}) b,
+    ) {
+      switch ((a.ref.visible, b.ref.visible)) {
+        case (null, null):
+          break;
+        case (null, _):
+          return 1;
+        case (_, null):
+          return -1;
+        case (var x?, var y?):
+          if (x != y) return y.compareTo(x);
+          if (a.depth != b.depth) return a.depth.compareTo(b.depth);
+      }
+      return a.order.compareTo(b.order);
+    }
+
+    return {
+      for (var key in places.keys.toList()..sort())
+        key: [for (var place in places[key]!..sort(best)) place.ref],
+    };
   }
 
   ReplayManifest get manifest {
@@ -664,6 +713,7 @@ class ReplayIndexBox {
     required this.top,
     required this.width,
     required this.height,
+    this.visible,
   });
 
   final String key;
@@ -673,6 +723,10 @@ class ReplayIndexBox {
   final double width;
   final double height;
 
+  /// How much of the box a person sees, from 0 to 1. Null in an index
+  /// written before it was measured.
+  final double? visible;
+
   factory ReplayIndexBox.fromJson(List<Object?> json) => ReplayIndexBox(
     key: '${json[0]}',
     at: '${json[1]}',
@@ -680,6 +734,7 @@ class ReplayIndexBox {
     top: (json[3]! as num).toDouble(),
     width: (json[4]! as num).toDouble(),
     height: (json[5]! as num).toDouble(),
+    visible: json.length > 6 ? (json[6] as num?)?.toDouble() : null,
   );
 
   List<Object?> toJson() => [
@@ -689,6 +744,7 @@ class ReplayIndexBox {
     _round(top),
     _round(width),
     _round(height),
+    if (visible case var visible?) _share(visible),
   ];
 }
 
@@ -698,17 +754,58 @@ class ReplayStepRef {
     required this.file,
     required this.scenario,
     required this.position,
+    this.visible,
   });
 
   final String file;
   final String scenario;
   final String position;
 
+  /// How much of the key a person sees at this step, from 0 to 1, where it
+  /// is seen best. Null when the step measured nothing about it.
+  final double? visible;
+
   Map<String, Object?> toJson() => {
     'file': file,
     'scenario': scenario,
     'position': position,
+    'visible': ?visible,
   };
+}
+
+/// How many steps a scenario runs to reach [position], among the
+/// [positions] it records: the steps before each split on the way, then the
+/// step's own number. `1#2` after a trunk of three steps is the fifth.
+int stepsInto(String position, Iterable<String> positions) {
+  var (path, step) = _parsePosition(position);
+  var before = <String, int>{};
+  for (var other in positions) {
+    var (otherPath, otherStep) = _parsePosition(other);
+    if (otherPath.length >= path.length) continue;
+    var onTheWay = true;
+    for (var i = 0; i < otherPath.length; i++) {
+      if (otherPath[i] != path[i]) onTheWay = false;
+    }
+    if (!onTheWay) continue;
+    var at = otherPath.join('.');
+    if (otherStep > (before[at] ?? 0)) before[at] = otherStep;
+  }
+  return step + before.values.fold(0, (sum, steps) => sum + steps);
+}
+
+/// The branches taken and the step number of a position: `1.0#2` is
+/// `([1, 0], 2)`.
+(List<int>, int) _parsePosition(String position) {
+  var hash = position.indexOf('#');
+  if (hash < 0) return (const [], 0);
+  var path = position.substring(0, hash);
+  return (
+    [
+      if (path.isNotEmpty)
+        for (var part in path.split('.')) int.tryParse(part) ?? 0,
+    ],
+    int.tryParse(position.substring(hash + 1)) ?? 0,
+  );
 }
 
 /// Orders positions the way a scenario reaches them: by branch path, then by
@@ -733,3 +830,5 @@ List<String> _strings(Object? value) => [
 ];
 
 double _round(double value) => (value * 10).roundToDouble() / 10;
+
+double _share(double value) => (value * 100).roundToDouble() / 100;

@@ -424,15 +424,17 @@ class _ReplayPage {
             const {},
       );
       var boxes = [
-        for (var MapEntry(:key, value: rects) in located.entries)
-          for (var rect in rects)
-            ReplayBox(
-              key: key,
-              left: rect.left,
-              top: rect.top,
-              width: rect.width,
-              height: rect.height,
-            ),
+        for (var MapEntry(:key, value: texts) in located.entries)
+          for (var text in texts)
+            if (text.rect case var rect)
+              ReplayBox(
+                key: key,
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+                visible: text.visible,
+              ),
       ];
       var unlocated = [
         for (var key in request.locate)
