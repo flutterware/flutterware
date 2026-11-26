@@ -222,13 +222,11 @@ void main() {
       scenarioStepHook = (step) {
         recorded = keyBoxes(step.tester);
         var thanks = recorded.firstWhere((box) => box.key == 'shop/thanks');
-        // Found by address alone, as a page does where words cannot name
-        // the key: the name asked for is not one the text knows.
         again = locateKeys(
           step.tester,
-          ['shop/elsewhere'],
+          ['shop/thanks'],
           addresses: {
-            'shop/elsewhere': [thanks.at],
+            'shop/thanks': [thanks.at],
           },
         );
       };
@@ -243,7 +241,8 @@ void main() {
       var thanks = recorded.last;
       expect(thanks.at, 'p1.0');
       expect(thanks.rect.top, closeTo(100, 5));
-      expect(again['shop/elsewhere'], [thanks.rect]);
+      // Found again at its address, though its words are not the catalog's.
+      expect(again['shop/thanks'], [thanks.rect]);
     });
     scenario('in the run that writes it', (s) async {
       var t = indexTranslations('shop');
@@ -263,6 +262,77 @@ void main() {
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  });
+
+  group('a step that draws another screen than the index recorded', () {
+    late List<({String key, String at, Rect rect})> recorded;
+    String? sameScreen;
+    late Set<String> addressesShown;
+    late Map<String, List<Rect>> located;
+    String? otherScreen;
+    setUp(() {
+      TranslationIndex.recording = true;
+      scenarioStepHook = (step) {
+        if (step.position == '#1') recorded = keyBoxes(step.tester);
+        var keys = {for (var box in recorded) box.key};
+        if (step.position == '#1') {
+          sameScreen = describeOtherScreen(step.tester, '#1', keys);
+          return;
+        }
+        // The second step stands for the page's first: the same step, where
+        // the app drew another screen than it did under `flutter test`.
+        addressesShown = {for (var text in shownTexts(step.tester)) text.at};
+        located = locateKeys(
+          step.tester,
+          ['shop/update_message'],
+          addresses: {
+            for (var box in recorded) box.key: [box.at],
+          },
+        );
+        otherScreen = describeOtherScreen(step.tester, '#1', keys);
+      };
+    });
+    tearDown(() {
+      TranslationIndex.recording = false;
+      TranslationIndex.reset();
+      expect(sameScreen, isNull);
+      var message = recorded.firstWhere(
+        (box) => box.key == 'shop/update_message',
+      );
+      // Other text sits at the address the index gave the key.
+      expect(addressesShown, contains(message.at));
+      expect(located, isEmpty);
+      expect(otherScreen, contains('not the screen `flutter test` showed'));
+      expect(otherScreen, contains('shop/update_message'));
+      expect(otherScreen, contains('shop/update_title'));
+    });
+    scenario('boxes nothing and says so', (s) async {
+      var t = indexTranslations('shop');
+      await s.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Column(
+              children: [
+                Text(t('update_title', 'Update the app')),
+                Text(t('update_message', 'A new version is out')),
+              ],
+            ),
+          ),
+        ),
+      );
+      await s.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Column(
+              children: [
+                const Text('Good morning'),
+                Text(t('week', 'Your week')),
               ],
             ),
           ),

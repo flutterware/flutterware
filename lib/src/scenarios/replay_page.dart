@@ -31,7 +31,8 @@ import 'package:web/web.dart' as web;
 import '../translations/index.dart';
 import 'default_fonts.dart';
 import 'replay_hooks.dart';
-import 'replay_index.dart' show assetKeyOfMessage, locateKeys;
+import 'replay_index.dart'
+    show assetKeyOfMessage, describeOtherScreen, locateKeys;
 import 'replay_protocol.dart';
 
 /// One test file the replay page can run, as the generated entry point
@@ -411,18 +412,19 @@ class _ReplayPage {
       if (tester.takeException() case var pending?) {
         failures.add(describeReplayFailure(pending as Object));
       }
+      var located = locateKeys(
+        tester,
+        request.locate,
+        addresses:
+            _index?.addressesAt(
+              request.file,
+              request.scenario,
+              request.position,
+            ) ??
+            const {},
+      );
       var boxes = [
-        for (var MapEntry(:key, value: rects) in locateKeys(
-          tester,
-          request.locate,
-          addresses:
-              _index?.addressesAt(
-                request.file,
-                request.scenario,
-                request.position,
-              ) ??
-              const {},
-        ).entries)
+        for (var MapEntry(:key, value: rects) in located.entries)
           for (var rect in rects)
             ReplayBox(
               key: key,
@@ -432,6 +434,16 @@ class _ReplayPage {
               height: rect.height,
             ),
       ];
+      var unlocated = [
+        for (var key in request.locate)
+          if (!located.containsKey(key)) key,
+      ];
+      var seen =
+          _index?.keysAt(request.file, request.scenario, request.position) ??
+          const <String>{};
+      if (describeOtherScreen(tester, request.position, seen) case var other?) {
+        failures.add(other);
+      }
       _stopping = true;
       // All of it in `runAsync`'s real zone. A completer made in the fake
       // one completes as a fake microtask that nothing flushes, and the page
@@ -480,6 +492,7 @@ class _ReplayPage {
             width: shown.size.width,
             height: shown.size.height,
             boxes: boxes,
+            unlocated: unlocated,
           ),
         );
         await release.future;

@@ -90,11 +90,12 @@ The answer says:
 | Field | Meaning |
 |:---|:---|
 | `reached` | The step is on screen. |
-| `ok` | It got there with nothing failing on the way. A step can be reached and not ok: the picture is then of an app that had already failed. |
+| `ok` | It got there with nothing failing on the way. A step can be reached and not ok: the picture is then of an app that had already failed, or of [another screen](#when-the-page-draws-another-screen). |
 | `failures` | What failed, in words. |
 | `missedAssets` | Assets the app read that the index did not list. The page fetched them while the scenario waited. Rebuild with `--matrix=declared` to list them. |
 | `width`, `height` | The device's size, so you can give the iframe its shape. |
 | `boxes` | Where each key in `locate` is drawn: `key`, `left`, `top`, `width`, `height`, one per place it shows. |
+| `unlocated` | The keys in `locate` drawn nowhere on the step. |
 | `ms` | How long the step took to show. |
 | `drawn` | The step was on the page when the answer was sent. |
 
@@ -124,9 +125,20 @@ const top = (h - result.height * scale) / 2;
 
 The page finds each key at the address the index recorded for it, so the
 box follows the text as a draft or another language changes its length.
-Placeholders are found too. A key the index did not see at that step is
-looked for by its words: the draft, else the catalog's text. A key on a
-screen hidden under another one is not found.
+Placeholders are found too. An address counts only while the text there is
+still the key's. A key the index did not see at that step is looked for by
+its words: the draft, else the catalog's text. A key on a screen hidden
+under another one is not found, and is listed in `unlocated`.
+
+### When the page draws another screen
+
+The page runs the same scenario as `flutter test`, but the app can still draw
+another screen at the same step, when it reads something the page has
+another way. `kIsWeb` is one. The text at a key's address is then another
+key's, or none, and the key gets no box rather than a box on the wrong line.
+If the step shows none of the keys the index saw there, `failures` says so
+and `ok` is false. Fix the app, so the step is the same in both, rather than
+trusting the picture.
 
 The page also offers
 `flutterwareReplay.run(request)` and `flutterwareReplay.scenarios()` in its
@@ -164,6 +176,13 @@ different place, which moves everything below it. To draw over what the page
 shows, use the answer's `boxes`.
 
 ## What does not work in a page
+
+- **`kIsWeb`.** It is true in the page, and no platform override reaches it.
+  The device's platform is applied, so `defaultTargetPlatform` and
+  `Theme.of(context).platform` answer as on the device, but code that branches
+  on `kIsWeb` takes its web branch. Flutter's own widgets do too:
+  `BackButtonIcon` draws the web arrow on an iPhone. A branch that changes the
+  screen is [reported](#when-the-page-draws-another-screen).
 
 - **The disk.** A scenario that reads a file, starts a process or reads an
   environment variable fails, and the answer says so. Give it the data another
