@@ -105,10 +105,12 @@ while (-not (Test-Path $StopFile)) {
     $res = "t$elapsed avail=$availMB commit=$commitMB/$limitMB disk $disks procs=$($procs.Count) testers=$testers big $bigText"
     Add-Content -Path $Log -Value "$(Get-Date -Format 'HH:mm:ss') $res | $testText"
 
-    $due = ((Get-Date) - $lastPost).TotalSeconds -ge 10
+    $due = ((Get-Date) - $lastPost).TotalSeconds -ge 20
     if ($due) {
-      Post "diag/$Name/res" $res
-      if ($testText -ne $lastTests) { Post "diag/$Name/tests" "t$elapsed $testText"; $lastTests = $testText }
+      $round = ''
+      $roundFile = Join-Path (Split-Path $Log) 'round.txt'
+      if (Test-Path $roundFile) { $round = (Get-Content $roundFile -Raw).Trim() }
+      Post "diag/$Name" "t$elapsed av$availMB $disks p$($procs.Count) ft$testers $round | $testText"
       $lastPost = Get-Date
     }
 
