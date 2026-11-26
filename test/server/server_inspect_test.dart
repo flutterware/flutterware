@@ -310,7 +310,18 @@ void main() {
         0,
       );
       addTearDown(mute.close);
-      mute.listen((socket) {});
+      // Closing the listener leaves what it accepted open, so those are
+      // destroyed too, before the run dir and its socket file are deleted.
+      // On Windows, a connection left open on a deleted socket file, then the
+      // next test's connect to a dead socket, froze the whole machine's
+      // networking: no test failed and the CI runner stopped answering.
+      var accepted = <Socket>[];
+      addTearDown(() {
+        for (var socket in accepted) {
+          socket.destroy();
+        }
+      });
+      mute.listen(accepted.add);
 
       var busy = ServerHandle(
         projectRoot: '/repo/app',
