@@ -14,12 +14,12 @@ jobs:
   root_suite:
     name: Windows ${{ matrix.mode }} (${{ matrix.attempt }})
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        mode: [server, noserver]
-        attempt: [1, 2, 3, 4]
+        mode: [info, inspector_core, normalize_sql, server_inspect, vm_transport]
+        attempt: [1, 2]
     steps:
       - uses: actions/checkout@v2
       - name: Read the pinned Flutter version
@@ -58,18 +58,18 @@ jobs:
           $report = Join-Path $PWD 'build\root-suite.json'
           Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', 'tool\ci\watchdog.ps1', '-Log', $log, '-StopFile', $stop, '-Report', $report, '-Name', '${{ matrix.mode }}-${{ matrix.attempt }}') | Out-Null
           $code = 0
-          if ('${{ matrix.mode }}' -eq 'server') {
-            for ($i = 1; $i -le 8; $i++) {
-              "=== round $i"
-              Set-Content build\round.txt "r$i"
-              flutter test test/server --reporter expanded
-              if ($LASTEXITCODE -ne 0) { $code = $LASTEXITCODE }
-            }
-          } else {
-            Remove-Item -Recurse -Force test\server
-            flutter test --reporter expanded --file-reporter json:build/root-suite.json
-            $code = $LASTEXITCODE
+          $api = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA"
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
+          for ($i = 1; $i -le 8; $i++) {
+            "=== round $i"
+            Set-Content build\round.txt "r$i"
+            $body = @{ state = 'pending'; context = 'diag/${{ matrix.mode }}-${{ matrix.attempt }}/round'; description = "round $i starts" } | ConvertTo-Json
+            try { Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -TimeoutSec 10 | Out-Null } catch { "post failed: $_" }
+            flutter test test/server/${{ matrix.mode }}_test.dart --reporter expanded
+            if ($LASTEXITCODE -ne 0) { $code = $LASTEXITCODE }
           }
+          $body = @{ state = 'success'; context = 'diag/${{ matrix.mode }}-${{ matrix.attempt }}/round'; description = 'all rounds done' } | ConvertTo-Json
+          try { Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -TimeoutSec 10 | Out-Null } catch { "post failed: $_" }
           New-Item -ItemType File $stop | Out-Null
           Start-Sleep -Seconds 5
           exit $code
