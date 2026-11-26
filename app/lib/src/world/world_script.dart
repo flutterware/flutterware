@@ -8,7 +8,8 @@ import 'package:flutterware/src/server/inspector.dart' show reassembleExtension;
 import 'package:flutterware/src/world/protocol.dart';
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
-import 'package:vm_service/vm_service.dart';
+import 'package:pub_semver/pub_semver.dart' show Version;
+import 'package:vm_service/vm_service.dart' hide Version;
 import 'package:vm_service/vm_service_io.dart';
 
 import '../utils/run_dir.dart';
@@ -574,6 +575,23 @@ String? withoutToolNoise(String line) {
 
 final _toolNoise = RegExp(r'^(Running build hooks\.\.\.)+');
 
+/// Whether a script the resident compiler of Dart [dartVersion] compiled can
+/// be reloaded. Dart 3.15's cannot, for a script in a package with build
+/// hooks: the VM sends the reload to its own kernel service, which refuses it
+/// with "Kernel service was not set up for incremental compilation when
+/// started". On 3.15 a world starts its script with a plain `dart run`, which
+/// opens slower and reloads with its people. An unreadable version is taken
+/// to be one that can.
+bool residentCompilerReloads(String? dartVersion) {
+  if (dartVersion == null) return true;
+  try {
+    var version = Version.parse(dartVersion);
+    return !(version.major == 3 && version.minor == 15);
+  } on FormatException {
+    return true;
+  }
+}
+
 /// The resident compiler a world script is compiled by — `dart run
 /// --resident` — so an opening after the first, and every restart, starts
 /// the script in a fraction of a second rather than compiling it whole: a
@@ -583,6 +601,8 @@ final _toolNoise = RegExp(r'^(Running build hooks\.\.\.)+');
 /// kernels on disk, keyed on the script's path, so the next process's
 /// compiler starts from them — measured on a heavy script, 0.76 s against 6 s
 /// for a plain `dart run` — and nothing is left running after the world.
+///
+/// Not on every Dart: see [residentCompilerReloads].
 class WorldCompiler {
   WorldCompiler(this.dart)
     : infoFile = p.join(

@@ -1,9 +1,15 @@
-# One thing is held here, for `site/`: Jaspr's builder declares analyzer 12
+# Two things are held here, for `site/`. Jaspr's builder declares analyzer 12
 # and the studio is written against 13. A workspace has one resolution, and
-# without this line it settles on 12 — which the studio does not compile on,
-# and whose formatter cannot parse this repo. The builder does run on 13.
+# without the analyzer line it settles on 12, which the studio does not
+# compile on and whose formatter cannot parse this repo. The builder does run
+# on 13, but not on 14.
+#
+# An override hides every other package's analyzer constraint from pub, so
+# pub would also take a build_runner that needs analyzer 14 and does not
+# compile on 13. 2.16.1 is the last one that runs on 13.
 #
 # Delete this file when `jaspr_builder` declares the analyzer the workspace
 # is on; `fvm flutter pub get` says so by no longer reporting an override.
 dependency_overrides:
   analyzer: ^13.3.0
+  build_runner: 2.16.1

@@ -19,3 +19,22 @@ import 'package:flutter_scene/scene.dart' as fs;
 /// Built here, the futures belong to the root zone, whose microtasks run on
 /// the real event loop every entry shares.
 fs.Scene rootZoneScene() => Zone.root.run(fs.Scene.new);
+
+/// Loads what a scene here needs before its first frame: flutter_scene's
+/// shaders and static resources, and the radiance of its default
+/// environment.
+///
+/// That radiance is prefiltered a band at a time over the frames after the
+/// environment is built, and reflections sharpen as each band lands. A frame
+/// captured before the last one shows the environment still sharpening, so a
+/// walk that starts there differs from every walk after it. Run it inside
+/// `RealWork.run`, so a walk waits for it.
+Future<void> loadSceneResources() async {
+  // Skipped once ready. The memoized futures behind it belong to the root
+  // zone, because every `Scene` here is built by `rootZoneScene`.
+  if (!fs.Scene.isReadyToRender) {
+    await fs.loadBaseShaderLibrary();
+    await fs.Scene.initializeStaticResources();
+  }
+  await fs.Material.getDefaultEnvironmentMap().radianceComplete;
+}

@@ -113,6 +113,16 @@ void main() {
     expect(File(compiler.infoFile).readAsStringSync(), info);
   }, timeout: const Timeout(Duration(minutes: 1)));
 
+  test('a script runs without the resident compiler on a Dart that cannot '
+      'reload what it compiled', () {
+    expect(residentCompilerReloads('3.14.0-315.3.beta'), isTrue);
+    expect(residentCompilerReloads('3.15.0-118.1.beta'), isFalse);
+    expect(residentCompilerReloads('3.15.2'), isFalse);
+    expect(residentCompilerReloads('3.16.0'), isTrue);
+    expect(residentCompilerReloads(null), isTrue);
+    expect(residentCompilerReloads('not a version'), isTrue);
+  });
+
   test("a script's last words are its error, not the stack after it", () {
     String? last(List<String> lines) {
       var said = LastSaid();

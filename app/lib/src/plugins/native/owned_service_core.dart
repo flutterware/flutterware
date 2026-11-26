@@ -915,16 +915,23 @@ class OwnedServiceCore extends StackServiceCore {
   /// the same on every platform — on BSD it selects by session leader. `pid`
   /// and `pgid` in two columns is the reading no `ps` disagrees about. This
   /// runs only while a stop is in flight, a few times a second at most.
+  ///
+  /// A zombie is not a member: it has exited, and only waits for its parent
+  /// to collect it. From Dart 3.14 the parent of a detached process is the
+  /// process that started it, which cannot collect it, so a service that was
+  /// stopped stays in its group as a zombie until the studio exits. Counted,
+  /// every stop read as a process surviving SIGKILL.
   static List<int> _groupMembers(int pgid) {
     if (Platform.isWindows) return const [];
     try {
-      var result = Process.runSync('ps', ['-A', '-o', 'pid=,pgid=']);
+      var result = Process.runSync('ps', ['-A', '-o', 'pid=,pgid=,stat=']);
       if (result.exitCode != 0) return const [];
       var found = <int>[];
       for (var line in const LineSplitter().convert('${result.stdout}')) {
         var parts = line.trim().split(RegExp(r'\s+'));
-        if (parts.length < 2) continue;
+        if (parts.length < 3) continue;
         if (int.tryParse(parts[1]) != pgid) continue;
+        if (parts[2].startsWith('Z')) continue;
         if (int.tryParse(parts[0]) case var member?) found.add(member);
       }
       return found;

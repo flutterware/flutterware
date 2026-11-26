@@ -70,19 +70,9 @@ class _PhoneRigProbeState extends State<PhoneRigProbe> {
   /// fail (no bundle, wrong target, unreadable) this is.
   Future<void> _initialize() async {
     try {
-      // Skipped once ready. The memoized future behind it would strand a
-      // later mount if it belonged to an earlier entry's fake-async zone —
-      // the trap `ScenarioAssetBundle` exists for, arriving through a
-      // dependency's static cache — which is why every `Scene` here is built
-      // by `rootZoneScene`, and the gate alone is not enough.
-      if (!fs.Scene.isReadyToRender) {
-        // Tracked, so a walk waits for the engine rather than photographing
-        // the frame before it — see `RealWork`.
-        await RealWork.run(() async {
-          await fs.loadBaseShaderLibrary();
-          await fs.Scene.initializeStaticResources();
-        });
-      }
+      // Tracked, so a walk waits for the engine rather than photographing
+      // the frame before it — see `RealWork`.
+      await RealWork.run(loadSceneResources);
       if (!fs.Scene.isReadyToRender) {
         throw StateError('static resources did not become ready');
       }

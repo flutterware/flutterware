@@ -152,6 +152,22 @@ class OpenWorld {
   late final Future<String> _host = ensureGuestHost(_cache, appRoot);
   late final _dart = p.join(flutterSdkRoot, 'bin', 'dart');
   late final _compiler = WorldCompiler(_dart);
+
+  /// [_compiler], unless this Dart cannot reload what it compiles.
+  late final WorldCompiler? _resident = residentCompilerReloads(_dartVersion())
+      ? _compiler
+      : null;
+
+  String? _dartVersion() {
+    try {
+      return File(p.join(flutterSdkRoot, 'bin', 'cache', 'dart-sdk', 'version'))
+          .readAsStringSync()
+          .trim();
+    } on FileSystemException {
+      return null;
+    }
+  }
+
   final _clock = Stopwatch();
 
   /// How long since this opening — or restart — began.
@@ -920,7 +936,7 @@ class OpenWorld {
           dart: _dart,
           packageRoot: p.join(worktree, file.package),
           file: file.path,
-          compiler: _compiler,
+          compiler: _resident,
           onOutput: (line) {
             if (starting) said.add(line);
             _say(line, printed: true);

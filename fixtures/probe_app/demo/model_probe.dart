@@ -117,12 +117,7 @@ class _ModelProbeState extends State<ModelProbe> {
     String asset, {
     required bool built,
   }) async {
-    // Skipped once ready. The memoized futures behind it belong to the root
-    // zone, because every `Scene` here is built by `rootZoneScene`.
-    if (!fs.Scene.isReadyToRender) {
-      await fs.loadBaseShaderLibrary();
-      await fs.Scene.initializeStaticResources();
-    }
+    await loadSceneResources();
     if (built) return fs.loadScene(asset, bundle: bundle);
     var bytes = await bundle.load(asset);
     return fs.Node.fromGlbBytes(

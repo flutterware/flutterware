@@ -598,27 +598,37 @@ void main() {
 
     // Its compiler stops itself after 30 minutes without a request, and
     // takes its info file with it: the script's VM then refuses every
-    // reload, until one is started at that path again.
-    var compiler = Directory(flutterwareRunDir())
-        .listSync()
-        .map((entity) => entity.path)
-        .singleWhere(
-          (path) => p.basename(path).startsWith('world-compiler-$pid-'),
-        );
-    var dart = p.join(Platform.environment['FLUTTER_ROOT']!, 'bin', 'dart');
-    await Process.run(dart, [
-      'compilation-server',
-      'shutdown',
-      '--resident-compiler-info-file=$compiler',
-    ]);
-    expect(File(compiler).existsSync(), isFalse);
+    // reload, until one is started at that path again. A Dart whose
+    // resident compiler cannot reload runs the script without one.
+    var versionFile = p.join(
+      Platform.environment['FLUTTER_ROOT']!,
+      'bin',
+      'cache',
+      'dart-sdk',
+      'version',
+    );
     script.writeAsStringSync(original.replaceAll('v1', 'v5'));
-    var revived = await world.reload();
-    expect(revived.note, contains('had stopped'));
-    expect(await said('Greet'), 'hello, v5');
-    expect(world.log, contains(contains('a fresh one compiled this reload')));
-    // The log line names the moment.
-    expect(world.log.last, contains('(${revived.step})'));
+    if (residentCompilerReloads(File(versionFile).readAsStringSync().trim())) {
+      var compiler = Directory(flutterwareRunDir())
+          .listSync()
+          .map((entity) => entity.path)
+          .singleWhere(
+            (path) => p.basename(path).startsWith('world-compiler-$pid-'),
+          );
+      var dart = p.join(Platform.environment['FLUTTER_ROOT']!, 'bin', 'dart');
+      await Process.run(dart, [
+        'compilation-server',
+        'shutdown',
+        '--resident-compiler-info-file=$compiler',
+      ]);
+      expect(File(compiler).existsSync(), isFalse);
+      var revived = await world.reload();
+      expect(revived.note, contains('had stopped'));
+      expect(await said('Greet'), 'hello, v5');
+      expect(world.log, contains(contains('a fresh one compiled this reload')));
+      // The log line names the moment.
+      expect(world.log.last, contains('(${revived.step})'));
+    }
 
     // A script that exits under a reload is said to have, with the last
     // thing it said, rather than as a connection its VM no longer answers.
