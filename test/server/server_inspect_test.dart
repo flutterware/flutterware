@@ -327,7 +327,17 @@ void main() {
         0,
       );
       addTearDown(mute.close);
-      mute.listen((socket) {});
+      if (Platform.environment['FW_DIAG_FIX'] == '1') {
+        var accepted = <Socket>[];
+        mute.listen(accepted.add);
+        addTearDown(() {
+          for (var socket in accepted) {
+            socket.destroy();
+          }
+        });
+      } else {
+        mute.listen((socket) {});
+      }
 
       var busy = ServerHandle(
         projectRoot: '/repo/app',
