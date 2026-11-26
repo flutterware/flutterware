@@ -6,15 +6,19 @@ on:
     branches:
       - diag/windows-root-suite
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   root_suite:
     name: Root suite on Windows (${{ matrix.attempt }})
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        attempt: [1, 2, 3, 4]
+        attempt: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v2
       - name: Read the pinned Flutter version
@@ -36,15 +40,22 @@ jobs:
         run: |
           Get-CimInstance Win32_ComputerSystem | Select-Object NumberOfLogicalProcessors, TotalPhysicalMemory | Format-List
           Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory | Select-Object AvailableMBytes, CommittedBytes, CommitLimit | Format-List
+          [System.IO.DriveInfo]::GetDrives() | Where-Object IsReady | Select-Object Name, DriveType, AvailableFreeSpace, TotalSize | Format-Table
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\tool\ci\watchdog.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors; exit 1 }
       - name: Root suite under a watchdog
         shell: pwsh
-        timeout-minutes: 30
+        timeout-minutes: 15
         continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           New-Item -ItemType Directory -Force build | Out-Null
           $log = Join-Path $PWD 'build\watchdog.log'
           $stop = Join-Path $PWD 'build\watchdog.stop'
-          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', 'tool\ci\watchdog.ps1', '-RootPid', $PID, '-Log', $log, '-StopFile', $stop) | Out-Null
+          $report = Join-Path $PWD 'build\root-suite.json'
+          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', 'tool\ci\watchdog.ps1', '-Log', $log, '-StopFile', $stop, '-Report', $report, '-Name', '${{ matrix.attempt }}') | Out-Null
           flutter test --reporter expanded --file-reporter json:build/root-suite.json
           $code = $LASTEXITCODE
           New-Item -ItemType File $stop | Out-Null
@@ -55,9 +66,7 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path build\watchdog.log) {
-            Select-String -Path build\watchdog.log -Pattern '^ALERT' -Context 0,18 | ForEach-Object { $_.Line; $_.Context.PostContext }
-            '--- peak samples ---'
-            Get-Content build\watchdog.log | Where-Object { $_ -match 'avail=(\d+)MB' } | Sort-Object { [int]([regex]::Match($_, 'avail=(\d+)MB').Groups[1].Value) } | Select-Object -First 15
+            Select-String -Path build\watchdog.log -Pattern 'KILL|failed|error'
             '--- last samples ---'
             Get-Content build\watchdog.log -Tail 30
           } else { 'no watchdog log' }
