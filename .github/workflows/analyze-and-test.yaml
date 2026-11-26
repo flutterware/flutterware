@@ -46,6 +46,13 @@ jobs:
       # other half, a floor lower than what the code needs, is a claim only
       # running an older SDK could disprove, and nothing here does.
       - run: dart tool/bump_flutter.dart --check
+      # The other half of the same promise, held against the projects rather
+      # than the pin: every floor, and a release of every dependency, still
+      # resolves on the oldest Flutter a project builds with, and every
+      # constraint admits its dependency's latest release. The weekly Upgrade
+      # workflow moves the pin and the constraints; this is what says it went
+      # too far, or not far enough.
+      - run: dart tool/check_constraints.dart
       - run: flutter analyze
       - run: flutter test
         working-directory: app

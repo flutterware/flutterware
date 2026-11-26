@@ -1,0 +1,144 @@
+name: Upgrade
+
+# Once a week, moves .fvmrc to the latest Flutter beta (tool/bump_flutter.dart)
+# and every pub dependency to its latest release (tool/upgrade.dart), and opens
+# one pull request with the result, or updates the one already open. CI runs on
+# it as on any other pull request: a red check is the upgrade's breakage, to fix
+# on its branch, and the next run leaves a branch with someone else's commit on
+# it alone. The environment: floors never move here: they stay where the
+# projects on flutterware are, and tool/check_constraints.dart says when they
+# would not.
+#
+# The pull request is opened and pushed with BOT_PAT, a personal access token.
+# One opened with the workflow's own token would start no workflow, so its
+# checks would never run. CONTRIBUTING.md ("Upgrades") makes the token. The
+# Flutter version lives in .fvmrc alone, so the token pushes no workflow file
+# and needs no permission to.
+
+on:
+  schedule:
+    # Mondays, 05:00 UTC.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: upgrade
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  upgrade:
+    name: Flutter and the dependencies to their latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BRANCH: upgrade
+      # The upgrade's commits. A commit by anyone else on the branch is a fix
+      # this run must not push over.
+      BOT: github-actions[bot]
+      BOT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+    steps:
+      - name: The token is set
+        env:
+          HAS_TOKEN: ${{ secrets.BOT_PAT != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != true ]; then
+            echo "::error::The BOT_PAT secret opens the pull request; CONTRIBUTING.md (\"Upgrades\") makes it."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.BOT_PAT }}
+
+      # tool/bump_flutter.dart runs on the Flutter .fvmrc pins today, then the
+      # job installs the one it moved the pin to.
+      - name: Read the pinned Flutter version
+        id: pin
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          if [ -z "$version" ]; then echo "::error::.fvmrc names no Flutter version"; exit 1; fi
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.pin.outputs.version }}
+          channel: ${{ steps.pin.outputs.channel }}
+      - run: flutter pub get
+      - name: Move .fvmrc to the latest Flutter beta
+        run: dart tool/bump_flutter.dart beta
+
+      # When the beta channel points at a stable release, its version has no
+      # `-`, and the Flutter action takes it from stable.
+      - name: Read the new pin
+        id: beta
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.beta.outputs.version }}
+          channel: ${{ steps.beta.outputs.channel }}
+      - run: flutter --version
+      - name: Upgrade the dependencies
+        run: dart tool/upgrade.dart --summary="$RUNNER_TEMP/summary.md"
+
+      - name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          BASE: ${{ github.event.repository.default_branch }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Flutter and every dependency are at their latest." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          pr="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$pr" ]; then
+            git fetch -q origin "$BRANCH"
+            if git log --format=%an "HEAD..FETCH_HEAD" | grep -qvxF "$BOT"; then
+              echo "#$pr has someone else's commit on it, so this run leaves it alone." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+
+          if git diff --quiet HEAD -- .fvmrc; then
+            title="Upgrade every dependency to its latest release"
+          else
+            title="Upgrade Flutter to $(jq -r .flutter .fvmrc) and every dependency to its latest release"
+          fi
+          git config user.name "$BOT"
+          git config user.email "$BOT_EMAIL"
+          git switch -q -c "$BRANCH"
+          git add -A
+          git commit -q -m "$title"
+
+          # Rebuilt from the base each week; pushed only when it differs, so
+          # an unchanged upgrade does not run the checks again.
+          if [ -n "$pr" ] && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'FETCH_HEAD^{tree}')" ]; then
+            echo "#$pr already holds this upgrade." >> "$GITHUB_STEP_SUMMARY"
+          else
+            git push -q --force origin "$BRANCH"
+          fi
+
+          {
+            cat "$RUNNER_TEMP/summary.md"
+            echo
+            echo "Written by [a run]($RUN) of \`.github/workflows/upgrade.yaml\`."
+          } > "$RUNNER_TEMP/body.md"
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base "$BASE" --head "$BRANCH" --title "$title" \
+              --body-file "$RUNNER_TEMP/body.md"
+          fi
+          cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"

@@ -86,8 +86,19 @@ Future<void> main(List<String> args) async {
       '\na floor is a claim, and nothing below it has been run.',
     );
   } else {
-    File(p.join(root.path, '.fvmrc'))
-        .writeAsStringSync('{"flutter": "${target.flutter}"}\n');
+    // The version alone, so the file keeps the layout fvm gave it and a bump
+    // is one changed line.
+    var fvmrc = File(p.join(root.path, '.fvmrc'));
+    var source = fvmrc.readAsStringSync();
+    var version = RegExp(r'("flutter"\s*:\s*")[^"]*"');
+    fvmrc.writeAsStringSync(
+      version.hasMatch(source)
+          ? source.replaceFirstMapped(
+              version,
+              (m) => '${m[1]}${target.flutter}"',
+            )
+          : '{\n  "flutter": "${target.flutter}"\n}',
+    );
     print('pin: .fvmrc -> ${target.flutter} (Dart ${target.dart})');
     print(
       '\nThe floor did not move. Run --floor only when something below it'
