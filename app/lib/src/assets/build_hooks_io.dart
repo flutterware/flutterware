@@ -396,7 +396,7 @@ class BuildHooks {
       targetOS: OS.current,
       linkModePreference: LinkModePreference.dynamic,
       macOS: OS.current == OS.macOS
-          ? MacOSCodeConfig(targetVersion: targetMacOSVersion)
+          ? MacOSCodeConfig(deploymentVersion: AppleVersion(targetMacOSVersion))
           : null,
     ),
   ];

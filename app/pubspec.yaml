@@ -38,8 +38,9 @@ dependencies:
   clock:
   # The vocabulary `hooks_runner` speaks for native code — the extension the
   # bundle builder asks with, and the link modes it maps into
-  # `NativeAssetsManifest.json`. Rides the `hooks_runner` pin's resolution.
-  code_assets:
+  # `NativeAssetsManifest.json`. Rides the `hooks_runner` pin's resolution,
+  # from 2.2, the first with the `AppleVersion` the macOS floor is given as.
+  code_assets: ^2.2.0
   collection:
   crypto:
   dart_mcp: ^0.5.2
@@ -58,14 +59,11 @@ dependencies:
   flutterware:
   github:
   glob:
-  # Pinned, and to the version `flutter_tools` pins at the SDK in `.fvmrc` —
-  # `app/test/build_hooks_pin_test.dart` fails when they drift. Two reasons, and
-  # the second is the one that bites: a hook and the runner negotiate a
-  # protocol version, so the runner the SDK's own consumers were resolved
-  # against is the one that speaks to them; and the newest (1.6.3) requires
-  # `code_assets ^2.0.0`, which evicts `native_toolchain_c` and drags `sqlite3`
-  # back a major version under the Server panel. 1.6.1 adds one package and
-  # changes nothing else.
+  # Pinned, and to the version `flutter_tools` pins at the SDK in `.fvmrc`:
+  # `app/test/assets/build_hooks_test.dart` fails when they drift, and
+  # `tool/upgrade.dart` moves it with the pin. A hook and the runner negotiate
+  # a protocol version, so the runner the SDK's own consumers were resolved
+  # against is the one that speaks to them.
   hooks_runner: 1.6.4
   # The generator's own parser, so the splash panel reads `web/index.html` back
   # the way `flutter_native_splash` wrote it.
