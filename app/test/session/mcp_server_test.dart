@@ -133,7 +133,7 @@ void main() {
     );
 
     expect(result.isError, isTrue);
-    var text = (result.content.single as TextContent).text;
+    var text = _text(result);
     expect(text.toLowerCase(), contains('no'));
     expect(text, isNot(contains('Unhandled')));
   });
@@ -161,7 +161,7 @@ void main() {
     expect(text, contains('takes no argument "parameters"'));
     expect(
       text,
-      contains('It takes: plugin, action, arguments, brief.'),
+      contains('It takes: plugin, action, arguments, brief, worktree.'),
       reason: 'naming what it does take is what saves the round trip',
     );
   });
@@ -888,7 +888,7 @@ void main() {
         );
 
     Future<ServerConnection> connect(
-      _RootsClient client, {
+      MCPClient client, {
       required String startedIn,
     }) async {
       var toServer = StreamController<String>();
@@ -994,6 +994,220 @@ void main() {
       expect((await status(connection))['root'], repo.linked);
     });
 
+    // Measured on a session launched in a main checkout: after it entered a
+    // worktree, the client sent no `roots/list_changed`, and a fresh
+    // `roots/list` named the worktree. A server that waited for the
+    // notification answered every later call about the checkout it had left.
+    test('roots that change without a notification are followed', () async {
+      var repo = repository(nested: true);
+      var client = _RootsClient()..addRoot(rootAt(repo.main));
+      var connection = await connect(client, startedIn: repo.main);
+      var before = await connection.callTool(
+        CallToolRequest(name: 'flutterware_status'),
+      );
+      expect(_decode(before)['root'], repo.main);
+      expect(
+        _checkoutNote(before),
+        isNull,
+        reason: 'the checkout the session was launched in needs no line',
+      );
+
+      client.moveSilently([rootAt(repo.linked)]);
+
+      var after = await connection.callTool(
+        CallToolRequest(name: 'flutterware_status'),
+      );
+      expect(_decode(after)['root'], repo.linked);
+      expect(_decode(after)['worktree'], 'feature');
+      expect(
+        _checkoutNote(after),
+        allOf(
+          contains(repo.linked),
+          contains('branch feature'),
+          contains('launched in the checkout at ${repo.main}'),
+        ),
+        reason: 'a reply about another checkout says so where it is read',
+      );
+    });
+
+    test('a client that does not answer is waited on once', () async {
+      FlutterwareMcpServer.rootsTimeout = const Duration(seconds: 2);
+      addTearDown(
+        () => FlutterwareMcpServer.rootsTimeout = const Duration(seconds: 5),
+      );
+      var repo = repository();
+      var connection = await connect(
+        _UnansweringClient(),
+        startedIn: repo.main,
+      );
+
+      var first = Stopwatch()..start();
+      var answer = await connection.callTool(
+        CallToolRequest(name: 'flutterware_status'),
+      );
+      expect(first.elapsed, greaterThanOrEqualTo(const Duration(seconds: 2)));
+      expect(_decode(answer)['root'], repo.main);
+      expect(
+        _checkoutNote(answer),
+        contains('the client named no checkout of this repository'),
+      );
+
+      var second = Stopwatch()..start();
+      await connection.callTool(CallToolRequest(name: 'flutterware_status'));
+      expect(
+        second.elapsed,
+        lessThan(const Duration(seconds: 2)),
+        reason: 'every call would cost the whole timeout otherwise',
+      );
+    });
+
+    test(
+      'a client that lists no roots is told which checkout answered',
+      () async {
+        // The suite's own client keeps no roots, so every reply it gets says.
+        var result = await connection.callTool(
+          CallToolRequest(name: 'flutterware_status'),
+        );
+        expect(
+          _checkoutNote(result),
+          allOf(
+            contains('where this MCP server was started'),
+            contains('pass `worktree`'),
+          ),
+        );
+      },
+    );
+
+    group('a call can name its checkout', () {
+      Future<CallToolResult> call(
+        ServerConnection connection,
+        String tool,
+        Map<String, Object?> arguments,
+      ) => connection.callTool(
+        CallToolRequest(name: tool, arguments: arguments),
+      );
+
+      test('by branch, by name or by path', () async {
+        var repo = repository(nested: true);
+        var client = _RootsClient()..addRoot(rootAt(repo.main));
+        var connection = await connect(client, startedIn: repo.main);
+
+        for (var named in [
+          'feature',
+          'linked',
+          repo.linked,
+          p.join(repo.linked, 'lib'),
+        ]) {
+          if (named.endsWith('lib')) Directory(named).createSync();
+          var result = await call(connection, 'flutterware_status', {
+            'worktree': named,
+          });
+          expect(_decode(result)['root'], repo.linked, reason: named);
+          expect(
+            _checkoutNote(result),
+            allOf(contains(repo.linked), contains('as `worktree` asked')),
+            reason: named,
+          );
+        }
+
+        // The main checkout is `~`, as it is everywhere else.
+        var main = await call(connection, 'flutterware_status', {
+          'worktree': '~',
+        });
+        expect(_decode(main)['root'], repo.main);
+        expect(
+          _checkoutNote(main),
+          isNull,
+          reason: 'the checkout the session was launched in needs no line',
+        );
+      });
+
+      test('over what the roots say', () async {
+        var repo = repository();
+        var client = _RootsClient()..addRoot(rootAt(repo.linked));
+        var connection = await connect(client, startedIn: repo.linked);
+        var result = await call(connection, 'flutterware_status', {
+          'worktree': 'main',
+        });
+        expect(_decode(result)['root'], repo.main);
+        expect(_checkoutNote(result), contains(repo.main));
+      });
+
+      test('on actions, invoke and review too', () async {
+        var repo = repository();
+        var connection = await connect(_RootsClient(), startedIn: repo.main);
+        for (var (tool, arguments) in [
+          ('flutterware_actions', <String, Object?>{}),
+          // No plugin is declared in this repository, so the call is refused
+          // — and the refusal still says which checkout refused it.
+          ('flutterware_invoke', {'plugin': 'run', 'action': 'apps'}),
+          ('flutterware_review', <String, Object?>{}),
+        ]) {
+          var result = await call(connection, tool, {
+            ...arguments,
+            'worktree': 'feature',
+          });
+          expect(
+            _checkoutNote(result),
+            allOf(contains(repo.linked), contains('as `worktree` asked')),
+            reason: tool,
+          );
+        }
+      });
+
+      test('and one that is not a checkout is refused, naming them', () async {
+        var repo = repository();
+        var connection = await connect(_RootsClient(), startedIn: repo.main);
+        for (var (tool, arguments) in [
+          ('flutterware_status', <String, Object?>{}),
+          ('flutterware_actions', <String, Object?>{}),
+          ('flutterware_invoke', {'plugin': 'run', 'action': 'apps'}),
+          ('flutterware_review', <String, Object?>{}),
+        ]) {
+          // A relative path is a typo waiting to land in some checkout, so it
+          // is not resolved against anything.
+          for (var named in ['nope', '../linked', p.join(repo.main, 'gone')]) {
+            var result = await call(connection, tool, {
+              ...arguments,
+              'worktree': named,
+            });
+            expect(result.isError, isTrue, reason: '$tool $named');
+            expect(
+              _text(result),
+              allOf(
+                contains('No checkout of this repository is called "$named"'),
+                contains(repo.main),
+                contains(repo.linked),
+                contains('branch feature'),
+              ),
+              reason: '$tool $named',
+            );
+          }
+        }
+      });
+
+      test('but flutterware_act keeps its own meaning of it', () async {
+        // There it picks which run to drive, among the repository's; a
+        // checkout with no run is the run plugin's refusal, not this one.
+        var runDir = Directory.systemTemp.createTempSync('fw-mcp-act-');
+        RunCore.runDirProvider = () => runDir.path;
+        addTearDown(() {
+          RunCore.runDirProvider = flutterwareRunDir;
+          runDir.deleteSync(recursive: true);
+        });
+        // This repository, because the run plugin is declared here.
+        var result = await call(connection, 'flutterware_act', {
+          'verb': 'observe',
+          'worktree': 'nope',
+        });
+        expect(result.isError, isTrue);
+        expect(
+          _text(result),
+          contains('Nothing is running from worktree "nope"'),
+        );
+      });
+    });
+
     group('which checkout a root names', () {
       // Built rather than written, so the Windows run reads them its own way.
       String at(String path) => p.joinAll([p.separator, ...path.split('/')]);
@@ -1085,13 +1299,52 @@ final class _RootsClient extends MCPClient with RootsSupport {
     return added;
   }
 
+  /// Replaces every root without sending `roots/list_changed`, which is how
+  /// the measured client moves a session into a worktree.
+  void moveSilently(List<Root> roots) => _ordered
+    ..clear()
+    ..addAll(roots);
+
   @override
   FutureOr<ListRootsResult> handleListRoots([ListRootsRequest? request]) =>
       ListRootsResult(roots: List.of(_ordered));
 }
 
-String _text(CallToolResult result) =>
-    (result.content.first as TextContent).text;
+/// A client that declares roots and never answers a listing.
+final class _UnansweringClient extends MCPClient with RootsSupport {
+  _UnansweringClient()
+    : super(Implementation(name: 'unanswering client', version: '1.0.0'));
+
+  @override
+  FutureOr<ListRootsResult> handleListRoots([ListRootsRequest? request]) =>
+      Completer<ListRootsResult>().future;
+}
+
+/// What a reply answered: its JSON when it has one, else all of its text.
+///
+/// Not simply the first block. A reply about a checkout other than the one
+/// the client's session was launched in opens with a line saying which, and
+/// so does every reply to a client that lists no roots, which the client
+/// most of these tests drive is.
+String _text(CallToolResult result) {
+  var texts = [
+    for (var content in result.content)
+      if (content.isText) (content as TextContent).text,
+  ];
+  return texts.firstWhere(
+    (text) => text.startsWith('{'),
+    orElse: () => texts.join('\n'),
+  );
+}
+
+/// The line a reply opens with to say which checkout it answered about, or
+/// null when it opens with the answer.
+String? _checkoutNote(CallToolResult result) {
+  var first = result.content.first;
+  if (!first.isText) return null;
+  var text = (first as TextContent).text;
+  return text.startsWith('Answered about ') ? text : null;
+}
 
 Map<String, Object?> _decode(CallToolResult result) =>
     jsonDecode(_text(result)) as Map<String, Object?>;
