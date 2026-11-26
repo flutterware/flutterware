@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import '../changes/review_agent.dart';
 import '../shell/repo_layout.dart';
+import '../shell/worktree.dart';
 import '../shell/worktree_discovery.dart';
 import '../constants.dart';
 import '../plugins/plugin_core.dart';
@@ -78,7 +79,15 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
              'hand back at once. Learn it once; it is the same everywhere. '
              'One thing here is not a plugin: the human can leave notes on '
              'lines of the diff while you work. flutterware_status counts them '
-             'and flutterware_review hands them over and takes your answers.',
+             'and flutterware_review hands them over and takes your answers. '
+             'Every call answers about one checkout of this repository: the '
+             'one the client says your session works in, asked on every call, '
+             'or else the one this server was started in. When a reply is '
+             'about a checkout other than the one your session started in, or '
+             'the server cannot tell, its first line says which. If that is '
+             'not where you work, pass `worktree` with its name or path to '
+             'flutterware_status, flutterware_actions, flutterware_invoke and '
+             'flutterware_review.',
        ) {
     _registerChecked(_statusTool, _status);
     _registerChecked(_actionsTool, _actions);
@@ -160,15 +169,15 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
     _reviewTool,
   ];
 
-  /// Where to resolve the project from, unless the client's roots name
-  /// another checkout of its repository. A session walks up to the repo root,
-  /// so any directory inside the project works.
+  /// Where to resolve the project from, unless the call or the client's roots
+  /// name another checkout of its repository. A session walks up to the repo
+  /// root, so any directory inside the project works.
   ///
   /// It is also where the server was built from: `dart run flutterware mcp`
   /// resolved flutterware here, whichever checkout the client is working in.
   final Directory workingDirectory;
 
-  /// The roots the client last listed, or null when it keeps none.
+  /// The roots the client answered with most recently, or null before it has.
   ///
   /// A client spawns a project's servers wherever its config lives, which is
   /// not always where its session works: one running in a linked git worktree
@@ -176,42 +185,219 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// the project from its own directory then answered every call about a tree
   /// nobody was editing — while saying so only in a `root` field nobody reads.
   /// The roots say which checkout the client is working in.
-  Future<List<Root>>? _clientRoots;
+  List<Root>? _lastRoots;
+
+  /// The client's first answer: where its session was launched, which is
+  /// what a reply about any other checkout is measured against.
+  List<Root>? _launchRoots;
+
+  /// The listing [_lastRoots] came from, so an answer that arrives after a
+  /// newer one cannot overwrite it.
+  var _listings = 0;
+  var _answered = 0;
+
+  /// Set once a listing has gone unanswered for [rootsTimeout]. A client
+  /// that slow is not waited on again: calls take its last answer and ask
+  /// again behind it, one listing at a time.
+  var _rootsSlow = false;
+  Future<void>? _backgroundListing;
+
+  /// How long a call waits for the client to list its roots. A client
+  /// answers in about a millisecond (measured), so this only bounds one that
+  /// does not answer at all.
+  @visibleForTesting
+  static Duration rootsTimeout = const Duration(seconds: 5);
 
   @override
   void handleInitialized([InitializedNotification? notification]) {
     super.handleInitialized(notification);
     if (clientCapabilities.roots == null) return;
-    _clientRoots = _listClientRoots();
-    rootsListChanged?.listen((_) => _clientRoots = _listClientRoots());
+    // Listed now as well as on every call, so the launch directory is known
+    // before the session has had a chance to move.
+    unawaited(_listClientRoots());
+    rootsListChanged?.listen((_) => unawaited(_listClientRoots()));
   }
 
-  Future<List<Root>> _listClientRoots() => listRoots().then(
-    (result) => result.roots,
-    onError: (Object _) => <Root>[],
-  );
+  Future<List<Root>?> _listClientRoots() {
+    var listing = ++_listings;
+    return listRoots().then<List<Root>?>((result) {
+      _launchRoots ??= result.roots;
+      if (listing > _answered) {
+        _answered = listing;
+        _lastRoots = result.roots;
+      }
+      return result.roots;
+    }, onError: (Object _) => null);
+  }
 
-  Future<Directory> _projectDirectory() async {
-    var roots =
-        await _clientRoots?.timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => <Root>[],
-        ) ??
-        const <Root>[];
-    var paths = [
-      for (var root in roots)
-        if (Uri.tryParse(root.uri) case var uri? when uri.isScheme('file'))
-          _canonical(uri.toFilePath()),
-    ];
-    if (paths.isEmpty) return workingDirectory;
+  /// What the client lists as its roots now, or null when it cannot say.
+  ///
+  /// Asked on every call rather than cached until the client says they
+  /// changed, because a client can move without saying so: a session that
+  /// entered a git worktree mid-session was measured sending no
+  /// `roots/list_changed`, and every call after it answered about the
+  /// checkout it had left.
+  Future<List<Root>?> _currentRoots() async {
+    if (clientCapabilities.roots == null) return null;
+    if (_rootsSlow) {
+      _backgroundListing ??= _listClientRoots().whenComplete(
+        () => _backgroundListing = null,
+      );
+      return _lastRoots;
+    }
+    var listing = _listClientRoots();
+    try {
+      return await listing.timeout(rootsTimeout) ?? _lastRoots;
+    } on TimeoutException {
+      _rootsSlow = true;
+      _backgroundListing ??= listing.whenComplete(
+        () => _backgroundListing = null,
+      );
+      return _lastRoots;
+    }
+  }
+
+  /// Which checkout a call answers about, and the line its reply owes.
+  ///
+  /// The checkout [named] names when the call names one, else the one the
+  /// client's roots name now, else the one the server was started in. The
+  /// line says which it was whenever that is not the checkout the client's
+  /// session was launched in, or when nothing says where that was: a `root`
+  /// field in a reply is not where a reader looks for it.
+  Future<({Directory directory, String? note})> _project(String? named) async {
+    var roots = await _currentRoots();
     var start = _canonical(_startRoot);
-    var checkouts = await WorktreeDiscovery().discover(start);
-    var project = checkoutIn(
-      roots: paths,
-      start: start,
-      checkouts: [for (var checkout in checkouts) _canonical(checkout.path)],
+    var worktrees = [
+      for (var worktree in await WorktreeDiscovery().discover(start))
+        Worktree(
+          path: _canonical(worktree.path),
+          gitName: worktree.gitName,
+          branch: worktree.branch,
+          head: worktree.head,
+          isMain: worktree.isMain,
+        ),
+    ];
+    var checkouts = [for (var worktree in worktrees) worktree.path];
+    String? inRoots(List<Root>? roots) => roots == null
+        ? null
+        : checkoutIn(
+            roots: _filePaths(roots),
+            start: start,
+            checkouts: checkouts,
+          );
+    var launched = inRoots(_launchRoots);
+    bool isLaunched(String directory) =>
+        launched != null && p.equals(_canonical(directory), launched);
+    String describe(String directory) =>
+        describeCheckout(_canonical(directory), worktrees: worktrees);
+
+    if (named != null) {
+      var directory = namedCheckout(named, start: start, worktrees: worktrees);
+      if (directory == null) {
+        throw SessionException(unknownCheckout(named, worktrees));
+      }
+      return (
+        directory: Directory(directory),
+        note: isLaunched(directory)
+            ? null
+            : 'Answered about ${describe(directory)}, as `worktree` asked.',
+      );
+    }
+
+    var current = inRoots(roots);
+    if (current == null) {
+      return (
+        directory: workingDirectory,
+        note:
+            'Answered about ${describe(workingDirectory.path)}, where this MCP '
+            'server was started: the client named no checkout of this '
+            'repository as where it works. If you work in another worktree, '
+            'pass `worktree` with its name or path.',
+      );
+    }
+    return (
+      directory: Directory(current),
+      note: isLaunched(current)
+          ? null
+          : 'Answered about ${describe(current)}, which the client names as '
+                'where this session works now.'
+                '${launched == null ? '' : ' It was launched in ${describe(launched)}.'}',
     );
-    return project == null ? workingDirectory : Directory(project);
+  }
+
+  static List<String> _filePaths(List<Root> roots) => [
+    for (var root in roots)
+      if (Uri.tryParse(root.uri) case var uri? when uri.isScheme('file'))
+        _canonical(uri.toFilePath()),
+  ];
+
+  /// The directory a `worktree` argument names, or null when it names no
+  /// checkout of [worktrees].
+  ///
+  /// A worktree's name (`~` for the main checkout) or its branch, which is
+  /// how `flutterware_act` and an address name one, or the absolute path of
+  /// a directory in it. Like a root, it lands at the same place in that
+  /// checkout as [start] is in its own.
+  ///
+  /// A relative path is not taken as one. Resolved against anything, a typo
+  /// would land inside some checkout and be answered about it.
+  @visibleForTesting
+  static String? namedCheckout(
+    String named, {
+    required String start,
+    required List<Worktree> worktrees,
+  }) {
+    var checkouts = [for (var worktree in worktrees) worktree.path];
+    var byName =
+        worktrees.where((w) => w.name == named).firstOrNull ??
+        worktrees.where((w) => w.branch == named).firstOrNull;
+    String? path;
+    if (byName != null) {
+      path = byName.path;
+    } else if (p.isAbsolute(named) && Directory(named).existsSync()) {
+      path = _canonical(named);
+    }
+    if (path == null) return null;
+    return checkoutIn(roots: [path], start: start, checkouts: checkouts);
+  }
+
+  /// The refusal for a `worktree` argument that names no checkout.
+  @visibleForTesting
+  static String unknownCheckout(String named, List<Worktree> worktrees) =>
+      'No checkout of this repository is called "$named". Pass the name, the '
+      'branch or the path of one of these: '
+      '${[for (var worktree in worktrees) _listed(worktree)].join('; ')}.';
+
+  static String _listed(Worktree worktree) => switch (worktree.branch) {
+    var branch? => '${worktree.name} (branch $branch) at ${worktree.path}',
+    null => '${worktree.name} at ${worktree.path}',
+  };
+
+  /// [directory] as a reply names it: the checkout holding it, with its
+  /// branch.
+  @visibleForTesting
+  static String describeCheckout(
+    String directory, {
+    required List<Worktree> worktrees,
+  }) {
+    Worktree? holder;
+    for (var worktree in worktrees) {
+      if (!p.equals(worktree.path, directory) &&
+          !p.isWithin(worktree.path, directory)) {
+        continue;
+      }
+      if (holder == null || p.isWithin(holder.path, worktree.path)) {
+        holder = worktree;
+      }
+    }
+    if (holder == null) return directory;
+    var branch = holder.branch;
+    var at = p.equals(holder.path, directory)
+        ? holder.path
+        : '$directory in ${holder.path}';
+    return branch == null
+        ? 'the checkout at $at (detached)'
+        : 'the checkout at $at (branch $branch)';
   }
 
   /// Where [start] sits in the first of [roots] that is one of [checkouts],
@@ -273,36 +459,57 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// session is what makes "the two agree" a checked claim rather than a hope.
   final Future<Session> Function()? openSession;
 
+  /// Runs [body] on a session opened in the checkout the call is about.
+  ///
+  /// [request]'s `worktree` names that checkout on the tools that declare it
+  /// for the purpose. `flutterware_act` declares one too, meaning which run to
+  /// drive, so it passes [named] false and keeps that meaning.
   Future<CallToolResult> _withSession(
-    FutureOr<CallToolResult> Function(Session) body,
-  ) async {
+    CallToolRequest request,
+    FutureOr<CallToolResult> Function(Session) body, {
+    bool named = true,
+  }) async {
     Session session;
+    String? checkoutNote;
     try {
-      session =
-          await (openSession?.call() ??
-              Session.open(
-                await _projectDirectory(),
-                registry: registry,
-                // Sessions log, and the default sink is stdout — which here is
-                // the wire. A plugin that logs while loading would not be
-                // noisy, it would be a corrupt frame, so the sink is part of
-                // opening a session on this surface rather than something to
-                // remember.
-                logger: LogClient.writeTo(stderr),
-                mcp: true,
-              ));
+      if (openSession case var open?) {
+        session = await open();
+      } else {
+        var project = await _project(
+          named ? (request.arguments?['worktree'] as String?) : null,
+        );
+        checkoutNote = project.note;
+        session = await Session.open(
+          project.directory,
+          registry: registry,
+          // Sessions log, and the default sink is stdout — which here is
+          // the wire. A plugin that logs while loading would not be
+          // noisy, it would be a corrupt frame, so the sink is part of
+          // opening a session on this surface rather than something to
+          // remember.
+          logger: LogClient.writeTo(stderr),
+          mcp: true,
+        );
+      }
     } on SessionException catch (e) {
       // A session that cannot open — no SDK above the running dart, no
       // project — used to escape here as an unshaped exception, which a
       // client renders as a protocol-level failure with the cause nowhere on
       // screen. It is an answer like any other: the message already says
       // what to fix.
-      return _error('$e');
+      var refusal = _error('$e');
+      return checkoutNote == null
+          ? refusal
+          : withNote(refusal, checkoutNote, first: true);
     }
     try {
       var result = await body(session);
+      // First, because it changes how everything after it reads.
+      if (checkoutNote != null) {
+        result = withNote(result, checkoutNote, first: true);
+      }
       if (_staleResolutionNote(session.root) case var note?) {
-        return withNote(result, note);
+        result = withNote(result, note);
       }
       return result;
     } finally {
@@ -358,6 +565,22 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// own actions answer in full.
   static const _statusViewRows = 10;
 
+  /// The `worktree` argument of every tool that answers about one checkout.
+  ///
+  /// Because the roots are the client's word, and a client that does not keep
+  /// them current, or keeps none, leaves the agent as the only party that
+  /// knows where its session works.
+  static final _worktreeArgument = Schema.string(
+    description:
+        'Which checkout of this repository to answer about: a worktree name '
+        '(`~` is the main checkout), its branch, or an absolute path inside '
+        'it. Omitted, the checkout the client says this session works in, '
+        'which it is asked on every call. Pass it to ask about another '
+        'checkout, or when a reply opens by naming a checkout you do not '
+        'work in. A name that is not a checkout is refused with the list of '
+        'checkouts.',
+  );
+
   static final _statusTool = Tool(
     name: 'flutterware_status',
     description:
@@ -385,13 +608,14 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
               "and the inventory is what each plugin's own actions serve in "
               'full — measured at 90% of this reply.',
         ),
+        'worktree': _worktreeArgument,
       },
       additionalProperties: false,
     ),
   );
 
   Future<CallToolResult> _status(CallToolRequest request) =>
-      _withSession((session) async {
+      _withSession(request, (session) async {
         var brief = request.arguments?['brief'] == true;
         var only = request.arguments?['plugin'] as String?;
         // Named, so only that core is loaded — the rest is the work this call
@@ -498,13 +722,14 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
               'Include the notes already resolved. Off by default: the '
               'outstanding ones are the work.',
         ),
+        'worktree': _worktreeArgument,
       },
       additionalProperties: false,
     ),
   );
 
   Future<CallToolResult> _review(CallToolRequest request) =>
-      _withSession((session) async {
+      _withSession(request, (session) async {
         var path = session.worktree.path;
         if (request.arguments?['resolve'] case String id) {
           return _json(
@@ -553,6 +778,7 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
               'One action of that plugin, alone — "act", "launch". Needs '
               '"plugin". Omitted, every action of the plugin.',
         ),
+        'worktree': _worktreeArgument,
       },
       additionalProperties: false,
     ),
@@ -567,70 +793,71 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// be read. The index is a twentieth of that and carries what a call usually
   /// needs — the id, what it does, what it takes — and the plugin that turns out
   /// to matter is one more round trip away, in full.
-  Future<CallToolResult> _actions(CallToolRequest request) => _withSession((
-    session,
-  ) async {
-    var requested = request.arguments?['plugin'] as String?;
-    var wantedAction = request.arguments?['action'] as String?;
-    if (requested == null && wantedAction != null) {
-      return _error(
-        'naming an action needs the plugin it belongs to — '
-        '{"plugin": "run", "action": "$wantedAction"}. Without "plugin" this '
-        'answers the index of every plugin.',
-      );
-    }
-    if (requested == null) {
-      return _json({
-        'plugins': [
-          for (var report in session.reports)
-            {
-              'id': report.id,
-              'label': report.label,
-              // A plugin with nothing to call says why — a build older than
-              // the project's flutterware, usually.
-              if (report.actions.isEmpty) 'description': ?report.description,
-              'actions': [
-                for (var action in report.actions)
-                  {
-                    'id': action.id,
-                    'description': ?action.description,
-                    // Names only. Enough to call a parameterless action, or
-                    // one whose parameters say what they are; anything else
-                    // is what naming the plugin is for.
-                    if (action.parameters.isNotEmpty)
-                      'takes': [
-                        for (var parameter in action.parameters) parameter.id,
-                      ],
-                  },
-              ],
-            },
-        ],
-      });
-    }
-
-    PluginCore core;
-    try {
-      core = session.requireCore(requested);
-    } on SessionException catch (e) {
-      return _error('$e');
-    }
-    var report = core.report;
-    var actions = report.actions;
-    if (wantedAction != null) {
-      var one = actions.where((a) => a.id == wantedAction).toList();
-      if (one.isEmpty) {
+  Future<CallToolResult> _actions(CallToolRequest request) => _withSession(
+    request,
+    (session) async {
+      var requested = request.arguments?['plugin'] as String?;
+      var wantedAction = request.arguments?['action'] as String?;
+      if (requested == null && wantedAction != null) {
         return _error(
-          '"$wantedAction" is not an action of ${report.id}. It has: '
-          '${actions.map((a) => a.id).join(', ')}.',
+          'naming an action needs the plugin it belongs to — '
+          '{"plugin": "run", "action": "$wantedAction"}. Without "plugin" this '
+          'answers the index of every plugin.',
         );
       }
-      actions = one;
-    }
-    return _json({
-      ..._describeActions(report.id, report.label, actions),
-      if (core is MissingPluginCore) 'note': core.explanation,
-    });
-  });
+      if (requested == null) {
+        return _json({
+          'plugins': [
+            for (var report in session.reports)
+              {
+                'id': report.id,
+                'label': report.label,
+                // A plugin with nothing to call says why — a build older than
+                // the project's flutterware, usually.
+                if (report.actions.isEmpty) 'description': ?report.description,
+                'actions': [
+                  for (var action in report.actions)
+                    {
+                      'id': action.id,
+                      'description': ?action.description,
+                      // Names only. Enough to call a parameterless action, or
+                      // one whose parameters say what they are; anything else
+                      // is what naming the plugin is for.
+                      if (action.parameters.isNotEmpty)
+                        'takes': [
+                          for (var parameter in action.parameters) parameter.id,
+                        ],
+                    },
+                ],
+              },
+          ],
+        });
+      }
+
+      PluginCore core;
+      try {
+        core = session.requireCore(requested);
+      } on SessionException catch (e) {
+        return _error('$e');
+      }
+      var report = core.report;
+      var actions = report.actions;
+      if (wantedAction != null) {
+        var one = actions.where((a) => a.id == wantedAction).toList();
+        if (one.isEmpty) {
+          return _error(
+            '"$wantedAction" is not an action of ${report.id}. It has: '
+            '${actions.map((a) => a.id).join(', ')}.',
+          );
+        }
+        actions = one;
+      }
+      return _json({
+        ..._describeActions(report.id, report.label, actions),
+        if (core is MissingPluginCore) 'note': core.explanation,
+      });
+    },
+  );
 
   /// One plugin's actions, with everything they share said once.
   ///
@@ -755,15 +982,16 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
               'serve in full and does not change because an action ran — on a '
               '127-scenario suite it was twice the answer it rode on.',
         ),
+        'worktree': _worktreeArgument,
       },
       required: ['plugin', 'action'],
       additionalProperties: false,
     ),
   );
 
-  Future<CallToolResult> _invoke(CallToolRequest request) => _withSession((
-    session,
-  ) async {
+  Future<CallToolResult> _invoke(
+    CallToolRequest request,
+  ) => _withSession(request, (session) async {
     var pluginName = request.arguments?['plugin'] as String?;
     var actionId = request.arguments?['action'] as String?;
     if (pluginName == null || actionId == null) {
@@ -1226,7 +1454,7 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   ];
 
   Future<CallToolResult> _act(CallToolRequest request) =>
-      _withSession((session) async {
+      _withSession(request, named: false, (session) async {
         var arguments = <String, Object?>{
           for (var key in actArguments) key: ?request.arguments?[key],
         };
@@ -1388,12 +1616,19 @@ base class FlutterwareMcpServer extends MCPServer with ToolsSupport {
   /// stale path, which is the one nothing exercises. `content` is named by the
   /// MCP schema rather than by this client library, so the literal is the
   /// stable spelling; the cast is an extension type over its own wire map.
+  ///
+  /// [first] puts it ahead of everything else instead.
   @visibleForTesting
-  static CallToolResult withNote(CallToolResult result, String note) =>
-      CallToolResult.fromMap({
-        ...(result as Map<String, Object?>),
-        'content': [...result.content, TextContent(text: note)],
-      });
+  static CallToolResult withNote(
+    CallToolResult result,
+    String note, {
+    bool first = false,
+  }) => CallToolResult.fromMap({
+    ...(result as Map<String, Object?>),
+    'content': first
+        ? [TextContent(text: note), ...result.content]
+        : [...result.content, TextContent(text: note)],
+  });
 
   /// What to say when a server older than the project's flutterware answers.
   ///

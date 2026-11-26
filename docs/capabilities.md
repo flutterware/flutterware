@@ -77,6 +77,7 @@ What every declared flutterware plugin says about itself: status, sub-entries pe
 |---|---|---|
 | `plugin` | no | One plugin, in full: its id or the last dotted segment — "flutterware.previews" or just "previews". Omitted, all of them. |
 | `brief` | no | Drop the panel projection, keeping the status line, the badge and the per-package entries. The projection is the inventory, and the inventory is what each plugin's own actions serve in full — measured at 90% of this reply. |
+| `worktree` | no | Which checkout of this repository to answer about: a worktree name (`~` is the main checkout), its branch, or an absolute path inside it. Omitted, the checkout the client says this session works in, which it is asked on every call. Pass it to ask about another checkout, or when a reply opens by naming a checkout you do not work in. A name that is not a checkout is refused with the list of checkouts. |
 
 ### `flutterware_actions`
 
@@ -86,6 +87,7 @@ Every action that can be invoked, per plugin. Call this before flutterware_invok
 |---|---|---|
 | `plugin` | no | One plugin, in full: its id or the last dotted segment — "flutterware.previews" or just "previews". Omitted, the index. |
 | `action` | no | One action of that plugin, alone — "act", "launch". Needs "plugin". Omitted, every action of the plugin. |
+| `worktree` | no | Which checkout of this repository to answer about: a worktree name (`~` is the main checkout), its branch, or an absolute path inside it. Omitted, the checkout the client says this session works in, which it is asked on every call. Pass it to ask about another checkout, or when a reply opens by naming a checkout you do not work in. A name that is not a checkout is refused with the list of checkouts. |
 
 ### `flutterware_invoke`
 
@@ -97,6 +99,7 @@ Run one plugin action. Argument keys are the parameter ids reported by flutterwa
 | `action` | yes | Action id. |
 | `arguments` | no | Action arguments, keyed by parameter id. |
 | `brief` | no | Drop the panel projection from the reply, keeping the status line and the per-package entries. The projection is the plugin's inventory, which is the same catalog its own actions serve in full and does not change because an action ran — on a 127-scenario suite it was twice the answer it rode on. |
+| `worktree` | no | Which checkout of this repository to answer about: a worktree name (`~` is the main checkout), its branch, or an absolute path inside it. Omitted, the checkout the client says this session works in, which it is asked on every call. Pass it to ask about another checkout, or when a reply opens by naming a checkout you do not work in. A name that is not a checkout is refused with the list of checkouts. |
 
 ### `flutterware_act`
 
@@ -143,6 +146,7 @@ Notes a human left on this checkout, and how you answer them. They are written o
 | `unresolve` | no | The id of a note to put back on the outstanding list. |
 | `message` | no | What to say beside the note — what you did, or why you did not. Goes with "resolve". Leave it out only for a note that needs no answer. |
 | `all` | no | Include the notes already resolved. Off by default: the outstanding ones are the work. |
+| `worktree` | no | Which checkout of this repository to answer about: a worktree name (`~` is the main checkout), its branch, or an absolute path inside it. Omitted, the checkout the client says this session works in, which it is asked on every call. Pass it to ask about another checkout, or when a reply opens by naming a checkout you do not work in. A name that is not a checkout is refused with the list of checkouts. |
 
 ## Plugins
 
