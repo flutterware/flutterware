@@ -1,0 +1,71 @@
+# Temporary diagnostic, never merged: the root suite on Windows under a
+# watchdog that keeps the runner alive long enough to upload what it saw.
+name: Windows root suite diagnostic
+on:
+  push:
+    branches:
+      - diag/windows-root-suite
+
+jobs:
+  root_suite:
+    name: Root suite on Windows (${{ matrix.attempt }})
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Read the pinned Flutter version
+        id: pin
+        shell: bash
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.pin.outputs.version }}
+          channel: ${{ steps.pin.outputs.channel }}
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Machine
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_ComputerSystem | Select-Object NumberOfLogicalProcessors, TotalPhysicalMemory | Format-List
+          Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory | Select-Object AvailableMBytes, CommittedBytes, CommitLimit | Format-List
+      - name: Root suite under a watchdog
+        shell: pwsh
+        timeout-minutes: 30
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          $log = Join-Path $PWD 'build\watchdog.log'
+          $stop = Join-Path $PWD 'build\watchdog.stop'
+          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', 'tool\ci\watchdog.ps1', '-RootPid', $PID, '-Log', $log, '-StopFile', $stop) | Out-Null
+          flutter test --reporter expanded --file-reporter json:build/root-suite.json
+          $code = $LASTEXITCODE
+          New-Item -ItemType File $stop | Out-Null
+          Start-Sleep -Seconds 5
+          exit $code
+      - name: What the watchdog saw
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path build\watchdog.log) {
+            Select-String -Path build\watchdog.log -Pattern '^ALERT' -Context 0,18 | ForEach-Object { $_.Line; $_.Context.PostContext }
+            '--- peak samples ---'
+            Get-Content build\watchdog.log | Where-Object { $_ -match 'avail=(\d+)MB' } | Sort-Object { [int]([regex]::Match($_, 'avail=(\d+)MB').Groups[1].Value) } | Select-Object -First 15
+            '--- last samples ---'
+            Get-Content build\watchdog.log -Tail 30
+          } else { 'no watchdog log' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: root-suite-windows-${{ matrix.attempt }}
+          path: |
+            build/watchdog.log
+            build/root-suite.json
+          if-no-files-found: ignore
