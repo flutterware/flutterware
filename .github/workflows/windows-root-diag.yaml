@@ -12,14 +12,27 @@ permissions:
 
 jobs:
   root_suite:
-    name: Windows ${{ matrix.mode }} (${{ matrix.attempt }})
+    name: Windows ${{ matrix.mode }}
     runs-on: windows-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        mode: [info, inspector_core, normalize_sql, server_inspect, vm_transport]
-        attempt: [1, 2]
+        include:
+          - { mode: publishes, filter: 'publishes a handle that describes the socket' }
+          - { mode: replays, filter: 'replays the ring on attach' }
+          - { mode: ring, filter: 'the ring drops oldest' }
+          - { mode: details, filter: 'details are held lazily' }
+          - { mode: requests, filter: 'requests reach handlers' }
+          - { mode: throwing, filter: 'a handler throwing answers err' }
+          - { mode: knock, filter: 'a knock' }
+          - { mode: hangup, filter: 'hangs up before the answer' }
+          - { mode: stop, filter: 'stop deletes the handle' }
+          - { mode: dead, filter: 'a dead handle is deleted' }
+          - { mode: mute, filter: 'a mute listener' }
+          - { mode: predecessor, filter: 'activation cleans up a dead predecessor' }
+          - { mode: primitives, filter: 'primitives' }
+          - { mode: names, filter: 'handle names' }
     steps:
       - uses: actions/checkout@v2
       - name: Read the pinned Flutter version
@@ -56,19 +69,19 @@ jobs:
           $log = Join-Path $PWD 'build\watchdog.log'
           $stop = Join-Path $PWD 'build\watchdog.stop'
           $report = Join-Path $PWD 'build\root-suite.json'
-          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', 'tool\ci\watchdog.ps1', '-Log', $log, '-StopFile', $stop, '-Report', $report, '-Name', '${{ matrix.mode }}-${{ matrix.attempt }}') | Out-Null
+          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', 'tool\ci\watchdog.ps1', '-Log', $log, '-StopFile', $stop, '-Report', $report, '-Name', '${{ matrix.mode }}') | Out-Null
           $code = 0
           $api = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA"
           $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
           for ($i = 1; $i -le 8; $i++) {
             "=== round $i"
             Set-Content build\round.txt "r$i"
-            $body = @{ state = 'pending'; context = 'diag/${{ matrix.mode }}-${{ matrix.attempt }}/round'; description = "round $i starts" } | ConvertTo-Json
+            $body = @{ state = 'pending'; context = 'diag/${{ matrix.mode }}/round'; description = "round $i starts" } | ConvertTo-Json
             try { Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -TimeoutSec 10 | Out-Null } catch { "post failed: $_" }
-            flutter test test/server/${{ matrix.mode }}_test.dart --reporter expanded
+            flutter test test/server/server_inspect_test.dart --plain-name '${{ matrix.filter }}' --reporter expanded
             if ($LASTEXITCODE -ne 0) { $code = $LASTEXITCODE }
           }
-          $body = @{ state = 'success'; context = 'diag/${{ matrix.mode }}-${{ matrix.attempt }}/round'; description = 'all rounds done' } | ConvertTo-Json
+          $body = @{ state = 'success'; context = 'diag/${{ matrix.mode }}/round'; description = 'all rounds done' } | ConvertTo-Json
           try { Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -TimeoutSec 10 | Out-Null } catch { "post failed: $_" }
           New-Item -ItemType File $stop | Out-Null
           Start-Sleep -Seconds 5
@@ -85,7 +98,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: root-suite-windows-${{ matrix.mode }}-${{ matrix.attempt }}
+          name: root-suite-windows-${{ matrix.mode }}
           path: |
             build/watchdog.log
             build/root-suite.json
