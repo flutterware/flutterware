@@ -113,6 +113,8 @@ A bump writes `.fvmrc` only; run `fvm install` after it. `--check` reads the SDK
 
 Each command moves one number, never both. `--check` catches only the half that breaks *us* — a floor risen above the pin. A floor that is lower than what the code needs is a claim nothing here disproves, because nothing runs an older SDK.
 
+**The pin moves itself.** Every Monday `.github/workflows/upgrade.yaml` runs `bump_flutter.dart beta` and `tool/upgrade.dart`, which moves every dependency to its latest release, and keeps one PR open on the `upgrade` branch with the result (CONTRIBUTING.md, "Upgrades"). It never moves a floor. `tool/check_constraints.dart`, in CI, holds the other side: every floor, and a release of every dependency, must still resolve on `oldestFlutter` — the oldest Flutter a project on flutterware builds with, which is not the pin and moves only by hand — and every constraint must admit its dependency's latest release unless `heldBack` gives the reason. `hooks_runner` is the exception in kind: it follows `flutter_tools`' pin (`pinnedBySdk`), which the upgrade copies from the new SDK.
+
 ## How the CLI/GUI launch flow works
 
 `dart run flutterware` from a user's Flutter project executes `bin/flutterware.dart` — the launcher. It resolves its own package via `Isolate.resolvePackageUri`, works out everything that has to exist before `fw` can run, and narrates the lot as a `LaunchPlan` (`lib/src/launch_plan.dart`):

@@ -69,6 +69,58 @@ Windows support is in progress. What a contributor needs today:
   same job reports without blocking — run the app test files you touch one by
   one.
 
+## Upgrades
+
+Every Monday the Upgrade workflow (`.github/workflows/upgrade.yaml`) moves
+`.fvmrc` to the latest Flutter beta with `tool/bump_flutter.dart beta`. Then
+`tool/upgrade.dart` moves every pub dependency to its latest release:
+
+- A constraint that excludes a dependency's latest release is widened to it,
+  unless `heldBack` in `tool/check_constraints.dart` gives the reason not to.
+- `hooks_runner` takes the version that `flutter_tools` pins in the new
+  Flutter (`pinnedBySdk` in the same file).
+- `pubspec.lock` takes the newest version every constraint allows, and
+  `tool/prepare_submit.dart` formats the workspace again.
+
+The `environment:` floors do not move. CI runs `tool/check_constraints.dart`,
+which fails when a floor would exclude `oldestFlutter`, the oldest Flutter a
+project on flutterware builds with, or when no release a constraint admits
+resolves on it. It also fails when a constraint excludes a dependency's latest
+release and `heldBack` does not say why. Raise `oldestFlutter` when no project
+builds with that Flutter any more.
+
+The workflow opens one pull request on the `upgrade` branch, or updates the one
+already open. Its description lists what moved. A red check is the upgrade's
+breakage: fix it on that branch. Once someone else has a commit on the branch,
+the next run leaves it alone. Otherwise it rebuilds the branch from master.
+
+By hand, the same is:
+
+```sh
+fvm dart tool/bump_flutter.dart beta
+fvm install
+fvm dart tool/upgrade.dart
+```
+
+The pull request is opened with `BOT_PAT`, a personal access token. A pull
+request opened with a workflow's own token starts no workflow, so its checks
+would never run. Make a
+[fine-grained token](https://github.com/settings/personal-access-tokens/new)
+with `flutterware` as the resource owner, for this repository only, with
+Contents and Pull requests set to Read and write. Store it as the repository's
+`BOT_PAT` secret (`gh secret set` asks for it), then run the workflow once
+instead of waiting for Monday:
+
+```sh
+gh secret set BOT_PAT -R flutterware/flutterware
+gh workflow run upgrade.yaml -R flutterware/flutterware
+```
+
+The pull request is the token owner's, and its commits are
+`github-actions[bot]`'s. Without the secret, the run fails at its first step
+and says so. With an expired token, it fails at the checkout, and the same
+`gh secret set` renews it.
+
 ## Releasing
 
 A release is a GitHub release. Its version is the one master already names:
