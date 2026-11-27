@@ -4,6 +4,7 @@
 /// fvm dart tool/measure_devices.dart                  # every row it can
 /// fvm dart tool/measure_devices.dart --only=ipad,android-tall
 /// fvm dart tool/measure_devices.dart --ios            # or --android
+/// fvm dart tool/measure_devices.dart --runtime=26.2   # an older iOS
 /// ```
 ///
 /// Each phone and tablet in `Devices.all` is stood in for by a throwaway
@@ -41,7 +42,16 @@ final _standIns = <String, _StandIn>{
   'iphone-12-pro-max': const _Simulator('iPhone 12 Pro Max'),
   'iphone-16-plus': const _Simulator('iPhone 16 Plus'),
   'iphone-16-pro-max': const _Simulator('iPhone 16 Pro Max'),
+  'ipad-mini': const _Simulator('iPad mini (A17 Pro)'),
   'ipad': const _Simulator('iPad (9th generation)'),
+  // Two models on one row, both measured: the base iPad has had the 11-inch
+  // Air's screen since its 10th generation.
+  'ipad-air-11': const _Simulator(
+    'iPad Air 11-inch (M3)',
+    also: ['iPad (A16)'],
+  ),
+  'ipad-pro-11': const _Simulator('iPad Pro 11-inch (M5)'),
+  'ipad-air-13': const _Simulator('iPad Air 13-inch (M3)'),
   'ipad-pro-13': const _Simulator('iPad Pro 13-inch (M4)'),
   // The phones are reshaped from a Pixel 8a, because a profile with a camera
   // cutout is what every phone here is — with none, a small phone's landscape
@@ -99,7 +109,7 @@ Future<void> main(List<String> args) async {
         if (_standIns[d.id] is _Emulator) d,
     ];
     if (wantIos && ios.isNotEmpty) {
-      disagreements += await _measureIos(flutter, app, ios);
+      disagreements += await _measureIos(flutter, app, ios, args);
     }
     if (wantAndroid && android.isNotEmpty) {
       disagreements += await _measureAndroid(flutter, app, android);
@@ -120,10 +130,13 @@ sealed class _StandIn {
 }
 
 class _Simulator extends _StandIn {
-  const _Simulator(this.type);
+  const _Simulator(this.type, {this.also = const []});
 
   /// The device type's name, as `xcrun simctl list devicetypes` spells it.
   final String type;
+
+  /// Other device types the row stands for, measured against it too.
+  final List<String> also;
 }
 
 class _Emulator extends _StandIn {
@@ -196,6 +209,7 @@ Future<int> _measureIos(
   String flutter,
   Directory app,
   List<Device> rows,
+  List<String> args,
 ) async {
   if (!Platform.isMacOS) {
     stdout.writeln('\nSkipping the iOS rows: the simulators need macOS.');
@@ -214,7 +228,7 @@ Future<int> _measureIos(
     'iphonesimulator',
     'Runner.app',
   );
-  var runtime = await _latestIosRuntime();
+  var runtimes = await _iosRuntimes(args);
 
   // The software keyboard only comes up with the hardware one disconnected.
   var keyboardDefault = await _run('defaults', [
@@ -233,9 +247,17 @@ Future<int> _measureIos(
   try {
     for (var device in rows) {
       var standIn = _standIns[device.id]! as _Simulator;
-      stdout.writeln('\n${device.id} — ${standIn.type}, $runtime');
-      var readings = await _onSimulator(standIn.type, runtime, bundle);
-      disagreements += _compare(device, readings, checksTop: true);
+      for (var type in [standIn.type, ...standIn.also]) {
+        var runtime = _runtimeFor(type, runtimes);
+        if (runtime == null) {
+          stdout.writeln('\n${device.id} — no runtime here runs $type');
+          disagreements++;
+          continue;
+        }
+        stdout.writeln('\n${device.id} — $type, ${runtime.name}');
+        var readings = await _onSimulator(type, runtime.identifier, bundle);
+        disagreements += _compare(device, readings, checksTop: true);
+      }
     }
   } finally {
     if (keyboardDefault.exitCode == 0) {
@@ -258,19 +280,50 @@ Future<int> _measureIos(
   return disagreements;
 }
 
-Future<String> _latestIosRuntime() async {
+/// An installed iOS simulator runtime, and the device types it runs.
+typedef _Runtime = ({String identifier, String name, Set<String> types});
+
+/// The available iOS runtimes, newest last, narrowed to the one `--runtime=`
+/// names when it names one: `--runtime=26.2` is iOS 26.2.
+Future<List<_Runtime>> _iosRuntimes(List<String> args) async {
+  var wanted = [
+    for (var arg in args)
+      if (arg.startsWith('--runtime=')) arg.substring(10),
+  ].lastOrNull;
   var listed = await _run('xcrun', ['simctl', 'list', 'runtimes', '--json']);
   var json = jsonDecode(listed.stdout as String) as Map<String, Object?>;
   var runtimes = [
     for (var runtime
         in (json['runtimes']! as List).cast<Map<String, Object?>>())
       if (runtime['isAvailable'] == true &&
-          (runtime['identifier']! as String).contains('iOS'))
-        runtime['identifier']! as String,
+          (runtime['identifier']! as String).contains('iOS') &&
+          (wanted == null || runtime['name'] == 'iOS $wanted'))
+        (
+          identifier: runtime['identifier']! as String,
+          name: runtime['name']! as String,
+          types: {
+            for (var type
+                in (runtime['supportedDeviceTypes'] as List? ?? const [])
+                    .cast<Map<String, Object?>>())
+              type['name']! as String,
+          },
+        ),
   ];
-  if (runtimes.isEmpty) throw StateError('No iOS simulator runtime installed.');
-  return runtimes.last;
+  if (runtimes.isEmpty) {
+    throw StateError(
+      wanted == null
+          ? 'No iOS simulator runtime installed.'
+          : 'No iOS $wanted simulator runtime installed.',
+    );
+  }
+  return runtimes;
 }
+
+/// The newest of [runtimes] that runs [type], or null when none does. Not
+/// simply the newest: a runtime made for one new iPhone runs that iPhone and
+/// nothing else.
+_Runtime? _runtimeFor(String type, List<_Runtime> runtimes) =>
+    runtimes.where((runtime) => runtime.types.contains(type)).lastOrNull;
 
 Future<_Readings> _onSimulator(
   String type,

@@ -14,7 +14,9 @@ final info = DeviceInfo(
     'ipad-air-4',
   ),
   name: 'iPad Air 4',
-  pixelRatio: 3.0,
+  // 2.0 here, where upstream has 3.0: the Air 4 is a 2360×1640 panel, two
+  // pixels to a point.
+  pixelRatio: 2.0,
   frameSize: const Size(1811.0, 2509.0),
   screenSize: const Size(820.0, 1180.0),
   safeAreas: const EdgeInsets.only(

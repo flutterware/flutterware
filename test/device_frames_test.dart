@@ -14,16 +14,20 @@ void main() {
   );
 
   test('every phone the table offers wears a hand-drawn body, and so does '
-      'every iPad', () {
-    // The Android tablets are the exception, and the only one: `device_frame`
-    // draws no Android tablet.
+      'every iPad but the mini', () {
+    // The tablets `device_frame` draws no body for are the exceptions, and
+    // the only ones: an iPad mini and any Android tablet.
     var bodiless = [
       for (var device in Devices.all)
         if (device.kind != DeviceKind.desktop &&
             namedFrameFor(device.id) == null)
           device.id,
     ];
-    expect(bodiless, ['android-small-tablet', 'android-medium-tablet']);
+    expect(bodiless, [
+      'ipad-mini',
+      'android-small-tablet',
+      'android-medium-tablet',
+    ]);
   });
 
   test('every body fits the glass of the row that wears it', () {

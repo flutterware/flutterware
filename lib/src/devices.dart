@@ -347,8 +347,9 @@ const fitDeviceId = 'fit';
 /// **Every phone and iPad here is a real screen**, because each one wears
 /// `device_frame`'s hand-drawn body for it (`device_frames.dart`) and a body
 /// only fits the glass it was drawn around: `test/device_frames_test.dart`
-/// holds every row's size and ratio to its body's. The Android tablets, which
-/// `device_frame` draws none of, take its generic silhouette instead.
+/// holds every row's size and ratio to its body's. The iPad mini and the
+/// Android tablets, which `device_frame` draws none of, take its generic
+/// silhouette instead.
 ///
 /// The safe areas and the keyboards are not the bodies'. They are what the
 /// platform reports on the OS that ships now — iOS 26.2 simulators and API 35
@@ -366,6 +367,10 @@ abstract final class Devices {
   // wide raises 335 (308 for digits), every one from 428 up raises 345 (318),
   // and all of them 209 on their side (165). The 16s' 336 and 219 that used
   // to be here were iOS 18's — the same glass, a different keyboard.
+  //
+  // Every iPad without a home button keeps 32 at the top and 25 at the bottom
+  // in both orientations, raises a taller keyboard on its side than standing,
+  // and raises no smaller one for digits.
 
   static const iphoneSe = Device(
     'iphone-se',
@@ -504,6 +509,24 @@ abstract final class Devices {
     landscapeKeypadKeyboard: 165,
   );
 
+  /// The smallest iPad: the mini's 8.3-inch screen since its 6th generation,
+  /// the A17 Pro included. The A20 Pro mini is a larger screen, 756×1158, and
+  /// not this one.
+  static const iPadMini = Device(
+    'ipad-mini',
+    'iPad mini',
+    kind: DeviceKind.tablet,
+    platform: DevicePlatform.ios,
+    group: 'iOS',
+    width: 744,
+    height: 1133,
+    pixelRatio: 2,
+    insetTop: 32,
+    insetBottom: 25,
+    keyboard: 340,
+    landscapeKeyboard: 428,
+  );
+
   /// The iPad with a home button, whose status bar is all there is to avoid.
   static const iPad = Device(
     'ipad',
@@ -517,6 +540,55 @@ abstract final class Devices {
     insetTop: 32,
     keyboard: 320,
     landscapeKeyboard: 408,
+  );
+
+  /// The iPad most people are holding: the 11-inch Air's screen, which the
+  /// base iPad has had too since its 10th generation, the A16 included.
+  static const iPadAir11 = Device(
+    'ipad-air-11',
+    'iPad Air 11"',
+    kind: DeviceKind.tablet,
+    platform: DevicePlatform.ios,
+    group: 'iOS',
+    width: 820,
+    height: 1180,
+    pixelRatio: 2,
+    insetTop: 32,
+    insetBottom: 25,
+    keyboard: 337,
+    landscapeKeyboard: 422,
+  );
+
+  /// The 11-inch iPad Pro since the M4: a little taller than the Air beside it.
+  static const iPadPro11 = Device(
+    'ipad-pro-11',
+    'iPad Pro 11"',
+    kind: DeviceKind.tablet,
+    platform: DevicePlatform.ios,
+    group: 'iOS',
+    width: 834,
+    height: 1210,
+    pixelRatio: 2,
+    insetTop: 32,
+    insetBottom: 25,
+    keyboard: 340,
+    landscapeKeyboard: 428,
+  );
+
+  /// The 13-inch Air: the screen of the 12.9-inch iPad Pros before the M4.
+  static const iPadAir13 = Device(
+    'ipad-air-13',
+    'iPad Air 13"',
+    kind: DeviceKind.tablet,
+    platform: DevicePlatform.ios,
+    group: 'iOS',
+    width: 1024,
+    height: 1366,
+    pixelRatio: 2,
+    insetTop: 32,
+    insetBottom: 25,
+    keyboard: 403,
+    landscapeKeyboard: 498,
   );
 
   static const iPadPro13 = Device(
@@ -793,7 +865,11 @@ abstract final class Devices {
     iphone12ProMax,
     iphone16Plus,
     iphone16ProMax,
+    iPadMini,
     iPad,
+    iPadAir11,
+    iPadPro11,
+    iPadAir13,
     iPadPro13,
     androidSmall,
     androidTall,
