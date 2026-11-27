@@ -45,12 +45,18 @@ const _pluginDescription =
 /// produces the screens is behind the `export` action, where a caller chose it
 /// by name.
 class TranslationsCore extends PluginCore {
-  TranslationsCore(super.host, {TranslationSource? source})
-    : source = source ?? const LiveTranslationSource();
+  TranslationsCore(
+    super.host, {
+    TranslationSource? source,
+    this._scenarioRunner,
+  }) : source = source ?? const LiveTranslationSource();
 
   /// Where the catalogs, the export and its pictures are read from — the
   /// package's directory unless a recording is standing in for one.
   final TranslationSource source;
+
+  /// What runs the export's scenarios; null for the real harness.
+  final ScenarioRunSourceFactory? _scenarioRunner;
 
   /// Declared packages, filtered to those the workspace knows about, so a typo
   /// cannot make the plugin scan a directory that is not there.
@@ -707,6 +713,27 @@ class TranslationsCore extends PluginCore {
           ? 'running ${languages.single}'
           : 'running ${languages.length} locales',
     );
+    // The probe's runs write where the run sweep never looks. Every scenario
+    // run trims the package's run directories to the newest three, and the
+    // probe makes a dozen: as ordinary runs they deleted the export's own run
+    // and the baseline's pictures before anything read them. Removed once the
+    // export has copied what it keeps.
+    var probeRoot = p.join(
+      packageRoot,
+      'build',
+      'flutterware',
+      'max_length_probe_${DateTime.now().millisecondsSinceEpoch}',
+    );
+    void discardProbes() {
+      try {
+        var directory = Directory(probeRoot);
+        if (directory.existsSync()) directory.deleteSync(recursive: true);
+      } on FileSystemException {
+        // Housekeeping: a directory somebody is holding is not worth failing
+        // an export over.
+      }
+    }
+
     ScenarioRunResult run;
     ProbeBaseline? probeBaseline;
     var probePasses = <ProbePass>[];
@@ -781,7 +808,14 @@ class TranslationsCore extends PluginCore {
         // a flip at the first rung. Captured, because it also supplies the
         // `screen` evidence shots.
         _setBusy(path, 'measuring max lengths: baseline');
-        probeBaseline = ProbeBaseline(await surveyOf(await invoke(probeArgs)));
+        probeBaseline = ProbeBaseline(
+          await surveyOf(
+            await invoke({
+              ...probeArgs,
+              'output': p.join(probeRoot, 'baseline'),
+            }),
+          ),
+        );
 
         var remaining = probeBaseline.measurableIds;
         var firstClipLevels = <int>{};
@@ -794,6 +828,7 @@ class TranslationsCore extends PluginCore {
             ...probeArgs,
             'format': 'none',
             'expand': level,
+            'output': p.join(probeRoot, 'level-$level'),
           });
           var survey = await surveyOf(result);
           probePasses.add(
@@ -827,11 +862,18 @@ class TranslationsCore extends PluginCore {
           evidencePasses.add((
             level: level,
             survey: await surveyOf(
-              await invoke({...probeArgs, 'expand': level}),
+              await invoke({
+                ...probeArgs,
+                'expand': level,
+                'output': p.join(probeRoot, 'clip-$level'),
+              }),
             ),
           ));
         }
       }
+    } on Object {
+      discardProbes();
+      rethrow;
     } finally {
       unawaited(watching.cancel());
       _progress.remove(path);
@@ -911,6 +953,7 @@ class TranslationsCore extends PluginCore {
       await _loadExport(path);
       return result;
     } finally {
+      discardProbes();
       _setBusy(path, null);
     }
   }
@@ -937,6 +980,7 @@ class TranslationsCore extends PluginCore {
         ],
       },
     ),
+    runner: _scenarioRunner,
   );
 
   String _requested(Map<String, Object?> arguments) {
