@@ -18,7 +18,15 @@ import 'package:flutter_scene/scene.dart' as fs;
 /// waited out the whole real-work ceiling on that await, entry after entry.
 /// Built here, the futures belong to the root zone, whose microtasks run on
 /// the real event loop every entry shares.
-fs.Scene rootZoneScene() => Zone.root.run(fs.Scene.new);
+///
+/// It also draws every frame it is asked for. From flutter_scene 0.24 a scene
+/// shows its previous image again while the GPU is still busy with an earlier
+/// frame: two frames may be in flight on macOS, one on Linux and Windows. A
+/// walk paints each stop once and photographs that paint, so a held frame is
+/// the previous stop's picture. On CI's Linux and Windows runners the first
+/// stop of a walk showed the screen from before its seek.
+fs.Scene rootZoneScene() =>
+    Zone.root.run(fs.Scene.new)..maxGpuFramesInFlight = 0;
 
 /// Loads what a scene here needs before its first frame: flutter_scene's
 /// shaders and static resources, and the radiance of its default
