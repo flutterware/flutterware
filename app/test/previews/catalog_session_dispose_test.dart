@@ -53,9 +53,11 @@ void main() {
       );
       var accepted = 0;
       var live = <Socket>[];
+      var everyAccepted = <Socket>[];
       server.listen((socket) {
         accepted++;
         live.add(socket);
+        everyAccepted.add(socket);
         socket.writeln(
           encodeLine(
             const DaemonReady(
@@ -74,6 +76,11 @@ void main() {
             .listen((_) {}, onError: (_) {}, onDone: () => live.remove(socket));
       });
       addTearDown(() async {
+        if (Platform.environment['FW_DIAG_FIX'] == '1') {
+          for (var socket in everyAccepted) {
+            socket.destroy();
+          }
+        }
         await server.close();
         if (File(address.socketPath).existsSync()) {
           File(address.socketPath).deleteSync();

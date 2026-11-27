@@ -296,10 +296,12 @@ class _FakeDaemon {
   final ServerSocket _server;
   final DaemonAddress address;
   final _clients = <Socket>[];
+  final _everyAccepted = <Socket>[];
   void Function(Socket, SelectRequest)? _onSelect;
 
   void _accept(Socket socket) {
     _clients.add(socket);
+    _everyAccepted.add(socket);
     // Ready before anything else, because that is the handshake every client
     // waits on.
     socket.writeln(
@@ -377,6 +379,11 @@ class _FakeDaemon {
 
   Future<void> stop() async {
     await dropConnections();
+    if (Platform.environment['FW_DIAG_FIX'] == '1') {
+      for (var socket in _everyAccepted) {
+        socket.destroy();
+      }
+    }
     await _server.close();
     var socket = File(address.socketPath);
     if (socket.existsSync()) socket.deleteSync();
