@@ -180,6 +180,7 @@ class ReplayResult {
     this.width,
     this.height,
     this.boxes = const [],
+    this.unlocated = const [],
     this.drawn = false,
   });
 
@@ -240,6 +241,9 @@ class ReplayResult {
   /// Where the keys the request asked to [ReplayRequest.locate] are drawn.
   final List<ReplayBox> boxes;
 
+  /// The keys of [ReplayRequest.locate] drawn nowhere on the step.
+  final List<String> unlocated;
+
   /// Whether the step was on the page's canvas when this answer was sent.
   /// When it was not (the page is hidden, or drawing took over a second), the
   /// canvas still shows an earlier step, and a [ReplayMessages.drawn] message
@@ -260,6 +264,7 @@ class ReplayResult {
     width: width,
     height: height,
     boxes: boxes,
+    unlocated: unlocated,
     drawn: drawn,
   );
 
@@ -276,6 +281,7 @@ class ReplayResult {
     'width': ?width,
     'height': ?height,
     if (boxes.isNotEmpty) 'boxes': [for (var box in boxes) box.toJson()],
+    if (unlocated.isNotEmpty) 'unlocated': unlocated,
     'drawn': drawn,
   };
 }
@@ -494,17 +500,30 @@ class ReplayIndex {
     String position,
   ) {
     var addresses = <String, List<String>>{};
-    for (var s in scenarios) {
-      if (s.file != file || s.scenario != scenario) continue;
-      for (var step in s.steps) {
-        if (step.position != position) continue;
-        for (var box in step.boxes) {
-          (addresses[box.key] ??= []).add(box.at);
-        }
+    for (var step in _stepsAt(file, scenario, position)) {
+      for (var box in step.boxes) {
+        (addresses[box.key] ??= []).add(box.at);
       }
     }
     return addresses;
   }
+
+  /// Every key the index saw at one step, at any point of the matrix. Empty
+  /// for a step it does not know.
+  Set<String> keysAt(String file, String scenario, String position) => {
+    for (var step in _stepsAt(file, scenario, position)) ...step.keys,
+  };
+
+  Iterable<ReplayIndexStep> _stepsAt(
+    String file,
+    String scenario,
+    String position,
+  ) => [
+    for (var s in scenarios)
+      if (s.file == file && s.scenario == scenario)
+        for (var step in s.steps)
+          if (step.position == position) step,
+  ];
 
   /// Every key shown, with where: the steps a translator can be shown it on.
   Map<String, List<ReplayStepRef>> get keys {

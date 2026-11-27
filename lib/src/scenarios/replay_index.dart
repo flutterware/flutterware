@@ -386,11 +386,12 @@ List<({String key, String at, Rect rect})> keyBoxes(WidgetTester tester) => [
 /// Where each of [keys] (`catalog/key`) is drawn at this step, in the view's
 /// logical pixels: a rectangle per place it shows.
 ///
-/// [addresses] are where the index found each key at this step. They name
-/// the same text whatever its words are now, so a key is found under a draft,
-/// in another language, and when its text was built from a placeholder. A
-/// key the index did not see is looked for by its words: the draft, else
-/// what the catalog answered.
+/// [addresses] are where the index found each key at this step. They tell
+/// apart two places showing the same words, and follow a key under a draft,
+/// in another language and when its text was built from a placeholder. An
+/// address counts only when the text there is still the key's: a page that
+/// draws another screen at this step has other text at the same address. A
+/// key with no such address is looked for over the whole screen.
 Map<String, List<Rect>> locateKeys(
   WidgetTester tester,
   Iterable<String> keys, {
@@ -405,24 +406,71 @@ Map<String, List<Rect>> locateKeys(
   }
 
   for (var key in keys) {
+    var words = _wordsOf(key, read);
     for (var at in addresses[key] ?? const <String>[]) {
-      if (byAddress[at] case var text?) add(key, text.rect);
-    }
-    if (found.containsKey(key)) continue;
-    var slash = key.indexOf('/');
-    if (slash < 0) continue;
-    var value =
-        TranslationIndex.drafts[key] ??
-        read[key.substring(0, slash)]?[key.substring(slash + 1)];
-    for (var text in texts) {
-      var named = TranslationIndex.keyOf(text.text)?.toString();
-      if (named == key ||
-          (value != null && value.isNotEmpty && text.text == value)) {
+      if (byAddress[at] case var text? when _isKeys(text, key, words)) {
         add(key, text.rect);
       }
     }
+    if (found.containsKey(key)) continue;
+    for (var text in texts) {
+      if (_isKeys(text, key, words)) add(key, text.rect);
+    }
   }
   return found;
+}
+
+/// Why this step is not the screen the index recorded at [position], or null
+/// when it is: it shows none of [seen], the keys the index saw there.
+///
+/// A page and `flutter test` draw different screens when the app reads
+/// something that differs between them, such as `kIsWeb`.
+String? describeOtherScreen(
+  WidgetTester tester,
+  String position,
+  Set<String> seen,
+) {
+  if (seen.isEmpty) return null;
+  // Read the way the index read the step, text fields included.
+  if (seen.any(readShownStep(tester).keys.contains)) return null;
+  var texts = shownTexts(tester);
+  var read = TranslationIndex.read;
+  for (var key in seen) {
+    if (_wordsOf(key, read) case var words?) {
+      if (texts.any((text) => text.text == words)) return null;
+    }
+  }
+  var keys = seen.toList()..sort();
+  var listed = keys.length <= 3
+      ? keys.join(', ')
+      : '${keys.take(3).join(', ')} and ${keys.length - 3} more';
+  var missing = keys.length == 1
+      ? 'the key it showed there is not on it ($listed)'
+      : 'none of the ${keys.length} keys it showed there is on it ($listed)';
+  return 'This is not the screen `flutter test` showed at $position: '
+      '$missing. The app may read something the page has another way, such '
+      'as `kIsWeb`.';
+}
+
+/// Whether [text] is [key]'s: the catalog handed it out for that key, or it
+/// reads [words], the key's words now.
+///
+/// The words are needed besides the catalog because a web build gives a
+/// string no identity of its own: two keys with the same words are one
+/// string there, and the catalog names the last one read.
+bool _isKeys(ShownText text, String key, String? words) =>
+    TranslationIndex.keyOf(text.text)?.toString() == key ||
+    (words != null && text.text == words);
+
+/// What [key] reads now: the draft, else what the catalog answered. Null
+/// for a key nothing read, or one that reads nothing.
+String? _wordsOf(String key, Map<String, Map<String, String>> read) {
+  var slash = key.indexOf('/');
+  if (slash < 0) return null;
+  var words =
+      TranslationIndex.drafts[key] ??
+      read[key.substring(0, slash)]?[key.substring(slash + 1)];
+  return words == null || words.isEmpty ? null : words;
 }
 
 /// [rect], in [render]'s coordinates, in [view]'s logical pixels. The view's
