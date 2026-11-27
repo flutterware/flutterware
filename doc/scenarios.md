@@ -374,6 +374,22 @@ verb called inside the body moves the clock itself, and `act` waits for it
 instead of pumping at the same time. On the real clock (`ScenarioTime.real`),
 the body's timers fire on their own and `act` just awaits it.
 
+### Cleanup in a teardown
+
+A teardown runs after the body has returned, and then nothing moves the fake
+clock. A teardown that waits on it never finishes. Closing a client or
+cancelling a stream that the body opened often does. The scenario fails if its
+teardowns are still running 10 seconds after the body returns, or half its
+`timeout:` when it sets one. The error names the teardown's line and the timer
+it waits on. The clock is then moved forward so that the rest of the run can
+go on.
+
+Do that cleanup at the end of the body instead, inside `s.act`:
+
+```dart
+await s.act('Close the connection', shot: false, () => connection.close());
+```
+
 ## Shots
 
 By default every verb captures. `Shot('name')` names the picture. Unnamed ones

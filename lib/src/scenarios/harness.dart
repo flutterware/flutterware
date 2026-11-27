@@ -42,6 +42,7 @@ import 'selector.dart';
 import 'settle.dart';
 import 'progress.dart';
 import 'stall.dart';
+import 'teardown_deadline.dart';
 import 'report.dart';
 import 'reel.dart';
 import 'run_args.dart';
@@ -1953,15 +1954,39 @@ Future<Map<String, Object?>> _runOne(
   // may not be quoted at this one.
   scenarioAsyncStall = null;
   var deadline = ProgressDeadline(timeout: declaredTimeout);
+  // `test_api` declares every test unguarded and leaves the error zone to
+  // whoever runs it. `flutter test`'s runner keeps one, and without one here
+  // an error that escaped the test reached `runHarness`'s outermost guard,
+  // which logs it and leaves the scenario green: a teardown that threw, or
+  // ran out its deadline, passed. One that arrives once the scenario has been
+  // reported has nothing left to fail, and is only logged.
+  var escaped = <(Object, StackTrace)>[];
+  var reported = false;
+  var running = runZonedGuarded(() => live.run(), (error, stack) {
+    if (reported) {
+      stderr.writeln('[harness] uncaught after "$name": $error\n$stack');
+      return;
+    }
+    escaped.add((error, stack));
+  });
   try {
-    await Future.any([live.run(), deadline.stalled]);
+    await Future.any([running ?? Future<void>.value(), deadline.stalled]);
   } on ScenarioStall catch (stall) {
-    // The body is suspended somewhere past the last capture, and what the
-    // app printed and did on the way there is the evidence. So the step it
-    // never took is taken for it — failed, the diagnosis as its failure,
-    // those events on it, no picture — which is the one case where inventing
-    // a step is right: the flow really did reach a place nothing photographed.
-    timedOut = _captureTimeout(steps, stall: stall, previous: previous);
+    if (scenarioTeardownsRunning case var teardowns?) {
+      // The body had returned, so there is no step it never took: what is
+      // stuck is a teardown, and its own deadline already said which, or
+      // says it now. Its clock moving did not finish the teardown, which is
+      // why this deadline fired at all.
+      timedOut = teardowns.failure ?? teardowns.diagnosis();
+    } else {
+      // The body is suspended somewhere past the last capture, and what the
+      // app printed and did on the way there is the evidence. So the step it
+      // never took is taken for it — failed, the diagnosis as its failure,
+      // those events on it, no picture — which is the one case where
+      // inventing a step is right: the flow really did reach a place nothing
+      // photographed.
+      timedOut = _captureTimeout(steps, stall: stall, previous: previous);
+    }
   } finally {
     deadline.cancel();
     await records.cancel();
@@ -1978,9 +2003,19 @@ Future<Map<String, Object?>> _runOne(
     scenarioBreakPlacement = null;
   }
 
+  reported = true;
   var errors = [
     if (timedOut case var message?) ScenarioRunError(error: message),
     ...failures,
+    // A teardown's deadline fails the test, and when moving the clock did not
+    // finish the teardown either, the harness's own deadline says the same
+    // thing again: once is enough.
+    for (var (error, stack) in escaped)
+      if ('$error' != timedOut)
+        ScenarioRunError(
+          error: _diagnosed('$error'),
+          stack: '$stack'.isEmpty ? null : '$stack',
+        ),
     for (var error in live.errors)
       ScenarioRunError(
         error: _diagnosed('${error.error}'),
