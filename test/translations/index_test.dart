@@ -239,12 +239,36 @@ void main() {
       expect(indexTranslations('app')('missing', ''), isEmpty);
     });
 
-    test('an expansion is padded too — the built string is what renders', () {
+    String padding(String key, String value) =>
+        TranslationIndex.expansionPadding(
+          'app',
+          key,
+          TranslationIndex.expansionLength(value.length, 35),
+        );
+
+    test('an expansion with no padded template is padded itself', () {
       var built = indexExpansions('app')('greeting', 'Hello, Ada');
 
-      expect(built, startsWith('Hello, Ada'));
-      expect(built.length, greaterThan('Hello, Ada'.length));
+      expect(built, 'Hello, Ada${padding('greeting', 'Hello, Ada')}');
       expect(TranslationIndex.keyOf(built)?.key, 'greeting');
+    });
+
+    test('a text with variables is padded once, through its template', () {
+      var template = indexTranslations('app')('greeting', 'Hello, {name}');
+      var built = indexExpansions('app')(
+        'greeting',
+        template.replaceAll('{name}', 'Ada'),
+      );
+
+      expect(built, 'Hello, Ada${padding('greeting', 'Hello, {name}')}');
+      expect(TranslationIndex.keyOf(built)?.key, 'greeting');
+    });
+
+    test('another key padding a variable leaves the expansion padded', () {
+      var name = indexTranslations('app')('guest', 'Guest');
+      var built = indexExpansions('app')('greeting', 'Hello, $name');
+
+      expect(built, 'Hello, $name${padding('greeting', 'Hello, $name')}');
     });
   });
 }
