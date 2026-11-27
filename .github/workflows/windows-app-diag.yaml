@@ -1,0 +1,78 @@
+# Temporary diagnostic, never merged: the app suite on Windows, on the
+# upgrade branch, under a watchdog that posts the running tests as commit
+# statuses so a runner that freezes still leaves a record.
+name: Windows app suite diagnostic
+on:
+  push:
+    branches:
+      - diag/windows-app-suite
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  app_suite:
+    name: Windows app suite ${{ matrix.copy }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        copy: [a, b, c]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Read the pinned Flutter version
+        id: pin
+        shell: bash
+        run: |
+          version="$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)"
+          case "$version" in *-*) channel=beta ;; *) channel=stable ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.pin.outputs.version }}
+          channel: ${{ steps.pin.outputs.channel }}
+      - run: flutter --version
+      - run: flutter pub get
+      - name: App suite under a watchdog
+        shell: pwsh
+        timeout-minutes: 70
+        continue-on-error: true
+        working-directory: app
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          $log = Join-Path $PWD 'build\watchdog.log'
+          $stop = Join-Path $PWD 'build\watchdog.stop'
+          $report = Join-Path $PWD 'build\app-suite.json'
+          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', '..\tool\ci\watchdog.ps1', '-Log', $log, '-StopFile', $stop, '-Report', $report, '-Name', 'app-${{ matrix.copy }}') | Out-Null
+          flutter test --file-reporter "json:$report"
+          $code = $LASTEXITCODE
+          $api = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA"
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
+          $body = @{ state = 'success'; context = 'diag/app-${{ matrix.copy }}/done'; description = "suite finished, exit $code" } | ConvertTo-Json
+          try { Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -TimeoutSec 10 | Out-Null } catch { "post failed: $_" }
+          New-Item -ItemType File $stop | Out-Null
+          Start-Sleep -Seconds 5
+          exit $code
+      - name: What the watchdog saw
+        if: always()
+        shell: pwsh
+        working-directory: app
+        run: |
+          if (Test-Path build\watchdog.log) {
+            Select-String -Path build\watchdog.log -Pattern 'KILL|failed|error'
+            '--- last samples ---'
+            Get-Content build\watchdog.log -Tail 30
+          } else { 'no watchdog log' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-suite-windows-${{ matrix.copy }}
+          path: |
+            app/build/watchdog.log
+            app/build/app-suite.json
+          if-no-files-found: ignore
