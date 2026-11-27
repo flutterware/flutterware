@@ -145,12 +145,14 @@ void main() {
       TranslationIndex.drafts['shop/total'] = 'Grand total';
       scenarioStepHook = (step) {
         if (step.position == '#2') {
-          boxes = locateKeys(step.tester, [
-            'shop/title',
-            'shop/total',
-            'shop/menu',
-            'shop/missing',
-          ]);
+          boxes = _rects(
+            locateKeys(step.tester, [
+              'shop/title',
+              'shop/total',
+              'shop/menu',
+              'shop/missing',
+            ]),
+          );
         }
       };
     });
@@ -215,19 +217,21 @@ void main() {
   });
 
   group('the index records where each key is, placeholders included', () {
-    late List<({String key, String at, Rect rect})> recorded;
+    late List<({String key, String at, Rect rect, double visible})> recorded;
     late Map<String, List<Rect>> again;
     setUp(() {
       TranslationIndex.recording = true;
       scenarioStepHook = (step) {
         recorded = keyBoxes(step.tester);
         var thanks = recorded.firstWhere((box) => box.key == 'shop/thanks');
-        again = locateKeys(
-          step.tester,
-          ['shop/thanks'],
-          addresses: {
-            'shop/thanks': [thanks.at],
-          },
+        again = _rects(
+          locateKeys(
+            step.tester,
+            ['shop/thanks'],
+            addresses: {
+              'shop/thanks': [thanks.at],
+            },
+          ),
         );
       };
     });
@@ -271,7 +275,7 @@ void main() {
   });
 
   group('a step that draws another screen than the index recorded', () {
-    late List<({String key, String at, Rect rect})> recorded;
+    late List<({String key, String at, Rect rect, double visible})> recorded;
     String? sameScreen;
     late Set<String> addressesShown;
     late Map<String, List<Rect>> located;
@@ -288,12 +292,14 @@ void main() {
         // The second step stands for the page's first: the same step, where
         // the app drew another screen than it did under `flutter test`.
         addressesShown = {for (var text in shownTexts(step.tester)) text.at};
-        located = locateKeys(
-          step.tester,
-          ['shop/update_message'],
-          addresses: {
-            for (var box in recorded) box.key: [box.at],
-          },
+        located = _rects(
+          locateKeys(
+            step.tester,
+            ['shop/update_message'],
+            addresses: {
+              for (var box in recorded) box.key: [box.at],
+            },
+          ),
         );
         otherScreen = describeOtherScreen(step.tester, '#1', keys);
       };
@@ -341,6 +347,94 @@ void main() {
     });
   });
 
+  group('a box says how much of its key a person sees', () {
+    late Map<String, double> recorded;
+    late List<double> located;
+    setUp(() {
+      TranslationIndex.recording = true;
+      scenarioStepHook = (step) {
+        recorded = {
+          for (var box in keyBoxes(step.tester)) box.key: box.visible,
+        };
+        located = [
+          for (var text in locateKeys(step.tester, [
+            'shop/answer_3',
+          ]).values.single)
+            text.visible,
+        ];
+      };
+    });
+    tearDown(() {
+      TranslationIndex.recording = false;
+      TranslationIndex.reset();
+      expect(recorded['shop/answer_0'], 1);
+      // A text that ignores pointers is seen all the same.
+      expect(recorded['shop/answer_1'], 1);
+      // Under the bar drawn over the bottom of the list.
+      expect(recorded['shop/answer_3'], 0);
+      // Below the list, where the screen shows what is around it.
+      expect(recorded['shop/answer_4'], 0);
+      // Past the bottom of the screen.
+      expect(recorded['shop/answer_30'], 0);
+      // Under the empty input of its own text field.
+      expect(recorded['shop/search'], 1);
+      // And as the page finds it.
+      expect(located, [0]);
+    });
+    scenario('scrolled away or under a bar', (s) async {
+      var t = indexTranslations('shop');
+      await s.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Column(
+              crossAxisAlignment: .start,
+              children: [
+                TextField(
+                  decoration: InputDecoration(hintText: t('search', 'Search')),
+                ),
+                SizedBox(
+                  height: 300,
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: .start,
+                          children: [
+                            for (var i = 0; i <= 30; i++)
+                              SizedBox(
+                                height: 80,
+                                child: Align(
+                                  alignment: .topLeft,
+                                  child: IgnorePointer(
+                                    ignoring: i == 1,
+                                    child: Text(t('answer_$i', 'Answer $i')),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 60,
+                        child: ColoredBox(
+                          color: Color(0xFF000000),
+                          child: Text('Continue'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  });
+
   test('the web placeholder PNG is a zlib stream any decoder reads', () {
     for (var size in [0, 10, 0xFFFF, 0xFFFF + 1, 200000]) {
       var data = [for (var i = 0; i < size; i++) i * 7 % 256];
@@ -356,6 +450,11 @@ void main() {
     expect(branchesOfPosition('1#x'), isNull);
   });
 }
+
+Map<String, List<Rect>> _rects(Map<String, List<ShownText>> found) => {
+  for (var MapEntry(:key, :value) in found.entries)
+    key: [for (var text in value) text.rect],
+};
 
 class _Menu extends StatelessWidget {
   const _Menu();

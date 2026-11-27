@@ -109,6 +109,67 @@ void main() {
       });
     });
 
+    test('lists the steps a key is seen at, best first', () {
+      Map<String, Object?> step(String position, double? visible) => {
+        'position': position,
+        'keys': ['shop/none'],
+        'boxes': [
+          if (visible != null) ['shop/none', 'p9.0', 0, 400, 50, 19, visible],
+        ],
+      };
+      var index = ReplayIndex.merge([
+        {
+          'scenarios': [
+            {
+              'file': 'test/answers_test.dart',
+              'scenario': 'Long list',
+              'steps': [
+                step('#1', 0.4),
+                // Laid out under a bar: nobody sees it.
+                step('#2', 0),
+                step('#3', 1),
+              ],
+            },
+            {
+              'file': 'test/answers_test.dart',
+              'scenario': 'Split',
+              'steps': [
+                // Shown at another point of the matrix: no box here.
+                step('#1', null),
+                step('0#3', 1),
+                step('1#1', 1),
+              ],
+            },
+          ],
+        },
+      ]);
+      var places = [
+        for (var ref in index.keys['shop/none']!)
+          '${ref.scenario} ${ref.position} ${ref.visible}',
+      ];
+      expect(places, [
+        'Split 1#1 1.0',
+        'Long list #3 1.0',
+        'Split 0#3 1.0',
+        'Long list #1 0.4',
+        'Split #1 null',
+      ]);
+      expect(index.keys['shop/none']!.first.toJson(), {
+        'file': 'test/answers_test.dart',
+        'scenario': 'Split',
+        'position': '1#1',
+        'visible': 1.0,
+      });
+    });
+
+    test('counts the steps a scenario runs to reach a position', () {
+      var positions = ['#1', '#2', '#3', '0#5', '1#1', '1#2', '1.0#1', '1.0#2'];
+      expect(stepsInto('#2', positions), 2);
+      expect(stepsInto('0#5', positions), 8);
+      expect(stepsInto('1#1', positions), 4);
+      expect(stepsInto('1.0#2', positions), 7);
+    });
+
     test('round-trips through JSON', () {
       var index = ReplayIndex.merge([shop, again]);
       var read = ReplayIndex.fromJson(index.toJson());
