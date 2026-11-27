@@ -109,7 +109,9 @@ translation service. `package:flutterware/translations.dart` reads
 `--max-lengths=true` measures how long each string can get before it stops
 fitting: it re-runs the suite with every string padded, on the narrowest device
 your scenario folders declare, and records the longest length that still fit,
-with a picture of where it broke.
+with a picture of where it broke. A string built from a template is padded
+once, like any other: when your catalog reads the template through
+`indexTranslations`, the padding comes with it into the built string.
 
 The export exits non-zero when something is wrong, so it can gate a CI job.
 
