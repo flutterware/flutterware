@@ -53,11 +53,14 @@ void main() {
       );
       var accepted = 0;
       var live = <Socket>[];
-      var everyAccepted = <Socket>[];
+      // Every connection, including the ones whose client has hung up: this
+      // end stays open until it is destroyed, and closing the listener does
+      // not close it.
+      var opened = <Socket>[];
       server.listen((socket) {
         accepted++;
         live.add(socket);
-        everyAccepted.add(socket);
+        opened.add(socket);
         socket.writeln(
           encodeLine(
             const DaemonReady(
@@ -76,10 +79,12 @@ void main() {
             .listen((_) {}, onError: (_) {}, onDone: () => live.remove(socket));
       });
       addTearDown(() async {
-        if (Platform.environment['FW_DIAG_FIX'] == '1') {
-          for (var socket in everyAccepted) {
-            socket.destroy();
-          }
+        // Destroyed before the socket file is deleted. On Windows, this end
+        // left open on a deleted socket file, beside the next tests' own
+        // sockets, froze the whole machine's networking: no test failed and
+        // the CI runner stopped answering.
+        for (var socket in opened) {
+          socket.destroy();
         }
         await server.close();
         if (File(address.socketPath).existsSync()) {

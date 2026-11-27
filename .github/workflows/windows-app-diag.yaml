@@ -1,6 +1,6 @@
-# Temporary diagnostic, never merged: subsets of the app suite on Windows,
-# in rounds, under a watchdog that posts to commit statuses so a runner that
-# freezes still says which round it froze in.
+# Temporary diagnostic, never merged: the app suite on Windows, on the
+# upgrade branch, under a watchdog that posts the running tests as commit
+# statuses so a runner that freezes still leaves a record.
 name: Windows app suite diagnostic
 on:
   push:
@@ -12,32 +12,14 @@ permissions:
   statuses: write
 
 jobs:
-  app_subset:
-    name: Windows ${{ matrix.mode }}
+  app_suite:
+    name: Windows app suite ${{ matrix.copy }}
     runs-on: windows-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - mode: window-1
-            fix: ''
-            files: test/previews/capture_test.dart test/previews/catalog_params_test.dart test/previews/catalog_picture_test.dart test/previews/catalog_roots_test.dart test/previews/catalog_session_dispose_test.dart test/previews/catalog_tree_test.dart test/previews/catalog_view_test.dart test/previews/compile_blame_test.dart test/previews/daemon_client_test.dart test/previews/daemon_config_test.dart test/previews/daemon_depfile_test.dart
-          - mode: window-2
-            fix: ''
-            files: test/previews/capture_test.dart test/previews/catalog_params_test.dart test/previews/catalog_picture_test.dart test/previews/catalog_roots_test.dart test/previews/catalog_session_dispose_test.dart test/previews/catalog_tree_test.dart test/previews/catalog_view_test.dart test/previews/compile_blame_test.dart test/previews/daemon_client_test.dart test/previews/daemon_config_test.dart test/previews/daemon_depfile_test.dart
-          - mode: window-fix-1
-            fix: '1'
-            files: test/previews/capture_test.dart test/previews/catalog_params_test.dart test/previews/catalog_picture_test.dart test/previews/catalog_roots_test.dart test/previews/catalog_session_dispose_test.dart test/previews/catalog_tree_test.dart test/previews/catalog_view_test.dart test/previews/compile_blame_test.dart test/previews/daemon_client_test.dart test/previews/daemon_config_test.dart test/previews/daemon_depfile_test.dart
-          - mode: window-fix-2
-            fix: '1'
-            files: test/previews/capture_test.dart test/previews/catalog_params_test.dart test/previews/catalog_picture_test.dart test/previews/catalog_roots_test.dart test/previews/catalog_session_dispose_test.dart test/previews/catalog_tree_test.dart test/previews/catalog_view_test.dart test/previews/compile_blame_test.dart test/previews/daemon_client_test.dart test/previews/daemon_config_test.dart test/previews/daemon_depfile_test.dart
-          - mode: sockets
-            fix: ''
-            files: test/previews/catalog_session_dispose_test.dart test/previews/daemon_client_test.dart test/utils/run_dir_test.dart
-          - mode: capture
-            fix: ''
-            files: test/previews/capture_test.dart
+        copy: [a, b, c]
     steps:
       - uses: actions/checkout@v2
       - name: Read the pinned Flutter version
@@ -54,9 +36,9 @@ jobs:
           channel: ${{ steps.pin.outputs.channel }}
       - run: flutter --version
       - run: flutter pub get
-      - name: Subset in rounds under a watchdog
+      - name: App suite under a watchdog
         shell: pwsh
-        timeout-minutes: 35
+        timeout-minutes: 70
         continue-on-error: true
         working-directory: app
         env:
@@ -65,22 +47,13 @@ jobs:
           New-Item -ItemType Directory -Force build | Out-Null
           $log = Join-Path $PWD 'build\watchdog.log'
           $stop = Join-Path $PWD 'build\watchdog.stop'
-          $report = Join-Path $PWD 'build\none.json'
-          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', '..\tool\ci\watchdog.ps1', '-Log', $log, '-StopFile', $stop, '-Report', $report, '-Name', '${{ matrix.mode }}') | Out-Null
+          $report = Join-Path $PWD 'build\app-suite.json'
+          Start-Process pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile', '-File', '..\tool\ci\watchdog.ps1', '-Log', $log, '-StopFile', $stop, '-Report', $report, '-Name', 'app-${{ matrix.copy }}') | Out-Null
+          flutter test --file-reporter "json:$report"
+          $code = $LASTEXITCODE
           $api = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA"
           $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
-          if ('${{ matrix.fix }}' -eq '1') { $env:FW_DIAG_FIX = '1' }
-          $files = '${{ matrix.files }}'.Split(' ')
-          $code = 0
-          for ($i = 1; $i -le 10; $i++) {
-            "=== round $i"
-            Set-Content build\round.txt "r$i"
-            $body = @{ state = 'pending'; context = 'diag/${{ matrix.mode }}/round'; description = "round $i starts" } | ConvertTo-Json
-            try { Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -TimeoutSec 10 | Out-Null } catch { "post failed: $_" }
-            flutter test @files --reporter expanded
-            if ($LASTEXITCODE -ne 0) { $code = $LASTEXITCODE }
-          }
-          $body = @{ state = 'success'; context = 'diag/${{ matrix.mode }}/round'; description = "all rounds done, exit $code" } | ConvertTo-Json
+          $body = @{ state = 'success'; context = 'diag/app-${{ matrix.copy }}/done'; description = "suite finished, exit $code" } | ConvertTo-Json
           try { Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -TimeoutSec 10 | Out-Null } catch { "post failed: $_" }
           New-Item -ItemType File $stop | Out-Null
           Start-Sleep -Seconds 5
@@ -93,5 +66,13 @@ jobs:
           if (Test-Path build\watchdog.log) {
             Select-String -Path build\watchdog.log -Pattern 'KILL|failed|error'
             '--- last samples ---'
-            Get-Content build\watchdog.log -Tail 20
+            Get-Content build\watchdog.log -Tail 30
           } else { 'no watchdog log' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-suite-windows-${{ matrix.copy }}
+          path: |
+            app/build/watchdog.log
+            app/build/app-suite.json
+          if-no-files-found: ignore
