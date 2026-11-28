@@ -267,6 +267,219 @@ void main() {
     });
   });
 
+  // A refactor that puts a widget around a screen, or swaps the widget that
+  // holds it, used to read as the screen removed and another added, with
+  // nothing under either compared.
+  group('a widget put around another, or swapped for it', () {
+    InspectNode screen({double padding = 12, String price = '4.20'}) => node(
+      'MenuScreen',
+      children: [
+        node(
+          'Padding',
+          height: 40 + padding,
+          children: [node('Text', description: 'Text("$price")')],
+        ),
+      ],
+    );
+    String line(TreeDelta delta) {
+      var name = '${delta.kind.name} ${delta.path}';
+      return delta.property == null
+          ? name
+          : '$name | ${delta.property} ${delta.base} → ${delta.head}';
+    }
+
+    String lines(TreeDiff diff) => diff.deltas.map(line).join('\n');
+
+    test(
+      'a wrapper is one line, and the widget under it is still compared',
+      () {
+        var diff = TreeDiff.of(
+          node('Scope', children: [screen()]),
+          node(
+            'Scope',
+            children: [
+              node('Frame', children: [screen(padding: 13)]),
+            ],
+          ),
+        );
+
+        expect(
+          lines(diff),
+          'changed Scope › MenuScreen | wrapper null → Frame\n'
+          'changed Scope › Frame › MenuScreen › Padding | size 10×52 → 10×53',
+        );
+      },
+    );
+
+    test('a wrapper taken away says so', () {
+      var diff = TreeDiff.of(
+        node(
+          'Scope',
+          children: [
+            node(
+              'Frame',
+              children: [
+                node('Safe', children: [screen()]),
+              ],
+            ),
+          ],
+        ),
+        node('Scope', children: [screen(price: '4.50')]),
+      );
+
+      expect(
+        lines(diff),
+        'changed Scope › MenuScreen | wrapper Frame › Safe → null\n'
+        'changed Scope › MenuScreen › Padding › Text("4.50") | '
+        'description Text("4.20") → Text("4.50")',
+      );
+    });
+
+    test('what the wrapper holds beside it is an addition', () {
+      var diff = TreeDiff.of(
+        node('Scope', children: [screen()]),
+        node(
+          'Scope',
+          children: [
+            node('Stack', children: [screen(), node('Banner')]),
+          ],
+        ),
+      );
+
+      expect(
+        lines(diff),
+        'added Scope › Stack › Banner\n'
+        'changed Scope › MenuScreen | wrapper null → Stack',
+      );
+    });
+
+    test('one widget swapped for another keeps its children compared', () {
+      InspectNode holder(String type, double height) => node(
+        'Expanded',
+        children: [
+          node(
+            type,
+            children: [
+              node('Text', description: 'Text("Menu")'),
+              node('Text', description: 'Text("Cold brew")'),
+              node('Divider', height: height),
+            ],
+          ),
+        ],
+      );
+
+      var diff = TreeDiff.of(holder('Column', 1), holder('Region', 2));
+
+      expect(
+        lines(diff),
+        'changed Expanded › Region | widget Column → Region\n'
+        'changed Expanded › Region › Divider | size 10×1 → 10×2',
+      );
+    });
+
+    test('a wrapper at the root is a wrapper too', () {
+      var diff = TreeDiff.of(screen(), node('Frame', children: [screen()]));
+
+      expect(lines(diff), 'changed MenuScreen | wrapper null → Frame');
+    });
+
+    // Sharing a name is not enough: a screen replaced by another one that
+    // happens to hold a `Padding` somewhere is two screens.
+    test('two unrelated widgets stay a removal and an addition', () {
+      var diff = TreeDiff.of(
+        node('Scope', children: [screen()]),
+        node(
+          'Scope',
+          children: [
+            node(
+              'CartScreen',
+              children: [
+                node('Padding', children: [node('Icon')]),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        lines(diff),
+        'added Scope › CartScreen\n'
+        'removed Scope › MenuScreen',
+      );
+    });
+
+    test('a bare leaf deep inside a new widget is another one', () {
+      var diff = TreeDiff.of(
+        node('Column', children: [node('Divider')]),
+        node(
+          'Column',
+          children: [
+            node(
+              'Tile',
+              children: [
+                node('Body', children: [node('Divider')]),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        [for (var delta in diff.deltas) delta.kind],
+        [TreeDeltaKind.added, TreeDeltaKind.removed],
+      );
+    });
+
+    test('two keys are two widgets, whatever they hold', () {
+      InspectNode holder(String type, String key) => keyed(
+        type,
+        "$type-[<'$key'>]",
+        children: [node('Text', description: 'Text("Menu")')],
+      );
+
+      var diff = TreeDiff.of(
+        node('Scope', children: [holder('Chip', 'save')]),
+        node('Scope', children: [holder('Card', 'pay')]),
+      );
+
+      expect(
+        [for (var delta in diff.deltas) delta.kind],
+        [TreeDeltaKind.added, TreeDeltaKind.removed],
+      );
+    });
+
+    // Two removed widgets the addition could have come from: which one it
+    // wraps is a guess, and a guess reports nonsense about both.
+    test('a wrapper two widgets could have gone into is left alone', () {
+      var diff = TreeDiff.of(
+        node(
+          'Scope',
+          children: [
+            screen(),
+            screen(price: '9'),
+          ],
+        ),
+        node(
+          'Scope',
+          children: [
+            node(
+              'Frame',
+              children: [
+                screen(),
+                screen(price: '9'),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        [for (var delta in diff.deltas) delta.kind],
+        [TreeDeltaKind.added, TreeDeltaKind.removed, TreeDeltaKind.removed],
+      );
+    });
+  });
+
   // The whole reason children are aligned rather than zipped: one inserted
   // widget renumbers every sibling after it.
   test('an inserted child is one addition, not a renumbered subtree', () {

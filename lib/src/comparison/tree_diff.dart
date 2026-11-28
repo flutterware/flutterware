@@ -11,6 +11,12 @@ import '../inspect/node.dart';
 /// and a diff keyed on ids reports the whole subtree as replaced. Children are
 /// aligned by signature instead — the same longest-common-subsequence the
 /// scenario flow uses on steps, for the same reason.
+///
+/// A widget put around another, taken away from around it, or swapped for one
+/// that holds the same children is **one line, and the diff goes on under
+/// it**: `wrapper` or `widget` on a [TreeDeltaKind.changed]. Read as a removal
+/// and an addition, it said the screen had gone, compared nothing under it,
+/// and hid every real change the same branch made there.
 class TreeDiff {
   const TreeDiff(this.deltas);
 
@@ -26,7 +32,10 @@ class TreeDiff {
     } else if (head == null) {
       deltas.add(TreeDelta.removed(_label(base), base.type));
     } else {
-      _walk(base, head, '', deltas, ancestorResized: false);
+      // The root is handed over as a pair whatever it is, so a wrapper put
+      // around it has to be recognised here.
+      var relation = base.type == head.type ? null : _relate(base, head);
+      _compare(base, head, relation, '', deltas, ancestorResized: false);
     }
     return TreeDiff(_causeFirst(deltas));
   }
@@ -42,7 +51,7 @@ class TreeDiff {
   /// widgets carried along, and a report capped at fifty could drop the `Text`
   /// altogether. So, within `changed`:
   ///
-  /// 1. what a widget *is* — its description or key;
+  /// 1. what a widget *is* — its description or key — and what is around it;
   /// 2. a size change under **unchanged** constraints, deepest first: the
   ///    widget resized itself, or a child of it did — where a resize started;
   /// 3. an offset that moved on its own;
@@ -84,15 +93,96 @@ class TreeDiff {
     return [for (var entry in ranked) entry.delta];
   }
 
-  static void _walk(
+  /// One pair, and everything under it, below the widgets at [above].
+  static void _compare(
     InspectNode base,
     InspectNode head,
-    String path,
+    _Relation? relation,
+    String above,
     List<TreeDelta> deltas, {
     required bool ancestorResized,
   }) {
-    var here = path.isEmpty ? _label(head) : '$path › ${_label(head)}';
-    var resized = false;
+    switch (relation) {
+      case null:
+        _walk(base, head, above, deltas, ancestorResized: ancestorResized);
+      case _Wrapped(:var chain):
+        var inner = chain.last;
+        var wrappers = chain.sublist(0, chain.length - 1);
+        deltas.add(
+          TreeDelta(
+            kind: TreeDeltaKind.changed,
+            path: _join(above, _label(inner)),
+            property: 'wrapper',
+            head: wrappers.map(_label).join(' › '),
+          ),
+        );
+        var path = above;
+        for (var (index, wrapper) in wrappers.indexed) {
+          path = _join(path, _label(wrapper));
+          for (var child in _onstage(wrapper.children)) {
+            if (identical(child, chain[index + 1])) continue;
+            deltas.add(TreeDelta.added(_join(path, _label(child)), child.type));
+          }
+        }
+        _walk(base, inner, path, deltas, ancestorResized: ancestorResized);
+      case _Unwrapped(:var chain):
+        var inner = chain.last;
+        var wrappers = chain.sublist(0, chain.length - 1);
+        deltas.add(
+          TreeDelta(
+            kind: TreeDeltaKind.changed,
+            path: _join(above, _label(head)),
+            property: 'wrapper',
+            base: wrappers.map(_label).join(' › '),
+          ),
+        );
+        var path = above;
+        for (var (index, wrapper) in wrappers.indexed) {
+          path = _join(path, _label(wrapper));
+          for (var child in _onstage(wrapper.children)) {
+            if (identical(child, chain[index + 1])) continue;
+            deltas.add(
+              TreeDelta.removed(_join(path, _label(child)), child.type),
+            );
+          }
+        }
+        _walk(inner, head, above, deltas, ancestorResized: ancestorResized);
+      case _Swapped():
+        var here = _join(above, _label(head));
+        deltas.add(
+          TreeDelta(
+            kind: TreeDeltaKind.changed,
+            path: here,
+            property: 'widget',
+            base: _label(base),
+            head: _label(head),
+          ),
+        );
+        var resized = _compareBoxes(
+          base,
+          head,
+          here,
+          deltas,
+          ancestorResized: ancestorResized,
+        );
+        _walkChildren(
+          base,
+          head,
+          here,
+          deltas,
+          ancestorResized: ancestorResized || resized,
+        );
+    }
+  }
+
+  static void _walk(
+    InspectNode base,
+    InspectNode head,
+    String above,
+    List<TreeDelta> deltas, {
+    required bool ancestorResized,
+  }) {
+    var here = _join(above, _label(head));
 
     if (base.description != head.description) {
       deltas.add(
@@ -123,6 +213,31 @@ class TreeDiff {
       );
     }
 
+    var resized = _compareBoxes(
+      base,
+      head,
+      here,
+      deltas,
+      ancestorResized: ancestorResized,
+    );
+    _walkChildren(
+      base,
+      head,
+      here,
+      deltas,
+      ancestorResized: ancestorResized || resized,
+    );
+  }
+
+  /// The two boxes at [here], and whether the size changed.
+  static bool _compareBoxes(
+    InspectNode base,
+    InspectNode head,
+    String here,
+    List<TreeDelta> deltas, {
+    required bool ancestorResized,
+  }) {
+    var resized = false;
     var (a, b) = (base.layout, head.layout);
     if (a != null && b != null) {
       if (a.width != b.width || a.height != b.height) {
@@ -165,28 +280,181 @@ class TreeDiff {
         );
       }
     }
+    return resized;
+  }
 
-    for (var pair in _fuse(
-      _align(_onstage(base.children), _onstage(head.children)),
+  static void _walkChildren(
+    InspectNode base,
+    InspectNode head,
+    String here,
+    List<TreeDelta> deltas, {
+    required bool ancestorResized,
+  }) {
+    for (var (left, right, relation) in _rejoin(
+      _fuse(_align(_onstage(base.children), _onstage(head.children))),
     )) {
-      switch (pair) {
+      switch ((left, right)) {
         case (var only?, null):
-          deltas.add(TreeDelta.removed('$here › ${_label(only)}', only.type));
+          deltas.add(TreeDelta.removed(_join(here, _label(only)), only.type));
         case (null, var only?):
-          deltas.add(TreeDelta.added('$here › ${_label(only)}', only.type));
+          deltas.add(TreeDelta.added(_join(here, _label(only)), only.type));
         case (var left?, var right?):
-          _walk(
+          _compare(
             left,
             right,
+            relation,
             here,
             deltas,
-            ancestorResized: ancestorResized || resized,
+            ancestorResized: ancestorResized,
           );
         case _:
           break;
       }
     }
   }
+
+  static String _join(String path, String name) =>
+      path.isEmpty ? name : '$path › $name';
+
+  /// Pairs a removal with an addition where one is the other wrapped,
+  /// unwrapped or swapped — [_relate].
+  ///
+  /// Within one run of leftovers, and only where neither has a second widget it
+  /// could go with: the same rule as [_fuse], for the same reason.
+  static List<(InspectNode?, InspectNode?, _Relation?)> _rejoin(
+    List<(InspectNode?, InspectNode?)> pairs,
+  ) {
+    var joined = <(InspectNode?, InspectNode?, _Relation?)>[];
+    var run = <(InspectNode?, InspectNode?)>[];
+
+    void flush() {
+      var lefts = [for (var (left, _) in run) ?left];
+      var rights = [for (var (_, right) in run) ?right];
+      // A list rewritten from end to end is not a handful of wrappers, and
+      // asking every pair of it would be quadratic in what it holds.
+      var relations = lefts.length > _longestRun || rights.length > _longestRun
+          ? const <(InspectNode, InspectNode, _Relation)>[]
+          : [
+              for (var left in lefts)
+                for (var right in rights)
+                  if (_relate(left, right) case var relation?)
+                    (left, right, relation),
+            ];
+      // Kept where neither of the two has another partner.
+      var byRight = Map<InspectNode, (InspectNode, _Relation)>.identity();
+      var taken = Set<InspectNode>.identity();
+      for (var (left, right, relation) in relations) {
+        var only = relations.every(
+          (other) => identical(other.$1, left) == identical(other.$2, right),
+        );
+        if (!only) continue;
+        byRight[right] = (left, relation);
+        taken.add(left);
+      }
+      for (var (left, right) in run) {
+        if (byRight[right] case (var from, var relation)?) {
+          joined.add((from, right, relation));
+        } else if (left == null || !taken.contains(left)) {
+          joined.add((left, right, null));
+        }
+      }
+      run.clear();
+    }
+
+    for (var pair in pairs) {
+      if (pair.$1 == null || pair.$2 == null) {
+        run.add(pair);
+      } else {
+        flush();
+        joined.add((pair.$1, pair.$2, null));
+      }
+    }
+    flush();
+    return joined;
+  }
+
+  /// How the removed [left] and the added [right] are one widget under another
+  /// name, or null when they are two widgets.
+  static _Relation? _relate(InspectNode left, InspectNode right) {
+    if (_chainTo(right, left) case var chain?) return _Wrapped(chain);
+    if (_chainTo(left, right) case var chain?) return _Unwrapped(chain);
+    if (_holdsTheSame(left, right)) return const _Swapped();
+    return null;
+  }
+
+  /// The way down from [outer] to the descendant that is [inner], or null.
+  ///
+  /// The nearest one, and no further than [_wrapDepth]: a whole new screen
+  /// holds a `Column` somewhere, and that is not the old one wrapped. A widget
+  /// with no words, no key and nothing under it — a `Divider` — is any other
+  /// of its type, so it counts only as a direct child.
+  static List<InspectNode>? _chainTo(InspectNode outer, InspectNode inner) {
+    var anonymous =
+        inner.description == null &&
+        inner.widgetKey == null &&
+        _onstage(inner.children).isEmpty;
+    var level = [
+      [outer],
+    ];
+    for (var depth = 0; depth < (anonymous ? 1 : _wrapDepth); depth++) {
+      level = [
+        for (var chain in level)
+          for (var child in _onstage(chain.last.children)) [...chain, child],
+      ];
+      for (var chain in level) {
+        if (_isSameWidget(inner, chain.last)) return chain;
+      }
+    }
+    return null;
+  }
+
+  /// Whether [found] is [widget] under another parent: one signature, and at
+  /// least half of what was under [widget] is still there.
+  static bool _isSameWidget(InspectNode widget, InspectNode found) =>
+      _signature(widget) == _signature(found) &&
+      _shared(widget, found) * 2 >= _count(widget);
+
+  /// Whether [right] holds what [left] held: **more than** half of the larger
+  /// subtree has its twin in the other, a higher bar than [_isSameWidget]'s
+  /// because no name agrees here. Two leaves have nothing to say it by.
+  ///
+  /// Never across two widgets of one type, which [_fuse] has already decided,
+  /// nor across two keys, which are the author's word that they differ.
+  static bool _holdsTheSame(InspectNode left, InspectNode right) {
+    if (left.type == right.type || left.widgetKey != right.widgetKey) {
+      return false;
+    }
+    var (a, b) = (_count(left), _count(right));
+    return _shared(left, right) * 2 > (a > b ? a : b);
+  }
+
+  /// How many of the widgets under [base] have a twin under [head], walking
+  /// aligned children together.
+  static int _shared(InspectNode base, InspectNode head) {
+    var shared = 0;
+    for (var (left, right) in _align(
+      _onstage(base.children),
+      _onstage(head.children),
+    )) {
+      if (left != null && right != null) shared += 1 + _shared(left, right);
+    }
+    return shared;
+  }
+
+  /// How many widgets are under [node].
+  static int _count(InspectNode node) {
+    var count = 0;
+    for (var child in _onstage(node.children)) {
+      count += 1 + _count(child);
+    }
+    return count;
+  }
+
+  /// How many levels a wrapper can add between a widget and where it was.
+  static const _wrapDepth = 4;
+
+  /// How many leftovers on a side are still looked at for a wrapper.
+  static const _longestRun = 8;
 
   /// A change on a covered route is not a change to this step: a scenario
   /// that pushes a screen keeps the one beneath it alive in the tree, so
@@ -368,6 +636,30 @@ class TreeDiff {
   }
 }
 
+/// How a removed widget and an added one turned out to be one.
+sealed class _Relation {
+  const _Relation();
+}
+
+/// The head put widgets around the base's one: [chain] runs from the outermost
+/// of them down to the widget itself.
+class _Wrapped extends _Relation {
+  const _Wrapped(this.chain);
+  final List<InspectNode> chain;
+}
+
+/// [_Wrapped] the other way round: [chain] is the base's, down to the widget
+/// the head kept.
+class _Unwrapped extends _Relation {
+  const _Unwrapped(this.chain);
+  final List<InspectNode> chain;
+}
+
+/// Another widget holding the same children.
+class _Swapped extends _Relation {
+  const _Swapped();
+}
+
 /// One thing that is not the same about the two trees.
 class TreeDelta {
   const TreeDelta({
@@ -405,6 +697,10 @@ class TreeDelta {
   /// node id, which is a child-index path and means nothing to a reader.
   final String path;
 
+  /// What about the widget differs: `description`, `key`, `size`, `offset`,
+  /// `constraints`, `wrapper` (widgets put around it, in [head], or taken
+  /// away, in [base]) or `widget` (another one holding the same children).
+  /// Null for a widget that was added or removed.
   final String? property;
   final String? base;
   final String? head;
