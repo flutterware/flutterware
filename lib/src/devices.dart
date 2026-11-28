@@ -50,7 +50,7 @@ enum ScreenOrientation { portrait, landscape }
 /// Auto is not "off". It is the whole feature: the app asks for a keyboard
 /// when a field takes focus and lets go of it when the view dismisses one, and
 /// that is what a phone does. The two forced states are for the layout with no
-/// field in it — *what does this do with 335 points less* — which nothing on
+/// field in it — *what does this do with 328 points less* — which nothing on
 /// screen would otherwise ask.
 ///
 /// Here rather than beside the guest that drives it, for the reason
@@ -72,8 +72,8 @@ enum KeyboardMode {
 /// tall it is.
 ///
 /// Two facts wear one name here, and they are genuinely separate. The
-/// *height* differs by platform: an iPhone gives a keypad 27 fewer points than
-/// a QWERTY upright and 44 on its side, Gboard drops its suggestion strip for
+/// *height* differs by platform: an iPhone gives a keypad 26 fewer points than
+/// a QWERTY upright and 53 on its side, Gboard drops its suggestion strip for
 /// one — about 44 — and an iPad gives every type the same keyboard. The
 /// *picture* differs
 /// everywhere — a number pad looks nothing like a letter keyboard on any
@@ -352,25 +352,28 @@ const fitDeviceId = 'fit';
 /// silhouette instead.
 ///
 /// The safe areas and the keyboards are not the bodies'. They are what the
-/// platform reports on the OS that ships now — iOS 26.2 simulators and API 35
+/// platform reports on the OS that ships now — iOS 27.2 simulators and API 35
 /// emulators — and the frame is handed ours, because
 /// those numbers move with the OS and not only with the glass: an iPad's status
-/// bar grew from 24 to 32 with iPadOS 26, an iPhone's landscape home indicator
-/// shrank from 21 to 20, and its landscape keyboard from 219 to 209.
-/// `tool/measure_devices.dart` takes every one of them again, and is what to
-/// run when a major OS ships.
+/// bar grew from 24 to 32 with iPadOS 26 and its bottom inset went from 25 to
+/// 20 with iPadOS 27, an iPhone's landscape home indicator shrank from 21 to
+/// 20 with iOS 26, and its landscape keyboard went from 219 to 209 with iOS 26
+/// and to 224 with iOS 27. `tool/measure_devices.dart` takes every one of them
+/// again, and is what to run when a major OS ships.
 abstract final class Devices {
   // ---------------------------------------------------------------- iOS
   //
-  // The keyboards are iOS 26.2's, and on it the keyboard follows the width
+  // The keyboards are iOS 27.2's, and on it the keyboard follows the width
   // class rather than the generation: every notched or island phone up to 402
-  // wide raises 335 (308 for digits), every one from 428 up raises 345 (318),
-  // and all of them 209 on their side (165). The 16s' 336 and 219 that used
-  // to be here were iOS 18's — the same glass, a different keyboard.
+  // wide raises 328 (302 for digits), every one from 428 up raises 347 (321),
+  // and all of them 224 on their side (171). iOS 26.2 raised 335, 345 and 209,
+  // and iOS 18 336 and 219: the same glass, a different keyboard. The insets
+  // did not move from 26 to 27.
   //
-  // Every iPad without a home button keeps 32 at the top and 25 at the bottom
-  // in both orientations, raises a taller keyboard on its side than standing,
-  // and raises no smaller one for digits.
+  // Every iPad keeps 32 at the top and 20 at the bottom in both orientations,
+  // the one with a home button included. iPadOS 26 gave the others 25 at the
+  // bottom and that one nothing. Each raises a taller keyboard on its side
+  // than standing, and no smaller one for digits; none of those moved with 27.
 
   static const iphoneSe = Device(
     'iphone-se',
@@ -388,8 +391,8 @@ abstract final class Devices {
     landscape: DeviceInsets(),
     keyboard: 260,
     landscapeKeyboard: 206,
-    keypadKeyboard: 233,
-    landscapeKeypadKeyboard: 162,
+    keypadKeyboard: 235,
+    landscapeKeypadKeyboard: 168,
   );
 
   static const iphone13 = Device(
@@ -404,10 +407,10 @@ abstract final class Devices {
     insetTop: 47,
     insetBottom: 34,
     landscape: DeviceInsets(left: 47, right: 47, bottom: 20),
-    keyboard: 335,
-    landscapeKeyboard: 209,
-    keypadKeyboard: 308,
-    landscapeKeypadKeyboard: 165,
+    keyboard: 328,
+    landscapeKeyboard: 224,
+    keypadKeyboard: 302,
+    landscapeKeypadKeyboard: 171,
   );
 
   /// The Dynamic Island generation — the same screen as an iPhone 15, and the
@@ -424,10 +427,10 @@ abstract final class Devices {
     insetTop: 59,
     insetBottom: 34,
     landscape: DeviceInsets(left: 59, right: 59, bottom: 20),
-    keyboard: 335,
-    landscapeKeyboard: 209,
-    keypadKeyboard: 308,
-    landscapeKeypadKeyboard: 165,
+    keyboard: 328,
+    landscapeKeyboard: 224,
+    keypadKeyboard: 302,
+    landscapeKeypadKeyboard: 171,
   );
 
   /// The screen the base iPhone 17 moved to as well — so the current standard
@@ -445,10 +448,10 @@ abstract final class Devices {
     insetTop: 62,
     insetBottom: 34,
     landscape: DeviceInsets(left: 62, right: 62, bottom: 20),
-    keyboard: 335,
-    landscapeKeyboard: 209,
-    keypadKeyboard: 308,
-    landscapeKeypadKeyboard: 165,
+    keyboard: 328,
+    landscapeKeyboard: 224,
+    keypadKeyboard: 302,
+    landscapeKeypadKeyboard: 171,
   );
 
   static const iphone12ProMax = Device(
@@ -463,10 +466,10 @@ abstract final class Devices {
     insetTop: 47,
     insetBottom: 34,
     landscape: DeviceInsets(left: 47, right: 47, bottom: 20),
-    keyboard: 345,
-    landscapeKeyboard: 209,
-    keypadKeyboard: 318,
-    landscapeKeypadKeyboard: 165,
+    keyboard: 347,
+    landscapeKeyboard: 224,
+    keypadKeyboard: 321,
+    landscapeKeypadKeyboard: 171,
   );
 
   /// The large screen of the line that is not Pro — the same glass as a 15 Pro
@@ -483,10 +486,10 @@ abstract final class Devices {
     insetTop: 59,
     insetBottom: 34,
     landscape: DeviceInsets(left: 59, right: 59, bottom: 20),
-    keyboard: 345,
-    landscapeKeyboard: 209,
-    keypadKeyboard: 318,
-    landscapeKeypadKeyboard: 165,
+    keyboard: 347,
+    landscapeKeyboard: 224,
+    keypadKeyboard: 321,
+    landscapeKeypadKeyboard: 171,
   );
 
   /// The largest iPhone screen there is — what a layout overflows on last and
@@ -503,15 +506,15 @@ abstract final class Devices {
     insetTop: 62,
     insetBottom: 34,
     landscape: DeviceInsets(left: 62, right: 62, bottom: 20),
-    keyboard: 345,
-    landscapeKeyboard: 209,
-    keypadKeyboard: 318,
-    landscapeKeypadKeyboard: 165,
+    keyboard: 347,
+    landscapeKeyboard: 224,
+    keypadKeyboard: 321,
+    landscapeKeypadKeyboard: 171,
   );
 
   /// The smallest iPad: the mini's 8.3-inch screen since its 6th generation,
-  /// the A17 Pro included. The A20 Pro mini is a larger screen, 756×1158, and
-  /// not this one.
+  /// the A17 Pro included. The A20 Pro mini is not this screen: 12 points
+  /// wider and 25 taller, at 756×1158, with the same insets and keyboards.
   static const iPadMini = Device(
     'ipad-mini',
     'iPad mini',
@@ -522,12 +525,14 @@ abstract final class Devices {
     height: 1133,
     pixelRatio: 2,
     insetTop: 32,
-    insetBottom: 25,
+    insetBottom: 20,
     keyboard: 340,
     landscapeKeyboard: 428,
   );
 
-  /// The iPad with a home button, whose status bar is all there is to avoid.
+  /// The iPad with a home button. Its status bar was all there was to avoid
+  /// until iPadOS 27, which keeps 20 points at its bottom as on every other
+  /// iPad.
   static const iPad = Device(
     'ipad',
     'iPad',
@@ -538,6 +543,7 @@ abstract final class Devices {
     height: 1080,
     pixelRatio: 2,
     insetTop: 32,
+    insetBottom: 20,
     keyboard: 320,
     landscapeKeyboard: 408,
   );
@@ -554,7 +560,7 @@ abstract final class Devices {
     height: 1180,
     pixelRatio: 2,
     insetTop: 32,
-    insetBottom: 25,
+    insetBottom: 20,
     keyboard: 337,
     landscapeKeyboard: 422,
   );
@@ -570,7 +576,7 @@ abstract final class Devices {
     height: 1210,
     pixelRatio: 2,
     insetTop: 32,
-    insetBottom: 25,
+    insetBottom: 20,
     keyboard: 340,
     landscapeKeyboard: 428,
   );
@@ -586,7 +592,7 @@ abstract final class Devices {
     height: 1366,
     pixelRatio: 2,
     insetTop: 32,
-    insetBottom: 25,
+    insetBottom: 20,
     keyboard: 403,
     landscapeKeyboard: 498,
   );
@@ -601,7 +607,7 @@ abstract final class Devices {
     height: 1376,
     pixelRatio: 2,
     insetTop: 32,
-    insetBottom: 25,
+    insetBottom: 20,
     keyboard: 403,
     landscapeKeyboard: 498,
   );

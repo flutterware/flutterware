@@ -92,8 +92,8 @@ void main() {
 
   test('a body the table has moved away from is visible here', () {
     // The case the rule above exists for: the artwork's iPhone 12 Pro Max
-    // says 44 where iOS 26 says 47, and its 16s say 21 at the bottom in
-    // landscape where iOS 26 says 20.
+    // says 44 where iOS 26 and 27 say 47, and its 16s say 21 at the bottom in
+    // landscape where they say 20.
     expect(namedFrameFor('iphone-12-pro-max')!.safeAreas.top, 44);
     expect(deviceFrameFor(Devices.iphone12ProMax)!.safeAreas.top, 47);
     expect(namedFrameFor('iphone-16')!.rotatedSafeAreas!.bottom, 21);
