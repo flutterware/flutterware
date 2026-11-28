@@ -734,7 +734,16 @@ Future<void> _runScenario(
     // Outermost of the three handlers chained here, so it also keeps the
     // refusal out of the runner's caught-errors buffer — a scenario that did
     // not fail must not be reported with an error against it.
-    if (details.exception is ScenarioNetworkRefusal) return;
+    //
+    // Except a refusal nothing in the app handled: a request started without
+    // awaiting it reaches the binding as an uncaught error, and the binding
+    // asserts that the report it makes of one is kept. Dropped here, the test
+    // fails anyway, with that assertion and no word of the request. Kept, it
+    // fails with the refusal, which says what to stub.
+    if (details.exception is ScenarioNetworkRefusal &&
+        details.library != 'Flutter test framework') {
+      return;
+    }
     announceFlutterGpuDiagnosis(
       details.exceptionAsString(),
       executableArguments: isWeb ? const [] : Platform.executableArguments,

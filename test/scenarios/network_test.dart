@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,23 @@ import 'package:flutterware/flutter_test.dart';
 import 'package:flutterware/src/app_events/events.dart';
 import 'package:flutterware/src/scenarios/run_listener.dart';
 import 'package:http/http.dart' as http;
+import 'package:test_api/src/backend/declarer.dart';
+import 'package:test_api/src/backend/live_test.dart';
+import 'package:test_api/src/backend/runtime.dart';
+import 'package:test_api/src/backend/suite.dart';
+import 'package:test_api/src/backend/suite_platform.dart';
+import 'package:test_api/src/backend/test.dart';
+
+/// Declares [body] the way a test file's `main` would, and loads its one
+/// test to run here, inside this test.
+LiveTest _load(void Function() body) {
+  var declarer = Declarer();
+  declarer.declare(body);
+  var root = declarer.build();
+  var suite = Suite(root, SuitePlatform(Runtime.vm));
+  var test = root.entries.single as Test;
+  return test.load(suite, groups: [root]);
+}
 
 /// What a scenario's http requests reach, end to end.
 ///
@@ -377,6 +395,39 @@ void main() {
       );
       await s.screen('the broken avatar');
       expect(s.tester.takeException(), isA<FormatException>());
+    });
+
+    // A request nothing awaits has nobody to hand its refusal to, so it
+    // reaches the binding as an uncaught error, and that fails the test
+    // whatever this does. What it fails with is the refusal, which says what
+    // to stub, rather than the binding's assertion that a report was lost.
+    test('a request nothing awaited fails with the refusal', () async {
+      // What the runner reads a failure from, as it does.
+      var reported = <String>[];
+      var reporter = reportTestException;
+      reportTestException = (details, _) =>
+          reported.add(details.exceptionAsString());
+      addTearDown(() => reportTestException = reporter);
+      var live = _load(() {
+        scenario('Fetches without waiting', (s) async {
+          await s.pumpWidget(const SizedBox());
+          unawaited(http.get(Uri.parse('https://example.invalid/c.json')));
+          await s.screen('after the request');
+        });
+      });
+
+      await live.run().timeout(const Duration(seconds: 20));
+
+      // The report is the failure: with the reporter replaced, nothing else
+      // fails the test. Before, the refusal was dropped, nothing was
+      // reported, and the binding's assertion escaped the test instead.
+      expect(reported, [
+        allOf(
+          startsWith('refused: the network is off for this scenario'),
+          contains('GET https://example.invalid/c.json was not made.'),
+        ),
+      ]);
+      expect(live.errors, isEmpty);
     });
   });
 
