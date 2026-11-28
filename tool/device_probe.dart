@@ -13,27 +13,36 @@
 // and prints it after `DEVICE_PROBE `:
 //
 //   {"portrait": {"size": [393, 852], "ratio": 3, "insets": [l, t, r, b],
-//                 "cutouts": [[l, t, r, b]], "keyboard": 335, "keypad": 308,
-//                 "control": 335}, ...}
+//                 "cutouts": [[l, t, r, b]], "keyboard": 328, "keypad": 302,
+//                 "control": 328}, ...}
 //
 // `keypad` is what a number field gets, and `control` is the letters keyboard
 // raised again after it: a keypad reading only counts when the control agrees
 // with the letters one taken before it.
 //
-// Four traps, each of which produced a confident wrong number first:
+// Five traps, each of which produced a confident wrong number first:
 //
 //  - **Disconnect the simulator's hardware keyboard** — `defaults write
 //    com.apple.iphonesimulator ConnectHardwareKeyboard -bool false` — or no
 //    software keyboard appears and every keyboard reading is zero.
 //  - **A fresh simulator introduces its keyboards** the first time one comes
 //    up, in a card where the keys will be — with two input languages, a "type
-//    in both" card 248 points tall in landscape. The probe raises one in each
-//    orientation and throws the readings away before it measures anything.
+//    in both" card 248 points tall in landscape. The probe raises one the
+//    first time it is each way up and throws the reading away.
 //  - **The landscape keyboard settles a point late** on iOS 26: two equal
 //    readings a quarter of a second apart give 208, and it lands on 209. A
 //    reading counts once it has held still for a second and a half.
 //  - **An iPad ignores `setPreferredOrientations`** unless the app declares
 //    `UIRequiresFullScreen`, which is what the driver adds to the plist.
+//  - **From iPadOS 27 an iPad turns the app and not the device.** Asked for
+//    landscape, the app goes on its side while the simulator stays upright,
+//    and the keyboard follows the device: a portrait keyboard comes up along
+//    the device's bottom edge and 39 points of it reach the app's, and the
+//    insets are neither orientation's. A phone still turns whole. So when the
+//    driver leaves a `device_probe.follow` beside where the result goes, the
+//    probe forces nothing: it writes the way it wants the device to
+//    `device_probe.turn`, waits for the simulator to be turned, and measures
+//    one side.
 //
 // Which keyboard each input type gets, rather than how tall the two families
 // are, is `tool/keyboard_type_probe.dart`'s question.
@@ -66,26 +75,31 @@ class _DeviceProbeState extends State<DeviceProbe> {
     unawaited(_measure());
   }
 
-  Future<void> _measure() async {
-    // Raised once each way up and thrown away: see the introduction card in
-    // the header.
-    for (var orientation in [
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.landscapeLeft,
-    ]) {
-      await SystemChrome.setPreferredOrientations([orientation]);
-      await _turned(landscape: orientation != DeviceOrientation.portraitUp);
-      await _keyboard(TextInputType.text);
-    }
+  /// Whether the device is turned from outside rather than the app forcing
+  /// its orientation: see the last trap in the header. A file, because an iOS
+  /// app's Dart sees no environment.
+  final _follow = File('${Directory.systemTemp.path}/device_probe.follow')
+      .existsSync();
 
+  /// Where the probe says which way it wants the device while it waits for a
+  /// turn, and which the driver reads.
+  final _ask = File('${Directory.systemTemp.path}/device_probe.turn');
+
+  Future<void> _measure() async {
+    // Started from initState, where the view cannot be read yet.
+    await WidgetsBinding.instance.endOfFrame;
     var readings = <String, Object?>{};
     for (var (name, orientation) in [
       ('portrait', DeviceOrientation.portraitUp),
       ('landscapeLeft', DeviceOrientation.landscapeLeft),
-      ('landscapeRight', DeviceOrientation.landscapeRight),
+      // The other side, where the app can turn itself. A device turned from
+      // outside cannot say which side it is on, so it measures one.
+      if (!_follow) ('landscapeRight', DeviceOrientation.landscapeRight),
     ]) {
-      await SystemChrome.setPreferredOrientations([orientation]);
-      await _turned(landscape: name != 'portrait');
+      await _turn(orientation);
+      // Raised once each way up and thrown away: see the introduction card in
+      // the header.
+      if (name != 'landscapeRight') await _keyboard(TextInputType.text);
       readings[name] = {
         ..._screen(),
         'keyboard': await _keyboard(TextInputType.text),
@@ -93,7 +107,11 @@ class _DeviceProbeState extends State<DeviceProbe> {
         'control': await _keyboard(TextInputType.text),
       };
     }
-    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    if (!_follow) {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+    }
 
     var line = jsonEncode(readings);
     await File('${Directory.systemTemp.path}/device_probe.json')
@@ -104,12 +122,33 @@ class _DeviceProbeState extends State<DeviceProbe> {
 
   ui.FlutterView get _view => View.of(context);
 
+  /// Gets the screen [orientation] and waits for it to settle: by asking the
+  /// platform for it, or, when following, by asking for the device to be
+  /// turned and waiting until it has been.
+  Future<void> _turn(DeviceOrientation orientation) async {
+    var landscape = orientation != DeviceOrientation.portraitUp;
+    if (!_follow) {
+      await SystemChrome.setPreferredOrientations([orientation]);
+      await _turned(landscape: landscape);
+      return;
+    }
+    var size = _view.physicalSize;
+    if ((size.width > size.height) != landscape) {
+      await _ask.writeAsString(landscape ? 'landscape' : 'portrait');
+    }
+    await _turned(landscape: landscape, within: const Duration(minutes: 30));
+    if (_ask.existsSync()) await _ask.delete();
+  }
+
   /// Waits for the screen to be the right way up and to stop moving: a
   /// rotation animates, and the insets arrive a frame or two after the size.
-  Future<void> _turned({required bool landscape}) async {
+  Future<void> _turned({
+    required bool landscape,
+    Duration within = const Duration(seconds: 8),
+  }) async {
     String? last;
     var still = DateTime.now();
-    var deadline = DateTime.now().add(const Duration(seconds: 8));
+    var deadline = DateTime.now().add(within);
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 100));
       if (!mounted) return;

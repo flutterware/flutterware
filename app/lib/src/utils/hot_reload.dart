@@ -41,7 +41,8 @@ class HotReload {
   ValueStream<bool> get available => _available;
 
   /// Connects to this process's own VM service, or returns null when there is
-  /// none — which is the ordinary case for anyone who did not build this.
+  /// none — which is the ordinary case for anyone who did not build this — or
+  /// when it will not take the socket.
   static Future<HotReload?> connect() async {
     developer.ServiceProtocolInfo info;
     try {
@@ -52,9 +53,17 @@ class HotReload {
     var uri = info.serverUri;
     if (uri == null) return null;
 
-    var service = await vmServiceConnectUri(
-      hotReloadWebSocketUri(uri).toString(),
-    );
+    VmService service;
+    try {
+      service = await vmServiceConnectUri(
+        hotReloadWebSocketUri(uri).toString(),
+      );
+    } catch (_) {
+      // A scenario with the network off refuses the socket, for one. The
+      // buttons' initState calls this without awaiting it, so a throw here
+      // would be an error nothing handles.
+      return null;
+    }
     var reload = HotReload._(
       service,
       developer.Service.getIsolateId(isolate.Isolate.current),

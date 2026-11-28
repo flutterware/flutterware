@@ -45,6 +45,7 @@ import 'replay_hooks.dart';
 import 'stage.dart';
 import 'stall.dart';
 import 'still_ticking.dart';
+import 'teardown_deadline.dart';
 import 'shots.dart';
 import 'staging.dart';
 import 'target.dart';
@@ -205,6 +206,7 @@ void scenario(
         noticeKey: noticeKey,
         edit: edit,
         pinned: pinned,
+        timeout: timeout,
       );
       scenarioRunningHook?.call(description);
       try {
@@ -600,7 +602,14 @@ Future<void> _runScenario(
   required String noticeKey,
   ScenarioReelEdit? edit,
   _PinnedClock? pinned,
+  Timeout? timeout,
 }) async {
+  // First, so its teardown runs after every one the body registers: the
+  // deadline over those teardowns, which `test_api` waits on forever.
+  var teardowns = ScenarioTeardowns(
+    description,
+    budget: teardownBudgetFor(timeout, progress: scenarioDefaultTimeout),
+  );
   // The runner's assignment wins, like its args do below: the declaration
   // captured the ambient one, which under the runner is null — and a body
   // reading `s.assignment?.language` has to see the language the request
@@ -725,7 +734,16 @@ Future<void> _runScenario(
     // Outermost of the three handlers chained here, so it also keeps the
     // refusal out of the runner's caught-errors buffer — a scenario that did
     // not fail must not be reported with an error against it.
-    if (details.exception is ScenarioNetworkRefusal) return;
+    //
+    // Except a refusal nothing in the app handled: a request started without
+    // awaiting it reaches the binding as an uncaught error, and the binding
+    // asserts that the report it makes of one is kept. Dropped here, the test
+    // fails anyway, with that assertion and no word of the request. Kept, it
+    // fails with the refusal, which says what to stub.
+    if (details.exception is ScenarioNetworkRefusal &&
+        details.library != 'Flutter test framework') {
+      return;
+    }
     announceFlutterGpuDiagnosis(
       details.exceptionAsString(),
       executableArguments: isWeb ? const [] : Platform.executableArguments,
@@ -883,6 +901,7 @@ Future<void> _runScenario(
     restoreNetwork();
     restore?.call();
     restoreErrors?.call();
+    teardowns.bodyReturned();
   }
 }
 

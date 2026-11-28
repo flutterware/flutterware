@@ -1248,6 +1248,94 @@ void main() {
     timeout: const Timeout(Duration(minutes: 4)),
   );
 
+  // `test_api` waits on a teardown's future for as long as it takes, and once
+  // the body has returned nothing moves the fake clock. A teardown waiting on
+  // that clock used to hang the run with no output.
+  test(
+    'a teardown that never finishes fails its scenario and names itself',
+    () async {
+      var flutterRoot = Platform.environment['FLUTTER_ROOT']!;
+      var repoRoot = Directory.current.parent.path;
+      Future<Map<String, dynamic>> run(String name, String source) async {
+        var outDir = Directory.systemTemp.createTempSync('scenario_$name').path;
+        var dir = Directory(p.join(repoRoot, 'test', 'scenarios_$name'))
+          ..createSync(recursive: true);
+        File(p.join(dir.path, '${name}_test.dart')).writeAsStringSync(source);
+        var runner = ScenarioRunner(
+          packageRoot: repoRoot,
+          directory: 'test/scenarios_$name',
+          flutterSdkRoot: flutterRoot,
+        );
+        try {
+          return await runner.run(outDir: outDir);
+        } finally {
+          await runner.dispose();
+          dir.deleteSync(recursive: true);
+          Directory(outDir).deleteSync(recursive: true);
+        }
+      }
+
+      // On the fake clock: the teardown's own deadline fails the scenario,
+      // then moves the clock so the teardown finishes and the run goes on.
+      var clock = await run('teardown_clock', _teardownOnTheClockSource);
+      expect(clock['abandoned'], isNot(isTrue));
+      var scenarios = (clock['scenarios']! as List)
+          .cast<Map<String, dynamic>>();
+      expect(scenarios.map((s) => s['name']), [
+        'Closes on the fake clock',
+        'Throws on the way out',
+        'After the teardown',
+      ]);
+      var closes = scenarios.first;
+      expect(closes['ok'], isFalse);
+      var errors = (closes['errors']! as List).cast<Map>();
+      expect(errors, hasLength(1));
+      var error = '${errors.single['error']}';
+      expect(
+        error,
+        contains(
+          '"Closes on the fake clock": a teardown was still running 2s after '
+          "the scenario's body returned",
+        ),
+      );
+      expect(
+        error,
+        contains(
+          'The teardown at `test/scenarios_teardown_clock/'
+          'teardown_clock_test.dart:13` is waiting on a 10ms timer',
+        ),
+      );
+      expect(error, contains('It probably needs pumping.'));
+      // A teardown that throws fails its scenario here too. It used to reach
+      // only the harness's outermost guard, and pass.
+      var throws = scenarios[1];
+      expect(throws['ok'], isFalse);
+      expect('${throws['errors']}', contains('the teardown broke'));
+      expect(scenarios.last['ok'], isTrue);
+
+      // On nothing at all: moving the clock cannot finish it, so the
+      // harness's own deadline gives up on the process, and says it was a
+      // teardown rather than where the body was.
+      var stuck = await run('teardown_stuck', _teardownOnNothingSource);
+      expect(stuck['abandoned'], isTrue);
+      var waits = ((stuck['scenarios']! as List).single as Map)
+          .cast<String, dynamic>();
+      expect(waits['ok'], isFalse);
+      var said = (waits['errors']! as List).cast<Map>();
+      // Said once, though both deadlines fired on it.
+      expect(said, hasLength(1));
+      expect(
+        '${said.single['error']}',
+        contains("Nothing is waiting on the scenario's fake clock"),
+      );
+      expect('${said.single['error']}', isNot(contains('between verbs')));
+      // No step is invented for it: the flow was over.
+      var steps = (waits['steps']! as List).cast<Map<String, dynamic>>();
+      expect(steps.where((step) => step['failure'] != null), isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
+
   // A scenario's timeout is how long it may go without progress. As a
   // wall-clock budget it failed a split that passes in five seconds on a
   // quiet machine once three comparison jobs shared the host.
@@ -2015,6 +2103,58 @@ void main() {
       await Future<void>.delayed(const Duration(seconds: 5));
     },
   );
+}
+''';
+
+/// A teardown that waits on a timer the scenario's fake clock holds.
+const _teardownOnTheClockSource = r'''
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutterware/flutter_test.dart';
+
+void main() {
+  scenario(
+    'Closes on the fake clock',
+    timeout: const Timeout(Duration(seconds: 4)),
+    (s) async {
+      await s.pumpWidget(const SizedBox.shrink());
+      var zone = Zone.current;
+      addTearDown(() => zone.run(() => Future<void>.delayed(const Duration(milliseconds: 10))));
+    },
+  );
+
+  scenario('Throws on the way out', (s) async {
+    await s.pumpWidget(const SizedBox.shrink());
+    addTearDown(() => throw StateError('the teardown broke'));
+  });
+
+  scenario('After the teardown', (s) async {
+    await s.pumpWidget(const SizedBox.shrink());
+  });
+}
+''';
+
+/// A teardown that waits on a future nothing will ever complete.
+const _teardownOnNothingSource = r'''
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutterware/flutter_test.dart';
+
+void main() {
+  scenario(
+    'Waits on nothing',
+    timeout: const Timeout(Duration(seconds: 2)),
+    (s) async {
+      await s.pumpWidget(const SizedBox.shrink());
+      addTearDown(() => Completer<void>().future);
+    },
+  );
+
+  scenario('After the teardown', (s) async {
+    await s.pumpWidget(const SizedBox.shrink());
+  });
 }
 ''';
 

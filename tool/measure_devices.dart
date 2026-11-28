@@ -4,6 +4,7 @@
 /// fvm dart tool/measure_devices.dart                  # every row it can
 /// fvm dart tool/measure_devices.dart --only=ipad,android-tall
 /// fvm dart tool/measure_devices.dart --ios            # or --android
+/// fvm dart tool/measure_devices.dart --runtime=26.2   # an older iOS
 /// ```
 ///
 /// Each phone and tablet in `Devices.all` is stood in for by a throwaway
@@ -19,6 +20,14 @@
 /// It needs Xcode with an iOS runtime for the iPhones and iPads, and the
 /// Android SDK with a Google Play system image — the one with Gboard — for the
 /// rest. Run it after a major OS release; the insets move with the OS.
+///
+/// From iPadOS 27 an iPad app that asks for landscape turns on its own while
+/// the device stays upright, and the keyboard and the insets follow the
+/// device. So an iPad from 27 is turned from outside: `tool/simulator_turn.m`,
+/// built with clang the first time one is needed, sends the simulator the
+/// event Simulator sends when its window turns. Should that fail, the tool
+/// asks for the simulator to be turned by hand and waits. Phones still turn
+/// whole, and need neither.
 ///
 /// Named through fvm because the probe is built with the Flutter that runs
 /// this script.
@@ -41,7 +50,16 @@ final _standIns = <String, _StandIn>{
   'iphone-12-pro-max': const _Simulator('iPhone 12 Pro Max'),
   'iphone-16-plus': const _Simulator('iPhone 16 Plus'),
   'iphone-16-pro-max': const _Simulator('iPhone 16 Pro Max'),
+  'ipad-mini': const _Simulator('iPad mini (A17 Pro)'),
   'ipad': const _Simulator('iPad (9th generation)'),
+  // Two models on one row, both measured: the base iPad has had the 11-inch
+  // Air's screen since its 10th generation.
+  'ipad-air-11': const _Simulator(
+    'iPad Air 11-inch (M3)',
+    also: ['iPad (A16)'],
+  ),
+  'ipad-pro-11': const _Simulator('iPad Pro 11-inch (M5)'),
+  'ipad-air-13': const _Simulator('iPad Air 13-inch (M3)'),
   'ipad-pro-13': const _Simulator('iPad Pro 13-inch (M4)'),
   // The phones are reshaped from a Pixel 8a, because a profile with a camera
   // cutout is what every phone here is — with none, a small phone's landscape
@@ -99,7 +117,7 @@ Future<void> main(List<String> args) async {
         if (_standIns[d.id] is _Emulator) d,
     ];
     if (wantIos && ios.isNotEmpty) {
-      disagreements += await _measureIos(flutter, app, ios);
+      disagreements += await _measureIos(flutter, app, ios, args);
     }
     if (wantAndroid && android.isNotEmpty) {
       disagreements += await _measureAndroid(flutter, app, android);
@@ -120,10 +138,13 @@ sealed class _StandIn {
 }
 
 class _Simulator extends _StandIn {
-  const _Simulator(this.type);
+  const _Simulator(this.type, {this.also = const []});
 
   /// The device type's name, as `xcrun simctl list devicetypes` spells it.
   final String type;
+
+  /// Other device types the row stands for, measured against it too.
+  final List<String> also;
 }
 
 class _Emulator extends _StandIn {
@@ -196,6 +217,7 @@ Future<int> _measureIos(
   String flutter,
   Directory app,
   List<Device> rows,
+  List<String> args,
 ) async {
   if (!Platform.isMacOS) {
     stdout.writeln('\nSkipping the iOS rows: the simulators need macOS.');
@@ -214,7 +236,8 @@ Future<int> _measureIos(
     'iphonesimulator',
     'Runner.app',
   );
-  var runtime = await _latestIosRuntime();
+  var runtimes = await _iosRuntimes(args);
+  Future<String?>? turner;
 
   // The software keyboard only comes up with the hardware one disconnected.
   var keyboardDefault = await _run('defaults', [
@@ -233,9 +256,23 @@ Future<int> _measureIos(
   try {
     for (var device in rows) {
       var standIn = _standIns[device.id]! as _Simulator;
-      stdout.writeln('\n${device.id} — ${standIn.type}, $runtime');
-      var readings = await _onSimulator(standIn.type, runtime, bundle);
-      disagreements += _compare(device, readings, checksTop: true);
+      for (var type in [standIn.type, ...standIn.also]) {
+        var runtime = _runtimeFor(type, runtimes);
+        if (runtime == null) {
+          stdout.writeln('\n${device.id} — no runtime here runs $type');
+          disagreements++;
+          continue;
+        }
+        stdout.writeln('\n${device.id} — $type, ${runtime.name}');
+        var readings = await _onSimulator(
+          type,
+          runtime.identifier,
+          bundle,
+          follow: _turnsOnlyTheApp(type, runtime),
+          turner: () => turner ??= _buildTurner(app.parent),
+        );
+        disagreements += _compare(device, readings, checksTop: true);
+      }
     }
   } finally {
     if (keyboardDefault.exitCode == 0) {
@@ -258,38 +295,109 @@ Future<int> _measureIos(
   return disagreements;
 }
 
-Future<String> _latestIosRuntime() async {
+/// An installed iOS simulator runtime, and the device types it runs.
+typedef _Runtime = ({String identifier, String name, Set<String> types});
+
+/// The available iOS runtimes, newest last, narrowed to the one `--runtime=`
+/// names when it names one: `--runtime=26.2` is iOS 26.2.
+Future<List<_Runtime>> _iosRuntimes(List<String> args) async {
+  var wanted = [
+    for (var arg in args)
+      if (arg.startsWith('--runtime=')) arg.substring(10),
+  ].lastOrNull;
   var listed = await _run('xcrun', ['simctl', 'list', 'runtimes', '--json']);
   var json = jsonDecode(listed.stdout as String) as Map<String, Object?>;
   var runtimes = [
     for (var runtime
         in (json['runtimes']! as List).cast<Map<String, Object?>>())
       if (runtime['isAvailable'] == true &&
-          (runtime['identifier']! as String).contains('iOS'))
-        runtime['identifier']! as String,
+          (runtime['identifier']! as String).contains('iOS') &&
+          (wanted == null || runtime['name'] == 'iOS $wanted'))
+        (
+          identifier: runtime['identifier']! as String,
+          name: runtime['name']! as String,
+          types: {
+            for (var type
+                in (runtime['supportedDeviceTypes'] as List? ?? const [])
+                    .cast<Map<String, Object?>>())
+              type['name']! as String,
+          },
+        ),
   ];
-  if (runtimes.isEmpty) throw StateError('No iOS simulator runtime installed.');
-  return runtimes.last;
+  if (runtimes.isEmpty) {
+    throw StateError(
+      wanted == null
+          ? 'No iOS simulator runtime installed.'
+          : 'No iOS $wanted simulator runtime installed.',
+    );
+  }
+  return runtimes;
+}
+
+/// Whether an app asking for landscape on [type] turns alone, leaving the
+/// device, its keyboard and its insets upright: every iPad from iPadOS 27.
+/// The probe then has to wait for the device itself to be turned.
+bool _turnsOnlyTheApp(String type, _Runtime runtime) {
+  var major = int.tryParse(
+    RegExp(r'iOS (\d+)').firstMatch(runtime.name)?.group(1) ?? '',
+  );
+  return type.startsWith('iPad') && major != null && major >= 27;
+}
+
+/// The newest of [runtimes] that runs [type], or null when none does. Not
+/// simply the newest: a runtime made for one new iPhone runs that iPhone and
+/// nothing else.
+_Runtime? _runtimeFor(String type, List<_Runtime> runtimes) =>
+    runtimes.where((runtime) => runtime.types.contains(type)).lastOrNull;
+
+/// How long a probe that waits for its device to be turned waits, on top of
+/// [_probeTimeout].
+const _turnTimeout = Duration(minutes: 20);
+
+/// How long a turn sent by `simulator_turn` has to show before the tool asks
+/// for one by hand.
+const _turnGrace = Duration(seconds: 15);
+
+/// Builds `tool/simulator_turn.m` into [work], or says why it could not and
+/// returns null.
+Future<String?> _buildTurner(Directory work) async {
+  var source = p.join(
+    p.dirname(Platform.script.toFilePath()),
+    'simulator_turn.m',
+  );
+  var binary = p.join(work.path, 'simulator_turn');
+  var built = await _run('xcrun', [
+    'clang',
+    '-fobjc-arc',
+    '-framework',
+    'Foundation',
+    source,
+    '-o',
+    binary,
+  ], allowFailure: true);
+  if (built.exitCode == 0) return binary;
+  stdout.writeln(
+    '  · could not build simulator_turn, so iPads are turned by hand:\n'
+            '${built.stderr}'
+        .trimRight(),
+  );
+  return null;
 }
 
 Future<_Readings> _onSimulator(
   String type,
   String runtime,
-  String bundle,
-) async {
-  var created = await _run('xcrun', [
-    'simctl',
-    'create',
-    'fwprobe-${type.replaceAll(RegExp('[^A-Za-z0-9]+'), '-')}',
-    type,
-    runtime,
-  ]);
+  String bundle, {
+  required bool follow,
+  required Future<String?> Function() turner,
+}) async {
+  var name = 'fwprobe-${type.replaceAll(RegExp('[^A-Za-z0-9]+'), '-')}';
+  var created = await _run('xcrun', ['simctl', 'create', name, type, runtime]);
   var udid = (created.stdout as String).trim();
   try {
     await _run('xcrun', ['simctl', 'boot', udid]);
     await _run('xcrun', ['simctl', 'bootstatus', udid, '-b']);
     await _run('xcrun', ['simctl', 'install', udid, bundle]);
-    await _run('xcrun', ['simctl', 'launch', udid, _bundle]);
     var data = await _run('xcrun', [
       'simctl',
       'get_app_container',
@@ -297,14 +405,48 @@ Future<_Readings> _onSimulator(
       _bundle,
       'data',
     ]);
-    var result = File(
-      p.join((data.stdout as String).trim(), 'tmp', 'device_probe.json'),
-    );
+    var tmp = p.join((data.stdout as String).trim(), 'tmp');
+    // A file rather than a variable: an iOS app's Dart sees no environment.
+    if (follow) {
+      await File(p.join(tmp, 'device_probe.follow')).create(recursive: true);
+    }
+    await _run('xcrun', ['simctl', 'launch', udid, _bundle]);
+    var result = File(p.join(tmp, 'device_probe.json'));
+    var ask = File(p.join(tmp, 'device_probe.turn'));
+    String? asked;
+    DateTime? askedAt;
+    var askedByHand = false;
     return await _poll(() async {
+      var wanted = ask.existsSync() ? await ask.readAsString() : null;
+      if (wanted == null || wanted.isEmpty) {
+        asked = null;
+      } else if (wanted != asked) {
+        asked = wanted;
+        askedAt = DateTime.now();
+        askedByHand = false;
+        var turn = await turner();
+        if (turn != null) {
+          var sent = await _run(turn, [udid, wanted], allowFailure: true);
+          if (sent.exitCode != 0) {
+            stdout.writeln('  · simulator_turn: ${'${sent.stderr}'.trim()}');
+            turn = null;
+          }
+        }
+        // Nothing sent, so nothing to wait for: ask by hand straight away.
+        if (turn == null) askedAt = DateTime(0);
+      } else if (!askedByHand &&
+          DateTime.now().difference(askedAt!) > _turnGrace) {
+        askedByHand = true;
+        stdout.writeln(
+          '  Turn the simulator $name ($udid) '
+          '${wanted == 'landscape' ? 'onto its side' : 'upright'}. '
+          'The probe goes on once it has turned.',
+        );
+      }
       if (!result.existsSync()) return null;
       var text = await result.readAsString();
       return text.isEmpty ? null : text;
-    }, timeout: _probeTimeout);
+    }, timeout: follow ? _probeTimeout + _turnTimeout : _probeTimeout);
   } finally {
     await _run('xcrun', ['simctl', 'shutdown', udid], allowFailure: true);
     await _run('xcrun', ['simctl', 'delete', udid], allowFailure: true);
@@ -506,8 +648,9 @@ String? _playImage(String sdk) {
 int _compare(Device device, _Readings readings, {required bool checksTop}) {
   var portrait = readings['portrait']!;
   // The table's landscape is the one with the cutout on the left — on a
-  // phone whose insets are symmetric either side reads the same.
-  var sides = [readings['landscapeLeft']!, readings['landscapeRight']!];
+  // phone whose insets are symmetric either side reads the same. A device
+  // turned from outside was measured on one side only.
+  var sides = [readings['landscapeLeft']!, ?readings['landscapeRight']];
   sides.sort((a, b) => _inset(b, 0).compareTo(_inset(a, 0)));
   var landscape = sides.first;
   var turned = device.rotated();
@@ -567,6 +710,9 @@ int _compare(Device device, _Readings readings, {required bool checksTop}) {
     stdout.writeln(
       "  · the insets are the panel author's: this emulator draws no cutout",
     );
+  }
+  if (sides.length == 1) {
+    stdout.writeln('  · turned from outside, so one side measured');
   }
   var cutouts = portrait['cutouts']! as List;
   if (cutouts.isNotEmpty) stdout.writeln('  · cutouts ${_show(cutouts)}');

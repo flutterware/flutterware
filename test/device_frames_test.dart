@@ -14,16 +14,20 @@ void main() {
   );
 
   test('every phone the table offers wears a hand-drawn body, and so does '
-      'every iPad', () {
-    // The Android tablets are the exception, and the only one: `device_frame`
-    // draws no Android tablet.
+      'every iPad but the mini', () {
+    // The tablets `device_frame` draws no body for are the exceptions, and
+    // the only ones: an iPad mini and any Android tablet.
     var bodiless = [
       for (var device in Devices.all)
         if (device.kind != DeviceKind.desktop &&
             namedFrameFor(device.id) == null)
           device.id,
     ];
-    expect(bodiless, ['android-small-tablet', 'android-medium-tablet']);
+    expect(bodiless, [
+      'ipad-mini',
+      'android-small-tablet',
+      'android-medium-tablet',
+    ]);
   });
 
   test('every body fits the glass of the row that wears it', () {
@@ -88,8 +92,8 @@ void main() {
 
   test('a body the table has moved away from is visible here', () {
     // The case the rule above exists for: the artwork's iPhone 12 Pro Max
-    // says 44 where iOS 26 says 47, and its 16s say 21 at the bottom in
-    // landscape where iOS 26 says 20.
+    // says 44 where iOS 26 and 27 say 47, and its 16s say 21 at the bottom in
+    // landscape where they say 20.
     expect(namedFrameFor('iphone-12-pro-max')!.safeAreas.top, 44);
     expect(deviceFrameFor(Devices.iphone12ProMax)!.safeAreas.top, 47);
     expect(namedFrameFor('iphone-16')!.rotatedSafeAreas!.bottom, 21);

@@ -82,6 +82,11 @@ DeviceInfo? namedFrameFor(String id) => switch (id) {
   'iphone-12-pro-max' => artwork.Devices.ios.iPhone12ProMax,
   'iphone-16-pro-max' => artwork.Devices.ios.iPhone16ProMax,
   'ipad' => artwork.Devices.ios.iPad,
+  // An Air 4 for the 11-inch Air and the base iPad, and the last 12.9-inch Pro
+  // for the 13-inch Air: the same glass in the same flat body.
+  'ipad-air-11' => artwork.Devices.ios.iPadAir4,
+  'ipad-pro-11' => artwork.Devices.ios.iPadPro11InchesM4,
+  'ipad-air-13' => artwork.Devices.ios.iPad12InchesGen4,
   'ipad-pro-13' => artwork.Devices.ios.iPadPro13InchesM4,
   'android-small' => artwork.Devices.android.samsungGalaxyS25,
   'android-tall' => artwork.Devices.android.googlePixel9,
