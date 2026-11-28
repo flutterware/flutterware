@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutterware/comparison_report.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
+import '../../ui/zoom_buttons.dart';
+import '../stage_view.dart';
 import 'shot_image.dart';
 import '../../ui/empty_state.dart';
 
@@ -37,7 +41,11 @@ const stageKey = Key('comparison-stage');
 /// The cluster-box overlay, in whichever mode draws one.
 const clusterBoxesKey = Key('stage.clusters');
 
-/// Two frames in one place, five ways.
+/// Two frames in one place, five ways — each of them zoomable, since a change
+/// of a few pixels on a desktop frame fitted to half a window cannot be read.
+///
+/// Key it by what it shows: the zoom is the stage's own, and a place zoomed to
+/// in one frame is an arbitrary corner of the next.
 class ComparisonStage extends StatefulWidget {
   const ComparisonStage({
     super.key,
@@ -73,6 +81,27 @@ class _ComparisonStageState extends State<ComparisonStage> {
   /// Which side blink is showing.
   var _blinkHead = true;
   Timer? _blink;
+
+  /// What part of the frames shows, the same in every mode.
+  var _view = StageView.fit;
+
+  /// The region last jumped to, or -1 before any.
+  var _region = -1;
+
+  void _show(StageView view) => setState(() {
+    _view = view;
+    if (view.isFit) _region = -1;
+  });
+
+  /// Moves [step] changed regions on and shows the one arrived at.
+  void _jump(PixelDiff diff, int step) {
+    var count = diff.clusters.length;
+    var next = _region < 0 && step < 0 ? count - 1 : (_region + step) % count;
+    setState(() {
+      _region = next;
+      _view = StageView.around(diff.clusters[next], diff.width, diff.height);
+    });
+  }
 
   @override
   void initState() {
@@ -110,21 +139,27 @@ class _ComparisonStageState extends State<ComparisonStage> {
       children: [
         // With one frame or none there is nothing to switch between, so the
         // pills are not drawn at all — five disabled ones were furniture over
-        // a picture that has no modes. A lone frame can still be enlarged.
-        if (base != null && head != null)
+        // a picture that has no modes. A lone frame can still be zoomed and
+        // enlarged.
+        if (base != null || head != null)
           _ModeBar(
-            mode: widget.mode,
-            onMode: widget.onMode,
+            mode: base != null && head != null ? widget.mode : null,
+            onMode: base != null && head != null ? widget.onMode : null,
             onEnlarge: widget.onEnlarge,
-          )
-        else if (base != null || head != null)
-          if (widget.onEnlarge case var enlarge?) _ModeBar(onEnlarge: enlarge),
+            view: _view,
+            onView: _show,
+            regions: widget.diff?.clusters.length ?? 0,
+            region: _region,
+            onRegion: (step) => _jump(widget.diff!, step),
+          ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(FwSpacing.xl),
             child: base == null || head == null
-                ? _OneSided(base: base, head: head)
+                ? _OneSided(base: base, head: head, view: _view, onView: _show)
                 : _Body(
+                    view: _view,
+                    onView: _show,
                     mode: widget.mode,
                     base: base,
                     head: head,
@@ -150,6 +185,8 @@ class _ComparisonStageState extends State<ComparisonStage> {
 
 class _Body extends StatelessWidget {
   const _Body({
+    required this.view,
+    required this.onView,
     required this.mode,
     required this.base,
     required this.head,
@@ -161,6 +198,8 @@ class _Body extends StatelessWidget {
     this.diff,
   });
 
+  final StageView view;
+  final ValueChanged<StageView> onView;
   final StageMode mode;
   final Shot base;
   final Shot head;
@@ -175,12 +214,20 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) => switch (mode) {
     // The head carries the diff's boxes, so the default mode both shows the
     // frames and says where to look.
-    StageMode.sideBySide => _Pair(base: base, head: head, diff: diff),
+    StageMode.sideBySide => _Pair(
+      base: base,
+      head: head,
+      diff: diff,
+      view: view,
+      onView: onView,
+    ),
     StageMode.slider => _Framed(
       label: 'drag the line to compare',
       child: _Stacked(
         base: base,
         head: head,
+        view: view,
+        onView: onView,
         // **Clipped, not cross-faded.** A slider is for reading where a
         // boundary falls — a button's edge, a baseline — and a soft one is
         // exactly the thing you cannot measure against.
@@ -193,6 +240,8 @@ class _Body extends StatelessWidget {
       child: _Stacked(
         base: base,
         head: head,
+        view: view,
+        onView: onView,
         opacity: blend,
         // Under the frame and no wider than it: a blend has no boundary to
         // point at, but a control that spans a pane the picture does not still
@@ -216,7 +265,7 @@ class _Body extends StatelessWidget {
     ),
     StageMode.blink => _Framed(
       label: blinkHead ? 'head' : 'base',
-      child: ShotView(blinkHead ? head : base),
+      child: _Single(blinkHead ? head : base, view: view, onView: onView),
     ),
     StageMode.pixels => _Framed(
       label: diff == null
@@ -226,7 +275,7 @@ class _Body extends StatelessWidget {
           : '${(diff!.fraction * 100).toStringAsFixed(2)}% of pixels differ · '
                 '${diff!.clusters.length} region'
                 '${diff!.clusters.length == 1 ? '' : 's'}',
-      child: _Clusters(head: head, diff: diff),
+      child: _Clusters(head: head, diff: diff, view: view, onView: onView),
     ),
   };
 }
@@ -244,11 +293,19 @@ class _Body extends StatelessWidget {
 /// Each frame fits its own half, so a frame that changed size still shows as
 /// a different shape rather than being scaled to match.
 class _Pair extends StatelessWidget {
-  const _Pair({required this.base, required this.head, this.diff});
+  const _Pair({
+    required this.base,
+    required this.head,
+    required this.view,
+    required this.onView,
+    this.diff,
+  });
 
   final Shot base;
   final Shot head;
   final PixelDiff? diff;
+  final StageView view;
+  final ValueChanged<StageView> onView;
 
   @override
   Widget build(BuildContext context) => _Surface(
@@ -267,14 +324,31 @@ class _Pair extends StatelessWidget {
             children: [
               _Labelled(
                 label: 'base',
-                child: SizedBox.fromSize(size: baseBox, child: ShotView(base)),
+                child: SizedBox.fromSize(
+                  size: baseBox,
+                  child: _ZoomArea(
+                    view: view,
+                    onView: onView,
+                    child: _Viewed(
+                      view: view,
+                      child: ShotView(base, sharp: _sharp(view)),
+                    ),
+                  ),
+                ),
               ),
               const Gap(FwSpacing.xl),
               _Labelled(
                 label: 'head',
                 child: SizedBox.fromSize(
                   size: headBox,
-                  child: BoxedShot(shot: head, diff: diff),
+                  child: _ZoomArea(
+                    view: view,
+                    onView: onView,
+                    child: _Viewed(
+                      view: view,
+                      child: BoxedShot(shot: head, diff: diff, view: view),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -314,6 +388,8 @@ class _Stacked extends StatelessWidget {
   const _Stacked({
     required this.base,
     required this.head,
+    required this.view,
+    required this.onView,
     this.clip,
     this.opacity = 1.0,
     this.onClip,
@@ -322,6 +398,8 @@ class _Stacked extends StatelessWidget {
 
   final Shot base;
   final Shot head;
+  final StageView view;
+  final ValueChanged<StageView> onView;
 
   /// Fraction of the width the head frame occupies, from the left.
   final double? clip;
@@ -350,6 +428,10 @@ class _Stacked extends StatelessWidget {
         var box = _fit(base.aspect, available);
         void moveTo(Offset local) =>
             onClip?.call((local.dx / box.width).clamp(0.0, 1.0));
+        Widget viewed(Shot shot, {double opacity = 1}) => _Viewed(
+          view: view,
+          child: ShotView(shot, opacity: opacity, sharp: _sharp(view)),
+        );
 
         return Center(
           child: Column(
@@ -358,66 +440,75 @@ class _Stacked extends StatelessWidget {
               SizedBox(
                 width: box.width,
                 height: box.height,
-                child: GestureDetector(
-                  // **The boundary is dragged where it is.** A slider along the
-                  // bottom of a wide pane is nowhere near the line it moves,
-                  // and a control that far from its effect stops feeling like
-                  // it is moving the line at all.
-                  onTapDown: onClip == null
-                      ? null
-                      : (details) => moveTo(details.localPosition),
-                  onHorizontalDragUpdate: onClip == null
-                      ? null
-                      : (details) => moveTo(details.localPosition),
-                  child: MouseRegion(
-                    cursor: onClip == null
-                        ? MouseCursor.defer
-                        : SystemMouseCursors.resizeLeftRight,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ShotView(base),
-                        if (clip == null)
-                          ShotView(head, opacity: opacity)
-                        else ...[
-                          ClipRect(
-                            clipper: _LeftFraction(clip!),
-                            child: ShotView(head),
-                          ),
-                          Positioned(
-                            left: box.width * clip! - 1,
-                            top: 0,
-                            bottom: 0,
-                            width: 2,
-                            child: ColoredBox(color: colors.accent),
-                          ),
-                          // Which side is which, on the frame: the head is
-                          // drawn left of the line and the base right of it.
-                          const Positioned(
-                            left: FwSpacing.xs,
-                            top: FwSpacing.xs,
-                            child: _SideTag('head'),
-                          ),
-                          const Positioned(
-                            right: FwSpacing.xs,
-                            top: FwSpacing.xs,
-                            child: _SideTag('base'),
-                          ),
-                          Positioned(
-                            left: box.width * clip! - 7,
-                            top: box.height / 2 - 7,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: colors.accent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: colors.bg, width: 2),
+                child: _ZoomArea(
+                  view: view,
+                  onView: onView,
+                  child: GestureDetector(
+                    // **The boundary is dragged where it is.** A slider along the
+                    // bottom of a wide pane is nowhere near the line it moves,
+                    // and a control that far from its effect stops feeling like
+                    // it is moving the line at all.
+                    onTapDown: onClip == null
+                        ? null
+                        : (details) => moveTo(details.localPosition),
+                    onHorizontalDragUpdate: onClip == null
+                        ? null
+                        : (details) => moveTo(details.localPosition),
+                    child: MouseRegion(
+                      cursor: onClip == null
+                          ? MouseCursor.defer
+                          : SystemMouseCursors.resizeLeftRight,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          viewed(base),
+                          if (clip == null)
+                            viewed(head, opacity: opacity)
+                          else ...[
+                            // The line is drawn on the box, not on the frame:
+                            // zoomed or not, it is where the pointer put it.
+                            ClipRect(
+                              clipper: _LeftFraction(clip!),
+                              child: viewed(head),
+                            ),
+                            Positioned(
+                              left: box.width * clip! - 1,
+                              top: 0,
+                              bottom: 0,
+                              width: 2,
+                              child: ColoredBox(color: colors.accent),
+                            ),
+                            // Which side is which, on the frame: the head is
+                            // drawn left of the line and the base right of it.
+                            const Positioned(
+                              left: FwSpacing.xs,
+                              top: FwSpacing.xs,
+                              child: _SideTag('head'),
+                            ),
+                            const Positioned(
+                              right: FwSpacing.xs,
+                              top: FwSpacing.xs,
+                              child: _SideTag('base'),
+                            ),
+                            Positioned(
+                              left: box.width * clip! - 7,
+                              top: box.height / 2 - 7,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: colors.accent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: colors.bg,
+                                    width: 2,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -505,10 +596,17 @@ class _LeftFraction extends CustomClipper<Rect> {
 /// preview happens to be — an overlay that tints changed pixels disappears on
 /// a dark screen and swamps a light one.
 class _Clusters extends StatelessWidget {
-  const _Clusters({required this.head, this.diff});
+  const _Clusters({
+    required this.head,
+    required this.view,
+    required this.onView,
+    this.diff,
+  });
 
   final Shot head;
   final PixelDiff? diff;
+  final StageView view;
+  final ValueChanged<StageView> onView;
 
   @override
   Widget build(BuildContext context) {
@@ -520,16 +618,27 @@ class _Clusters extends StatelessWidget {
           child: SizedBox(
             width: box.width,
             height: box.height,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ShotView(head),
-                if (diff case var diff?)
-                  CustomPaint(
-                    key: clusterBoxesKey,
-                    painter: _ClusterPainter(diff: diff, color: colors.amber),
-                  ),
-              ],
+            child: _ZoomArea(
+              view: view,
+              onView: onView,
+              child: _Viewed(
+                view: view,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ShotView(head, sharp: _sharp(view)),
+                    if (diff case var diff?)
+                      CustomPaint(
+                        key: clusterBoxesKey,
+                        painter: _ClusterPainter(
+                          diff: diff,
+                          color: colors.amber,
+                          zoom: view.zoom,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -549,10 +658,18 @@ class _Clusters extends StatelessWidget {
 /// Public for the findings list, whose thumbnails point at the change the same
 /// way.
 class BoxedShot extends StatelessWidget {
-  const BoxedShot({super.key, required this.shot, this.diff});
+  const BoxedShot({
+    super.key,
+    required this.shot,
+    this.diff,
+    this.view = StageView.fit,
+  });
 
   final Shot shot;
   final PixelDiff? diff;
+
+  /// What the box is magnified by, so the outlines stay the width they are.
+  final StageView view;
 
   @override
   Widget build(BuildContext context) {
@@ -564,7 +681,7 @@ class BoxedShot extends StatelessWidget {
       return Stack(
         fit: StackFit.expand,
         children: [
-          ShotView(shot),
+          ShotView(shot, sharp: _sharp(view)),
           Positioned.fill(
             child: CustomPaint(
               key: clusterBoxesKey,
@@ -572,13 +689,14 @@ class BoxedShot extends StatelessWidget {
                 diff: diff,
                 color: context.colors.amber,
                 wash: false,
+                zoom: view.zoom,
               ),
             ),
           ),
         ],
       );
     }
-    return ShotView(shot);
+    return ShotView(shot, sharp: _sharp(view));
   }
 }
 
@@ -587,7 +705,11 @@ class _ClusterPainter extends CustomPainter {
     required this.diff,
     required this.color,
     this.wash = true,
+    this.zoom = 1,
   });
+
+  /// How far the canvas is magnified: the outline is drawn that much thinner.
+  final double zoom;
 
   final PixelDiff diff;
   final Color color;
@@ -603,16 +725,17 @@ class _ClusterPainter extends CustomPainter {
     var stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.5 / zoom;
     var fill = Paint()..color = color.withValues(alpha: 0.16);
     for (var rect in diff.clusters) {
       // Grown by a pixel so a one-pixel cluster is a box you can see rather
       // than a line you cannot.
+      var grow = 1 / zoom;
       var box = Rect.fromLTWH(
-        rect.x * scaleX - 1,
-        rect.y * scaleY - 1,
-        rect.width * scaleX + 2,
-        rect.height * scaleY + 2,
+        rect.x * scaleX - grow,
+        rect.y * scaleY - grow,
+        rect.width * scaleX + 2 * grow,
+        rect.height * scaleY + 2 * grow,
       );
       if (wash) canvas.drawRect(box, fill);
       canvas.drawRect(box, stroke);
@@ -621,15 +744,25 @@ class _ClusterPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ClusterPainter old) =>
-      old.diff != diff || old.color != color || old.wash != wash;
+      old.diff != diff ||
+      old.color != color ||
+      old.wash != wash ||
+      old.zoom != zoom;
 }
 
 /// One frame, when only one side has one.
 class _OneSided extends StatelessWidget {
-  const _OneSided({this.base, this.head});
+  const _OneSided({
+    required this.view,
+    required this.onView,
+    this.base,
+    this.head,
+  });
 
   final Shot? base;
   final Shot? head;
+  final StageView view;
+  final ValueChanged<StageView> onView;
 
   @override
   Widget build(BuildContext context) {
@@ -642,7 +775,7 @@ class _OneSided extends StatelessWidget {
     }
     return _Framed(
       label: head != null ? 'head only' : 'base only',
-      child: ShotView(only),
+      child: _Single(only, view: view, onView: onView),
     );
   }
 }
@@ -684,14 +817,37 @@ class _Surface extends StatelessWidget {
 }
 
 const enlargeStageKey = Key('stage.enlarge');
+const nextRegionKey = Key('stage.region.next');
+const previousRegionKey = Key('stage.region.previous');
 
 class _ModeBar extends StatelessWidget {
-  const _ModeBar({this.mode, this.onMode, this.onEnlarge});
+  const _ModeBar({
+    required this.view,
+    required this.onView,
+    required this.regions,
+    required this.region,
+    required this.onRegion,
+    this.mode,
+    this.onMode,
+    this.onEnlarge,
+  });
 
   /// Null with [onMode] for a lone frame, which has no modes to pick.
   final StageMode? mode;
   final ValueChanged<StageMode>? onMode;
   final VoidCallback? onEnlarge;
+
+  final StageView view;
+  final ValueChanged<StageView> onView;
+
+  /// How many changed regions there are to go to, which one is showing, and
+  /// the move that many on.
+  final int regions;
+  final int region;
+  final ValueChanged<int> onRegion;
+
+  /// One press of a zoom button.
+  static const _step = 1.5;
 
   @override
   Widget build(BuildContext context) {
@@ -699,68 +855,258 @@ class _ModeBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: FwSpacing.xl,
-        vertical: FwSpacing.sm,
+        vertical: FwSpacing.xs,
       ),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: colors.line)),
       ),
-      child: Row(
+      // A `Wrap`: beside the channel column the stage is narrow, and the
+      // zoom controls take a second line rather than overflow.
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: FwSpacing.lg,
+        runSpacing: FwSpacing.xs,
         children: [
           if (onMode case var onMode?)
-            for (var option in StageMode.values)
-              Padding(
-                padding: const EdgeInsets.only(right: FwSpacing.xs),
-                child: Tappable(
-                  key: stageModeKey(option),
-                  onTap: option != mode ? () => onMode(option) : null,
-                  borderRadius: BorderRadius.circular(
-                    context.radii.radiusSmall,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FwSpacing.md,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: option == mode
-                          ? colors.accent.withValues(alpha: 0.12)
-                          : null,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var option in StageMode.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: FwSpacing.xs),
+                    child: Tappable(
+                      key: stageModeKey(option),
+                      onTap: option != mode ? () => onMode(option) : null,
                       borderRadius: BorderRadius.circular(
                         context.radii.radiusSmall,
                       ),
-                    ),
-                    child: Text(
-                      option.label,
-                      style: context.type.micro.copyWith(
-                        color: option == mode ? colors.accent : colors.mut,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FwSpacing.md,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: option == mode
+                              ? colors.accent.withValues(alpha: 0.12)
+                              : null,
+                          borderRadius: BorderRadius.circular(
+                            context.radii.radiusSmall,
+                          ),
+                        ),
+                        child: Text(
+                          option.label,
+                          style: context.type.micro.copyWith(
+                            color: option == mode ? colors.accent : colors.mut,
+                          ),
+                        ),
                       ),
                     ),
                   ),
+              ],
+            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (regions > 0) ...[
+                _BarButton(
+                  key: previousRegionKey,
+                  icon: Icons.chevron_left_rounded,
+                  tooltip: 'Previous region',
+                  onTap: () => onRegion(-1),
                 ),
-              ),
-          const Spacer(),
-          if (onEnlarge case var enlarge?)
-            Tooltip(
-              message: 'Enlarge (the whole window)',
-              child: Tappable(
-                key: enlargeStageKey,
-                onTap: enlarge,
-                borderRadius: BorderRadius.circular(context.radii.radiusSmall),
-                child: Padding(
-                  padding: const EdgeInsets.all(3),
-                  child: Icon(
-                    Icons.open_in_full_rounded,
-                    size: FwIconSize.sm,
-                    color: colors.mut,
+                Text(
+                  region >= 0
+                      ? 'Region ${region + 1} of $regions'
+                      : '$regions ${regions == 1 ? 'region' : 'regions'}',
+                  style: context.type.micro.copyWith(color: colors.mut),
+                ),
+                _BarButton(
+                  key: nextRegionKey,
+                  icon: Icons.chevron_right_rounded,
+                  tooltip: 'Next region',
+                  onTap: () => onRegion(1),
+                ),
+                const Gap(FwSpacing.lg),
+              ],
+              ZoomButtons(
+                dense: true,
+                value: view.zoom,
+                onScale: (factor) => onView(
+                  view.zoomedAt(
+                    factor > 1 ? _step : 1 / _step,
+                    const Offset(0.5, 0.5),
                   ),
                 ),
+                onFit: () => onView(StageView.fit),
               ),
-            ),
+              if (onEnlarge case var enlarge?) ...[
+                const Gap(FwSpacing.md),
+                _BarButton(
+                  key: enlargeStageKey,
+                  icon: Icons.open_in_full_rounded,
+                  tooltip: 'Enlarge (the whole window)',
+                  onTap: enlarge,
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
   }
 }
+
+class _BarButton extends StatelessWidget {
+  const _BarButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: Tappable(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(context.radii.radiusSmall),
+      child: Padding(
+        padding: const EdgeInsets.all(FwSpacing.xs),
+        child: Icon(icon, size: FwIconSize.sm, color: context.colors.mut),
+      ),
+    ),
+  );
+}
+
+/// One frame fitted to the space it is given, under the stage's view.
+class _Single extends StatelessWidget {
+  const _Single(this.shot, {required this.view, required this.onView});
+
+  final Shot shot;
+  final StageView view;
+  final ValueChanged<StageView> onView;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Center(
+      child: SizedBox.fromSize(
+        size: _fit(shot.aspect, constraints.biggest),
+        child: _ZoomArea(
+          view: view,
+          onView: onView,
+          child: _Viewed(
+            view: view,
+            child: ShotView(shot, sharp: _sharp(view)),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// A frame's box showing [view]'s part of what is drawn in it.
+class _Viewed extends StatelessWidget {
+  const _Viewed({required this.view, required this.child});
+
+  final StageView view;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (view.isFit) return child;
+    return ClipRect(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          var size = constraints.biggest;
+          var origin = view.origin;
+          return Transform(
+            transform: Matrix4.identity()
+              ..translateByDouble(
+                -origin.dx * size.width * view.zoom,
+                -origin.dy * size.height * view.zoom,
+                0,
+                1,
+              )
+              ..scaleByDouble(view.zoom, view.zoom, 1, 1),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The wheel zooms on what is under the pointer, a pinch zooms, and a drag
+/// moves a zoomed frame. At fit nothing claims a drag, so the slider's line
+/// is dragged as it always was.
+class _ZoomArea extends StatefulWidget {
+  const _ZoomArea({
+    required this.view,
+    required this.onView,
+    required this.child,
+  });
+
+  final StageView view;
+  final ValueChanged<StageView> onView;
+  final Widget child;
+
+  @override
+  State<_ZoomArea> createState() => _ZoomAreaState();
+}
+
+class _ZoomAreaState extends State<_ZoomArea> {
+  /// A pinch reports its scale from where it began; this is what it was last.
+  var _scale = 1.0;
+
+  /// [local] as a fraction of this box, and a distance as one.
+  Offset _fraction(Offset local) {
+    var size = context.size;
+    if (size == null || size.isEmpty) return const Offset(0.5, 0.5);
+    return Offset(local.dx / size.width, local.dy / size.height);
+  }
+
+  void _zoom(double factor, Offset local) =>
+      widget.onView(widget.view.zoomedAt(factor, _fraction(local)));
+
+  @override
+  Widget build(BuildContext context) => Listener(
+    onPointerSignal: (event) {
+      if (event is PointerScrollEvent) {
+        // Registered, so a list this happens to sit in does not scroll too.
+        GestureBinding.instance.pointerSignalResolver.register(event, (_) {
+          _zoom(math.exp(-event.scrollDelta.dy / 300), event.localPosition);
+        });
+      } else if (event is PointerScaleEvent) {
+        _zoom(event.scale, event.localPosition);
+      }
+    },
+    // A trackpad's pinch on desktop, which is no pointer signal.
+    onPointerPanZoomStart: (_) => _scale = 1,
+    onPointerPanZoomUpdate: (event) {
+      if (event.scale == _scale) return;
+      _zoom(event.scale / _scale, event.localPosition);
+      _scale = event.scale;
+    },
+    child: widget.view.isFit
+        ? widget.child
+        : MouseRegion(
+            cursor: SystemMouseCursors.grab,
+            child: GestureDetector(
+              onPanUpdate: (details) =>
+                  widget.onView(widget.view.panned(_fraction(details.delta))),
+              child: widget.child,
+            ),
+          ),
+  );
+}
+
+/// Magnified this far, pixels are what is being read.
+bool _sharp(StageView view) => view.zoom >= 4;
 
 /// The same frames over the whole window, in the same mode.
 ///

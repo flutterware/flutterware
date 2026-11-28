@@ -112,6 +112,7 @@ class FindingBody extends StatelessWidget {
     if (pixelsMoved || oneSided) {
       var diff = item.pixels?.diff;
       var stage = ComparisonStage(
+        key: ValueKey(item.id),
         shots: shots,
         mode: mode,
         onMode: onMode,

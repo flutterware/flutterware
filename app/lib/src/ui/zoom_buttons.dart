@@ -16,9 +16,11 @@ class ZoomButtons extends StatelessWidget {
     required this.value,
     required this.onScale,
     this.onFit,
+    this.dense = false,
   });
 
-  /// The current scale, 1 being actual size.
+  /// The current scale, 1 being actual size — or the whole content, where it
+  /// is only ever shown fitted.
   final double value;
 
   /// Multiplies the scale by the factor given.
@@ -27,9 +29,29 @@ class ZoomButtons extends StatelessWidget {
   /// Puts the whole content in view. Null draws no fit button.
   final VoidCallback? onFit;
 
+  /// Small and unframed, for a toolbar that has its own surface rather than a
+  /// canvas this floats over.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     var colors = context.colors;
+    var buttons = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _button(context, Icons.zoom_out, 'Zoom out', () => onScale(0.9)),
+        Text(
+          '${(value * 100).round()}%',
+          style: dense
+              ? context.type.micro.copyWith(color: colors.mut)
+              : context.type.caption,
+        ),
+        _button(context, Icons.zoom_in, 'Zoom in', () => onScale(1.1)),
+        if (onFit case var fit?)
+          _button(context, Icons.fit_screen_outlined, 'Fit to view', fit),
+      ],
+    );
+    if (dense) return buttons;
     return Container(
       decoration: BoxDecoration(
         color: colors.bg,
@@ -37,16 +59,7 @@ class ZoomButtons extends StatelessWidget {
         border: Border.all(color: colors.line),
       ),
       padding: const EdgeInsets.symmetric(horizontal: FwSpacing.xs),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _button(context, Icons.zoom_out, 'Zoom out', () => onScale(0.9)),
-          Text('${(value * 100).round()}%', style: context.type.caption),
-          _button(context, Icons.zoom_in, 'Zoom in', () => onScale(1.1)),
-          if (onFit case var fit?)
-            _button(context, Icons.fit_screen_outlined, 'Fit to view', fit),
-        ],
-      ),
+      child: buttons,
     );
   }
 
@@ -60,8 +73,12 @@ class ZoomButtons extends StatelessWidget {
     child: Tappable(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.all(FwSpacing.sm),
-        child: Icon(icon, size: FwIconSize.lg, color: context.colors.mut),
+        padding: EdgeInsets.all(dense ? FwSpacing.xs : FwSpacing.sm),
+        child: Icon(
+          icon,
+          size: dense ? FwIconSize.sm : FwIconSize.lg,
+          color: context.colors.mut,
+        ),
       ),
     ),
   );
