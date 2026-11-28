@@ -9,6 +9,7 @@ import '../../ui/empty_state.dart';
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
 import '../comparison_controller.dart';
+import '../finding_face.dart';
 import '../rules.dart';
 import '../shot_store.dart';
 import 'channel_signature.dart';
@@ -193,11 +194,14 @@ class _ScenariosTabState extends State<ScenariosTab> {
     }
     return scenarios.firstWhere(
       (s) => s.scenario == named,
-      // Worst first, so this opens on the flow most likely to be a mistake.
-      orElse: () => scenarios.firstWhere(
-        (s) => s.state.isFinding,
-        orElse: () => scenarios.first,
-      ),
+      // The first one the list draws, so this opens on a flow a reader can see
+      // something in whenever there is one.
+      orElse: () {
+        var split = splitScenarios(scenarios.where((s) => s.state.isFinding));
+        return split.different.firstOrNull ??
+            split.samePicture.firstOrNull ??
+            scenarios.first;
+      },
     );
   }
 
@@ -429,15 +433,25 @@ class _Index extends StatelessWidget {
         if (filter.matches(id)) id,
     ];
 
+    var (:different, :samePicture) = splitScenarios(findings);
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: FwSpacing.sm),
       children: [
-        for (var s in findings)
+        for (var s in different)
           _IndexRow(
             scenario: s,
             selected: s.scenario == selected,
             onTap: () => onSelect(s.scenario),
           ),
+        if (samePicture.isNotEmpty) ...[
+          _SectionHeader('SAME PICTURE', samePicture.length),
+          for (var s in samePicture)
+            _IndexRow(
+              scenario: s,
+              selected: s.scenario == selected,
+              onTap: () => onSelect(s.scenario),
+            ),
+        ],
         if (findings.isEmpty && hidden.isEmpty && !half.isRunning)
           Padding(
             padding: const EdgeInsets.all(FwSpacing.xl),

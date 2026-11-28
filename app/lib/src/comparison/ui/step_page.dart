@@ -119,7 +119,7 @@ class StepPage extends StatelessWidget {
                   ],
                 ),
               ),
-              StateChip(item.state),
+              StateChip.item(item),
               // After the chip, at the edge: the chip's width follows the
               // state, and buttons in front of it moved under the pointer
               // from one step to the next — the second click landed on the

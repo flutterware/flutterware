@@ -2,6 +2,7 @@ import 'package:flutterware/comparison_report.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../ui/theme.dart';
+import '../finding_face.dart';
 
 /// What a verdict looks like, in one place.
 ///
@@ -53,9 +54,15 @@ extension ComparedStateLook on ComparedState {
   };
 }
 
+/// What a `changed` row is called when its two pictures are the same. Short
+/// enough for the narrowest node of a flow.
+const samePictureWord = 'same picture';
+
 /// A verdict, as a small filled label.
 class StateChip extends StatelessWidget {
-  const StateChip(this.state, {super.key, this.count}) : _unsure = false;
+  const StateChip(this.state, {super.key, this.count})
+    : _unsure = false,
+      _samePicture = false;
 
   /// A scenario that was replayed and produced no result — see
   /// `ScenarioComparison.inconclusive`. On the wire it is `skipped`, and
@@ -63,24 +70,44 @@ class StateChip extends StatelessWidget {
   /// of these was looked at.
   const StateChip.notCompared({super.key, this.count})
     : state = ComparedState.skipped,
-      _unsure = true;
+      _unsure = true,
+      _samePicture = false;
+
+  /// A `changed` row whose pictures are the same on both sides. Muted rather
+  /// than amber: beside a screen that did move, the two have to be told apart
+  /// without reading the channels.
+  const StateChip.samePicture({super.key, this.count})
+    : state = ComparedState.changed,
+      _unsure = false,
+      _samePicture = true;
+
+  /// The chip [item]'s verdict is drawn as.
+  factory StateChip.item(ComparedItem item, {Key? key}) => hasSamePicture(item)
+      ? StateChip.samePicture(key: key)
+      : StateChip(item.state, key: key);
 
   /// The chip [scenario]'s verdict is drawn as.
-  factory StateChip.of(ScenarioComparison scenario, {Key? key}) =>
-      scenario.compared
-      ? StateChip(scenario.state, key: key)
-      : StateChip.notCompared(key: key);
+  factory StateChip.of(ScenarioComparison scenario, {Key? key}) {
+    if (!scenario.compared) return StateChip.notCompared(key: key);
+    return scenarioHasSamePicture(scenario)
+        ? StateChip.samePicture(key: key)
+        : StateChip(scenario.state, key: key);
+  }
 
   final ComparedState state;
   final bool _unsure;
+  final bool _samePicture;
 
   /// How many rows are in this state, when the chip is standing for a group.
   final int? count;
 
   @override
   Widget build(BuildContext context) {
-    var color = _unsure ? context.colors.warningText : state.colorIn(context);
-    var word = _unsure ? 'no result' : state.word;
+    var (color, word) = switch ((_unsure, _samePicture)) {
+      (true, _) => (context.colors.warningText, 'no result'),
+      (_, true) => (context.colors.mut, samePictureWord),
+      _ => (state.colorIn(context), state.word),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: FwSpacing.sm,

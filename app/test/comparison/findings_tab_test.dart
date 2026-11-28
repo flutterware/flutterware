@@ -82,6 +82,68 @@ void main() {
     expect(rows.indexOf('gone'), lessThan(rows.indexOf('card')));
   });
 
+  ComparedItem pixels(String id, double fraction) => ComparedItem(
+    id: id,
+    state: ComparedState.changed,
+    pixels: PixelChannel(
+      PixelDiff(
+        width: 100,
+        height: 100,
+        changedPixels: (fraction * 10000).round(),
+        comparedPixels: 10000,
+        sizeChanged: false,
+        clusters: const [],
+      ),
+    ),
+  );
+
+  ComparedItem textsOnly(String id) => ComparedItem(
+    id: id,
+    state: ComparedState.changed,
+    texts: const TextChannel(added: ['Pay'], removed: ['Buy']),
+  );
+
+  testWidgets('what looks different leads, the largest change first, and the '
+      'same pictures are folded under one line', (tester) async {
+    await pump(
+      tester,
+      previews: [
+        textsOnly('demo/a.dart#quiet'),
+        pixels('demo/b.dart#small', 0.01),
+        pixels('demo/c.dart#large', 0.4),
+      ],
+    );
+
+    expect(
+      find.text('2 look different · 1 has the same picture'),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(find.byKey(findingRowKey('demo/c.dart#large'))).dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(findingRowKey('demo/b.dart#small'))).dy,
+      ),
+    );
+    expect(find.byKey(findingRowKey('demo/a.dart#quiet')), findsNothing);
+    expect(find.text('Only the text differs.'), findsOneWidget);
+
+    await tester.tap(find.byKey(findingsSamePictureKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(findingRowKey('demo/a.dart#quiet')), findsOneWidget);
+    expect(find.text('same picture'), findsOneWidget);
+  });
+
+  testWidgets('says when nothing looks different', (tester) async {
+    await pump(
+      tester,
+      previews: [textsOnly('demo/a.dart#one'), textsOnly('demo/b.dart#two')],
+    );
+
+    expect(find.text('Nothing looks different'), findsOneWidget);
+    expect(find.text('2 with the same picture'), findsOneWidget);
+  });
+
   // The detail — the five-mode stage, the merged flow — already lives in the
   // halves, and a third copy of either is the drift this codebase keeps paying
   // for. So a row is a door rather than a page.

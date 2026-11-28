@@ -41,6 +41,10 @@ fw compare --report=build/comparison-report  # what a PR comment needs
 frame) that works from any web host, including a per-PR folder. Serve it over
 HTTP; opened as a local file it can't load its own frames.
 
+The page lists what looks different first. A change that left the picture the
+same, such as a new widget around an old one, is labelled `same picture` and
+folded under one line.
+
 `--report` writes a `comment.md` and a `mosaic.png` of the changed screens,
 with the exported page under `web/`. The comment uses `__MOSAIC_URL__` and
 `__VIEWER_URL__` placeholders, for your workflow to replace once it has

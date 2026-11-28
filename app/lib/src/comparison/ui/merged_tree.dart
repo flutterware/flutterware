@@ -10,6 +10,7 @@ import '../../ui/theme.dart';
 import '../../ui/zoom_buttons.dart';
 import '../../ui/zoomable_canvas.dart';
 import '../../utils/graphite.dart';
+import '../finding_face.dart';
 import '../shot_store.dart';
 import 'channel_signature.dart';
 import 'shot_image.dart';
@@ -477,7 +478,10 @@ class _StepNode extends StatelessWidget {
   Widget build(BuildContext context) {
     var colors = context.colors;
     var color = item.state.colorIn(context);
-    var ring = item.state.isFinding ? color : colors.line;
+    // Ringed only where there is something to see: a step whose picture is
+    // the same, ringed like one that moved, sent a reader to open both.
+    var marked = item.state.isFinding && !hasSamePicture(item);
+    var ring = marked ? color : colors.line;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: FwSpacing.md),
@@ -505,7 +509,7 @@ class _StepNode extends StatelessWidget {
                   // it changes the very thing a reader is trying to judge.
                   border: Border.all(
                     color: selected ? colors.accent : ring,
-                    width: selected || item.state.isFinding ? 2 : 1,
+                    width: selected || marked ? 2 : 1,
                   ),
                   color: hovered ? colors.hoverOverlay : colors.panel,
                 ),
@@ -525,7 +529,7 @@ class _StepNode extends StatelessWidget {
               ),
               if (item.state.isFinding) ...[
                 const Gap(2),
-                StateChip(item.state),
+                StateChip.item(item),
                 // *That* it changed was all a node ever said. Which channel
                 // saw it is the difference between a screenshot worth opening
                 // and a request that moved behind one — and the flow is where

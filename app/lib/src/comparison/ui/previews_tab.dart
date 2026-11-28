@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutterware/comparison_report.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -7,6 +8,7 @@ import '../../capture/settle.dart';
 import '../../ui/tappable.dart';
 import '../../ui/theme.dart';
 import '../comparison_controller.dart';
+import '../finding_face.dart';
 import '../rules.dart';
 import '../shot_store.dart';
 import 'finding_body.dart';
@@ -124,15 +126,16 @@ class _PreviewsTabState extends State<PreviewsTab> {
     var rows = widget.half.rows;
     // Said, not swapped for the first finding — see [NotInComparison].
     if (rows.isEmpty || _missing != null) return null;
-    // **The first finding, not the first row.** A list ranked worst-first opens
-    // on the thing most likely to be a mistake, which is the whole reason it is
-    // ranked.
+    // **The first finding, not the first row** — and the first one the list
+    // draws, which is one a reader can see whenever there is one.
     return rows.firstWhere(
       (row) => row.id == widget.selected,
-      orElse: () => rows.firstWhere(
-        (row) => row.state.isFinding,
-        orElse: () => rows.first,
-      ),
+      orElse: () {
+        var split = splitItems(rows.where((row) => row.state.isFinding));
+        return split.different.firstOrNull ??
+            split.samePicture.firstOrNull ??
+            rows.first;
+      },
     );
   }
 
@@ -274,15 +277,25 @@ class _Index extends StatelessWidget {
         if (filter.matches(id)) id,
     ];
 
+    var (:different, :samePicture) = splitItems(findings);
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: FwSpacing.sm),
       children: [
-        for (var row in findings)
+        for (var row in different)
           _IndexRow(
             item: row,
             selected: row.id == selected,
             onTap: () => onSelect(row.id),
           ),
+        if (samePicture.isNotEmpty) ...[
+          _SectionHeader('SAME PICTURE', samePicture.length),
+          for (var row in samePicture)
+            _IndexRow(
+              item: row,
+              selected: row.id == selected,
+              onTap: () => onSelect(row.id),
+            ),
+        ],
         if (findings.isEmpty && hidden.isEmpty && !half.isRunning)
           Padding(
             padding: const EdgeInsets.all(FwSpacing.xl),
@@ -437,7 +450,7 @@ class _IndexRow extends StatelessWidget {
                   ),
                 ),
                 const Gap(FwSpacing.sm),
-                StateChip(item.state),
+                StateChip.item(item),
               ],
             ),
             Row(
@@ -507,7 +520,7 @@ class _Detail extends StatelessWidget {
           child: Row(
             children: [
               Expanded(child: ComparedTitle(item.id, label: item.label)),
-              StateChip(item.state),
+              StateChip.item(item),
             ],
           ),
         ),
