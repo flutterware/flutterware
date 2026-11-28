@@ -45,12 +45,13 @@ The page lists what looks different first. A change that left the picture the
 same, such as a new widget around an old one, is labelled `same picture` and
 folded under one line.
 
-`--report` writes a `comment.md` and a `mosaic.png` of the changed screens,
-with the exported page under `web/`. The comment uses `__MOSAIC_URL__` and
-`__VIEWER_URL__` placeholders, for your workflow to replace once it has
-uploaded the files. When a changed screen looks the same, the comment says what
-changed instead: `changed · events` in its row, and `1 changed (events only)`
-in the heading.
+`--report` writes a `comment.md` and a `mosaic.png` of the screens that look
+different, with the exported page under `web/`. The comment uses
+`__MOSAIC_URL__` and `__VIEWER_URL__` placeholders, for your workflow to
+replace once it has uploaded the files. A change that left the picture the same
+is counted apart, as `1 same picture` in the heading, and its row says what did
+change, such as `same picture · events`. When nothing looks different there is
+no `mosaic.png`.
 
 ## In CI
 

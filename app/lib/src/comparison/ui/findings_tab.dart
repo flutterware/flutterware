@@ -186,23 +186,9 @@ class _SamePictureHeader extends StatelessWidget {
   final bool open;
   final VoidCallback onToggle;
 
-  /// `Only the widget tree differs.`, over every channel the group moved on.
-  String get _what {
-    var channels = {
-      for (var finding in findings) ...findingUnseenChannels(finding),
-    };
-    var names = [
-      if (channels.contains('tree')) 'the widget tree',
-      if (channels.contains('texts')) 'the text',
-      if (channels.contains('events')) 'the events',
-    ];
-    if (names.length == 1) {
-      var differs = names.single == 'the events' ? 'differ' : 'differs';
-      return 'Only ${names.single} $differs.';
-    }
-    var head = names.sublist(0, names.length - 1).join(', ');
-    return 'Only $head and ${names.last} differ.';
-  }
+  String get _what => whatDiffers({
+    for (var finding in findings) ...findingUnseenChannels(finding),
+  });
 
   @override
   Widget build(BuildContext context) {

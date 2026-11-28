@@ -133,7 +133,23 @@ SplitByLook<T> _split<T>(
   );
 }
 
-/// The verdict in words, as the page's title says it: how many findings are in
+/// `Only the widget tree differs.` — said of the findings with the same
+/// picture, over every channel they moved on.
+String whatDiffers(Iterable<String> channels) {
+  var names = [
+    if (channels.contains('tree')) 'the widget tree',
+    if (channels.contains('texts')) 'the text',
+    if (channels.contains('events')) 'the events',
+  ];
+  if (names.length == 1) {
+    var differs = names.single == 'the events' ? 'differ' : 'differs';
+    return 'Only ${names.single} $differs.';
+  }
+  var head = names.sublist(0, names.length - 1).join(', ');
+  return 'Only $head and ${names.last} differ.';
+}
+
+/// The verdict in words, as the page's title and the pull-request comment say it: how many findings are in
 /// each state, worst first, then how many changed under the same picture —
 /// `2 added · 9 changed · 3 same picture`.
 String verdictWords(Iterable<({ComparedState state, bool samePicture})> rows) {

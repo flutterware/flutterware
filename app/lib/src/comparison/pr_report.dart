@@ -23,7 +23,8 @@ class PrReport {
 
   final String commentPath;
 
-  /// Absent when nothing changed — a clean comment carries no picture.
+  /// Absent when nothing looks different — a comment with nothing to show
+  /// carries no picture.
   final String? mosaicPath;
 }
 
@@ -37,8 +38,7 @@ class _MosaicRow {
     this.clusters = const [],
   });
 
-  /// The caption's first half, which always survives — the state, and for a
-  /// pair of identical frames what moved instead: `changed (events)`.
+  /// The caption's first half, which always survives — the state.
   final String state;
 
   /// The caption's second half, elided from the left when it will not fit.
@@ -51,18 +51,16 @@ class _MosaicRow {
   final List<DiffRect> clusters;
 }
 
-/// Writes `comment.md` and, when anything changed, `mosaic.png` into
+/// Writes `comment.md` and, when anything looks different, `mosaic.png` into
 /// [directory].
 ///
 /// The mosaic is one row per finding, base beside head, capped at
 /// [mosaicRowCap] — it is the teaser, and the exported page is the artifact.
 ///
-/// **A picture leads with what a picture can show.** The findings whose
-/// picture shows their change come first, worst first among them, and the ones
-/// that changed only what no screenshot sees — events, texts, the tree — fill
-/// whatever the cap leaves. Ranked by state alone, a branch that fired a new
-/// event on thirty flows and moved a layout on two would spend the cap on
-/// thirty pairs of identical frames and cut the two anybody could see.
+/// **Only what a picture can show.** A finding that changed what no screenshot
+/// sees — events, texts, the tree — is two identical frames, and a mosaic of
+/// those reads as a branch that moved screens it did not. Measured on the demo
+/// app: a wrapper widget and nothing else drew twelve pairs of them.
 PrReport writePrReport({
   required ComparisonArtifact artifact,
   required ShotCache cache,
@@ -73,19 +71,23 @@ PrReport writePrReport({
   Directory(directory).createSync(recursive: true);
 
   var findings = _findings(artifact);
-  var pictured = [
-    ...findings.where((finding) => finding.showsInPicture),
-    ...findings.where((finding) => !finding.showsInPicture),
-  ];
   var rows = [
-    for (var finding in pictured.take(mosaicRowCap))
+    for (var finding
+        in findings
+            .where((finding) => finding.unseen.isEmpty)
+            .take(mosaicRowCap))
       ?_row(finding, cache: cache),
   ];
 
   String? mosaicPath;
+  var mosaic = File(p.join(directory, 'mosaic.png'));
   if (rows.isNotEmpty) {
-    mosaicPath = p.join(directory, 'mosaic.png');
-    File(mosaicPath).writeAsBytesSync(_mosaic(rows));
+    mosaic.writeAsBytesSync(_mosaic(rows));
+    mosaicPath = mosaic.path;
+  } else if (mosaic.existsSync()) {
+    // A report directory is reused, and a workflow uploads what it finds in
+    // it: the last run's picture would be posted under this run's verdict.
+    mosaic.deleteSync();
   }
 
   var commentPath = p.join(directory, 'comment.md');
@@ -147,7 +149,6 @@ class _Finding {
     this.delta,
     this.item,
     this.frames,
-    this.showsInPicture = false,
     this.unseen = const [],
   });
 
@@ -168,20 +169,13 @@ class _Finding {
   /// A scenario step's frames, which are files rather than cache keys.
   final ({FrameRef? base, FrameRef? head})? frames;
 
-  /// Whether [item]'s picture shows its change — see `showsInPicture`.
-  final bool showsInPicture;
-
   /// What a `changed` finding moved on when no picture shows it — see
   /// `unseenChannels`. Empty when the change is on screen.
   final List<String> unseen;
 
-  /// The state as the table and the mosaic name it: `changed`, or `changed ·
-  /// events` for a finding whose frames are identical. [separator] is what
-  /// goes between, since the mosaic's font has no `·`.
-  String stateLabel({String separator = ' · ', String end = ''}) =>
-      unseen.isEmpty
-      ? state.name
-      : '${state.name}$separator${_channelList(unseen)}$end';
+  /// The state as the table names it: `changed`, or `same picture · events`.
+  String get stateLabel =>
+      unseen.isEmpty ? state.name : 'same picture · ${_channelList(unseen)}';
 }
 
 /// `events`, `texts and events`, `tree, texts and events`.
@@ -190,57 +184,51 @@ String _channelList(List<String> channels) => channels.length < 2
     : '${channels.sublist(0, channels.length - 1).join(', ')} '
           'and ${channels.last}';
 
+/// Every finding in the order the page lists them: what looks different first,
+/// then what has the same picture.
 List<_Finding> _findings(ComparisonArtifact artifact) {
-  var findings = <_Finding>[];
-  for (var item in artifact.previews.items) {
-    if (!_isFinding(item.state)) continue;
-    findings.add(
-      _Finding(
-        id: item.id,
-        tab: 'previews',
-        state: item.state,
-        delta: _delta(item),
-        item: item,
-        showsInPicture: showsInPicture(item),
-        unseen: unseenChannels(item),
-      ),
-    );
-  }
-  for (var scenario
-      in artifact.scenarios?.items ?? const <ScenarioComparison>[]) {
-    if (!_isFinding(scenario.state)) continue;
-    // The scenario's face in the mosaic is one step that has pictures — one
-    // row per flow, because one decision in the source should not fill the
-    // comment with four near-identical frames.
-    var face = scenarioFace(scenario);
-    findings.add(
-      _Finding(
-        id: scenario.scenario,
-        tab: 'scenarios',
-        state: scenario.state,
-        delta: face == null
-            ? scenario.branches.isEmpty
-                  ? null
-                  : '${scenario.branches.length} branch'
-                        '${scenario.branches.length == 1 ? '' : 'es'}'
-            : 'step `${face.id}`',
-        item: face,
-        frames: face == null ? null : scenario.frames[face.id],
-        showsInPicture: face != null && showsInPicture(face),
-        unseen: scenarioUnseenChannels(scenario),
-      ),
-    );
-  }
-  findings.sort(
-    (a, b) => a.state.index == b.state.index
-        ? a.id.compareTo(b.id)
-        : a.state.index.compareTo(b.state.index),
+  var split = splitFindings(
+    rankComparedFindings(
+      previews: artifact.previews.items,
+      scenarios: artifact.scenarios?.items ?? const [],
+    ),
   );
-  return findings;
+  return [
+    for (var finding in [...split.different, ...split.samePicture])
+      if (finding.preview case var item?)
+        _Finding(
+          id: finding.id,
+          tab: 'previews',
+          state: finding.state,
+          delta: _delta(item),
+          item: item,
+          unseen: unseenChannels(item),
+        )
+      else
+        _flowFinding(finding.scenario!),
+  ];
 }
 
-bool _isFinding(ComparedState state) =>
-    state != ComparedState.same && state != ComparedState.skipped;
+_Finding _flowFinding(ScenarioComparison scenario) {
+  // The scenario's face in the mosaic is one step that has pictures — one row
+  // per flow, because one decision in the source should not fill the comment
+  // with four near-identical frames.
+  var face = scenarioFace(scenario);
+  return _Finding(
+    id: scenario.scenario,
+    tab: 'scenarios',
+    state: scenario.state,
+    delta: face == null
+        ? scenario.branches.isEmpty
+              ? null
+              : '${scenario.branches.length} branch'
+                    '${scenario.branches.length == 1 ? '' : 'es'}'
+        : 'step `${face.id}`',
+    item: face,
+    frames: face == null ? null : scenario.frames[face.id],
+    unseen: scenarioUnseenChannels(scenario),
+  );
+}
 
 String? _delta(ComparedItem item) {
   var pixels = item.pixels?.diff;
@@ -282,7 +270,7 @@ _MosaicRow? _row(_Finding finding, {required ShotCache cache}) {
   var head = decode(shots?.head, finding.frames?.head);
   if (base == null && head == null) return null;
   return _MosaicRow(
-    state: finding.stateLabel(separator: ' (', end: ')'),
+    state: finding.state.name,
     id: finding.id,
     base: base,
     head: head,
@@ -542,13 +530,10 @@ String _comment(
       );
     unsure();
   } else {
-    var summary = [
-      for (var MapEntry(key: state, value: count) in counts.entries)
-        if (_isFinding(state))
-          state == ComparedState.changed
-              ? '$count changed${_unseenBreakdown(findings)}'
-              : '$count ${state.name}',
-    ].join(' · ');
+    var summary = verdictWords([
+      for (var finding in findings)
+        (state: finding.state, samePicture: finding.unseen.isNotEmpty),
+    ]);
     buffer.writeln(
       '### Comparison against `$against`: **$summary**$notComparedClause\n',
     );
@@ -559,6 +544,14 @@ String _comment(
     buffer.writeln(
       '[**Open the full comparison →**]($viewerUrlPlaceholder) · $receipt\n',
     );
+    var different = findings.where((finding) => finding.unseen.isEmpty).length;
+    var samePicture = findings.length - different;
+    if (samePicture > 0) {
+      var nothing = different == 0 ? 'Nothing looks different. ' : '';
+      var have = samePicture == 1 ? 'has' : 'have';
+      var what = whatDiffers({for (var finding in findings) ...finding.unseen});
+      buffer.writeln('$nothing$samePicture $have the same picture. $what\n');
+    }
     if (hasMosaic) {
       // The image is the biggest thing in the comment, so it is also a door:
       // clicking it opens the page rather than the raw PNG.
@@ -568,9 +561,9 @@ String _comment(
     }
     // The summary line says the mosaic is a cap when it is one, which is the
     // whole job the old "…and N more" footnote was doing.
-    var shown = hasMosaic && findings.length > mosaicRowCap
-        ? '${findings.length} findings (the picture shows $mosaicRowCap, '
-              'those that moved on screen first)'
+    var shown = hasMosaic && different > mosaicRowCap
+        ? '${findings.length} findings (the picture shows the first '
+              '$mosaicRowCap that look different)'
         : '${findings.length} finding${findings.length == 1 ? '' : 's'}';
     buffer
       ..writeln('<details><summary>$shown</summary>\n')
@@ -592,7 +585,7 @@ String _comment(
             '[$delta]($viewerUrlPlaceholder#scenarios/'
             '${_component(finding.id)}/${_component(finding.item!.id)})';
       }
-      buffer.writeln('| $entry | ${finding.stateLabel()} | $delta |');
+      buffer.writeln('| $entry | ${finding.stateLabel} | $delta |');
     }
     if (findings.length > commentRowCap) {
       buffer.writeln(
@@ -619,40 +612,6 @@ String _comment(
     'inputs.</sub>',
   );
   return buffer.toString();
-}
-
-/// How many of the `changed` findings no picture shows, by what they moved on:
-/// ` (events only)` when that is every one of them, ` (1 events only)` when it
-/// is one of three, and nothing when all of them moved on screen.
-///
-/// The way a scenario run's drift breaks its count down by facet. "1 changed"
-/// reads as a screen that moved to anybody skimming for visual changes, and
-/// the viewer saying the frames are identical is a click away.
-String _unseenBreakdown(List<_Finding> findings) {
-  var changed = [
-    for (var finding in findings)
-      if (finding.state == ComparedState.changed) finding,
-  ];
-  var counts = <String, int>{};
-  for (var finding in changed) {
-    if (finding.unseen.isEmpty) continue;
-    var channels = _channelList(finding.unseen);
-    counts[channels] = (counts[channels] ?? 0) + 1;
-  }
-  if (counts.isEmpty) return '';
-  if (counts.length == 1 && counts.values.single == changed.length) {
-    return ' (${counts.keys.single} only)';
-  }
-  // Most first, like drift's facets, and by name between equals so two
-  // comments on one branch read the same.
-  var ranked = counts.entries.toList()
-    ..sort(
-      (a, b) => a.value == b.value
-          ? a.key.compareTo(b.key)
-          : b.value.compareTo(a.value),
-    );
-  var groups = [for (var MapEntry(:key, :value) in ranked) '$value $key only'];
-  return ' (${groups.join(', ')})';
 }
 
 /// A fragment segment, escaped for the page *and* for markdown:
