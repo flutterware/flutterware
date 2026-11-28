@@ -645,10 +645,7 @@ Future<ComparisonCompareResult> runCompareAction({
     },
     channels: _channelCounts(ranked),
     eventChannels: _eventChannelCounts(ranked),
-    shapes: [
-      for (var row in foldChannelDeltas(ranked.map(_deltasOf)).take(_maxShapes))
-        _wireDelta(row),
-    ],
+    shapes: replyShapes(ranked),
     findings: [
       for (var finding in ranked)
         () {
@@ -693,6 +690,39 @@ const _maxDeltasPerFinding = 8;
 /// a cap necessary in the first place.
 const _maxShapes = 12;
 
+/// How many names of a widget's path the reply carries.
+///
+/// A path runs from the root and reaches thousands of characters on a real
+/// app, and its end is what names the widget. It is also what two screens
+/// share: a preview's path starts with its own id, so whole paths never fold
+/// across previews. The whole path is in `index`.
+const _pathNames = 4;
+
+/// The reply's `shapes`: the ones the most [findings] wear first.
+///
+/// [foldChannelDeltas] keeps its input order, which is the order of the
+/// findings. Capped as it came, the reply held whatever the first finding was
+/// made of: measured on a real run of 77 findings, the change covering 47 of
+/// them was 82nd of 116 shapes, and each of the 12 sent covered one.
+///
+/// `system` events go after everything else, however widespread: framework
+/// chatter rides nearly every step and says the least.
+@visibleForTesting
+List<ComparisonDelta> replyShapes(List<ComparedFinding> findings) {
+  int system(FoldedDelta row) =>
+      row.delta.subchannel == EventChannel.systemSubchannel ? 1 : 0;
+  var shapes = foldChannelDeltas(findings.map(_deltasOf)).indexed.toList()
+    ..sort((a, b) {
+      var (left, right) = (a.$2, b.$2);
+      var by = system(left).compareTo(system(right));
+      if (by != 0) return by;
+      by = right.items.compareTo(left.items);
+      // The fold's own order between equals, which leads with the cause.
+      return by != 0 ? by : a.$1.compareTo(b.$1);
+    });
+  return [for (var (_, row) in shapes.take(_maxShapes)) _wireDelta(row)];
+}
+
 /// A folded row on the wire. `count` and `items` are omitted at one, the way
 /// `deltasDropped` is omitted at zero.
 ComparisonDelta _wireDelta(FoldedDelta row) => ComparisonDelta(
@@ -707,17 +737,32 @@ ComparisonDelta _wireDelta(FoldedDelta row) => ComparisonDelta(
   items: row.items > 1 ? row.items : null,
 );
 
-/// A finding's differences, whichever half it came from.
+/// A finding's differences, whichever half it came from, as the reply spells
+/// them: a widget's path cut to its last [_pathNames] names.
 ///
 /// A preview is one item; a scenario is a tree of them, and its steps carry
 /// the channels. Flattening both to the same faceted list is what lets a
 /// reader filter a comparison without first asking which half a row is in.
-List<ChannelDelta> _deltasOf(ComparedFinding finding) {
-  if (finding.preview case var preview?) return preview.deltas;
-  return [
+List<ChannelDelta> _deltasOf(ComparedFinding finding) => [
+  if (finding.preview case var preview?)
+    ...preview.deltas.map(_shortPath)
+  else
     for (var step in finding.scenario?.items ?? const <ComparedItem>[])
-      if (isComparedFinding(step.state)) ...step.deltas,
-  ];
+      if (isComparedFinding(step.state)) ...step.deltas.map(_shortPath),
+];
+
+ChannelDelta _shortPath(ChannelDelta delta) {
+  var path = delta.subject;
+  if (delta.channel != 'tree' || path == null) return delta;
+  var names = path.split(' › ');
+  if (names.length <= _pathNames) return delta;
+  return ChannelDelta(
+    channel: delta.channel,
+    subject: '… › ${names.sublist(names.length - _pathNames).join(' › ')}',
+    property: delta.property,
+    base: delta.base,
+    head: delta.head,
+  );
 }
 
 /// How many findings each channel had something to say about.
