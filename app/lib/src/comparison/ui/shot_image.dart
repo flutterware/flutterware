@@ -110,10 +110,19 @@ class ShotPair extends ChangeNotifier implements SettleSource {
 
 /// A decoded frame, drawn to fit.
 class ShotView extends StatelessWidget {
-  const ShotView(this.shot, {super.key, this.opacity = 1.0});
+  const ShotView(
+    this.shot, {
+    super.key,
+    this.opacity = 1.0,
+    this.sharp = false,
+  });
 
   final Shot shot;
   final double opacity;
+
+  /// Draws the frame's pixels as squares rather than smoothing them, for a
+  /// frame magnified far enough that the pixels are what is being read.
+  final bool sharp;
 
   @override
   Widget build(BuildContext context) => Opacity(
@@ -124,7 +133,7 @@ class ShotView extends StatelessWidget {
     child: RawImage(
       image: shot.image,
       fit: BoxFit.contain,
-      filterQuality: FilterQuality.medium,
+      filterQuality: sharp ? FilterQuality.none : FilterQuality.medium,
     ),
   );
 }

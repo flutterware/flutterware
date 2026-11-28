@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutterware/comparison_report.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterware_app/src/comparison/shot_cache.dart';
 import 'package:flutterware_app/src/comparison/shot_store_io.dart';
@@ -229,6 +230,70 @@ void main() {
     );
 
     expect(find.text('0.38% of pixels differ · 1 region'), findsOneWidget);
+  });
+
+  const twoRegions = PixelDiff(
+    width: 100,
+    height: 100,
+    changedPixels: 38,
+    comparedPixels: 10000,
+    sizeChanged: false,
+    clusters: [
+      DiffRect(x: 1, y: 1, width: 4, height: 4, pixels: 16),
+      DiffRect(x: 80, y: 80, width: 2, height: 2, pixels: 4),
+    ],
+  );
+
+  testWidgets('the arrows go from one changed region to the next', (
+    tester,
+  ) async {
+    var shots = await pair(tester);
+    await pumpStage(tester, shots, diff: twoRegions);
+
+    expect(find.text('2 regions'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+
+    await tester.tap(find.byKey(nextRegionKey));
+    await tester.pump();
+    expect(find.text('Region 1 of 2'), findsOneWidget);
+    expect(find.text('100%'), findsNothing);
+
+    await tester.tap(find.byKey(nextRegionKey));
+    await tester.pump();
+    expect(find.text('Region 2 of 2'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Fit to view'));
+    await tester.pump();
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('2 regions'), findsOneWidget);
+  });
+
+  testWidgets('the wheel over a frame zooms both, in every mode', (
+    tester,
+  ) async {
+    var shots = await pair(tester);
+    for (var mode in StageMode.values) {
+      await pumpStage(tester, shots, mode: mode, diff: twoRegions);
+      var frame = tester.getCenter(find.byType(RawImage).first);
+      var wheel = TestPointer(1, PointerDeviceKind.mouse)..hover(frame);
+      await tester.sendEventToBinding(wheel.scroll(const Offset(0, -300)));
+      await tester.pump();
+
+      expect(find.text('100%'), findsNothing, reason: mode.name);
+      expect(tester.takeException(), isNull, reason: mode.name);
+      await tester.tap(find.byTooltip('Fit to view'));
+      await tester.pump(const Duration(milliseconds: 700));
+    }
+  });
+
+  testWidgets('a lone frame can be zoomed too', (tester) async {
+    var shots = await pair(tester, base: false);
+    await pumpStage(tester, shots);
+
+    await tester.tap(find.byTooltip('Zoom in'));
+    await tester.pump();
+
+    expect(find.text('150%'), findsOneWidget);
   });
 
   // A timer left running behind another mode rebuilds the pane twice a second
