@@ -2639,10 +2639,10 @@ baseSha: String   # The merge base it resolved to.
 counts: Map<String, int>   # Every row by state, both halves merged: `{"changed": 2, "skipped": 9}`.
 channels: Map<String, int>   # How many findings each channel had something to say about: `{"pixels": 5, "tree": 3, "events": 2}`.
 eventChannels: Map<String, int>   # Event deltas by the channel they travelled on: `{"system": 192, "db": 3}`.
-shapes: List<ComparisonDelta>   # The distinct *shapes* of difference across the whole comparison, in channel order, each with how many findings wore it.
+shapes: List<ComparisonDelta>   # The distinct *shapes* of difference across the whole comparison, each with how many findings wore it.
   channel: String   # `pixels`, `tree`, `texts` or `events`.
   subchannel: String?   # For an event, the channel it travelled on: `network`, `db`, `log`, `system`.
-  subject: String?   # A widget's path through the tree, or an event's one-line summary.
+  subject: String?   # The end of a widget's path through the tree, or an event's one-line summary.
   property: String?   # Which field moved — `size`, `detail`, `data.cart.id` — or `added`, `removed`, `moved` where something arrived, left or changed places.
   base: String?
   head: String?
@@ -2658,7 +2658,7 @@ findings: List<ComparisonFinding>   # The rows worth attention, worst first.
   deltas: List<ComparisonDelta>   # What actually moved, on every channel — the facets a reader filters on.
     channel: String   # `pixels`, `tree`, `texts` or `events`.
     subchannel: String?   # For an event, the channel it travelled on: `network`, `db`, `log`, `system`.
-    subject: String?   # A widget's path through the tree, or an event's one-line summary.
+    subject: String?   # The end of a widget's path through the tree, or an event's one-line summary.
     property: String?   # Which field moved — `size`, `detail`, `data.cart.id` — or `added`, `removed`, `moved` where something arrived, left or changed places.
     base: String?
     head: String?

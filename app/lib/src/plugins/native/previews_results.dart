@@ -912,8 +912,9 @@ class ComparisonCompareResult implements PluginResult {
   /// wants by default and everybody wants when the bug is about focus.
   final Map<String, int> eventChannels;
 
-  /// The distinct *shapes* of difference across the whole comparison, in
-  /// channel order, each with how many findings wore it.
+  /// The distinct *shapes* of difference across the whole comparison, each with
+  /// how many findings wore it. The most widespread first, `system` events
+  /// last, and capped.
   ///
   /// The line that says what a branch did in one read. Measured on this
   /// repository, a comparison reporting eleven event deltas reported **one**
@@ -1030,7 +1031,9 @@ class ComparisonDelta {
   /// `system`.
   final String? subchannel;
 
-  /// A widget's path through the tree, or an event's one-line summary.
+  /// The end of a widget's path through the tree, or an event's one-line
+  /// summary. `… ›` marks a path that was cut; the artifact at `index` has the
+  /// whole of it.
   final String? subject;
 
   /// Which field moved — `size`, `detail`, `data.cart.id` — or `added`,

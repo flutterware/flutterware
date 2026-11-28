@@ -1739,7 +1739,7 @@ final resultShapes = <String, ResultShape>{
       <String, Object?>{
         'name': 'shapes',
         'type': 'List<ComparisonDelta>',
-        'doc': 'The distinct *shapes* of difference across the whole comparison, in channel order, each with how many findings wore it.',
+        'doc': 'The distinct *shapes* of difference across the whole comparison, each with how many findings wore it.',
         'shape': <String, Object?>{
           'type': 'ComparisonDelta',
           'fields': <Object?>[
@@ -1758,7 +1758,7 @@ final resultShapes = <String, ResultShape>{
               'name': 'subject',
               'type': 'String',
               'optional': true,
-              'doc': 'A widget\'s path through the tree, or an event\'s one-line summary.',
+              'doc': 'The end of a widget\'s path through the tree, or an event\'s one-line summary.',
             },
             <String, Object?>{
               'name': 'property',
@@ -1853,7 +1853,7 @@ final resultShapes = <String, ResultShape>{
                     'name': 'subject',
                     'type': 'String',
                     'optional': true,
-                    'doc': 'A widget\'s path through the tree, or an event\'s one-line summary.',
+                    'doc': 'The end of a widget\'s path through the tree, or an event\'s one-line summary.',
                   },
                   <String, Object?>{
                     'name': 'property',
@@ -1945,7 +1945,7 @@ final resultShapes = <String, ResultShape>{
         'name': 'subject',
         'type': 'String',
         'optional': true,
-        'doc': 'A widget\'s path through the tree, or an event\'s one-line summary.',
+        'doc': 'The end of a widget\'s path through the tree, or an event\'s one-line summary.',
       },
       <String, Object?>{
         'name': 'property',
@@ -2029,7 +2029,7 @@ final resultShapes = <String, ResultShape>{
               'name': 'subject',
               'type': 'String',
               'optional': true,
-              'doc': 'A widget\'s path through the tree, or an event\'s one-line summary.',
+              'doc': 'The end of a widget\'s path through the tree, or an event\'s one-line summary.',
             },
             <String, Object?>{
               'name': 'property',
