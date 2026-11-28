@@ -386,46 +386,63 @@ void main() {
         ),
       );
 
-      expect(text, contains('against `master`: **1 changed (events only)**'));
-      expect(text, contains('| changed · events |'));
-    });
-
-    test('counts only the ones that moved off screen', () {
-      var text = comment(
-        ComparisonArtifact(
-          previews: previews([
-            ComparedItem(
-              id: 'demo/card.dart#card',
-              state: ComparedState.changed,
-              pixels: moved(),
-              events: logged,
-            ),
-            const ComparedItem(
-              id: 'demo/receipt.dart#receipt',
-              state: ComparedState.changed,
-              events: logged,
-            ),
-            const ComparedItem(
-              id: 'demo/label.dart#label',
-              state: ComparedState.changed,
-              texts: TextChannel(added: ['Pay'], removed: ['Buy']),
-              events: logged,
-            ),
-          ]),
-        ),
-      );
-
+      expect(text, contains('against `master`: **1 same picture**'));
       expect(
         text,
         contains(
-          'against `master`: '
-          '**3 changed (1 events only, 1 texts and events only)**',
+          'Nothing looks different. 1 has the same picture. '
+          'Only the events differ.',
         ),
       );
-      // A screen that moved reads as one, whatever else it did.
-      expect(text, contains('demo%2Fcard.dart%23card) | changed |'));
-      expect(text, contains('| changed · texts and events |'));
+      expect(text, contains('| same picture · events |'));
     });
+
+    test(
+      'counts apart the ones that moved off screen, and lists them last',
+      () {
+        var text = comment(
+          ComparisonArtifact(
+            previews: previews([
+              ComparedItem(
+                id: 'demo/card.dart#card',
+                state: ComparedState.changed,
+                pixels: moved(),
+                events: logged,
+              ),
+              const ComparedItem(
+                id: 'demo/receipt.dart#receipt',
+                state: ComparedState.changed,
+                events: logged,
+              ),
+              const ComparedItem(
+                id: 'demo/label.dart#label',
+                state: ComparedState.changed,
+                texts: TextChannel(added: ['Pay'], removed: ['Buy']),
+                events: logged,
+              ),
+            ]),
+          ),
+        );
+
+        expect(
+          text,
+          contains('against `master`: **1 changed · 2 same picture**'),
+        );
+        expect(
+          text,
+          contains(
+            '2 have the same picture. Only the text and the events differ.',
+          ),
+        );
+        // A screen that moved reads as one, whatever else it did, and leads.
+        expect(text, contains('demo%2Fcard.dart%23card) | changed |'));
+        expect(text, contains('| same picture · texts and events |'));
+        expect(
+          text.indexOf('demo%2Fcard.dart%23card'),
+          lessThan(text.indexOf('demo%2Flabel.dart%23label')),
+        );
+      },
+    );
 
     test('names a flow by what its steps moved on', () {
       ScenarioComparison flow(String name, List<ComparedItem> steps) =>
@@ -469,8 +486,11 @@ void main() {
         ),
       );
 
-      expect(text, contains('**2 changed (1 events only)**'));
-      expect(text, contains('shop_test.dart%23Quiet) | changed · events |'));
+      expect(text, contains('**1 changed · 1 same picture**'));
+      expect(
+        text,
+        contains('shop_test.dart%23Quiet) | same picture · events |'),
+      );
       expect(text, contains('shop_test.dart%23Moved) | changed |'));
     });
 
@@ -488,7 +508,7 @@ void main() {
       );
 
       expect(text, contains('against `master`: **1 changed**'));
-      expect(text, isNot(contains(' only')));
+      expect(text, isNot(contains('same picture')));
     });
   });
 
@@ -517,8 +537,8 @@ void main() {
       comment,
       contains(
         '<summary>${mosaicRowCap + 4} findings '
-        '(the picture shows $mosaicRowCap, those that moved on screen '
-        'first)</summary>',
+        '(the picture shows the first $mosaicRowCap that look '
+        'different)</summary>',
       ),
     );
     // Folded, but complete: every finding is a table row.
@@ -549,6 +569,38 @@ void main() {
     expect(
       comment,
       contains('…and 4 more. The full comparison lists them all.'),
+    );
+  });
+
+  test('a change no picture shows is left out of the mosaic', () {
+    file('same-frame', 40);
+    var directory = p.join(temp.path, 'report');
+    // A picture left by the last run, as a reused report directory holds one.
+    File(p.join(directory, 'mosaic.png'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('old');
+
+    var report = writePrReport(
+      artifact: ComparisonArtifact(
+        previews: previews(const [
+          ComparedItem(
+            id: 'demo/label.dart#label',
+            state: ComparedState.changed,
+            texts: TextChannel(added: ['Pay'], removed: ['Buy']),
+            shots: (base: 'same-frame', head: 'same-frame'),
+          ),
+        ]),
+      ),
+      cache: cache,
+      against: 'master',
+      directory: directory,
+    );
+
+    expect(report.mosaicPath, isNull);
+    expect(File(p.join(directory, 'mosaic.png')).existsSync(), isFalse);
+    expect(
+      File(report.commentPath).readAsStringSync(),
+      isNot(contains(mosaicUrlPlaceholder)),
     );
   });
 
