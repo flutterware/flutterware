@@ -189,7 +189,7 @@ void main() {
       // that hid them would be describing a project that does not exist.
       writePng('android/app/src/dev/res/mipmap-hdpi/ic_launcher.png', 72);
       writePng('web/icons/Icon-192.png', 192);
-      writePng('windows/runner/resources/app_icon.ico', 0);
+      writePng('windows/runner/resources/app_icon.ico', 256);
       writePng(
         'macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png',
         512,

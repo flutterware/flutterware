@@ -75,7 +75,9 @@ void main() {
     declare(['other']);
     expect(
       () => retired.value = 'ignored',
-      throwsFlutterError,
+      // A FlutterError up to Flutter 3.50. From 3.51 ChangeNotifier comes from
+      // package:listen, which throws a StateError.
+      throwsA(anyOf(isFlutterError, isStateError)),
       reason: 'it was disposed, not merely dropped',
     );
     expect(refreshes, 0);

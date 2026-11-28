@@ -2,8 +2,8 @@ import 'package:android_id/android_id.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutterware/devbar.dart';
-import 'package:os_detect/os_detect.dart' as platform;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:platform/platform.dart';
 
 class InfoPlugin extends DevbarPlugin {
   final DevbarState devbar;
@@ -21,7 +21,7 @@ class InfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var isAndroid = platform.isAndroid;
+    var isAndroid = Platform.current.isAndroid;
     var tabs = [
       Tab(child: Text('App')),
       Tab(child: Text('Device')),

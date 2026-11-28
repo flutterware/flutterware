@@ -97,10 +97,7 @@ class _ModelViewState extends State<ModelView> {
   Future<void> _load(AssetBundle bundle) async {
     try {
       var model = await RealWork.run(() async {
-        if (!fs.Scene.isReadyToRender) {
-          await fs.loadBaseShaderLibrary();
-          await fs.Scene.initializeStaticResources();
-        }
+        await loadSceneResources();
         return fs.loadScene(widget.asset, bundle: bundle);
       });
       if (!mounted) return;

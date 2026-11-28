@@ -39,6 +39,15 @@ void main() {
     files: files ?? [file(key)],
   );
 
+  /// Draws the frame a font the engine just registered asks for. The engine
+  /// announces a new font with a `fontsChange` message, which the framework
+  /// handles on the real event loop rather than the test's fake one, and the
+  /// relayout it schedules fails a test that ends before it is drawn.
+  Future<void> settleFonts(WidgetTester tester) async {
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+  }
+
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
     MaterialApp(
       home: Scaffold(body: SizedBox(width: 900, child: child)),
@@ -891,6 +900,7 @@ void main() {
           bytes: Uint8List.fromList([0, 1, 0, 0, ...List.filled(64, 0)]),
         ),
       );
+      await settleFonts(tester);
 
       expect(
         find.byType(AssetFontFace),
@@ -957,6 +967,7 @@ void main() {
               Uint8List.fromList([0, 1, 0, 0, ...List.filled(64, 0)]),
         ),
       );
+      await settleFonts(tester);
 
       expect(
         find.byType(AssetFontFace),

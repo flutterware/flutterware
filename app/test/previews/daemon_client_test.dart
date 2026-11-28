@@ -296,10 +296,16 @@ class _FakeDaemon {
   final ServerSocket _server;
   final DaemonAddress address;
   final _clients = <Socket>[];
+
+  /// Every connection, including the ones whose client has hung up and so
+  /// left [_clients]: this end stays open until it is destroyed, and closing
+  /// the listener does not close it.
+  final _opened = <Socket>[];
   void Function(Socket, SelectRequest)? _onSelect;
 
   void _accept(Socket socket) {
     _clients.add(socket);
+    _opened.add(socket);
     // Ready before anything else, because that is the handshake every client
     // waits on.
     socket.writeln(
@@ -375,8 +381,16 @@ class _FakeDaemon {
     await pumpEventQueue();
   }
 
+  /// Destroys every connection before the socket file is deleted. On
+  /// Windows, a connection left open on a deleted socket file, beside the
+  /// next tests' own sockets, froze the whole machine's networking: no test
+  /// failed and the CI runner stopped answering.
   Future<void> stop() async {
     await dropConnections();
+    for (var socket in _opened) {
+      socket.destroy();
+    }
+    _opened.clear();
     await _server.close();
     var socket = File(address.socketPath);
     if (socket.existsSync()) socket.deleteSync();

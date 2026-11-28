@@ -225,10 +225,7 @@ class _View3DState extends State<_View3D> {
     var mesh = _text(node, 'mesh');
     try {
       var root = await RealWork.run<fs.Node>(() async {
-        if (!fs.Scene.isReadyToRender) {
-          await fs.loadBaseShaderLibrary();
-          await fs.Scene.initializeStaticResources();
-        }
+        await loadSceneResources();
         if (asset.isEmpty) return _quad();
         return fs.loadScene(asset, bundle: bundle);
       });

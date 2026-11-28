@@ -16,7 +16,7 @@ dependencies:
   app_links:
   flutter:
     sdk: flutter
-  flutter_local_notifications: ^22.0.0
+  flutter_local_notifications: ^23.0.4
   flutter_secure_storage:
   flutterware:
     path: ../../..
