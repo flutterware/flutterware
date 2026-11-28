@@ -388,7 +388,7 @@ void main() {
       var (_, _, viewport) = PreviewsCore.framingFor(const {
         'device': 'iphone-16',
       });
-      expect(viewport.keyboard, 335);
+      expect(viewport.keyboard, 328);
       // The mode is what a caller chooses; the height is not.
       expect(viewport.keyboardMode, KeyboardMode.auto);
     });
@@ -398,10 +398,10 @@ void main() {
         'device': 'iphone-16',
         'orientation': 'landscape',
       });
-      // 209, not 335: a phone's landscape keyboard is shorter, and this is the
+      // 224, not 328: a phone's landscape keyboard is shorter, and this is the
       // number that says the rotation reached the measurement rather than only
       // the geometry.
-      expect(viewport.keyboard, 209);
+      expect(viewport.keyboard, 224);
     });
 
     test('a window has none, so `up` raises nothing', () {

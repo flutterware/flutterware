@@ -13,6 +13,8 @@ void main() {
     // nothing is declared for it and the default is right.
     expect(landscape.insetTop, Devices.iPad.insetTop);
     expect(landscape.insetLeft, 0);
+    // And its bottom, 20 standing and on its side alike since iPadOS 27.
+    expect(landscape.insetBottom, 20);
   });
 
   test('a notched phone reads its declared landscape insets, not a rotation of '
@@ -24,23 +26,23 @@ void main() {
     expect(landscape.insetTop, 0);
     expect(landscape.insetLeft, 47);
     expect(landscape.insetRight, 47);
-    // The home indicator stays at the interface bottom, and shrinks — to 20 on
-    // iOS 26, a point less than iOS 18 gave it.
+    // The home indicator stays at the interface bottom, and shrinks — to 20
+    // since iOS 26, a point less than iOS 18 gave it.
     expect(landscape.insetBottom, 20);
   });
 
   test('turning a device turns its keyboard too', () {
     // The one number downstream reads is `keyboard`, so `rotated()` has to put
     // the landscape one there — the same trick the landscape insets play.
-    expect(Devices.iphone13.keyboard, 335);
+    expect(Devices.iphone13.keyboard, 328);
     expect(
       Devices.iphone13.oriented(ScreenOrientation.landscape).keyboard,
-      209,
+      224,
     );
     // And the declaration survives the turn, or turning twice would lose it.
     expect(
       Devices.iphone13.oriented(ScreenOrientation.landscape).landscapeKeyboard,
-      209,
+      224,
     );
   });
 

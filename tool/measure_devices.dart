@@ -21,6 +21,14 @@
 /// Android SDK with a Google Play system image — the one with Gboard — for the
 /// rest. Run it after a major OS release; the insets move with the OS.
 ///
+/// From iPadOS 27 an iPad app that asks for landscape turns on its own while
+/// the device stays upright, and the keyboard and the insets follow the
+/// device. So an iPad from 27 is turned from outside: `tool/simulator_turn.m`,
+/// built with clang the first time one is needed, sends the simulator the
+/// event Simulator sends when its window turns. Should that fail, the tool
+/// asks for the simulator to be turned by hand and waits. Phones still turn
+/// whole, and need neither.
+///
 /// Named through fvm because the probe is built with the Flutter that runs
 /// this script.
 library;
@@ -229,6 +237,7 @@ Future<int> _measureIos(
     'Runner.app',
   );
   var runtimes = await _iosRuntimes(args);
+  Future<String?>? turner;
 
   // The software keyboard only comes up with the hardware one disconnected.
   var keyboardDefault = await _run('defaults', [
@@ -255,7 +264,13 @@ Future<int> _measureIos(
           continue;
         }
         stdout.writeln('\n${device.id} — $type, ${runtime.name}');
-        var readings = await _onSimulator(type, runtime.identifier, bundle);
+        var readings = await _onSimulator(
+          type,
+          runtime.identifier,
+          bundle,
+          follow: _turnsOnlyTheApp(type, runtime),
+          turner: () => turner ??= _buildTurner(app.parent),
+        );
         disagreements += _compare(device, readings, checksTop: true);
       }
     }
@@ -319,30 +334,70 @@ Future<List<_Runtime>> _iosRuntimes(List<String> args) async {
   return runtimes;
 }
 
+/// Whether an app asking for landscape on [type] turns alone, leaving the
+/// device, its keyboard and its insets upright: every iPad from iPadOS 27.
+/// The probe then has to wait for the device itself to be turned.
+bool _turnsOnlyTheApp(String type, _Runtime runtime) {
+  var major = int.tryParse(
+    RegExp(r'iOS (\d+)').firstMatch(runtime.name)?.group(1) ?? '',
+  );
+  return type.startsWith('iPad') && major != null && major >= 27;
+}
+
 /// The newest of [runtimes] that runs [type], or null when none does. Not
 /// simply the newest: a runtime made for one new iPhone runs that iPhone and
 /// nothing else.
 _Runtime? _runtimeFor(String type, List<_Runtime> runtimes) =>
     runtimes.where((runtime) => runtime.types.contains(type)).lastOrNull;
 
+/// How long a probe that waits for its device to be turned waits, on top of
+/// [_probeTimeout].
+const _turnTimeout = Duration(minutes: 20);
+
+/// How long a turn sent by `simulator_turn` has to show before the tool asks
+/// for one by hand.
+const _turnGrace = Duration(seconds: 15);
+
+/// Builds `tool/simulator_turn.m` into [work], or says why it could not and
+/// returns null.
+Future<String?> _buildTurner(Directory work) async {
+  var source = p.join(
+    p.dirname(Platform.script.toFilePath()),
+    'simulator_turn.m',
+  );
+  var binary = p.join(work.path, 'simulator_turn');
+  var built = await _run('xcrun', [
+    'clang',
+    '-fobjc-arc',
+    '-framework',
+    'Foundation',
+    source,
+    '-o',
+    binary,
+  ], allowFailure: true);
+  if (built.exitCode == 0) return binary;
+  stdout.writeln(
+    '  · could not build simulator_turn, so iPads are turned by hand:\n'
+            '${built.stderr}'
+        .trimRight(),
+  );
+  return null;
+}
+
 Future<_Readings> _onSimulator(
   String type,
   String runtime,
-  String bundle,
-) async {
-  var created = await _run('xcrun', [
-    'simctl',
-    'create',
-    'fwprobe-${type.replaceAll(RegExp('[^A-Za-z0-9]+'), '-')}',
-    type,
-    runtime,
-  ]);
+  String bundle, {
+  required bool follow,
+  required Future<String?> Function() turner,
+}) async {
+  var name = 'fwprobe-${type.replaceAll(RegExp('[^A-Za-z0-9]+'), '-')}';
+  var created = await _run('xcrun', ['simctl', 'create', name, type, runtime]);
   var udid = (created.stdout as String).trim();
   try {
     await _run('xcrun', ['simctl', 'boot', udid]);
     await _run('xcrun', ['simctl', 'bootstatus', udid, '-b']);
     await _run('xcrun', ['simctl', 'install', udid, bundle]);
-    await _run('xcrun', ['simctl', 'launch', udid, _bundle]);
     var data = await _run('xcrun', [
       'simctl',
       'get_app_container',
@@ -350,14 +405,48 @@ Future<_Readings> _onSimulator(
       _bundle,
       'data',
     ]);
-    var result = File(
-      p.join((data.stdout as String).trim(), 'tmp', 'device_probe.json'),
-    );
+    var tmp = p.join((data.stdout as String).trim(), 'tmp');
+    // A file rather than a variable: an iOS app's Dart sees no environment.
+    if (follow) {
+      await File(p.join(tmp, 'device_probe.follow')).create(recursive: true);
+    }
+    await _run('xcrun', ['simctl', 'launch', udid, _bundle]);
+    var result = File(p.join(tmp, 'device_probe.json'));
+    var ask = File(p.join(tmp, 'device_probe.turn'));
+    String? asked;
+    DateTime? askedAt;
+    var askedByHand = false;
     return await _poll(() async {
+      var wanted = ask.existsSync() ? await ask.readAsString() : null;
+      if (wanted == null || wanted.isEmpty) {
+        asked = null;
+      } else if (wanted != asked) {
+        asked = wanted;
+        askedAt = DateTime.now();
+        askedByHand = false;
+        var turn = await turner();
+        if (turn != null) {
+          var sent = await _run(turn, [udid, wanted], allowFailure: true);
+          if (sent.exitCode != 0) {
+            stdout.writeln('  · simulator_turn: ${'${sent.stderr}'.trim()}');
+            turn = null;
+          }
+        }
+        // Nothing sent, so nothing to wait for: ask by hand straight away.
+        if (turn == null) askedAt = DateTime(0);
+      } else if (!askedByHand &&
+          DateTime.now().difference(askedAt!) > _turnGrace) {
+        askedByHand = true;
+        stdout.writeln(
+          '  Turn the simulator $name ($udid) '
+          '${wanted == 'landscape' ? 'onto its side' : 'upright'}. '
+          'The probe goes on once it has turned.',
+        );
+      }
       if (!result.existsSync()) return null;
       var text = await result.readAsString();
       return text.isEmpty ? null : text;
-    }, timeout: _probeTimeout);
+    }, timeout: follow ? _probeTimeout + _turnTimeout : _probeTimeout);
   } finally {
     await _run('xcrun', ['simctl', 'shutdown', udid], allowFailure: true);
     await _run('xcrun', ['simctl', 'delete', udid], allowFailure: true);
@@ -559,8 +648,9 @@ String? _playImage(String sdk) {
 int _compare(Device device, _Readings readings, {required bool checksTop}) {
   var portrait = readings['portrait']!;
   // The table's landscape is the one with the cutout on the left — on a
-  // phone whose insets are symmetric either side reads the same.
-  var sides = [readings['landscapeLeft']!, readings['landscapeRight']!];
+  // phone whose insets are symmetric either side reads the same. A device
+  // turned from outside was measured on one side only.
+  var sides = [readings['landscapeLeft']!, ?readings['landscapeRight']];
   sides.sort((a, b) => _inset(b, 0).compareTo(_inset(a, 0)));
   var landscape = sides.first;
   var turned = device.rotated();
@@ -620,6 +710,9 @@ int _compare(Device device, _Readings readings, {required bool checksTop}) {
     stdout.writeln(
       "  · the insets are the panel author's: this emulator draws no cutout",
     );
+  }
+  if (sides.length == 1) {
+    stdout.writeln('  · turned from outside, so one side measured');
   }
   var cutouts = portrait['cutouts']! as List;
   if (cutouts.isNotEmpty) stdout.writeln('  · cutouts ${_show(cutouts)}');
