@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutterware/comparison_report.dart';
 
 /// Whether a picture of [item] shows its change.
@@ -167,6 +169,64 @@ String verdictWords(Iterable<({ComparedState state, bool samePicture})> rows) {
       if (counts[state] case var count?) '$count ${state.name}',
     if (same > 0) '$same same picture',
   ].join(' · ');
+}
+
+/// Part of a frame, in its pixels.
+typedef FrameCrop = ({int x, int y, int width, int height});
+
+/// What a small picture of a frame should show of [diff], so the change is at
+/// least twice the size it would be with the whole frame drawn; null for the
+/// whole frame. The frame's own shape, so a cell laid out for one takes the
+/// other.
+///
+/// Every changed region where they are close enough together, and the largest
+/// one where they are not. Measured on real runs, a quarter of the changed
+/// units covered under 0.1% of their frame: whole, the change was a dot.
+FrameCrop? cropFor(PixelDiff diff) {
+  if (!diff.changed || diff.sizeChanged || diff.clusters.isEmpty) return null;
+  var left = diff.width, top = diff.height, right = 0, bottom = 0;
+  for (var rect in diff.clusters) {
+    left = math.min(left, rect.x);
+    top = math.min(top, rect.y);
+    right = math.max(right, rect.x + rect.width);
+    bottom = math.max(bottom, rect.y + rect.height);
+  }
+  var largest = diff.clusters.first;
+  return _cropAround(left, top, right - left, bottom - top, diff) ??
+      _cropAround(largest.x, largest.y, largest.width, largest.height, diff);
+}
+
+/// Room left either side of a change, as a share of the frame's own side.
+const _cropMargin = 0.06;
+
+/// No closer than this, and never less than [_smallestCrop] pixels on the
+/// frame's shorter side: past either, a few changed pixels fill a picture that
+/// no longer says what screen it is. A phone frame is narrow enough that the
+/// second is the one that holds.
+const _closestCrop = 4;
+const _smallestCrop = 160;
+
+FrameCrop? _cropAround(int x, int y, int width, int height, PixelDiff diff) {
+  if (diff.width <= 0 || diff.height <= 0) return null;
+  var share = math.max(
+    width / diff.width + 2 * _cropMargin,
+    height / diff.height + 2 * _cropMargin,
+  );
+  if (share > 0.5) return null;
+  share = [
+    share,
+    1 / _closestCrop,
+    _smallestCrop / math.min(diff.width, diff.height),
+  ].reduce(math.max);
+  if (share > 0.5) return null;
+  var w = (diff.width * share).round();
+  var h = (diff.height * share).round();
+  return (
+    x: (x + width / 2 - w / 2).round().clamp(0, diff.width - w),
+    y: (y + height / 2 - h / 2).round().clamp(0, diff.height - h),
+    width: w,
+    height: h,
+  );
 }
 
 /// The step a picture of [scenario] is taken from, or null when no finding

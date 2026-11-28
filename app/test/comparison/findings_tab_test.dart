@@ -134,6 +134,34 @@ void main() {
     expect(find.text('same picture'), findsOneWidget);
   });
 
+  testWidgets('a small change is drawn close, and says so', (tester) async {
+    await pump(
+      tester,
+      previews: [
+        ComparedItem(
+          id: 'demo/a.dart#icon',
+          state: ComparedState.changed,
+          pixels: PixelChannel(
+            PixelDiff(
+              width: 1600,
+              height: 900,
+              changedPixels: 400,
+              comparedPixels: 1600 * 900,
+              sizeChanged: false,
+              clusters: const [
+                DiffRect(x: 40, y: 40, width: 20, height: 20, pixels: 400),
+              ],
+            ),
+          ),
+        ),
+        pixels('demo/b.dart#whole', 0.4),
+      ],
+    );
+
+    expect(find.text('head, zoomed in'), findsOneWidget);
+    expect(find.text('head'), findsOneWidget);
+  });
+
   testWidgets('says when nothing looks different', (tester) async {
     await pump(
       tester,

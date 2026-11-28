@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutterware/comparison_report.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -425,10 +427,27 @@ class _Frames extends StatefulWidget {
     );
   }
 
+  /// The part of the frames the cells show — see [cropFor].
+  FrameCrop? get crop => switch (face.pixels?.diff) {
+    var diff? => cropFor(diff),
+    null => null,
+  };
+
   /// What the frames are decoded at — twice the drawn width, so the cell is
   /// crisp on a 2× display and still a fraction of the frame. Twenty rows of
   /// two frames decoded whole is hundreds of megabytes drawn at a thumbnail.
-  int get decodeWidth => (cell.width * 2).ceil();
+  /// A cropped cell draws part of the frame, so the whole is decoded that much
+  /// larger, up to [maxDecodeWidth].
+  int get decodeWidth {
+    var shown = cell.width * 2;
+    var diff = face.pixels?.diff;
+    if (crop case var crop? when diff != null) {
+      shown = math.min(shown * diff.width / crop.width, diff.width.toDouble());
+    }
+    return math.min(shown.ceil(), maxDecodeWidth);
+  }
+
+  static const maxDecodeWidth = 1200;
 
   @override
   State<_Frames> createState() => _FramesState();
@@ -510,7 +529,13 @@ class _FramesState extends State<_Frames> {
           // says the side drew nothing, which for a `broke` or `added` row is
           // the finding.
           child: switch ((shot, _shots.settled)) {
-            (var shot?, _) => BoxedShot(shot: shot, diff: diff),
+            (var shot?, _) => _CellPicture(
+              shot: shot,
+              diff: diff,
+              crop: widget.crop,
+              frame: widget.face.pixels?.diff,
+              cell: size,
+            ),
             (_, false) => const SizedBox.shrink(),
             // An empty bordered box under the word `head` is the truth and
             // not obviously so — it reads as a frame that failed to load. The
@@ -532,7 +557,63 @@ class _FramesState extends State<_Frames> {
       children: [
         cell(_shots.base, 'base'),
         const Gap(FwSpacing.sm),
-        cell(_shots.head, 'head', diff: widget.face.pixels?.diff),
+        cell(
+          _shots.head,
+          widget.crop == null ? 'head' : 'head, zoomed in',
+          diff: widget.face.pixels?.diff,
+        ),
+      ],
+    );
+  }
+}
+
+/// A frame in a cell: whole, or the part [crop] names with the rest of the
+/// frame running off the cell's edges.
+class _CellPicture extends StatelessWidget {
+  const _CellPicture({
+    required this.shot,
+    required this.cell,
+    this.diff,
+    this.crop,
+    this.frame,
+  });
+
+  final Shot shot;
+  final Size cell;
+  final PixelDiff? diff;
+  final FrameCrop? crop;
+
+  /// What [crop] is measured in.
+  final PixelDiff? frame;
+
+  @override
+  Widget build(BuildContext context) {
+    var picture = BoxedShot(shot: shot, diff: diff);
+    var (crop, frame) = (this.crop, this.frame);
+    // In the frame's own shape, or the boxes land beside the change where the
+    // cell is clamped narrower than the frame.
+    if (crop == null || frame == null) {
+      return Center(
+        child: AspectRatio(aspectRatio: shot.aspect, child: picture),
+      );
+    }
+    // Inside the border.
+    var box = Size(cell.width - 2, cell.height - 2);
+    var scale = math.min(box.width / crop.width, box.height / crop.height);
+    var (width, height) = (frame.width * scale, frame.height * scale);
+    double place(double centre, double room, double size) => size <= room
+        ? (room - size) / 2
+        : (room / 2 - centre).clamp(room - size, 0.0).toDouble();
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        Positioned(
+          left: place((crop.x + crop.width / 2) * scale, box.width, width),
+          top: place((crop.y + crop.height / 2) * scale, box.height, height),
+          width: width,
+          height: height,
+          child: picture,
+        ),
       ],
     );
   }

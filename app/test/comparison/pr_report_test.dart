@@ -572,6 +572,64 @@ void main() {
     );
   });
 
+  test('the mosaic magnifies a change too small to read whole', () {
+    const size = 1000;
+    Uint8List frame({required bool block}) {
+      var bytes = Uint8List(size * size * 4)
+        ..fillRange(0, size * size * 4, 200);
+      if (!block) return bytes;
+      for (var y = 500; y < 540; y++) {
+        for (var x = 500; x < 540; x++) {
+          bytes.setRange((y * size + x) * 4, (y * size + x) * 4 + 3, [0, 0, 0]);
+        }
+      }
+      return bytes;
+    }
+
+    for (var (key, block) in [('plain', false), ('blocked', true)]) {
+      cache.write(
+        key,
+        frame(block: block),
+        ShotRecord(format: 'raw', width: size, height: size, entryId: 'a'),
+      );
+    }
+    var report = writePrReport(
+      artifact: ComparisonArtifact(
+        previews: previews([
+          ComparedItem(
+            id: 'demo/card.dart#card',
+            state: ComparedState.changed,
+            pixels: PixelChannel(
+              PixelDiff(
+                width: size,
+                height: size,
+                changedPixels: 1600,
+                comparedPixels: size * size,
+                sizeChanged: false,
+                clusters: const [
+                  DiffRect(x: 500, y: 500, width: 40, height: 40, pixels: 1600),
+                ],
+              ),
+            ),
+            shots: (base: 'plain', head: 'blocked'),
+          ),
+        ]),
+      ),
+      cache: cache,
+      against: 'master',
+      directory: p.join(temp.path, 'report'),
+    );
+
+    var mosaic = img.decodePng(File(report.mosaicPath!).readAsBytesSync())!;
+    var black = 0;
+    for (var pixel in mosaic) {
+      if (pixel.r < 60 && pixel.g < 60 && pixel.b < 60) black++;
+    }
+    // Forty pixels square drawn whole at this height is about 160 of them, and
+    // the caption adds a few hundred.
+    expect(black, greaterThan(1500));
+  });
+
   test('a change no picture shows is left out of the mosaic', () {
     file('same-frame', 40);
     var directory = p.join(temp.path, 'report');
