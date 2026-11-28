@@ -41,6 +41,118 @@ List<String> scenarioUnseenChannels(ScenarioComparison scenario) {
   ];
 }
 
+/// Whether [item] is `changed` and its two pictures are the same: it moved
+/// only on channels no screenshot shows.
+bool hasSamePicture(ComparedItem item) => unseenChannels(item).isNotEmpty;
+
+/// [hasSamePicture] for a whole flow.
+bool scenarioHasSamePicture(ScenarioComparison scenario) =>
+    scenarioUnseenChannels(scenario).isNotEmpty;
+
+/// The channels [finding] moved on when its pictures are the same, and nothing
+/// when one shows the change — see [unseenChannels].
+List<String> findingUnseenChannels(ComparedFinding finding) =>
+    switch (finding) {
+      ComparedFinding(:var preview?) => unseenChannels(preview),
+      ComparedFinding(:var scenario?) => scenarioUnseenChannels(scenario),
+      _ => const [],
+    };
+
+/// What a reader can see, apart from what they cannot.
+///
+/// [different] is ordered by state then by the largest pixel change, and
+/// [samePicture] keeps the order it came in. Ranked by state and id alone, a
+/// refactor that touched no pixel filled the first screen and the screen that
+/// did move sat below it.
+typedef SplitByLook<T> = ({List<T> different, List<T> samePicture});
+
+SplitByLook<ComparedItem> splitItems(Iterable<ComparedItem> items) => _split(
+  items,
+  samePicture: hasSamePicture,
+  state: (item) => item.state,
+  change: (item) => _pictureChange([item]),
+);
+
+/// [splitItems] over flows.
+SplitByLook<ScenarioComparison> splitScenarios(
+  Iterable<ScenarioComparison> scenarios,
+) => _split(
+  scenarios,
+  samePicture: scenarioHasSamePicture,
+  state: (scenario) => scenario.state,
+  change: (scenario) => _pictureChange(scenario.items),
+);
+
+/// [splitItems] over the findings of both halves.
+SplitByLook<ComparedFinding> splitFindings(
+  Iterable<ComparedFinding> findings,
+) => _split(
+  findings,
+  samePicture: (finding) => findingUnseenChannels(finding).isNotEmpty,
+  state: (finding) => finding.state,
+  change: (finding) =>
+      _pictureChange([?finding.preview, ...?finding.scenario?.items]),
+);
+
+/// The largest share of a frame any of [items] repainted.
+double _pictureChange(Iterable<ComparedItem> items) {
+  var largest = 0.0;
+  for (var item in items) {
+    var pixels = item.pixels;
+    if (pixels == null || !pixels.changed) continue;
+    if (pixels.diff.fraction > largest) largest = pixels.diff.fraction;
+  }
+  return largest;
+}
+
+SplitByLook<T> _split<T>(
+  Iterable<T> entries, {
+  required bool Function(T) samePicture,
+  required ComparedState Function(T) state,
+  required double Function(T) change,
+}) {
+  var different = <(int, T)>[];
+  var same = <T>[];
+  for (var (index, entry) in entries.indexed) {
+    if (samePicture(entry)) {
+      same.add(entry);
+    } else {
+      different.add((index, entry));
+    }
+  }
+  different.sort((a, b) {
+    var by = state(a.$2).index.compareTo(state(b.$2).index);
+    if (by != 0) return by;
+    by = change(b.$2).compareTo(change(a.$2));
+    // The order they came in between equals, which is by id.
+    return by != 0 ? by : a.$1.compareTo(b.$1);
+  });
+  return (
+    different: [for (var (_, entry) in different) entry],
+    samePicture: same,
+  );
+}
+
+/// The verdict in words, as the page's title says it: how many findings are in
+/// each state, worst first, then how many changed under the same picture —
+/// `2 added · 9 changed · 3 same picture`.
+String verdictWords(Iterable<({ComparedState state, bool samePicture})> rows) {
+  var counts = <ComparedState, int>{};
+  var same = 0;
+  for (var row in rows) {
+    if (row.samePicture) {
+      same++;
+    } else {
+      counts[row.state] = (counts[row.state] ?? 0) + 1;
+    }
+  }
+  return [
+    for (var state in ComparedState.values)
+      if (counts[state] case var count?) '$count ${state.name}',
+    if (same > 0) '$same same picture',
+  ].join(' · ');
+}
+
 /// The step a picture of [scenario] is taken from, or null when no finding
 /// step has frames.
 ///

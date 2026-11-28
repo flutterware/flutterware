@@ -17,7 +17,10 @@ const findingsTabKey = Key('comparison-findings');
 
 Key findingRowKey(String id) => ValueKey('findings.row.$id');
 
-/// Everything worth attention, worst first, both halves together.
+const findingsSamePictureKey = Key('comparison-findings.same-picture');
+
+/// Everything worth attention, both halves together: what looks different
+/// first, and what has the same picture folded under it.
 ///
 /// **What a comment link opens onto.** The pull-request comment has always
 /// merged the halves — one table, ranked by `rankComparedFindings` — and the
@@ -26,17 +29,17 @@ Key findingRowKey(String id) => ValueKey('findings.row.$id');
 /// and clicks *Open the full comparison* was landing on a previews rail that
 /// could not mention the scenarios and had no idea which row they came for.
 ///
-/// So this is that table, drawn: the same function, the same order, with the
-/// pictures the comment could only put in a mosaic. Tapping a row hands it to
-/// the half that owns it, because the detail — the five-mode stage, the merged
-/// flow — already lives there and a third copy of either is the drift this
-/// codebase keeps paying for.
-class FindingsTab extends StatelessWidget {
+/// So this is that table, drawn, with the pictures the comment could only put
+/// in a mosaic. Tapping a row hands it to the half that owns it, because the
+/// detail — the five-mode stage, the merged flow — already lives there and a
+/// third copy of either is the drift this codebase keeps paying for.
+class FindingsTab extends StatefulWidget {
   const FindingsTab({
     super.key,
     required this.index,
     required this.store,
     required this.onOpen,
+    this.samePictureOpen,
   });
 
   final ComparisonIndex index;
@@ -44,6 +47,11 @@ class FindingsTab extends StatelessWidget {
 
   /// Hands a finding to the half that owns it — `(tab, id)`.
   final void Function(String tab, String id) onOpen;
+
+  /// Whether the rows with the same picture are listed. The page holds it, so
+  /// the group is as it was left when a reader comes back from one of them;
+  /// null keeps it here.
+  final ValueNotifier<bool>? samePictureOpen;
 
   /// How many rows get their frames.
   ///
@@ -61,19 +69,29 @@ class FindingsTab extends StatelessWidget {
   static const rowMaxWidth = 1040.0;
 
   @override
+  State<FindingsTab> createState() => _FindingsTabState();
+}
+
+class _FindingsTabState extends State<FindingsTab> {
+  final _own = ValueNotifier(false);
+
+  ValueNotifier<bool> get _open => widget.samePictureOpen ?? _own;
+
+  @override
   Widget build(BuildContext context) {
     var colors = context.colors;
-    var findings = index.findings;
+    var findings = widget.index.findings;
     if (findings.isEmpty) {
       return EmptyState(
         icon: Icons.check_circle_outline,
         title: 'Nothing changed',
         message:
-            index.verdictGap ??
+            widget.index.verdictGap ??
             'No preview or scenario changed. The other tabs list everything '
                 'that was compared.',
       );
     }
+    var (:different, :samePicture) = splitFindings(findings);
     // **A row is read left to right, so it has a width.** Stretched across a
     // wide window the name sat at one edge and its verdict and pictures at the
     // other, a thousand pixels of nothing between what a row is and what
@@ -81,22 +99,146 @@ class FindingsTab extends StatelessWidget {
     Widget capped(Widget child) => Align(
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: rowMaxWidth),
+        constraints: const BoxConstraints(maxWidth: FindingsTab.rowMaxWidth),
         child: child,
       ),
     );
-    return ListView.separated(
-      key: findingsTabKey,
-      padding: const EdgeInsets.symmetric(vertical: FwSpacing.sm),
-      itemCount: findings.length,
-      separatorBuilder: (context, index) =>
-          capped(Divider(height: 1, color: colors.line)),
-      itemBuilder: (context, at) => capped(
-        _FindingRow(
-          finding: findings[at],
-          store: store,
-          framed: at < framedRows,
-          onOpen: onOpen,
+    Widget row(ComparedFinding finding, {required bool framed}) => _FindingRow(
+      finding: finding,
+      store: widget.store,
+      framed: framed,
+      onOpen: widget.onOpen,
+    );
+    return ValueListenableBuilder(
+      valueListenable: _open,
+      builder: (context, open, _) {
+        var entries = <Widget>[
+          _Summary(
+            different: different.length,
+            samePicture: samePicture.length,
+          ),
+          for (var (at, finding) in different.indexed)
+            row(finding, framed: at < FindingsTab.framedRows),
+          if (samePicture.isNotEmpty)
+            _SamePictureHeader(
+              samePicture,
+              open: open,
+              onToggle: () => _open.value = !open,
+            ),
+          // No frames: the two of them would be the same picture.
+          if (open)
+            for (var finding in samePicture) row(finding, framed: false),
+        ];
+        return ListView.separated(
+          key: findingsTabKey,
+          padding: const EdgeInsets.symmetric(vertical: FwSpacing.sm),
+          itemCount: entries.length,
+          separatorBuilder: (context, index) =>
+              capped(Divider(height: 1, color: colors.line)),
+          itemBuilder: (context, at) => capped(entries[at]),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _own.dispose();
+    super.dispose();
+  }
+}
+
+/// The answer a reader arrives for: does anything look different, and how
+/// much.
+class _Summary extends StatelessWidget {
+  const _Summary({required this.different, required this.samePicture});
+
+  final int different;
+  final int samePicture;
+
+  String get _sentence {
+    if (different == 0) return 'Nothing looks different';
+    var looks = '$different ${different == 1 ? 'looks' : 'look'} different';
+    if (samePicture == 0) return looks;
+    var have = samePicture == 1 ? 'has' : 'have';
+    return '$looks · $samePicture $have the same picture';
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: FwSpacing.xl,
+      vertical: FwSpacing.md,
+    ),
+    child: Text(_sentence, style: context.type.heading),
+  );
+}
+
+/// The one line the findings with the same picture are folded under.
+class _SamePictureHeader extends StatelessWidget {
+  const _SamePictureHeader(
+    this.findings, {
+    required this.open,
+    required this.onToggle,
+  });
+
+  final List<ComparedFinding> findings;
+  final bool open;
+  final VoidCallback onToggle;
+
+  /// `Only the widget tree differs.`, over every channel the group moved on.
+  String get _what {
+    var channels = {
+      for (var finding in findings) ...findingUnseenChannels(finding),
+    };
+    var names = [
+      if (channels.contains('tree')) 'the widget tree',
+      if (channels.contains('texts')) 'the text',
+      if (channels.contains('events')) 'the events',
+    ];
+    if (names.length == 1) {
+      var differs = names.single == 'the events' ? 'differ' : 'differs';
+      return 'Only ${names.single} $differs.';
+    }
+    var head = names.sublist(0, names.length - 1).join(', ');
+    return 'Only $head and ${names.last} differ.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var colors = context.colors;
+    return Tappable(
+      key: findingsSamePictureKey,
+      onTap: onToggle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: FwSpacing.xl,
+          vertical: FwSpacing.lg,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${findings.length} with the same picture',
+                    style: context.type.bodyStrong,
+                  ),
+                  const Gap(FwSpacing.xs),
+                  Text(
+                    _what,
+                    style: context.type.caption.copyWith(color: colors.mut),
+                  ),
+                ],
+              ),
+            ),
+            const Gap(FwSpacing.lg),
+            Text(
+              open ? 'Hide' : 'Show',
+              style: context.type.caption.copyWith(color: colors.accentDark),
+            ),
+          ],
         ),
       ),
     );
@@ -138,9 +280,17 @@ class _FindingRow extends StatelessWidget {
       finding.id,
       label: finding.preview?.label,
     );
-    var changedSteps = [
+    var steps = [
       for (var step in finding.scenario?.items ?? const <ComparedItem>[])
-        if (isComparedFinding(step.state)) step.label ?? step.id,
+        if (isComparedFinding(step.state)) step,
+    ];
+    // Where something can be seen leads: only three steps are named.
+    var changedSteps = [
+      for (var step in [
+        ...steps.where((step) => !hasSamePicture(step)),
+        ...steps.where(hasSamePicture),
+      ])
+        step.label ?? step.id,
     ];
 
     return Tappable(
@@ -169,7 +319,15 @@ class _FindingRow extends StatelessWidget {
                         ),
                       ),
                       const Gap(FwSpacing.sm),
-                      StateChip(finding.state),
+                      switch (finding) {
+                        ComparedFinding(:var preview?) => StateChip.item(
+                          preview,
+                        ),
+                        ComparedFinding(:var scenario?) => StateChip.of(
+                          scenario,
+                        ),
+                        _ => StateChip(finding.state),
+                      },
                     ],
                   ),
                   const Gap(FwSpacing.xs),

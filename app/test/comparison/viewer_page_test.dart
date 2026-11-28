@@ -67,6 +67,24 @@ void main() {
       );
     });
 
+    test('counts the findings with the same picture apart', () {
+      expect(
+        comparisonPageTitle(
+          index(
+            previews: const [
+              ComparedItem(
+                id: 'a',
+                state: ComparedState.changed,
+                texts: TextChannel(added: ['Pay'], removed: ['Buy']),
+              ),
+              ComparedItem(id: 'b', state: ComparedState.added),
+            ],
+          ),
+        ),
+        '1 added · 1 same picture — fe642dc against origin/master',
+      );
+    });
+
     test('says when nothing changed, and when there was no verdict', () {
       expect(
         comparisonPageTitle(index(head: null)),

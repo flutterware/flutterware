@@ -11,6 +11,7 @@ import '../ui/age.dart';
 import '../ui/theme.dart';
 import '../utils/url_fragment.dart';
 import 'comparison_controller.dart';
+import 'finding_face.dart';
 import 'shot_store_http.dart';
 import 'ui/findings_tab.dart';
 import 'ui/not_in_comparison.dart';
@@ -85,21 +86,10 @@ class ViewerHistory {
 /// way the pull-request comment's heading words it, so the link and the page
 /// agree.
 String comparisonPageTitle(ComparisonIndex index) {
-  var counts = <ComparedState, int>{};
-  for (var state in [
-    for (var item in index.previewItems) item.state,
-    for (var scenario in index.scenarios) scenario.state,
-  ]) {
-    if (isComparedFinding(state)) counts[state] = (counts[state] ?? 0) + 1;
-  }
+  var words = verdictWords(_looks(index.previewItems, index.scenarios));
   var gap = index.verdictGap;
-  var verdict = counts.isNotEmpty
-      ? [
-          for (var entry
-              in counts.entries.toList()
-                ..sort((a, b) => a.key.index.compareTo(b.key.index)))
-            '${entry.value} ${entry.key.name}',
-        ].join(' · ')
+  var verdict = words.isNotEmpty
+      ? words
       : gap != null
       ? 'No verdict'
       : 'Nothing changed';
@@ -109,6 +99,21 @@ String comparisonPageTitle(ComparisonIndex index) {
   };
   return '$verdict — ${head}against ${index.against}';
 }
+
+/// Each finding of [previews] and [scenarios] as its state and whether its
+/// pictures are the same — counted rather than ranked, since the header asks
+/// from inside a build.
+Iterable<({ComparedState state, bool samePicture})> _looks(
+  List<ComparedItem> previews,
+  List<ScenarioComparison> scenarios,
+) => [
+  for (var item in previews)
+    if (isComparedFinding(item.state))
+      (state: item.state, samePicture: hasSamePicture(item)),
+  for (var scenario in scenarios)
+    if (isComparedFinding(scenario.state))
+      (state: scenario.state, samePicture: scenarioHasSamePicture(scenario)),
+];
 
 /// `previews/demo%2Fcard.dart%23card` → the tab and the decoded selection, or
 /// null when [fragment] does not start with a tab this page has.
@@ -145,6 +150,9 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
 
   ComparisonIndex? _index;
   String? _error;
+
+  /// Whether the findings tab lists what has the same picture.
+  final _samePictureOpen = ValueNotifier(false);
 
   /// The two halves the tabs draw, filled once from the file. [HalfStage.done]
   /// from the start: the run this page shows already happened.
@@ -357,7 +365,12 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
     if (!tabs.contains(_tab)) return NotInComparison(address: _address);
     var tab = _tab;
     if (tab == 'findings') {
-      return FindingsTab(index: index, store: _store, onOpen: _move);
+      return FindingsTab(
+        index: index,
+        store: _store,
+        onOpen: _move,
+        samePictureOpen: _samePictureOpen,
+      );
     }
     if (tab == 'scenarios' && index.scenarios.isEmpty) {
       return EmptyState(
@@ -405,6 +418,7 @@ class _ComparisonWebViewerState extends State<ComparisonWebViewer> {
   @override
   void dispose() {
     unawaited(_fragment?.cancel());
+    _samePictureOpen.dispose();
     _previews?.dispose();
     _scenarios?.dispose();
     super.dispose();
@@ -441,68 +455,81 @@ class _Header extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onSelect;
 
-  /// What the chips over [selected] count.
-  Map<ComparedState, int> get _counts {
-    var states = switch (selected) {
-      'previews' => index.previewItems.map((item) => item.state),
-      'scenarios' => index.scenarios.map((scenario) => scenario.state),
-      _ => [
-        ...index.previewItems.map((item) => item.state),
-        ...index.scenarios.map((scenario) => scenario.state),
-      ],
-    };
-    var counts = <ComparedState, int>{};
-    for (var state in states) {
-      if (isComparedFinding(state)) {
-        counts[state] = (counts[state] ?? 0) + 1;
+  /// What the chips over [selected] count: the findings by state, with those
+  /// whose pictures are the same counted apart.
+  ({Map<ComparedState, int> states, int samePicture}) get _counts {
+    var states = <ComparedState, int>{};
+    var samePicture = 0;
+    for (var row in _looks(
+      selected == 'scenarios' ? const [] : index.previewItems,
+      selected == 'previews' ? const [] : index.scenarios,
+    )) {
+      if (row.samePicture) {
+        samePicture++;
+      } else {
+        states[row.state] = (states[row.state] ?? 0) + 1;
       }
     }
-    return Map.fromEntries(
-      counts.entries.toList()
-        ..sort((a, b) => a.key.index.compareTo(b.key.index)),
+    return (
+      states: Map.fromEntries(
+        states.entries.toList()
+          ..sort((a, b) => a.key.index.compareTo(b.key.index)),
+      ),
+      samePicture: samePicture,
     );
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(
-          FwSpacing.xl,
-          FwSpacing.md,
-          FwSpacing.xl,
-          0,
+  Widget build(BuildContext context) {
+    var counts = _counts;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            FwSpacing.xl,
+            FwSpacing.md,
+            FwSpacing.xl,
+            0,
+          ),
+          child: _Receipt(index),
         ),
-        child: _Receipt(index),
-      ),
-      Padding(
-        padding: const EdgeInsets.only(left: FwSpacing.xl, right: FwSpacing.xl),
-        child: Row(
-          children: [
-            for (var tab in tabs)
-              _TabButton(
-                // The address keeps the ids; the reader gets words.
-                label: switch (tab) {
-                  'findings' => 'Findings',
-                  'previews' => 'Previews',
-                  'scenarios' => 'Scenarios',
-                  _ => tab,
-                },
-                selected: tab == selected,
-                onTap: () => onSelect(tab),
-              ),
-            const Spacer(),
-            for (var entry in _counts.entries)
-              Padding(
-                padding: const EdgeInsets.only(left: FwSpacing.xs),
-                child: StateChip(entry.key, count: entry.value),
-              ),
-          ],
+        Padding(
+          padding: const EdgeInsets.only(
+            left: FwSpacing.xl,
+            right: FwSpacing.xl,
+          ),
+          child: Row(
+            children: [
+              for (var tab in tabs)
+                _TabButton(
+                  // The address keeps the ids; the reader gets words.
+                  label: switch (tab) {
+                    'findings' => 'Findings',
+                    'previews' => 'Previews',
+                    'scenarios' => 'Scenarios',
+                    _ => tab,
+                  },
+                  selected: tab == selected,
+                  onTap: () => onSelect(tab),
+                ),
+              const Spacer(),
+              for (var entry in counts.states.entries)
+                Padding(
+                  padding: const EdgeInsets.only(left: FwSpacing.xs),
+                  child: StateChip(entry.key, count: entry.value),
+                ),
+              if (counts.samePicture > 0)
+                Padding(
+                  padding: const EdgeInsets.only(left: FwSpacing.xs),
+                  child: StateChip.samePicture(count: counts.samePicture),
+                ),
+            ],
+          ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 /// What this page is a report of: the two commits, the reach, and the clock.
