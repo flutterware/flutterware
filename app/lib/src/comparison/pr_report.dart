@@ -36,7 +36,11 @@ class _MosaicRow {
     required this.base,
     required this.head,
     this.clusters = const [],
+    this.crop,
   });
+
+  /// The part of both frames to draw, or null for the whole — see [cropFor].
+  final FrameCrop? crop;
 
   /// The caption's first half, which always survives — the state.
   final String state;
@@ -269,12 +273,22 @@ _MosaicRow? _row(_Finding finding, {required ShotCache cache}) {
   var base = decode(shots?.base, finding.frames?.base);
   var head = decode(shots?.head, finding.frames?.head);
   if (base == null && head == null) return null;
+  var diff = finding.item?.pixels?.diff;
+  // Only where both frames are the size the regions were measured in.
+  var crop = diff == null ? null : cropFor(diff);
+  if (crop != null &&
+      [base, head].nonNulls.any(
+        (frame) => frame.width != diff!.width || frame.height != diff.height,
+      )) {
+    crop = null;
+  }
   return _MosaicRow(
-    state: finding.state.name,
+    state: crop == null ? finding.state.name : '${finding.state.name}, zoomed',
     id: finding.id,
     base: base,
     head: head,
-    clusters: finding.item?.pixels?.diff.clusters ?? const [],
+    clusters: diff?.clusters ?? const [],
+    crop: crop,
   );
 }
 
@@ -361,9 +375,24 @@ Uint8List _mosaic(List<_MosaicRow> rows) {
 
 /// Both frames to [_rowHeight], with the changed regions boxed on the head.
 _MosaicCell _scale(_MosaicRow row) {
-  var base = row.base == null
-      ? null
-      : img.copyResize(row.base!, height: _rowHeight);
+  var crop = row.crop;
+  img.Image scaled(img.Image frame) {
+    if (crop == null) return img.copyResize(frame, height: _rowHeight);
+    return img.copyResize(
+      img.copyCrop(
+        frame,
+        x: crop.x,
+        y: crop.y,
+        width: crop.width,
+        height: crop.height,
+      ),
+      height: _rowHeight,
+      // Often a magnification: the default keeps every pixel a hard square.
+      interpolation: img.Interpolation.linear,
+    );
+  }
+
+  var base = row.base == null ? null : scaled(row.base!);
   img.Image? head;
   if (row.head != null) {
     // The clusters are burned in before scaling, in the frame's own pixel
@@ -378,10 +407,10 @@ _MosaicCell _scale(_MosaicRow row) {
         x2: rect.x + rect.width + 1,
         y2: rect.y + rect.height + 1,
         color: img.ColorRgb8(255, 160, 0),
-        thickness: (full.width / 300).clamp(1, 4).toDouble(),
+        thickness: ((crop?.width ?? full.width) / 300).clamp(1, 4).toDouble(),
       );
     }
-    head = img.copyResize(full, height: _rowHeight);
+    head = scaled(full);
   }
   return _MosaicCell(row: row, base: base, head: head);
 }

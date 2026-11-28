@@ -13,7 +13,7 @@ import '../../utils/graphite.dart';
 import '../finding_face.dart';
 import '../shot_store.dart';
 import 'channel_signature.dart';
-import 'shot_image.dart';
+import 'stage.dart';
 import 'state_chip.dart';
 
 const mergedTreeKey = Key('comparison.merged-tree');
@@ -518,6 +518,11 @@ class _StepNode extends StatelessWidget {
                   // base run had — there is nothing else to show for it.
                   frames?.head ?? frames?.base,
                   store: store,
+                  // Boxed the way the stage boxes it, so the flow says where
+                  // on the screen to look.
+                  diff: marked && frames?.head != null
+                      ? item.pixels?.diff
+                      : null,
                 ),
               ),
               const Gap(FwSpacing.xs),
@@ -556,10 +561,11 @@ class _StepNode extends StatelessWidget {
 
 /// One frame, decoded on demand.
 class _Thumbnail extends StatefulWidget {
-  const _Thumbnail(this.frame, {required this.store});
+  const _Thumbnail(this.frame, {required this.store, this.diff});
 
   final FrameRef? frame;
   final ShotStore store;
+  final PixelDiff? diff;
 
   @override
   State<_Thumbnail> createState() => _ThumbnailState();
@@ -612,7 +618,17 @@ class _ThumbnailState extends State<_Thumbnail> {
         ),
       );
     }
-    return Padding(padding: const EdgeInsets.all(2), child: ShotView(shot));
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      // The frame's own shape, or the boxes land beside the change: a node
+      // is clamped narrower than a desktop frame is.
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: shot.aspect,
+          child: BoxedShot(shot: shot, diff: widget.diff),
+        ),
+      ),
+    );
   }
 
   @override

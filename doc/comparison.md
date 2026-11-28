@@ -43,7 +43,8 @@ HTTP; opened as a local file it can't load its own frames.
 
 The page lists what looks different first. A change that left the picture the
 same, such as a new widget around an old one, is labelled `same picture` and
-folded under one line.
+folded under one line. A small change is drawn zoomed in, both in that list and
+in the comment's mosaic.
 
 `--report` writes a `comment.md` and a `mosaic.png` of the screens that look
 different, with the exported page under `web/`. The comment uses
